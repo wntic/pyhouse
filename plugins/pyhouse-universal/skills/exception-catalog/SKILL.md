@@ -16,15 +16,20 @@ Where that file sits depends on the architecture, and that is the only thing tha
 | Hexagonal (`hex-architecture`) | `<package>/domain/exceptions.py` | `DomainError` |
 | Flat-layered (`flat-layered`) | `<package>/exceptions/__init__.py` | `<Service>Error` |
 
-The **shape** below is identical in both. The hexagonal root additionally carries an `http_status`,
-because a central handler translates it into a response; a flat-layered worker with no HTTP surface
-carries the `code` alone. Add `http_status` only where something actually maps it.
+The **shape** below is identical in both, and in both **`code` is the only required field**.
+Everything else is a transport annotation, added when a transport actually reads it and omitted when
+none does. `http_status` is the one this catalogue writes out, because an HTTP entrypoint has a central
+handler that translates it into a response — but **the trigger is the HTTP surface, not the architecture
+family.** A hexagonal service driven only by a CLI, a worker loop or a queue consumer carries the `code`
+alone, exactly as a flat-layered worker does; a flat-layered service that does serve HTTP adds
+`http_status` exactly as a hexagonal one would.
 
-`http_status` is a deliberate **transport annotation on a domain class**, not a leak — scoped by
-that carve-out and by the hard stop below, and kept on the class precisely so that no `code`→status
-map exists anywhere. Deriving the status from the class it belongs to is what keeps this catalogue
-free of a hand-maintained table that every new error has to be remembered into; a project that
-renders no responses omits the attribute instead.
+Where an annotation is warranted it is a deliberate **transport annotation on a domain class**, not a
+leak — kept on the class precisely so that no `code`→annotation map exists anywhere. Deriving the value
+from the class it belongs to is what keeps this catalogue free of a hand-maintained table that every new
+error has to be remembered into; a project whose transport reads nothing omits the attribute instead. A
+non-HTTP transport annotates by the same rule under its own name — a process exit code, a gRPC status —
+or, far more often, needs nothing and leaves `code` to do the work.
 
 ## When to use vs. neighbours
 
@@ -90,7 +95,9 @@ class UpstreamUnavailableError(FooClientError):
 
 ## Template — a hexagonal catalog
 
-Identical, plus `http_status`, which the central error handler reads:
+Identical, plus `http_status` — shown here because this family most often fronts an HTTP API, and read
+by the central error handler. **A hexagonal service with no HTTP surface — a CLI, a worker loop, a queue
+consumer — drops the attribute and is otherwise unchanged.**
 
 ```python
 # myapp/domain/exceptions.py
@@ -265,7 +272,7 @@ one becomes a silent wrong answer.
 12. **No secret in `context`.** A token, key, password or connection string placed there reaches the log
     line, and the response body where the project renders one, by construction — both render `context`
     verbatim. `python-style` bans the same values from a log line; this is the path around it.
-13. **Hexagonal errors render through the central HTTP handler.** Its response status is
+13. **Where the entrypoint serves HTTP, errors render through one central handler.** Its response status is
     `exc.http_status`; the `ErrorResponse` body carries `code=exc.code`, `message=str(exc)`, and
     `context=exc.context`. The custom raise above renders HTTP 409 with
     `{"code": "FOO_NAME_TAKEN", "message": "foo name already exists", "context": {"name": foo.name}}`.
@@ -284,8 +291,8 @@ one becomes a silent wrong answer.
     `pyhouse-hex` plugin.
 15. **The two roots name their upstream failure differently, deliberately.** Hexagonal has
     `UpstreamError`, a direct child of `DomainError`: any dependency failure, rendered `502`. Flat-layered
-    has `UpstreamUnavailableError`, a refinement of the *client* class for one upstream, and no
-    `http_status` because a worker renders nothing. They are not two spellings of one class and neither
+    has `UpstreamUnavailableError`, a refinement of the *client* class for one upstream — and in the
+    worker case that family usually serves, no `http_status`, because nothing renders it. They are not two spellings of one class and neither
     renames to the other; a project has one root and therefore only ever meets one of them.
 
 ## Inlined typing / import rules
