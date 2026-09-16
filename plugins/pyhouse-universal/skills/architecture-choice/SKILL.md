@@ -1,6 +1,7 @@
 ---
 name: architecture-choice
-description: Use when deciding whether a service should be hexagonal or flat-layered — a greenfield service whose family is unsettled, or an existing one that has outgrown the style it was built in. Decides from what the service itself must enforce, names what each choice costs, and says when neither family applies. Routes to `hex-architecture` or `flat-layered` and teaches neither style; where a boundary goes at all is `coupling`'s.
+description: Use when deciding whether a service should be hexagonal or flat-layered — a greenfield service whose family is unsettled, or an existing one that has outgrown the style it was built in. Decides from what the service itself must enforce, names what each choice costs, and states plainly which project shapes this catalogue does not cover rather than forcing one into a family. Routes to `hex-architecture` or `flat-layered` and teaches neither style; where a boundary goes at all is `coupling`'s.
+when_to_use: Also fires on "which architecture for this service", "should this be hexagonal", "do we need ports here" and "is a plain layered layout enough", and on asking whether the catalogue's families fit a Django or Flask project, a package-by-feature tree, a library or SDK, a CLI tool, an orchestrator-shaped data repo, or a modular monolith.
 ---
 
 # Architecture Choice — hexagonal, flat-layered, or neither
@@ -8,7 +9,8 @@ description: Use when deciding whether a service should be hexagonal or flat-lay
 Which of the catalogue's two service-architecture families a service belongs to, settled before any
 code exists. This skill decides and hands off: the layer contract, the package layout and every
 artifact template belong to the family skill it routes to, and the question *where a boundary goes at
-all* belongs to `coupling`.
+all* belongs to `coupling`. Both families assume the codebase chooses its own layout; where something
+else already fixes it, this skill names the shape as uncovered instead of routing.
 
 It is a universal skill, so it **names** the two family skills without requiring either. Everything
 needed to reach a recommendation and state its reason is here; the family skills carry the how. See
@@ -32,10 +34,17 @@ needed to reach a recommendation and state its reason is here; the family skills
   family is still chosen once per service, here.
 - Reviewing an existing service against the style it already has → not this skill; load that family's
   skill directly.
-- A script, a single-purpose job, a one-shot migration → neither family applies; see
-  `## When neither family applies`, and do not route to a family skill.
+- A script, a single-purpose job, a one-shot migration → too small for either family; see
+  `### Too small for either family`, and do not route to a family skill.
+- A Django or Flask project, a package-by-feature tree, a library or SDK, a CLI tool, an
+  orchestrator-shaped data repo, a modular monolith → outside this catalogue's two families; see
+  `### Project shapes this catalogue does not cover`. Name the shape rather than routing to the nearer
+  family.
 
 ## The question that decides it
+
+Both answers below route into a family. If the project's shape is already fixed by a framework, an
+orchestrator or a packaging form, read `### Project shapes this catalogue does not cover` first.
 
 > **Does this service have business invariants of its own that it must enforce?**
 
@@ -49,8 +58,9 @@ and moves on has enforced nothing of its own; it has checked that someone else k
   Hexagonal. The layer split exists to keep those rules testable and changeable without touching a
   database, a queue or a framework.
 - **No — the service orchestrates external systems, and its correctness is whether the data moved.**
-  Flat-layered. There is nothing to protect, so the protection would be cost with no buyer, and
-  choosing flat is not a compromise.
+  Flat-layered — what the literature calls package by layer, after Simon Brown, with what Fowler calls
+  transaction scripts above it. There is nothing to protect, so the protection would be cost with no
+  buyer, and choosing flat is not a compromise.
 
 Answer this first. It settles most services on its own. Everything below either confirms that answer
 or flips a genuinely borderline one; nothing below outweighs it.
@@ -113,7 +123,7 @@ Neither cost is a defect. Spend structure where change is expected, and nowhere 
 
 ## The cases that are not the two clean ones
 
-### When neither family applies
+### Too small for either family
 
 A single-file script, a lambda whose whole body is one function, a one-shot migration, a couple of
 modules run once and deleted. **Say so and route nowhere: you do not need an architecture skill for
@@ -126,6 +136,42 @@ packages with nothing in them and a reviewer who assumes work lives there.
 
 Run this skill again when the script stops being one: a second trigger, a second reader of the same
 logic, or the first rule someone must not break.
+
+### Project shapes this catalogue does not cover
+
+Both families are **service** architectures, and both assume the layout is this codebase's to choose.
+A project whose shape a framework, an orchestrator or a packaging form has already fixed is outside
+them. These are the ones that come up in Python:
+
+- **A framework-dictated layout** — Django apps, Flask blueprints. The framework owns the package
+  shape, and the ORM models are the persistence and the rules at once.
+- **Fat models carrying real invariants**, with no appetite for a protocol and an adapter per
+  dependency. The rule belongs in one place and that place is a model method. This shape answers the
+  deciding question "yes" and is still not hexagonal.
+- **Package by feature, or vertical slices** — one package per feature holding its own router,
+  schemas, service functions and queries. A deliberate alternative to both families, not a degenerate
+  form of either.
+- **A library, an SDK or any distributed package.** No entrypoint and no deployment; the public API is
+  the only boundary that matters. It is not a script either, so the section above does not reach it.
+- **A multi-command CLI tool**, where the command tree is the structure.
+- **A data repository shaped by its orchestrator** — Airflow, Dagster, Prefect. The DAG or asset graph
+  dictates the directories, and that tool's conventions outrank anything here.
+- **An ML or research repository** — notebooks, experiment scripts, training and evaluation runs.
+- **A modular monolith** — one deployable with enforced boundaries between internal modules. The
+  catalogue's workspace skill covers a monorepo of separate services, which is a different thing.
+
+**Name the shape and say plainly that this catalogue does not cover it.** Do not route to the nearer
+family and do not supply a layout — there is none here to give, and a hexagonal layer split dropped
+into a framework's tree fights the framework at every file.
+
+The universal skills still bind in full — `naming`, `python-style`, `python-packaging`,
+`exception-catalog`, `test-principles` — and they are not a consolation prize; they are the rules that
+were never architectural in the first place. The deciding question is still worth answering, because
+knowing whether the project owns invariants tells the reader what to protect. It just selects no
+family here.
+
+Run this skill again if a service is carved out of the project: a deployable with its own entrypoint
+and its own reason to exist is back in scope, and the choice is made for that service alone.
 
 ### Real invariants *and* heavy integration work
 
@@ -177,7 +223,8 @@ templates. To get it, install the plugin the recommendation names, from the `pyh
 
 - **Hexagonal** → `pyhouse-hex`, which carries `hex-architecture` and the rest of the `hex-*` family.
 - **Flat-layered** → `pyhouse-flat`, which carries `flat-layered` and the rest of the `flat-*` family.
-- **Neither** → nothing to install. The universal skills already beside this one are the answer.
+- **Neither** — too small, or a shape this catalogue does not cover → nothing to install. The
+  universal skills already beside this one are the answer.
 
 Both family plugins depend on `pyhouse-universal` and Claude Code enables the dependency transitively,
 so installing one keeps everything here.
@@ -204,8 +251,11 @@ so installing one keeps everything here.
    share, a second entrypoint over the same logic, and a dependency gaining a second real
    implementation.
 8. **A service with no invariants gets flat, and that is the answer, not a concession.**
-9. **When neither family applies, say so and route nowhere.** Handing a script an architecture is as
-   wrong an outcome as handing a rules-heavy service the wrong family.
+9. **When neither family applies, say so and route nowhere.** Two different cases end the same way —
+   a project too small to need an architecture, and one whose shape this catalogue does not cover.
+   Name what does apply and stop. Handing a script an architecture is as wrong an outcome as handing a
+   rules-heavy service the wrong family, and routing an uncovered shape to the nearer family is worse
+   than either, because the layout it lands in is one nothing else in the project expects.
 
 ## Hard stops
 
@@ -222,6 +272,10 @@ so installing one keeps everything here.
   both.
 - A script, a lambda body or a one-shot migration is being given an architecture → stop, it needs none;
   name the universal skills and finish.
+- A project whose layout a framework, an orchestrator or a packaging form already fixes — a Django or
+  Flask tree, a package-by-feature service, a library, a CLI tool, an Airflow or Dagster repo, a
+  modular monolith — is being assigned hexagonal or flat → stop, this catalogue does not cover that
+  shape; name it, name the universal skills, and finish.
 - A working hexagonal service is being demolished into flat because an audit found no invariants →
   stop, over-structure is not a defect worth a rewrite; migrate only when the structure blocks work.
 - This skill is being asked for the layer contract, the package layout or a file template → stop, use

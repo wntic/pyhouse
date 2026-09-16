@@ -27,11 +27,12 @@ language-level rules, or before you have picked an architecture.
 > **Does this service have business invariants of its own that it must enforce?**
 
 Rules about what is valid living in your codebase — **hexagonal**. Orchestrating external systems,
-where correctness is whether the data moved — **flat-layered**. A script run once and deleted —
-neither.
+where correctness is whether the data moved — **flat-layered**. A script run once and deleted, or a
+project whose layout Django, Airflow or a package-by-feature convention already fixes — neither.
 
 Run `/choose-architecture` for the cases that are not clean: invariants *and* heavy integration work,
-a flat service growing its first rule, a monorepo holding both.
+a flat service growing its first rule, a monorepo holding both, and the shapes the catalogue does not
+cover.
 
 ## How a skill is written
 

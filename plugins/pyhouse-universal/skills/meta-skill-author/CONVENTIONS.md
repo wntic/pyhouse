@@ -12,7 +12,7 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Universal (8)
 
-- `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; says when neither applies.
+- `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
 - `python-style` — Owns the declared-type-over-bare-`dict` rule and the per-layer logging allocation that keeps domain code silent.

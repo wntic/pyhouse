@@ -30,9 +30,9 @@ it lists the whole catalogue, including the skills of a family plugin that is no
 flat-layered (`flat-*`); no service is both. **The universal skills bind either way** — they govern
 names, Python forms, packaging, errors, boundaries and testing whichever family a project chose. The
 architecture chooser, **`architecture-choice`**, picks between the two families for a greenfield
-service — and says when neither of them applies. It is itself universal, because it is what you
-consult before you know which family you are in, and the `/choose-architecture` command walks it one
-question at a time.
+service — and says when neither of them applies — a project too small to need one, or a shape the
+catalogue does not cover. It is itself universal, because it is what you consult before you know
+which family you are in, and the `/choose-architecture` command walks it one question at a time.
 
 **The catalogue ships as three plugins** on the Claude Code marketplace: `pyhouse-universal` (the
 unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat`. Both family
@@ -54,7 +54,7 @@ once rather than throughout — before the family is known:
 
 | Skill | Owns |
 |---|---|
-| `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, and the cases where neither family applies |
+| `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
 | `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
 | `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
@@ -93,8 +93,10 @@ this set, because nothing ever fails to make you fix it.
 The table is the summary, not the decision. **`architecture-choice` owns the decision** — it is
 universal, so it is present whichever family plugins are installed, and it covers the cases this table
 cannot: a service with real rules *and* heavy integration work, a flat service growing its first rule,
-a workspace whose members differ, and the scripts and one-shot jobs that need neither family. Run
-`/choose-architecture` to walk it interactively, or read the skill. When the choice turns on how much
+a workspace whose members differ, the scripts and one-shot jobs that need neither family, and the
+project shapes — framework-dictated trees, package-by-feature services, libraries, modular
+monoliths — that this catalogue does not cover at all. Run `/choose-architecture` to walk it
+interactively, or read the skill. When the choice turns on how much
 the protected rules will keep changing, load `coupling` alongside it — it owns that judgment.
 
 ## Hex core (12)

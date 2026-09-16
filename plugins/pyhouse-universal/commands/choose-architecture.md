@@ -1,5 +1,5 @@
 ---
-description: Walk the architecture-choice skill interactively for one service and print the family it belongs to, or that it needs none
+description: Walk the architecture-choice skill interactively for one service and print the family it belongs to, or that no family applies
 argument-hint: "[a sentence or two describing the service]"
 ---
 
@@ -22,17 +22,22 @@ answer from memory: read the skill, then work from it.
    question. Ask a further one only while the outcome is genuinely still open, and treat the answers as
    the skill treats them — never as a running total.
 5. **Check the skill's non-obvious cases before recommending.** If one of them covers what you were
-   told, follow it; that is the answer, and it may be that no family applies.
+   told, follow it; that is the answer, and it may be that no family applies — because the project is
+   too small, or because its shape is outside the two families entirely.
 
 ## Printing the result
 
 Four lines, nothing else:
 
-- **Recommendation** — one family, or neither.
+- **Recommendation** — one family, or neither. When neither, say which kind: too small to need an
+  architecture, or a shape the catalogue does not cover.
 - **Why** — the answer that settled it, quoted back from what the user said.
-- **The price** — what this choice makes expensive, as the skill states it.
-- **Next** — what to read, and the plugin to install if it is not present. When no family applies, name
-  what does apply instead and say plainly that no architecture skill is needed.
+- **The price** — what this choice makes expensive, as the skill states it. When no family applies
+  there is no price to name — say what the reader gets no templates for, and do not invent one.
+- **Next** — what to read, and the plugin to install if it is not present. When the project is too
+  small, name what does apply instead and say plainly that no architecture skill is needed. When the
+  shape is one the catalogue does not cover, name the shape, say so, and name the universal skills —
+  do not offer a layout.
 
 Then stop. Do not scaffold a project, create directories or write files — this command decides and
 hands off.
