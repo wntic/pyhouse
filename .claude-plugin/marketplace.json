@@ -1,0 +1,24 @@
+{
+  "name": "pyhouse",
+  "owner": {
+    "name": "Yegor Vorobyev"
+  },
+  "metadata": {
+    "description": "Python house-style skills for writing services: one universal core plus two mutually exclusive architecture families.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "pyhouse-universal",
+      "source": "./plugins/pyhouse-universal"
+    },
+    {
+      "name": "pyhouse-hex",
+      "source": "./plugins/pyhouse-hex"
+    },
+    {
+      "name": "pyhouse-flat",
+      "source": "./plugins/pyhouse-flat"
+    }
+  ]
+}

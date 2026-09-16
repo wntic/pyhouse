@@ -1,0 +1,303 @@
+---
+name: test-architecture-rule
+description: Use when forbidding X in layer Y with a static grep firewall — an architecture test, its path constants, a rule fragment, a bounded allow-list. Owns `tests/unit/test_architecture.py` in a package and `tests/test_architecture.py` at a workspace root. Runtime behaviour belongs in an ordinary test; the constitution is `test-principles`.
+---
+
+# Test — Architectural Firewall Rule
+
+Each function greps the source tree for a forbidden pattern and asserts the result is empty. Add one rule to `tests/unit/test_architecture.py` in hex projects or `tests/test_architecture.py` at a flat workspace's root; the firewall must stay collectable when the tree is broken.
+
+## When to use vs. neighbours
+
+- A static, absolute "layer Y must not import X" invariant the codebase needs enforced → this skill.
+- Shared testing constitution → `test-principles`. That is prose the whole suite obeys; this is one
+  grep that reddens a build.
+- Runtime domain behavior → `hex-test-domain`.
+- Runtime schema behavior → `flat-test-schema-package`. Greps enforce static structure; runtime tests
+  enforce dynamic behavior.
+- Hex layer boundaries → `hex-architecture`.
+- Flat workspace boundaries → `flat-layered`.
+- A type-correctness rule → `mypy` / `pyright` enforce it; do not duplicate as a grep test.
+- A style or formatting rule → `ruff` enforces it; do not duplicate.
+- A "should usually" rule with material exceptions → not a firewall candidate; document it in the
+  skill that owns the layer instead. Firewalls are absolutes that accumulate exceptions and stop
+  paying for themselves.
+- An intent-based rule ("do not use `Any` *unless* at a true external boundary") → not a firewall
+  candidate; greps either hit or do not, with no intent inspection.
+
+## Template(s) — `grep` through `subprocess`, one plain pytest function per rule
+
+### File scaffold (once per repo)
+
+The flat workspace form follows. For a hex package, replace its path-constant block with the hex fragment below; keep the imports and `_grep` helper.
+
+```python
+import subprocess
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[1]
+_PACKAGES = str(_ROOT / "packages")
+_SCHEMA = str(_ROOT / "packages" / "myschema")
+_SERVICES = str(_ROOT / "services")
+
+# Tests live beside the member they cover, so a workspace-wide test rule sweeps every member's
+# tests/ tree plus this one. Splat these into `_grep`: `_grep(pattern, *_TESTS)`.
+_TESTS = [
+    str(p)
+    for p in (*_ROOT.glob("packages/*/tests"), *_ROOT.glob("services/*/tests"), _ROOT / "tests")
+]
+_UNIT_TESTS = [
+    str(p)
+    for p in (*_ROOT.glob("packages/*/tests/unit"), *_ROOT.glob("services/*/tests/unit"))
+]
+# Only a package whose DECLARED ROLE is framework wrapper may import the framework (`flat-layered`
+# rule 9). The role is declared when the member is admitted, never inferred from a directory name —
+# so the declared name is stated here once, with an entry for any member that declared another.
+_FRAMEWORK_WRAPPER_PACKAGE = "temporal"
+_FRAMEWORK_WRAPPER_BY_MEMBER = {"foo_parser": "durable"}
+# The workspace's shared framework-guarded helper module. It exists so a run function stays
+# framework-free, so it is exempted by the rule's allow-list below, never by going unswept.
+_SHARED_FRAMEWORK_GUARD = str(_ROOT / "packages" / "shared" / "src" / "shared" / "temporal.py")
+# Every member's src/ EXCEPT the package holding the wrapper role. packages/ is swept too, and
+# loose top-level modules are kept (no is_dir() filter) — that is what puts the shared helper in
+# front of the allow-list instead of leaving it exempt because nothing looked at it.
+_SRC_OUTSIDE_FRAMEWORK_WRAPPER = [
+    str(p)
+    for p in (*_ROOT.glob("packages/*/src/*/*"), *_ROOT.glob("services/*/src/*/*"))
+    if p.name
+    != _FRAMEWORK_WRAPPER_BY_MEMBER.get(p.parents[2].name, _FRAMEWORK_WRAPPER_PACKAGE)
+]
+
+
+def _grep(pattern: str, *paths: str) -> list[str]:
+    if not paths:  # a glob that matched nothing must not leave grep reading stdin
+        return []
+    result = subprocess.run(
+        [
+            "grep", "-rnE",
+            "--include=*.py",
+            "--exclude=test_architecture.py",
+            pattern,
+            *paths,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return [line for line in result.stdout.splitlines() if line]
+```
+
+Patterns run under `-E`: basic `grep`'s `\|` alternation is a GNU extension that BSD `grep` does not
+reliably carry, while `-E` behaves the same on both. `grep` exits 1 when it finds nothing, which is the
+ordinary case, so the helper must not check the return code — it reads `stdout` and lets an empty result
+be an empty list.
+
+### Hex path constants
+
+For `tests/unit/test_architecture.py`, replace the scaffold's constants from `_ROOT` through `_SRC_OUTSIDE_FRAMEWORK_WRAPPER` with:
+
+```python
+_ROOT = Path(__file__).resolve().parents[2]
+_SRC = str(_ROOT / "src" / "myapp")
+_TESTS = str(_ROOT / "tests")
+_DOMAIN = str(_ROOT / "src" / "myapp" / "domain")
+_APP = str(_ROOT / "src" / "myapp" / "application")
+```
+
+### Standard rule (no allow-list)
+
+```python
+def test_no_<rule_name>() -> None:
+    hits = _grep("<pattern>", <paths>)
+    assert hits == [], "<message>:\n" + "\n".join(hits)
+```
+
+Concrete, and the rule this workspace most needs:
+
+```python
+def test_no_service_defines_a_table() -> None:
+    hits = _grep(r"^from sqlalchemy import.*\bTable\b|sqlalchemy\.Table", _SERVICES)
+    assert hits == [], "a Table defined outside the schema package:\n" + "\n".join(hits)
+```
+
+Hex example:
+
+```python
+def test_domain_has_no_sqlalchemy() -> None:
+    hits = _grep(r"import sqlalchemy|from sqlalchemy", _DOMAIN)
+    assert hits == [], "sqlalchemy import in domain:\n" + "\n".join(hits)
+```
+
+### Rule with an in-test allow-list
+
+```python
+def test_no_service_imports_the_registry_tables_directly() -> None:
+    _repo = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "repositories")
+    all_hits = _grep(r"entities_table|entity_kinds_table", _SERVICES, _SCHEMA)
+    forbidden = [h for h in all_hits if not h.startswith(_repo)]
+    assert forbidden == [], (
+        "registry tables reached directly — go through EntitiesRepository:\n"
+        + "\n".join(forbidden)
+    )
+```
+
+The pattern stays simple; the exception is explicit and visible to whoever reads the failure.
+
+The framework-import rule is the second allow-listed one, and the entry is the workspace's shared
+framework-guarded helper module:
+
+```python
+def test_no_framework_import_outside_the_wrapper_package() -> None:
+    all_hits = _grep(r"\btemporalio\b", *_SRC_OUTSIDE_FRAMEWORK_WRAPPER)
+    forbidden = [h for h in all_hits if not h.startswith(_SHARED_FRAMEWORK_GUARD)]
+    assert forbidden == [], (
+        "framework import outside the declared framework-wrapper package:\n" + "\n".join(forbidden)
+    )
+```
+
+Sweeping `packages/` and allow-listing the shared helper are **one change, not two**. A sweep that
+stops at `services/` leaves that helper exempt because nothing looked at it, and adding the sweep
+without the allow-list entry turns the firewall red on its own sanctioned exception.
+
+Hex example:
+
+```python
+def test_no_print_calls_outside_allowed() -> None:
+    _main_py = str(_ROOT / "src" / "myapp" / "restapi" / "main.py")
+    _cli = str(_ROOT / "src" / "myapp" / "cli")
+    all_hits = _grep(r"print\(", _SRC)
+    forbidden = [h for h in all_hits if not h.startswith(_main_py) and not h.startswith(_cli)]
+    assert forbidden == [], "print() calls found outside allowed locations:\n" + "\n".join(forbidden)
+```
+
+The pattern stays simple ("no `print(`"); exceptions are explicit and visible to a future maintainer.
+
+### Adding a new path constant (when a new scope is needed)
+
+Append at the top of the file, next to the existing constants:
+
+```python
+_RESTAPI = str(_ROOT / "src" / "myapp" / "restapi")
+_INFRA   = str(_ROOT / "src" / "myapp" / "infrastructure")
+```
+
+## Other bindings
+
+- **Import-linter contracts**, declared in config and run as their own command. Forbidden
+  relationships become layer and forbidden-module contracts instead of patterns, and because it
+  resolves real imports there are no word-boundary or docstring false positives. One rule per
+  contract, the named allow-list, the failure naming the offending module and the never-ship-it-red
+  rule are unchanged; the firewall stops being a test, so collectability moves to the linter's run.
+- **A linter's banned-API rule** (`flake8-tidy-imports`' `banned-api` under ruff). Cheapest — it runs
+  in a pass the project already has, scoped per directory. It reaches import rules only, so every
+  non-import invariant (`print(`, a sleep, a module-level engine) stays here and most projects carry
+  both, and the hard stop on restating what the linter enforces decides which file a rule goes in.
+- **An `ast` walk over the tree.** Distinguishes an import from the same word in a docstring, and a
+  module-level call from one nested in a function. Only `_grep` is replaced — every rule below holds,
+  and rule 8's escaping advice becomes a node test instead.
+
+## Rules
+
+Consult `test-principles` for the testing constitution. Where this skill contradicts
+`test-principles`, the constitution wins. The *words inside* a rule's name — which layer, which
+thing, which verb — are `naming`'s decision; the **patterns those words go into are rule 2 here**.
+
+1. **One test function per rule, with nothing around it.** No fixtures, no parametrization, no async —
+   `def test_*() -> None` under the pytest binding. The test name **is** the rule, and the file's test
+   list reads as the workspace's structural constitution.
+2. **A rule's name states its scope and what is absent, in its family's form.** Do not pluralize, do
+   not add qualifiers.
+   - **hex — layer-scoped:** `test_<layer>_has_no_<thing>`, e.g. `test_domain_has_no_pydantic`.
+   - **flat — service-scoped:** `test_no_service_<verb>_<thing>`, e.g.
+     `test_no_service_defines_a_table`.
+   - **either family — repo-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
+   A name that does not say where the rule looks sends a reader to the pattern to find out, and the
+   file stops being readable as a constitution.
+3. **The failure names every offending location, never a count or a boolean.** Assert the collected
+   hits against an empty collection so the runner prints the actual list beside the expected one —
+   `assert hits == []` under pytest. `assert not hits` and `assert len(hits) == 0` say the firewall is
+   red and nothing about where.
+4. **Every scope a rule names is a named constant at the top of the file.** Add a new `_<NAME>`
+   constant when a new scope is needed; a path written inside a test drifts silently when the tree
+   moves, and the rule keeps passing over a directory that no longer exists.
+5. **Run the rule against the current tree before committing.** Confirm zero unexpected hits, and
+   never ship a firewall that is already red — narrow it or fix the hits. A rule that arrives red
+   teaches everyone to skip it.
+6. **Exceptions are allow-listed inside the test, by name, and cap at three.** Filter the result
+   against named paths — `startswith(...)` against a path constant under the grep binding — rather
+   than weakening the pattern, so the pattern stays readable and the exception is visible to whoever
+   reads the failure. The framework-import rule's one entry is `_SHARED_FRAMEWORK_GUARD`, the shared
+   framework-guarded helper module. A fourth entry means the rule has too many exceptions to be a
+   firewall: split it into something more specific, or demote it to prose.
+7. **A rule never imports what it forbids, or anything from the tree it polices.** Importing it
+   defeats the firewall, and the file must stay collectable when the tree is broken — a broken import
+   turns "the rule failed" into "the rule could not be collected", which reads as green in some
+   reports. The schedule/task-queue rule below is the one documented exception, and it is not a
+   pattern rule.
+8. **A pattern matches the whole token it names and nothing that merely contains it.** Under
+   `grep -E` that is raw strings wherever a backslash appears, `\b` at both ends of a bare word, and
+   plain `|` for alternation. A pattern that also catches a longer identifier, a comment or a
+   docstring makes the rule's own name a lie, and the first false hit is what gets it deleted.
+9. **A rule that exempts a package because of the role it holds reads that role from what the
+   workspace declared, never from a directory name.** The standing case is the framework wrapper: the
+   role is declared when the member is admitted (`flat-monorepo` rule 2) and only that package may
+   import the framework (`flat-layered` rule 9), so the exempted name lives in a constant a workspace
+   that chose another name overrides. A rule with the name hardcoded is green on a workspace where it
+   is checking nothing.
+
+### Candidates, by family
+
+The two lists below are the invariants this catalogue has found worth a firewall, one list per
+architecture family. Each names the skill that *states* the invariant, in `pyhouse-hex` or
+`pyhouse-flat`; the invariant itself is spelled out here, so the list is readable and the rule
+writable with neither family plugin installed. Both templates above are complete in this file.
+
+### What is worth a firewall in hex
+
+- No SQLAlchemy or Pydantic imports in domain code — `hex-architecture`.
+- No infrastructure dependencies in domain or application code — `hex-architecture`.
+- No mocks in tests — `test-principles`.
+- No print calls outside the explicit entrypoint allow-list — `python-style`.
+
+### What is worth a firewall in flat
+
+- No service-defined tables, raw SQL, or direct registry-table access — `flat-schema-package`.
+- No sibling-service imports, and no framework import outside the package whose declared role is
+  framework wrapper (plus the shared framework-guarded helper the allow-list names) — `flat-layered`.
+- No module-level engine construction — `flat-schema-package`.
+- No engines in unit tests, mocks, or sleeps in tests — `test-principles`.
+
+### A rule that is not a grep
+
+"Every schedule's task queue is served by some worker" is worth pinning and cannot be grepped
+meaningfully. Write it as an ordinary test that imports the schedule script's declarations and the
+services' task-queue constants and compares the two sets. It lives in the same file, breaks rule 7's
+"no imports" for a documented reason, and is the exception that proves it — if a second such rule
+appears, move both into a `tests/test_schedules.py` of their own.
+
+## Inlined typing / import rules
+
+- `subprocess` and `pathlib.Path` only at the file level (already present).
+- In a grep rule, never import from `myapp` — importing what you're trying to forbid defeats the firewall.
+- Tests are sync `def test_*() -> None`.
+
+## Hard stops
+
+- The pattern produces unintended hits in the current tree → stop, fix them or narrow the pattern before
+  the test is committed.
+- The rule depends on intent or on runtime state → stop, this is not a grep-firewall rule.
+- The allow-list would need a fourth entry → stop, the rule is too leaky; restructure or demote it.
+- A fixture, `parametrize` or `async` is being added → stop, one plain `def test_*` per rule.
+- A `try/except` or a conditional skip is being wrapped around `_grep` → stop, that breaks the
+  unconditional property that makes a firewall worth having.
+- The rule restates something the linter or type checker already enforces → stop, two enforcers for one
+  rule means two places to change it.
+- A "no `Protocol` in services" rule is proposed → stop unless the workspace genuinely has none: the
+  style permits one the moment a second implementation exists, so this rule turns into an allow-list
+  that outgrows three entries. It belongs in `flat-layered` as prose, where it already is.
+- A grep rule imports anything from `myapp` → stop, importing the thing you forbid defeats the firewall.
+- A rule exempts a package by a hardcoded directory name rather than by the role the workspace declared
+  → stop, read the name from a constant (rule 9); otherwise the rule is green on every workspace that
+  named that package something else, and it is checking nothing.
+- A sweep is widened over a directory holding a sanctioned exception, without the allow-list entry
+  landing in the same change → stop, the firewall goes red on its own exception; land both together.
+- Spec inlines a literal path inside a test → stop, use the `_<NAME>` constants at module top; add a new constant if a new scope is needed.

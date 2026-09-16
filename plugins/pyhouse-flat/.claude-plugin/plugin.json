@@ -1,0 +1,25 @@
+{
+  "name": "pyhouse-flat",
+  "displayName": "pyhouse \u2014 flat layered",
+  "version": "0.1.0",
+  "description": "Flat package-by-technical-role Python service skills for workers, crawlers, pipelines, ETL and glue: the layered package layout and what each package may import, the uv monorepo workspace, the shared schema package every service imports, entrypoint trigger choice between loop, schedule and stream, optional durable workflows, and the five test families that cover them. Depends on pyhouse-universal, which Claude Code installs with it.",
+  "author": {
+    "name": "Yegor Vorobyev"
+  },
+  "homepage": "https://github.com/wntic/pyhouse",
+  "repository": "https://github.com/wntic/pyhouse",
+  "license": "MIT",
+  "keywords": [
+    "python",
+    "layered-architecture",
+    "monorepo",
+    "uv-workspace",
+    "sqlalchemy",
+    "temporal",
+    "etl"
+  ],
+  "skills": "./skills",
+  "dependencies": [
+    "pyhouse-universal"
+  ]
+}

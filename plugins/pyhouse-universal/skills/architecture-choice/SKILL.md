@@ -1,0 +1,229 @@
+---
+name: architecture-choice
+description: Use when deciding whether a service should be hexagonal or flat-layered — a greenfield service whose family is unsettled, or an existing one that has outgrown the style it was built in. Decides from what the service itself must enforce, names what each choice costs, and says when neither family applies. Routes to `hex-architecture` or `flat-layered` and teaches neither style; where a boundary goes at all is `coupling`'s.
+---
+
+# Architecture Choice — hexagonal, flat-layered, or neither
+
+Which of the catalogue's two service-architecture families a service belongs to, settled before any
+code exists. This skill decides and hands off: the layer contract, the package layout and every
+artifact template belong to the family skill it routes to, and the question *where a boundary goes at
+all* belongs to `coupling`.
+
+It is a universal skill, so it **names** the two family skills without requiring either. Everything
+needed to reach a recommendation and state its reason is here; the family skills carry the how. See
+`## Reading this with neither family installed`.
+
+## When to use vs. neighbours
+
+- A new service, no code yet, and the family is not settled → this skill.
+- The family is settled as hexagonal — the four layers, dependency direction, ports, adapters, the
+  composition root → `hex-architecture`, in the `pyhouse-hex` plugin.
+- The family is settled as flat-layered — packages named for technical roles, no ports until a second
+  implementation → `flat-layered`, in the `pyhouse-flat` plugin.
+- Where a boundary goes at all — split or merge, contract or shared knowledge, how much design effort
+  a component deserves → `coupling`. It loads alongside this skill and supplies the volatility
+  judgement the cost question below runs on.
+- Whether one particular dependency earns a `Protocol` → the chosen family's own rule decides; this
+  skill chooses the family, not the port.
+- Which trigger a flat service runs on — loop, schedule, stream, durable execution → `flat-entrypoint`,
+  in the `pyhouse-flat` plugin.
+- A workspace holding several services → `flat-monorepo` (`pyhouse-flat`) owns the workspace root; the
+  family is still chosen once per service, here.
+- Reviewing an existing service against the style it already has → not this skill; load that family's
+  skill directly.
+- A script, a single-purpose job, a one-shot migration → neither family applies; see
+  `## When neither family applies`, and do not route to a family skill.
+
+## The question that decides it
+
+> **Does this service have business invariants of its own that it must enforce?**
+
+A business invariant is a rule about what is *valid* that this codebase owns and must refuse to
+break — not a payload shape, and not an upstream's rule being relayed. Its signature is a constructor
+that rejects its own arguments: one raise per rule, checked in one place, because a rule enforced at
+the call site is a rule the next call site forgets. A worker that validates a payload against a schema
+and moves on has enforced nothing of its own; it has checked that someone else kept their contract.
+
+- **Yes — the rules about what is valid live in this codebase and are its reason for existing.**
+  Hexagonal. The layer split exists to keep those rules testable and changeable without touching a
+  database, a queue or a framework.
+- **No — the service orchestrates external systems, and its correctness is whether the data moved.**
+  Flat-layered. There is nothing to protect, so the protection would be cost with no buyer, and
+  choosing flat is not a compromise.
+
+Answer this first. It settles most services on its own. Everything below either confirms that answer
+or flips a genuinely borderline one; nothing below outweighs it.
+
+## Confirming evidence
+
+Five more questions, each with what a "yes" implies. They are **evidence, not points**: they are not
+commensurable and they do not sum, so three weak hexagonal signals do not outvote a clear "no
+invariants".
+
+**Does the service own a noun?** — a thing it creates, identifies independently of its field values,
+and mutates over a lifetime while it stays the same thing. Yes → hexagonal; that noun is an aggregate,
+and identity, lifecycle and construction-time rules all attach to it. A service that reads records
+from one system, transforms them, writes them to another and owns no noun at all is the flat case in
+its purest form.
+
+**Will more than one entrypoint drive the same rules?** — REST plus a queue consumer plus a CLI, all
+reaching the same logic. Yes → hexagonal, and strongly: a shared core with two callers is exactly what
+ports exist to protect. One entrypoint is neutral, not evidence for flat.
+
+**Does any outward dependency have a second real implementation, or credibly about to?** — judged from
+the domain rather than from caution: a commodity dependency with a nameable alternative the business
+could plausibly adopt qualifies; a sticky one — the main datastore, the identity provider — does not,
+however generic it looks. If every port would have exactly one implementation forever and no second is
+in prospect, that is evidence the ports are ceremony. It is evidence about ports rather than about the
+family: a hexagonal service defines ports by default and does not need this answer to be yes.
+
+**Is the part that keeps changing the rules, or the integrations?** — a core subdomain, the part the
+business reshapes on purpose, is where the indirection earns its keep. A supporting or generic
+workflow — internal glue, undifferentiated ETL — changes little, so an imbalance there costs nothing
+and structure spent on it is taken from somewhere it would have paid. `coupling` owns this judgement
+and the budget it turns into.
+
+**Who calls it?** — the weakest signal, and never decisive on its own. A synchronous caller expecting
+a response and an error contract correlates with hexagonal; a schedule, a queue or a stream correlates
+with flat. Both correlations break easily: a flat service may expose a small HTTP surface, and a
+hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
+execution either — for flat services the default for scheduled work is a plain loop, a cron entry or a
+timer, and a workflow engine is earned separately (`flat-entrypoint`).
+
+## What each choice costs
+
+Name both costs when recommending. A choice presented without its price is not one the reader can
+disagree with.
+
+**Hexagonal pays a structural price.** A protocol for every outward dependency, an adapter
+implementing each one, a composition root that is the only place concrete classes are bound, DTOs
+translated at two boundaries, and a layer split every new module has to be placed into. It buys rules
+that are testable without a database and survive an infrastructure change untouched. **A service with
+no rules pays that price and gets nothing back** — that asymmetry is the whole reason the flat family
+exists.
+
+**Flat pays by having no seam to hold a rule still.** When the first rule appears it lands in whichever
+module needed it first, and the second caller copies it; two components then share knowledge with no
+import to show for it, which is the coupling failure that is hardest to see in review. It buys the
+shortest path from a trigger to the work — one concrete class per external system, direct construction,
+no indirection to read through.
+
+Neither cost is a defect. Spend structure where change is expected, and nowhere else.
+
+## The cases that are not the two clean ones
+
+### When neither family applies
+
+A single-file script, a lambda whose whole body is one function, a one-shot migration, a couple of
+modules run once and deleted. **Say so and route nowhere: you do not need an architecture skill for
+this.** Write the script.
+
+The universal skills still bind, and they are the whole of what applies — `naming` for what things are
+called, `python-style` for typing and logging, `python-packaging` for module and import rules,
+`exception-catalog` for errors, `test-principles` for tests. Reaching for either family here produces
+packages with nothing in them and a reviewer who assumes work lives there.
+
+Run this skill again when the script stops being one: a second trigger, a second reader of the same
+logic, or the first rule someone must not break.
+
+### Real invariants *and* heavy integration work
+
+Recommend hexagonal. The reason is an asymmetry, not a preference: **the flat family has no answer for
+invariants** — no place to put a rule where it stays testable and unduplicated — **while the hexagonal
+family has an answer for integrations**, one adapter per external system behind a port
+(`hex-capability-adapter`, in `pyhouse-hex`). A mixed service that chooses flat has to invent the missing half; one that
+chooses hexagonal uses a skill that already exists.
+
+### Flat now, invariants later
+
+The likeliest real trajectory, and not a failure of the original choice. The migration signal is
+specific: **the first domain rule that two entrypoints, or two run functions, both need.** One caller
+needing a rule is a function; two needing the same rule is a domain with nowhere to live.
+
+Move incrementally rather than rewriting: extract the rule, then the protocol it needs, then the
+orchestration above it, leaving the concrete clients in place as adapters. The step-by-step procedure
+is `hex-architecture`'s `### When moving code between layers`, which arrives with `pyhouse-hex`; the
+signal above is what this skill owns, and it is enough to know that the migration is due. Do not take the structure before the rule arrives — flat → hexagonal is additive,
+which is exactly what makes waiting cheap.
+
+### A monorepo holding both
+
+**The choice is per service, never per repository.** `flat-monorepo` (`pyhouse-flat`) lays a workspace
+root that hosts several members; nothing about a shared root, a shared schema package or a shared toolchain requires
+the members to share an internal layout. One member enforcing pricing rules can be hexagonal while its
+three sibling crawlers stay flat, and the workspace is not inconsistent for it. Run this skill once per
+member, at the point that member is created.
+
+### The earlier choice was wrong
+
+- **Flat → hexagonal is additive and normal.** The layers arrive beside the existing packages, one rule
+  moves at a time, the clients become adapters, and most of the code survives. Do it when the signal
+  above appears.
+- **Hexagonal → flat is a demolition and rarely worth it.** Ports deleted, layers collapsed, wiring
+  rewritten, and every test that substituted a protocol goes with them. A hexagonal service with no
+  invariants is over-structured, not broken, and over-structure costs reading time — cheaper than a
+  rewrite. Do it only when the structure is actively blocking the work, never because an audit found
+  the invariants missing.
+
+## Reading this with neither family installed
+
+This skill ships in `pyhouse-universal`, which installs alone. The decision above is complete without
+either family skill present: the question, the confirming evidence, both costs and all five cases are
+stated here, and the recommendation is usable as written.
+
+What a family skill adds is the *how* — the layer or role layout, what may import what, and the file
+templates. To get it, install the plugin the recommendation names, from the `pyhouse` marketplace:
+
+- **Hexagonal** → `pyhouse-hex`, which carries `hex-architecture` and the rest of the `hex-*` family.
+- **Flat-layered** → `pyhouse-flat`, which carries `flat-layered` and the rest of the `flat-*` family.
+- **Neither** → nothing to install. The universal skills already beside this one are the answer.
+
+Both family plugins depend on `pyhouse-universal` and Claude Code enables the dependency transitively,
+so installing one keeps everything here.
+
+## Rules
+
+1. **Answer the invariants question first, and let it decide.** The other questions are read after it,
+   to confirm or to flip a borderline case. A family chosen before that question is answered was chosen
+   on something else.
+2. **Never score the criteria.** No points, no weights, no tally. The criteria are not commensurable,
+   and a total lets a reader accumulate weak signals into an answer the deciding question already
+   refused.
+3. **Name the invariant, or accept that there is none.** State the rule in one sentence — what is
+   valid, and what the service refuses. A rule that cannot be written in a sentence is not yet an
+   invariant, and "there might be rules later" is never one.
+4. **Decide per service, never per repository.** A workspace is not a family.
+5. **State the cost of the choice alongside the choice.** Both families have one, and a reader deciding
+   needs the one they are buying named.
+6. **Record the answer and its reason where the service's readers will find it** — a sentence or two in
+   the service's own README or agent instructions, the same cheap form `coupling` asks for when a
+   boundary is drawn. The next person's default is to copy the layout, and a layout with no stated
+   reason gets copied into a service that does not warrant it.
+7. **Re-run the decision on an event, not on a schedule.** The events are the first rule two callers
+   share, a second entrypoint over the same logic, and a dependency gaining a second real
+   implementation.
+8. **A service with no invariants gets flat, and that is the answer, not a concession.**
+9. **When neither family applies, say so and route nowhere.** Handing a script an architecture is as
+   wrong an outcome as handing a rules-heavy service the wrong family.
+
+## Hard stops
+
+- A score, a weighting or a points total is being assembled from the questions → stop, that is not how
+  this decides; answer the invariants question and read the rest as evidence.
+- A family is being chosen before the invariants question has an answer → stop, answer it first.
+- "No domain yet, but there might be one later" is offered as the reason for hexagonal → stop, that is
+  anticipatory structure. Flat → hexagonal is additive; take the structure when the rule arrives.
+- The service has real invariants and flat is being chosen because the integration work is heavier →
+  stop, the asymmetry decides it — flat has no answer for invariants.
+- A single style is being imposed across every member of a workspace → stop, the choice is per service.
+- Both families are being combined — a `domain/` package beside role packages, or ports with one
+  implementation each in a flat service → stop, pick one family; a service is hexagonal or flat, never
+  both.
+- A script, a lambda body or a one-shot migration is being given an architecture → stop, it needs none;
+  name the universal skills and finish.
+- A working hexagonal service is being demolished into flat because an audit found no invariants →
+  stop, over-structure is not a defect worth a rewrite; migrate only when the structure blocks work.
+- This skill is being asked for the layer contract, the package layout or a file template → stop, use
+  `hex-architecture` or `flat-layered` — install `pyhouse-hex` or `pyhouse-flat` if it is absent.
+- Asked where a boundary should go, or whether two components split or merge → stop, use `coupling`.

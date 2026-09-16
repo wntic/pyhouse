@@ -1,0 +1,22 @@
+{
+  "name": "pyhouse-universal",
+  "displayName": "pyhouse \u2014 universal",
+  "version": "0.1.0",
+  "description": "Python house-style rules that bind whichever architecture a service uses: naming derivation, typing and logging forms, the package and re-export contract, the single error catalogue, and the testing constitution. Ships the hex-vs-flat architecture chooser and its /choose-architecture command, so a greenfield service can settle its family before installing pyhouse-hex or pyhouse-flat.",
+  "author": {
+    "name": "Yegor Vorobyev"
+  },
+  "homepage": "https://github.com/wntic/pyhouse",
+  "repository": "https://github.com/wntic/pyhouse",
+  "license": "MIT",
+  "keywords": [
+    "python",
+    "house-style",
+    "naming",
+    "packaging",
+    "testing",
+    "architecture"
+  ],
+  "skills": "./skills",
+  "commands": "./commands"
+}

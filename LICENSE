@@ -1,0 +1,41 @@
+MIT License
+
+Copyright (c) 2026 Yegor Vorobyev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## A note on the code templates
+
+The text above is the MIT License, unmodified. This note does not alter it; it
+records the author's intent so that adopters need not guess.
+
+These skills exist to be copied from. The code templates they carry — a
+repository adapter, a router file, a settings class, a test module — are
+written to be pasted into your own project and edited until they fit.
+
+Copying a template into your own code requires **no attribution** and imposes
+**no obligation** on the code you write around it. The templates are yours to
+use, in open-source or proprietary work, without notice, credit, or any
+requirement to publish what you build.
+
+The attribution clause above applies to redistributing the skill catalogue
+itself — forking it, republishing it, or shipping it inside another plugin or
+product — not to the code a reader writes after reading it.
