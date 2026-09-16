@@ -14,6 +14,10 @@ under another runner, and what does not, is in `## Other bindings`.
 
 ## When to use vs. neighbours
 
+The `hex-*` and `flat-*` names in this list and throughout the skill are forward references into the
+`pyhouse-hex` and `pyhouse-flat` plugins; **Reading the family-flavoured sections** below says why
+none of them is a dependency.
+
 - Adding or changing any test → this skill **and** the skill that owns that test file; this one is
   reference-only and produces no file.
 - Domain unit tests → `hex-test-domain`.
@@ -67,11 +71,13 @@ The shape is the goal: **fast layers run on every save; slow layers run on every
 
 ### Reading the family-flavoured sections
 
-This skill is universal and stands alone. Several of its sections — the pyramid table above, the two
-trees that follow, the two substitution ladders — name `hex-*` and `flat-*` skills. Every one of
-those names is a *route to the skill that produces that file*, in the `pyhouse-hex` or `pyhouse-flat`
-plugin; none of them carries a rule this skill leaves unstated. With neither family plugin installed
-the constitution is still complete, and the names read as forward references.
+This skill is universal and stands alone. `hex-*` and `flat-*` names appear throughout it — in the
+routing list at the top, the pyramid table above, the two trees that follow, the two substitution
+ladders, the reliability rules and the hard stops. Every one of those names is a *route to the skill
+that produces that file*, in the `pyhouse-hex` or `pyhouse-flat` plugin; none of them carries a rule
+this skill leaves unstated. With neither family plugin installed the constitution is still complete,
+and the names read as forward references. That is why they are written bare here and nowhere else in
+`pyhouse-universal` — this one paragraph is the plugin naming for all of them.
 
 Each architecture family gets one worked tree. Both are **illustrations of this skill's own placement
 rules**, not a dependency on either family's plugin: where a fixture lives, which conftest in the
@@ -137,13 +143,20 @@ Read `myschema` here as the catalogue's placeholder for **the shared library a w
 import** — the package that owns the database schema, whatever the workspace calls it — and `foo_parser`
 as one such service. Substitute both; no rule below depends on the names.
 
+**A flat service that ships on its own is the same tree with one member.** It has no root `tests/`
+and no cross-member plugin: its tests sit at `tests/unit/` and `tests/integration/` exactly as the
+hex tree above shows, the grep firewall moves into `tests/unit/test_architecture.py`, and what is a
+shared pytest plugin below is an ordinary `tests/integration/conftest.py`. Every placement rule in
+this section is unchanged; only the number of members is.
+
 Tests live **beside the member they cover** — `packages/<pkg>/tests/` and `services/<svc>/tests/`, each
 split into `unit/` and `integration/`. A member can then be read, reviewed or extracted together with
 the tests that pin it, and `uv run --package <pkg> pytest packages/<pkg>/tests` selects exactly one
 member's suite.
 
 One thing belongs to no member and stays at the repo root: **`tests/test_architecture.py`**, the grep
-firewall, whose subject is the workspace itself rather than anything in it.
+firewall, whose subject is the workspace itself rather than anything in it. (`test-architecture-rule`
+owns both placements and says which applies.)
 
 The datastore fixtures every member shares live in a **pytest plugin module** beside the tests of the
 package that owns the schema — `packages/myschema/tests/myschema_testing.py` — loaded by
@@ -287,13 +300,13 @@ async def test_assigns_uuid_and_stores() -> None:
 Flat example:
 
 ```python
-async def test_records_kind_for_new_identity(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    repo = EntitiesRepository(engine)
+async def test_records_a_bar_for_a_new_foo(engine: AsyncEngine, conn: AsyncConnection) -> None:
+    repo = FooRepository(engine)
 
-    await repo.record_batch(foo_filtered_table, "foo", [_row(identity="alpha")])
+    await repo.record_batch([_row(name="alpha")])
 
-    kinds = (await conn.execute(select(entity_kinds_table.c.kind))).scalars().all()
-    assert kinds == ["foo"]
+    names = (await conn.execute(select(bars_table.c.name))).scalars().all()
+    assert names == ["alpha"]
 ```
 
 Rules:

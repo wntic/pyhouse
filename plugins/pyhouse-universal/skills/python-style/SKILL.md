@@ -19,10 +19,10 @@ differ in which layer that is. Everything else is unconditional.
 - One class per module, `__all__`, the `__init__.py` re-export contract, import forms →
   `python-packaging`.
 - Deriving a concrete class or module name → `naming`; deriving a concrete artifact *path* in a
-  hexagonal project → `hex-conventions`.
+  hexagonal project → `hex-conventions`, in the `pyhouse-hex` plugin.
 - The exception classes themselves → `exception-catalog`.
-- Where a module lives and what may import it → `hex-architecture` or `flat-layered`, whichever style
-  the project uses.
+- Where a module lives and what may import it → `hex-architecture` (in the `pyhouse-hex` plugin) or
+  `flat-layered` (in `pyhouse-flat`), whichever style the project uses.
 - The shape of a specific artifact → its own skill. This skill is consulted **alongside** them.
 
 ## Typing
@@ -157,7 +157,9 @@ accumulator.*
 ### Protocols
 
 - `typing.Protocol` for an interface, where the architecture calls for one at all. (A flat-layered
-  service introduces one only when a second real implementation exists — see `flat-layered`.)
+  service introduces one only when a second real implementation exists; the hexagonal family defines
+  ports by default. Each family's own rule is in `flat-layered`, in the `pyhouse-flat` plugin, and
+  `hex-domain-ports`, in `pyhouse-hex`.)
 - `@runtime_checkable` **only** when `isinstance(x, IProtocol)` is genuinely needed, and never in a hot
   path: it walks the protocol's attributes on every call.
 - A protocol's method signatures carry full annotations like any other function. The `...` is the
@@ -299,8 +301,9 @@ re-raise is the entrypoint:
   converts it to a 500. That is the only place it will ever be seen.
 
 This skill owns the level rule; the **call** that implements it belongs to the entrypoint template that
-has a central handler — `hex-restapi-app`'s `error_handler.py`. The split is deliberate: the rule is a
-logging-level rule and outlives any one framework, the call is framework-shaped.
+has a central handler — `error_handler.py` in `hex-restapi-app`, in the `pyhouse-hex` plugin. The split
+is deliberate: the rule is a logging-level rule and outlives any one framework, the call is
+framework-shaped.
 
 **Flat-layered services** have no such contract — nothing above a failure is obliged to re-raise into one
 handler — so the layer that will not re-raise is usually the point of failure itself: **log the failure

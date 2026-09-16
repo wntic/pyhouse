@@ -28,8 +28,8 @@ never its layout.
 - One class per module, `__all__`, the `__init__.py` re-export contract, import spelling, a circular
   import → `python-packaging`. It owns the *mechanics* around a name; this skill owns the name, so
   "name this module" is a request for this skill and not for that one.
-- Which package a module belongs in → `flat-layered` or `hex-architecture`, whichever style the
-  project uses.
+- Which package a module belongs in → `flat-layered` (in the `pyhouse-flat` plugin) or
+  `hex-architecture` (in `pyhouse-hex`), whichever style the project uses.
 - Where the boundary between two components goes at all → `coupling`. A name cannot rescue a wrong
   boundary; if a thing resists naming, suspect the split before the vocabulary.
 - Log event names, exception `code` values, task/workflow registration strings, database constraint
@@ -37,7 +37,8 @@ never its layout.
   whichever skill owns that artifact. See **Renaming** below.
 - A test builder, fixture, failure-injection subclass or test function needs a name → this skill for
   the name; `test-principles` for whether it should be a fixture at all.
-- Deriving a concrete *file path* for an artifact in a hexagonal project, rather than its name → `hex-conventions`.
+- Deriving a concrete *file path* for an artifact in a hexagonal project, rather than its name →
+  `hex-conventions`, in the `pyhouse-hex` plugin.
 
 ## The two ways a name goes wrong
 

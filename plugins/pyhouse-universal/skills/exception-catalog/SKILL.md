@@ -36,15 +36,16 @@ or, far more often, needs nothing and leaves `code` to do the work.
 - A new named error is needed to express a rule violation → this skill. **First confirm no existing class
   already serves the rule** — scan `__all__` for a semantic match and read the candidate's body; if one
   fits, reuse it rather than minting a near-duplicate.
-- Translating a database `IntegrityError` at a repository boundary → `hex-persistence`, which references
-  this skill for the target class name.
-- Translating an HTTP or SDK error inside a client class → `flat-layered`, same relationship.
-- Advertising an error's `code` on a REST route → `hex-restapi-route-contracts`, which references
-  the new `code`.
+- Translating a database `IntegrityError` at a repository boundary → `hex-persistence`, in the
+  `pyhouse-hex` plugin, which references this skill for the target class name.
+- Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
+  plugin, same relationship.
+- Advertising an error's `code` on a REST route → `hex-restapi-route-contracts`, in the
+  `pyhouse-hex` plugin, which references the new `code`.
 - Where the error is logged and by whom → `python-style`.
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
-- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`; this skill owns the class, its `code` and its status, not the rendering.
+- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin; this skill owns the class, its `code` and its status, not the rendering.
 
 ## File shape (the contract every entry obeys)
 

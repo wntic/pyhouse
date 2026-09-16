@@ -123,6 +123,7 @@ One vocabulary for the whole catalogue.
 | `Bar` | the secondary aggregate |
 | `myapp` | a service's **own root package** |
 | `myschema` | the **shared schema library** a workspace's services depend on |
+| `mycommon` | a **shared support library** a workspace's members depend on that is not the schema — framework guards, cross-cutting helpers |
 | `myrepo` | the repository root |
 | `foo_parser` | a *specific* service, where a monorepo example must name one |
 

@@ -61,7 +61,7 @@ once rather than throughout — before the family is known:
 | `python-packaging` | One class per module, `__all__`, the `__init__.py` re-export contract, import rules |
 | `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
-| `test-architecture-rule` | Static structural invariants and the grep firewall, with hex and flat path scaffolds |
+| `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
 Load them alongside the architecture skill. The architecture says *which package* a module belongs
 in; the universal skills govern names, Python forms, packaging, errors, boundaries, and testing.
@@ -183,7 +183,11 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 - A rule has one owner. Consult `meta-skill-author` for the ownership table; other skills reference
   the owner rather than restating its rule.
 - **Skills are invoked by name, not by a function call.** In Claude Code, a matching description
-  loads a skill automatically, or a user types `/skill-name`. Inside a skill body, name the skill.
+  loads a skill automatically. Typed by hand, the form depends on how the skill was installed: a
+  skill delivered by a plugin is namespaced by its plugin — `/pyhouse-universal:naming`,
+  `/pyhouse-hex:hex-persistence` — while one copied into `.claude/skills/` or `~/.claude/skills/`
+  is typed bare, `/naming`. Inside a skill body, name the skill and never its slash form; it is
+  the name that is stable across both install paths.
 - **Portability.** `paths` and `when_to_use` are Claude Code fields; other clients ignore them, which
   is why `description` alone must identify a skill. Marketplace distribution via a GitHub repo and
   `plugin.json` carries them fine; publishing to claude.ai or the Skills API does not — that channel

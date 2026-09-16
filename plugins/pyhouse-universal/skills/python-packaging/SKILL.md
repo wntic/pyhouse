@@ -11,7 +11,8 @@ What a thing is called, how its module is packaged, and how another module reach
 because they are about naming and Python's import system rather than about layers.
 
 What they do *not* decide is which package a module belongs in. That is the architecture's job:
-`hex-architecture` for a layered app, `flat-layered` for a package-by-tech service.
+`hex-architecture` (in the `pyhouse-hex` plugin) for a layered app, `flat-layered` (in
+`pyhouse-flat`) for a package-by-tech service.
 
 ## When to use vs. neighbours
 
@@ -22,7 +23,8 @@ What they do *not* decide is which package a module belongs in. That is the arch
 - Any question of relative vs absolute, or how to spell an import → this skill.
 - A circular import, or an import pushed into a function body to break one → this skill; the cycle is
   a structural problem and the hard stops below say so.
-- Which package a module belongs in → `hex-architecture` or `flat-layered`.
+- Which package a module belongs in → `hex-architecture` (in the `pyhouse-hex` plugin) or
+  `flat-layered` (in `pyhouse-flat`).
 - Annotation forms, logging, comments → `python-style`.
 - The exception catalog's contents, and why that one file holds many classes → `exception-catalog`.
 - Whether the boundary between two modules or packages should exist at all → `coupling`, first; this skill owns the mechanics once it is drawn.

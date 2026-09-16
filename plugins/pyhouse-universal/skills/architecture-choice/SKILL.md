@@ -89,7 +89,7 @@ a response and an error contract correlates with hexagonal; a schedule, a queue 
 with flat. Both correlations break easily: a flat service may expose a small HTTP surface, and a
 hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
 execution either — for flat services the default for scheduled work is a plain loop, a cron entry or a
-timer, and a workflow engine is earned separately (`flat-entrypoint`).
+timer, and a workflow engine is earned separately (`flat-entrypoint`, in `pyhouse-flat`).
 
 ## What each choice costs
 
