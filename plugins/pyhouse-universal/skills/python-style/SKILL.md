@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what to log, or asking whether a comment belongs here. Owns `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, one structured `structlog` event per occurrence, and which layer logs an error. The error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which layer logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -68,12 +68,16 @@ unions, `X | None`, and the `collections.abc` generics that replace the `typing`
 that syntax natively. So **3.10 is the catalogue's own floor** — the oldest interpreter its templates
 are written to run on.
 
-Two boundaries worth naming, because both get misremembered:
+Two things are misremembered as raising it, and neither does:
 
-- `dishka`, the dependency-injection binding, requires **≥3.10**. That is the same floor, not a higher
-  one; adopting it raises nothing.
-- `uuid.uuid7()` is standard library only from **3.14**. This catalogue does not use it, so it imposes
-  no floor — a project that wants time-ordered ids on an older runtime takes them from a library.
+- **A library raises the floor only when its own minimum is above 3.10.** Every binding this
+  catalogue's templates use runs on 3.10, so adopting one raises nothing; check the minimum of any
+  library added beyond them before assuming otherwise, and record the answer with the floor rather than
+  re-deriving it.
+- **A feature reaching the standard library on a later interpreter does not raise the floor either**,
+  as long as the project takes it from a third-party package instead. Whether to take it at all is the
+  decision of the skill that generates the value, not of this one — but it is taken **once, for the
+  whole project**, never in half the code.
 
 **A project's own floor is the project's to choose, and like the line length it is chosen once, at
 setup, and written down.** Three settings name that one interpreter and must stay in step:
@@ -154,6 +158,62 @@ but anything crossing into a frozen type is converted first.
 it binds the frozen result and payload dataclasses in `schemas/`, and nothing forces it on a local
 accumulator.*
 
+### A record that crosses a boundary is a declared type
+
+A value that leaves the scope that built it — returned from a client, handed to a run function, passed
+between packages, stored on another object — arrives somewhere that has to know its shape. A bare
+`dict`, a bare tuple or a forwarded `**kwargs` does not carry that shape: the receiving side learns the
+keys by reading the sender, the checker verifies nothing, and a renamed key fails at the line that
+reads it rather than at the line that changed it.
+
+**Anything with a fixed set of named fields is declared once, as a type, and passed as that type.**
+The declaration is a frozen dataclass in the ordinary case — the form the table above already names for
+a fixed-shape record — or the validation library's model where the same boundary is also where the data
+is parsed.
+
+| Being passed | Declare instead |
+|---|---|
+| a `dict` whose keys are known when the code is written | a frozen dataclass, or a validation model at a parse boundary |
+| a tuple whose positions mean different things | a frozen dataclass; a `TypeAlias` only when it is genuinely n of one thing |
+| `**kwargs` forwarded and unpacked further down | named parameters, or one parameter of a declared type |
+
+A `dict` is still the right type where the **keys are data**: a lookup keyed by id, a count per
+category, a payload whose keys are not known until runtime. The rule is about a *record* — a fixed set
+of named fields — not about every mapping. `dict[str, object]` for heterogeneous values, above, is that
+case and is unaffected.
+
+`TypedDict` declares the keys but leaves the object a `dict`: nothing is checked at construction, and
+there is no type to hang an invariant or a method on. Use it only where a mapping's shape must be
+described without changing the object — a third-party call that requires a literal `dict` — never as
+the default record form. `NamedTuple` has no use here at all; a frozen dataclass gives the same
+immutability without the positional half nobody wanted.
+
+Conversion happens at the boundary, the same way the collection conversions above do: the raw form is
+parsed or constructed into the declared type at the edge, and the declared type is what travels inward.
+
+### Which builtin represents which kind of value
+
+A scalar whose kind constrains its representation takes the type that carries the constraint, not the
+one that is shortest to write:
+
+- **An exact decimal quantity is `decimal.Decimal`** — money, a rate, anything summed, compared for
+  equality, or shown to someone who will check the arithmetic. A binary float cannot represent most
+  decimal fractions exactly, so the same total added in a different order is a different number and an
+  equality check on it is a coin toss. A genuine measurement, carrying no exactness claim, stays a
+  `float`.
+- **An instant is a timezone-aware `datetime`.** A naive one carries no offset, so two of them cannot
+  be compared or subtracted correctly once anything runs in a second zone, and every store it passes
+  through is free to reinterpret it. A calendar day with no instant in it stays a `date`.
+- **An identifier is `uuid.UUID`, not `str`.** The string form belongs at the edges — a log field, a
+  path parameter, a wire model — and the conversion happens there. Inside, a swapped identifier is then
+  a type error rather than a lookup that quietly returns nothing.
+
+These are representation rules: they say which builtin holds the value. **Whether a constrained scalar
+also earns a named type of its own** — an amount that must be non-negative, a code that must match a
+pattern — is an architecture question this skill does not answer. The hexagonal family answers it with
+a value object whose invariant is checked at construction (`hex-domain-model`, in the `pyhouse-hex`
+plugin); a service with no domain layer checks it where the value enters and keeps the scalar.
+
 ### Protocols
 
 - `typing.Protocol` for an interface, where the architecture calls for one at all. (A flat-layered
@@ -165,13 +225,17 @@ accumulator.*
 - A protocol's method signatures carry full annotations like any other function. The `...` is the
   **method body**, never a parameter default.
 
-### Validation-model specifics
+### Validation models
 
 - Model field types use the same `X | None` and PEP 585 generic forms — `list[int]`, `dict[str, str]`,
-  not `List[int]` / `Dict[str, str]`.
-- `Annotated[T, Field(...)]` is the canonical way to add constraints. Do not use the legacy
-  `field: int = Field(default=...)` shape when there is no default — write
-  `field: Annotated[int, Field(ge=1)]`.
+  not `List[int]` / `Dict[str, str]`. The forms above hold here with no exemption.
+- **A constraint is declared on the field it bounds, in the annotation**, so the accepted shape reads
+  top to bottom in one pass and a generated schema can be derived from it. Not an imperative validator
+  method, and not a default-carrying assignment standing in for a constraint on a field that has no
+  default — a field is optional because it has a default, never because declaring the bound was
+  awkward. Under the validation library this catalogue's templates bind, that is
+  `Annotated[int, Field(ge=1)]` rather than `field: int = Field(default=…)`; under another, it is
+  whatever that library declares beside the field.
 
 ### Collections from `collections.abc`
 
@@ -359,24 +423,32 @@ The structured logger is the one library this skill binds; typing and comments b
 4. Restrict `Any` to the two raw-boundary cases; use the documented heterogeneous-value and repeated-type
    forms after parsing.
 5. Check shared value types against the immutable-collection table and convert at their boundary.
-6. Apply **Protocols** only where the architecture calls for an interface; reserve runtime checking for
+6. **A record crossing a boundary is a declared type, not a bare `dict`, tuple or forwarded
+   `**kwargs`.** A fixed set of named fields is declared once and passed as that type; a mapping whose
+   keys are data stays a mapping. `TypedDict` describes a shape without creating a type and is for the
+   case that must stay a `dict`; `NamedTuple` is not used.
+7. **A scalar takes the builtin that carries its kind** — an exact decimal quantity, an instant with an
+   offset, an identifier as an identifier — and converts to a string form only at the edge that needs
+   one. Whether it also earns a named type of its own is the architecture family's question, not this
+   skill's.
+8. Apply **Protocols** only where the architecture calls for an interface; reserve runtime checking for
    the documented need.
-7. Check validation constraints and abstract collection imports against their dedicated typing sections.
-8. **One logger, obtained at module level, and one structured event per occurrence.** No `print()`
-   outside a deliberate entrypoint debug path, and no second logging mechanism beside the configured one
-   — two mechanisms split the event stream and neither half is complete.
-9. **Give every event a stable snake_case `<subject>_<past_tense_verb>` name, and carry its identifiers
-   and counts as fields rather than interpolating them into the message.** A value inside a sentence
-   cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
-   the old string.
-10. **Log an error once, in the layer that can add context and will not re-raise it** — the entrypoint's
-   central handler in a hexagonal project, the scope that stops the failure in a flat one. A scope that
-   re-raises does not log; the detail it would have logged goes into the exception's `context`.
-11. Check logged fields against **What never reaches a log line** before emitting them, and apply the
+9. Check validation constraints and abstract collection imports against their dedicated typing sections.
+10. **One logger, obtained at module level, and one structured event per occurrence.** No `print()`
+    outside a deliberate entrypoint debug path, and no second logging mechanism beside the configured one
+    — two mechanisms split the event stream and neither half is complete.
+11. **Give every event a stable snake_case `<subject>_<past_tense_verb>` name, and carry its identifiers
+    and counts as fields rather than interpolating them into the message.** A value inside a sentence
+    cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
+    the old string.
+12. **Log an error once, in the layer that can add context and will not re-raise it** — the entrypoint's
+    central handler in a hexagonal project, the scope that stops the failure in a flat one. A scope that
+    re-raises does not log; the detail it would have logged goes into the exception's `context`.
+13. Check logged fields against **What never reaches a log line** before emitting them, and apply the
     same two bans to anything placed in an exception's `context`.
-12. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
+14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
     their stated limits.
-13. Check casts, untyped variadic arguments and type suppressions against the typing hard stops below.
+15. Check casts, untyped variadic arguments and type suppressions against the typing hard stops below.
 
 ## Hard stops
 
@@ -391,6 +463,12 @@ Typing:
 - Bare `Any` outside the documented external-boundary cases → stop, introduce a `TypeAlias` or a small
   dataclass; do not let `Any` spread.
 - Untyped `**kwargs` / `*args` in business logic → stop, a dataclass is missing.
+- A `dict` or tuple with a fixed set of known fields crossing a boundary — returned from a client,
+  passed between packages, handed to a function that unpacks it → stop, declare the record as a type.
+  A mapping whose keys are data is not this case.
+- `float` for money or any other exact decimal quantity, or a naive `datetime` for an instant → stop,
+  `Decimal` and an aware `datetime`; the first disagrees with itself under reordering, the second under
+  a second timezone.
 - An unannotated fixture, builder or test helper → stop, the test surface is type-checked at parity with
   source.
 - `cast(...)` to silence a type error → stop, fix the type. `cast` is acceptable only to narrow after a

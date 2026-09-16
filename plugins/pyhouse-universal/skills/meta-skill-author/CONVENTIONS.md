@@ -15,7 +15,7 @@ too. The counts in every heading are the number of directories on disk.
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; says when neither applies.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
-- `python-style` — Keeps domain code silent and assigns successful business-event logging to the application layer.
+- `python-style` — Owns the declared-type-over-bare-`dict` rule and the per-layer logging allocation that keeps domain code silent.
 - `python-packaging` — Keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; transport rendering stays at the boundary.
 - `test-principles` — Takes precedence whenever an artifact-specific test skill contradicts the shared constitution.
@@ -32,7 +32,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-project-setup` — Run the migration bootstrap once; later table changes use the persistence skill's paired revision.
 - `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together.
 - `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction.
-- `hex-domain-model` — Keeps the domain's data shapes on a stdlib-only substrate, separate from transport models.
+- `hex-domain-model` — Decides when a constrained primitive becomes a value object, on a stdlib-only substrate separate from transport models.
 - `hex-domain-ports` — Defines the signatures that adapters satisfy without inheriting or importing the protocol.
 - `hex-domain-service` — Place rules beside their primary aggregate; use an entity for rules enforceable from its own fields.
 - `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface.

@@ -140,6 +140,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 - **No business logic, computed properties, or `@validator`s that encode rules.** Use Pydantic's built-in `Field` constraints for shape; domain rules go elsewhere.
 - **No persistence concerns.** Nothing that builds a schema straight from a stored row or mapped object — no ORM mode, no from-row constructor, no storage library's column types. A schema that can construct itself from the database has tied the wire format to the table, and the two then have to move together.
 - **No shared base class beyond the model library's own** (rule 1).
+- **No bare `dict` or `list` field standing in for a nested object.** A nested body is its own model in this file, declared and ordered like any other; a `dict` field publishes a hole in the wire contract that no generated document can describe. `python-style` owns the declared-record rule.
 
 ### Existing cross-cutting request schemas
 

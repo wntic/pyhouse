@@ -1,6 +1,6 @@
 ---
 name: hex-domain-model
-description: Use when creating or changing a domain entity, value object, enum or filter record — stdlib dataclasses, `__post_init__` invariants, identity versus value equality, and the tunable variant of a value object for an env-sourced threshold (max rows, retention days), which is neither a service nor a settings class. A rule needing another aggregate's state is `hex-domain-service`; the wire model is `hex-restapi-schema`.
+description: Use when creating or changing a domain entity, value object, enum or filter record — stdlib dataclasses, `__post_init__` invariants, identity versus value equality, when a bare primitive carrying a constraint, a unit or a rule must become a value object instead, and the tunable variant of a value object for an env-sourced threshold (max rows, retention days), which is neither a service nor a settings class. A rule needing another aggregate's state is `hex-domain-service`; the wire model is `hex-restapi-schema`.
 paths: ["**/domain/**"]
 ---
 
@@ -15,7 +15,7 @@ which is why they live in one place.
 Inside this skill, pick by what the thing *is*:
 
 - A thing with a UUID and a lifecycle → **Entity**.
-- An immutable type defined by its content → **Value object**.
+- An immutable type defined by its content, or a primitive that carries a constraint, a unit or a rule → **Value object**.
 - A closed set of named values → **Enum**.
 - A read-side parameter bag passed to a repository `list`/`count` → **Filter record**.
 - An env-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable variant** of a value object, not a service and not a settings class.
@@ -137,8 +137,9 @@ Distinguishing characteristics:
   `FooExportTunable(max_rows=export_settings.provided.max_rows)`. See `hex-wiring`.
 - Injected into domain services and application handlers, never into entities. Entities do not read
   tunables; services do.
-- Every value-object rule still applies: frozen, no methods, primitive or VO fields only. See
-  `python-style` for money and time types.
+- Every value-object rule still applies: frozen, no methods, primitive or VO fields only. Which
+  builtin each primitive field takes — an exact decimal quantity, an instant with an offset, an
+  identifier — is `python-style`'s.
 
 Use this variant only when the value carries no domain meaning beyond "this is a knob to turn". If it
 participates in the ubiquitous language — a `FooTotal`, a `RetentionWindow` with behaviour — it is an
@@ -233,7 +234,7 @@ class FooListFilter:
 Inside this skill, pick by what the thing *is*:
 
 - A thing with a UUID and a lifecycle → **Entity**.
-- An immutable type defined by its content → **Value object**.
+- An immutable type defined by its content, or a primitive that carries a constraint, a unit or a rule → **Value object**.
 - A closed set of named values → **Enum**.
 - A read-side parameter bag passed to a repository `list`/`count` → **Filter record**.
 - An env-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable
@@ -277,16 +278,26 @@ One case is neither a shape here nor a neighbour's:
 
 ### Value object
 
-1. **A value object is immutable** — a frozen dataclass. An invariant checked at construction stops
+1. **A primitive carrying a constraint, a unit or a rule is a value object, not a bare field.** The
+   test is whether the value can be wrong on its own terms: a string that must match a form, a number
+   that must stay in a range or is denominated in something, a pair of values only meaningful together.
+   Left bare, the check lives at whichever call site remembered it, and the next one does not — which
+   is the same failure the entity's `__post_init__` rule exists to prevent, one level down. Give it a
+   type and check it once, at construction.
+   A primitive with nothing but its builtin type behind it stays a primitive: an opaque identifier, a
+   free-text note, a count that is simply a count. Wrapping those buys a name and pays for it in
+   conversions at every boundary. Which builtin a scalar takes in the first place — an exact decimal
+   quantity, an instant with an offset — is `python-style`'s.
+2. **A value object is immutable** — a frozen dataclass. An invariant checked at construction stops
    holding the moment a field can be reassigned, and a mutable value cannot safely be shared or used as a
    key.
-2. **No identity field.** No `id: UUID`. If one is called for, this is an entity.
-3. **Value equality.** Use the dataclass-generated equality. Override `__eq__` / `__hash__` only for the
+3. **No identity field.** No `id: UUID`. If one is called for, this is an entity.
+4. **Value equality.** Use the dataclass-generated equality. Override `__eq__` / `__hash__` only for the
    normalized-form escape hatch.
-4. **Invariants in `__post_init__`.** Use `exception-catalog` for the error shape. Omit the method
+5. **Invariants in `__post_init__`.** Use `exception-catalog` for the error shape. Omit the method
    when there are none.
-5. **No inheritance.** Compose, do not inherit.
-6. **No cross-aggregate logic.** Anything needing another aggregate's state is a domain service.
+6. **No inheritance.** Compose, do not inherit.
+7. **No cross-aggregate logic.** Anything needing another aggregate's state is a domain service.
 
 ### Enum
 
@@ -345,6 +356,7 @@ and imports, including the module-level predicate function above.
 ## Hard stops
 
 - Spec asks for a frozen object defined by its content, with no identity → stop, model it as a value object; `id: UUID` plus mutation over time → stop, model it as an entity.
+- Spec puts a constraint, a unit or a format rule on a bare `str`, `int` or `Decimal` field and checks it at the call site → stop, model the value as a value object and check the invariant in its `__post_init__`.
 - Spec asks for behaviour that needs another aggregate's state → stop, use `hex-domain-service`.
 - Spec asks for repository methods or persistence on any of these → stop, use `hex-domain-ports` for the interface and `hex-persistence` for the adapter.
 - Spec asks for runtime-extensible "enum" values loaded from config or a database → stop, model it as a value object plus a lookup repository.

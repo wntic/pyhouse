@@ -57,7 +57,7 @@ once rather than throughout — before the family is known:
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, and the cases where neither family applies |
 | `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
-| `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, structured logging, comments |
+| `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
 | `python-packaging` | One class per module, `__all__`, the `__init__.py` re-export contract, import rules |
 | `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
@@ -106,7 +106,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-project-setup` | Library substrate, toolchain configuration, the write-once migration bootstrap |
 | `hex-patterns` | Compensating transactions, units of work and their nesting order, framework-free run functions |
 | `hex-persistence` | The relational table, repository adapter, and paired migration revision |
-| `hex-domain-model` | Entities, value objects, enums, filters, and tunable thresholds |
+| `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filters, and tunable thresholds |
 | `hex-domain-ports` | Aggregate repository and external-capability protocols |
 | `hex-domain-service` | Stateless domain rules that use cross-aggregate state or capabilities |
 | `hex-application` | CQRS commands, queries, handlers, and read-result forms |

@@ -345,6 +345,8 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
 
 - `X | None`, never `Optional[X]`. Full annotations on `__init__`, `execute` and every parameter.
 - `Sequence[T]` from `collections.abc` for read-only views in `*Result` DTOs — never `list[T]`.
+- Every value entering or leaving a handler is a declared type — a DTO, a domain type, a read-model —
+  never a bare `dict` or tuple (`python-style`).
 - Cross-subdomain imports are absolute through the subpackage:
   `from myapp.domain.foos import Foo, IFooRepository`. Same-module imports are relative:
   `from .create_foo_command import CreateFooCommand`.
