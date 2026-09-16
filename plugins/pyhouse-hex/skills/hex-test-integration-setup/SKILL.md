@@ -1,6 +1,6 @@
 ---
 name: hex-test-integration-setup
-description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, and `real_app` on a dishka composition root whose infrastructure providers are overridden. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a uv workspace's shared `myschema_testing` plugin module — that is `flat-test-integration-setup`.
+description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, and `real_app` on a dishka composition root whose infrastructure providers are overridden. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's own `tests/integration/conftest.py`, or the plugin module several workspace members share instead — that is `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
 paths: ["**/tests/**"]
 ---
 
@@ -22,7 +22,7 @@ One-shot per project, and everything else in the integration suite depends on it
 - The route-side auth dependencies themselves → `hex-restapi-auth`.
 - Per-resource row factories (`make_foo`, `foo_id`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
 - Which scope a fixture takes, which conftest level it belongs at, builders versus fixtures → `test-principles`, the constitution. This skill is the hexagonal artifact that implements it.
-- The same fixtures for a uv workspace — one plugin module shared by many members instead of one package's conftest → `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
+- The same fixtures for a flat-layered service — one service's own conftest, or one plugin module shared by many workspace members → `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
 - The composition root has no `session_factory` binding, or no way to pass extra providers into it → `hex-wiring` first; the substitution seam is `create_container`'s parameter, not something a test can bolt on.
 - The grep that enforces "`sf` is the only sessionmaker under `tests/integration/`" → `test-architecture-rule`.
 

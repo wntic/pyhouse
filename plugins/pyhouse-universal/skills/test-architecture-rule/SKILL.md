@@ -13,7 +13,7 @@ Each function greps the source tree for a forbidden pattern and asserts the resu
 - Shared testing constitution → `test-principles`. That is prose the whole suite obeys; this is one
   grep that reddens a build.
 - Runtime domain behavior → `hex-test-domain`, in the `pyhouse-hex` plugin.
-- Runtime schema behavior → `flat-test-schema-package`, in the `pyhouse-flat` plugin. Greps enforce
+- Runtime storage behavior → `flat-test-persistence`, in the `pyhouse-flat` plugin. Greps enforce
   static structure; runtime tests enforce dynamic behavior.
 - Hex layer boundaries → `hex-architecture`, in the `pyhouse-hex` plugin.
 - Flat repository boundaries → `flat-layered`, in the `pyhouse-flat` plugin.
@@ -149,7 +149,7 @@ def test_no_service_defines_a_table() -> None:
 The invariant this one pins, stated here so the rule is writable on its own: **where one member
 owns the shared database schema, only that member's repository modules may name a table object;
 every other member reaches the data through a repository method.** (The flat family states it as a
-rule in `flat-schema-package`, in the `pyhouse-flat` plugin; the firewall does not need that skill
+rule in `flat-persistence`, in the `pyhouse-flat` plugin; the firewall does not need that skill
 installed.)
 
 ```python
@@ -286,10 +286,10 @@ writable with neither family plugin installed. Both templates above are complete
 
 ### What is worth a firewall in flat
 
-- No service-defined tables, raw SQL, or direct registry-table access — `flat-schema-package`.
+- No tables or statements constructed outside the package that owns the data access — `flat-persistence`.
 - No sibling-service imports, and no framework import outside the package whose declared role is
   framework wrapper (plus the shared framework-guarded helper the allow-list names) — `flat-layered`.
-- No module-level engine construction — `flat-schema-package`.
+- No module-level engine construction — `flat-persistence`.
 - No engines in unit tests, mocks, or sleeps in tests — `test-principles`.
 
 ### A rule that is not a grep

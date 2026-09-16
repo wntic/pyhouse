@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It contains no Python source,
 no build system, no test suite and no dependencies — only Markdown skills plus three plugin manifests.
-The "code" is 44 `SKILL.md` files that tell an agent how to write Python services; the Python in them
+The "code" is 42 `SKILL.md` files that tell an agent how to write Python services; the Python in them
 is template content, never executed here.
 
 Because there is nothing to build, verification is reading: the contracts below are the only things
@@ -30,7 +30,7 @@ step degrades to a manual review if that command is absent.
 .claude-plugin/marketplace.json          lists the three plugins
 plugins/pyhouse-universal/               9 skills (8 universal + meta-skill-author), /choose-architecture
 plugins/pyhouse-hex/                     25 hex-* skills
-plugins/pyhouse-flat/                    10 flat-* skills
+plugins/pyhouse-flat/                    8 flat-* skills
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and
@@ -103,10 +103,17 @@ The test before adding anything sourced this way: **would this still be worth wr
 had used a different stack?** If the answer is no, the skill is documenting someone's dependency
 choice. If yes, but the shape changes, write the version that survives the swap.
 
-**Known instances to unwind, not to imitate.** `flat-temporal-workflow` and
-`flat-test-temporal-workflow` exist because the originating source used Temporal, and `python-style`
-names specific libraries for the same reason. They are on the list to be generalised; do not treat
-them as precedent for a new technology-shaped skill.
+**One instance already unwound, and one still to go.** Two skills in the flat family existed only
+because the originating source used a particular durable-execution engine. They are gone: their
+obligations are now stack-independent rules in `flat-entrypoint` and `flat-test-run-function`, and
+that engine's spelling of them sits in `flat-entrypoint/DURABLE.md` as one binding named in its own
+headings. That is what unwinding a technology-shaped skill looks like — the rules stay, the vendor
+becomes a template. Do not re-set the precedent by adding another.
+
+`python-style` was the other item and is done: the two bullets that named a DI library and a UUID
+package in prose are gone, and its validation-constraint rule is stated as an obligation with the
+library named once as an example. What it still names is legitimate — a structured logger under a
+heading that says so, and a driver exception as the example in a rule that reads without it.
 
 ## Two indexes, kept in step by hand
 

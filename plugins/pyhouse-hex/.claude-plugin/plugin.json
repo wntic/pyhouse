@@ -1,7 +1,7 @@
 {
   "name": "pyhouse-hex",
   "displayName": "pyhouse \u2014 hexagonal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hexagonal (ports-and-adapters) Python service skills: layer boundaries and the composition root, entities and value objects, repository and capability ports, CQRS commands, queries and handlers, relational persistence with paired migrations, dishka wiring, the FastAPI REST family with optional token auth, and the eight test families that cover them. Depends on pyhouse-universal, which Claude Code installs with it.",
   "author": {
     "name": "Yegor Vorobyev"

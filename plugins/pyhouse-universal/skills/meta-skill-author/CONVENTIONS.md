@@ -4,7 +4,7 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 44 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 42 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -59,21 +59,19 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-test-discovery-invariants` — Discovers applicable routes so new endpoints enter the checks without a hand-maintained route list.
 - `hex-test-restapi-auth` — Layer the auth fixtures over the shared integration setup; produced only for an app whose entrypoint authenticates.
 
-### Flat core (5)
+### Flat core (4)
 
-- `flat-layered` — Create packages only for roles the service actually has; the worked example's directory names are replaceable.
-- `flat-monorepo` — Establish workspace ownership before adding shared packages or runnable service members.
-- `flat-schema-package` — Gives every service one shared source of table definitions instead of service-local copies.
-- `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work.
-- `flat-temporal-workflow` — Extend the entrypoint skill's plain activity trio only when a run needs more than one activity.
+- `flat-layered` — Create packages only for roles the service actually has; one service on its own is the default and the worked example's directory names are replaceable.
+- `flat-monorepo` — Establish workspace ownership before adding shared packages or runnable service members; a lone service needs none of it.
+- `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated.
+- `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
 
-### Flat tests (5)
+### Flat tests (4)
 
-- `flat-test-integration-setup` — Choose rollback for connection-bound code and truncation when the code owns its transactions.
-- `flat-test-schema-package` — Pin the shared database behavior once so each service need not repeat the schema contract.
+- `flat-test-integration-setup` — Choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
+- `flat-test-persistence` — Pin the storage package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
-- `flat-test-run-function` — Cover activity effects here so workflow tests can stay focused on orchestration.
-- `flat-test-temporal-workflow` — Register stub activities under the production activity names so string-based workflow dispatch reaches them.
+- `flat-test-run-function` — Test every level of wrapping around one call, and keep the orchestration level asserting orchestration only.
 
 ## Packaging — which plugin a skill ships in
 
@@ -84,7 +82,7 @@ The catalogue is distributed on the Claude Code marketplace as three plugins und
 |---|---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 8 unprefixed universal skills + `meta-skill-author` + the architecture chooser `architecture-choice`, with its `/choose-architecture` command | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (25) | `pyhouse-universal` |
-| `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (10) | `pyhouse-universal` |
+| `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 
 A new skill's directory goes under that plugin's `skills/`, beside its siblings. The plugin's own
 manifest is the single file `.claude-plugin/plugin.json`; nothing else belongs in that directory, and

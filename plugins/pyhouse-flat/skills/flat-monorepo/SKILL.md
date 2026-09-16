@@ -1,8 +1,8 @@
 ---
 name: flat-monorepo
-description: Use when creating a `uv` workspace for several flat-layered services, or adding a member — the root `pyproject.toml` and its `packages/*` versus `services/*` split, the Compose profiles, the root `Makefile`, and only the empty `packages/myschema/` shell; its tables are `flat-schema-package`'s. A lone service needs no workspace root (`flat-layered`).
-when_to_use: Also when asked for a monorepo, a workspace root, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per service.
-paths: ["**/packages/**", "**/services/**", "**/pyproject.toml"]
+description: Use when several flat-layered services live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-service member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per service, and the task-runner targets that sync every member, apply migrations and launch each service from its own directory. One service on its own needs none of this and stays on `flat-layered`; what the package owning a shared store contains is `flat-persistence`.
+when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per service.
+paths: ["**/packages/**", "**/services/**"]
 ---
 
 # Flat-Layered Monorepo — uv workspace root
@@ -16,15 +16,17 @@ packages they all depend on. Run once per repository; adding the Nth service aft
 - The architecture family of the services going into the workspace is not settled →
   `architecture-choice` decides hexagonal versus flat per service; this skill assumes flat-layered
   members.
-- Adding the shared `Table` definitions, engine, and bulk-insert helpers → not this skill, use
-  `flat-schema-package` — this skill only creates the empty `packages/myschema/` shell.
+- Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill, use
+  `flat-persistence` — this skill only creates the empty `packages/myschema/` shell.
 - Adding one service's internal role-package layout — cross-cutting setup, clients, run functions;
   `core/`, `services/`, `ingest/`, `jobs/` in `flat-layered`'s worked example → not this skill, use
   `flat-layered`.
 - Choosing a service's trigger — a loop, a cron entry or a timer by default, durable execution only
   once it is earned → `flat-entrypoint`.
-- Building a single standalone service with no sibling services and no shared schema → not this skill;
-  a plain `flat-layered` project needs no workspace root at all.
+- Building a single standalone service with no sibling services and no shared store → not this skill;
+  a plain `flat-layered` project needs no workspace root at all. `flat-layered` lays its package
+  skeleton, including the storage role, and `flat-persistence` states what that package holds — neither
+  assumes anything above the service.
 - Bootstrapping one hexagonal project's dependency substrate and tool configuration → the other
   family's `hex-project-setup`, in the `pyhouse-hex` plugin. Nothing below needs it: the tooling
   values this root settles are stated here, and the interpreter floor behind them is
@@ -47,7 +49,7 @@ myrepo/
 ├── tests/
 │   └── test_architecture.py  # workspace-wide grep firewall
 ├── packages/
-│   ├── myschema/             # the schema owner — see flat-schema-package
+│   ├── myschema/             # the shared storage package — see flat-persistence
 │   └── shared/               # cross-cutting helpers with no schema of their own
 └── services/
     ├── foo_parser/
@@ -217,15 +219,17 @@ repo root reads none of them.
    category word, not a boundary; one whose every change vector drags a sibling along is drawn in
    the wrong place. The reasoning is `coupling`'s; the check costs two sentences and is the cheapest
    boundary test available.
-3. **The database schema lives in exactly one package.** Every service depends on `myschema` for
-   `Table` objects, the engine, and bulk-write helpers — no service writes its own SQL or defines its
-   own `Table`. This is the rule the flat-layered style would otherwise skip; here it is load-bearing
-   because the schema is shared across processes, and a grep firewall enforces it
-   (`test-architecture-rule`).
-4. **Exactly one command applies schema changes to a database, and it runs from the schema package.**
-   `make migrate` here. A migration run from inside a service package resolves its connection settings
-   from that service's environment and working directory, so two services can apply one migration
-   history to two different databases and neither of them notices.
+3. **The package owning a shared store is a `packages/*` member, and no `services/*` member defines a
+   table.** That one package owns the schema and the migration history for the store its services share —
+   the obligation itself is `flat-persistence`'s, and this rule is its workspace half: the owner sits in
+   `packages/`, every service declares an edge to it, and a grep firewall enforces that no service
+   constructs a statement of its own (`test-architecture-rule`).
+4. **The one migration command runs from where the schema is defined** — `make migrate` here, which
+   `cd`s into the owning package. That there is one history per store, applied by one command, is
+   `flat-persistence`'s obligation; what this rule adds is workspace-specific and is a property of
+   members, not of storage: a migration run from inside a *service* resolves its connection settings from
+   that service's environment and working directory, so two services can apply one migration history to
+   two different databases and neither of them notices.
 5. **A member declares its in-repo dependencies as edges the packaging tool resolves** —
    `[tool.uv.sources]` under uv — never a path hack, a `sys.path` append, or a copy-pasted module. A
    dependency the packaging tool cannot see is one the installer, the type checker and CI each resolve
@@ -252,13 +256,15 @@ repo root reads none of them.
 
 ## Hard stops
 
-- Only one service will ever exist, or services do not share a database → stop, this is a single
-  `flat-layered` project, no workspace needed.
+- Only one service will ever exist, or services do not share a datastore → stop, this is a single
+  `flat-layered` project and it needs no workspace root; `flat-layered` lays its packages and
+  `flat-persistence` its storage package.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.
-- A service needs its own private tables no other service touches → still put the `Table` in `myschema`
-  (one shared schema, one migration history) — do not fork a second schema-owning package.
+- A service needs its own private tables no other service touches → still put the `Table` in the one
+  owning package; a second schema owner over one store means two migration histories and the second to
+  run decides what the first one's tables look like (`flat-persistence`).
 - A service imports a sibling service → stop, promote the shared code into `packages/`.
 - Runtime code is being added to the root `pyproject.toml`'s project → stop, the root is a container;
   create a member for it.

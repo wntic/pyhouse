@@ -1,7 +1,7 @@
 ---
 name: flat-layered
-description: Use when structuring a worker, crawler, pipeline, or integration service whose family is already settled as flat. Defines packages by technical role and when flat layering fits better than hexagonal architecture; if the family is unsettled, `architecture-choice` decides.
-paths: ["**/services/**", "**/core/**", "**/ingest/**", "**/jobs/**"]
+description: Use when structuring a worker, crawler, pipeline, ETL job or integration service whose family is already settled as flat — one service on its own by default, and a workspace member under the same rules. Defines packages named for the technical roles the service actually has, the import contract between those roles, the settings factory, the single-implementation client, and why no `Protocol` appears until a second real implementation does. A service's data access has its own package whose rules are `flat-persistence`; several services sharing one repository is `flat-monorepo`; an unsettled family is `architecture-choice`.
+when_to_use: Also when asked for a worker's or a pipeline's package layout, where a client class or a settings class belongs, whether a dependency deserves an interface, or how to lay out a single-service repository with no workspace around it.
 ---
 
 # Flat-Layered Architecture — package-by-tech, no ports
@@ -11,6 +11,14 @@ infrastructure/entrypoints, `Protocol` ports, DIP) would add indirection with no
 code groups by **technical role**, dependencies point wherever they need to, and an interface is
 introduced only when a second real implementation is about to exist — not in anticipation of one.
 This skill assumes the family is already chosen; `architecture-choice` chooses it.
+
+**The subject is one service on its own** — its own repository, its own package, and its own datastore
+where it has one. A service that shares a repository with siblings is the same service under the same
+rules with a workspace root above it, and that root is a separate skill. Nothing below requires one.
+
+The style has established names: what the literature calls **package by layer**, after Simon Brown, with
+what Fowler calls **transaction scripts** above it. `architecture-choice` carries the same clause where
+the family is chosen.
 
 ## When to use vs. neighbours
 
@@ -33,16 +41,20 @@ This skill assumes the family is already chosen; `architecture-choice` chooses i
   never instead of it.
 - The service is mostly "call external system A, transform, call external system B/C, repeat" with one
   implementation per system and no rules worth isolating → this skill.
-- This service is one of several sharing a database and a workspace → this skill still covers its own
-  internal layout, but the workspace root is `flat-monorepo`, the shared schema is
-  `flat-schema-package`, the trigger choice is `flat-entrypoint`, and the
-  Temporal shapes are `flat-temporal-workflow`.
+- Where this service's SQL, table definitions and write path live → `flat-persistence`, which owns the
+  storage package this skill's skeleton creates a slot for. A service with no datastore skips it.
+- This service is one of several sharing one repository → this skill still covers its own internal
+  layout unchanged; the repository root, the member split and the tooling settled once are
+  `flat-monorepo`. A lone service needs none of that.
+- What triggers a run — a loop, a cron entry, a stream, or durable execution once it is earned →
+  `flat-entrypoint`.
 
 Four skills apply here exactly as they do anywhere else, and this skill does **not** restate them:
 
 - One class per module, `__all__`, the `__init__.py` re-export contract, import forms →
   `python-packaging`.
-- Annotation forms, collection types, logging, comments → `python-style`.
+- Annotation forms, collection types, the shape a record takes as it crosses a package boundary,
+  logging, comments → `python-style`.
 - The `exceptions/` catalog and translating SDK errors into it → `exception-catalog`.
 - Where boundaries go at all — split vs merge, contract vs shared knowledge, how much structure a
   component deserves → `coupling`.
@@ -52,7 +64,7 @@ Four skills apply here exactly as they do anywhere else, and this skill does **n
 The skeleton below is **one worked example**, not a required set of directory names. The rule is *group
 by technical role, one role per package*; the names are whatever describes the roles this service
 actually has. A service that fetches nothing has no `ingest/`. A service that runs no scheduled passes
-has no `jobs/`. A crawler might have `fetch/` and `parse/`; a report pipeline `extract/` and `render/`.
+has no `jobs/`. A service with no datastore of its own has no `storage/`. A crawler might have `fetch/` and `parse/`; a report pipeline `extract/` and `render/`.
 
 Copying a package name because it appears here, when the service has no such role, is the failure mode
 this warning exists to prevent — it produces an empty `jobs/` package and a reviewer who assumes work
@@ -93,6 +105,10 @@ myapp/
 ├── services/
 │   ├── __init__.py
 │   └── foo_client.py             # one concrete class per external system, SDK exceptions caught here
+├── storage/
+│   ├── __init__.py
+│   ├── foo_table.py              # this service's own table definitions
+│   └── foo_storage.py            # the ONLY place a statement is built or a connection opened
 ├── ingest/
 │   ├── __init__.py
 │   └── foo_ingest.py             # run functions that PULL from upstream and land raw rows
@@ -116,6 +132,7 @@ what**, not by vibes:
 
 | Role | Holds | May import | Imported by |
 |---|---|---|---|
+| data access (`storage/`) | table definitions, the write path, and the mapping from stored rows back to this service's own types | schema packages, and the settings values handed to it | the run-function packages, the framework wrapper, entrypoints |
 | upstream pull (`ingest/`) | one function per pull: fetch → normalize → write rows | client, schema and storage packages | the framework wrapper, entrypoints |
 | stored-data pass (`jobs/`) | one function per pass over already-stored data: recheck, classify, expire | client, schema and storage packages | the framework wrapper, entrypoints |
 | framework wrapper (`temporal/`) | `@workflow.defn` / `@activity.defn` wrappers, nothing else | the two above, plus schemas | entrypoints |
@@ -139,11 +156,14 @@ runnable from a plain loop, a test, or a one-off script, and it is what makes sw
 between continuous and scheduled a wrapper change rather than a rewrite. A workspace-wide grep enforces
 it (`test-architecture-rule`).
 
-**One other package holds that role: the workspace's `shared` framework-guarded helpers** — the
-`heartbeat` wrapper in `flat-temporal-workflow` is the worked case. It exists precisely so a run
-function stays framework-free, which is the rule's purpose, and the grep's allow-list names it. Nothing
-else is exempt: a role is declared when the package is admitted (`flat-monorepo` rule 2), not assumed
-from a directory name.
+**One other module holds that role: the framework-guarded helper.** A progress-reporting wrapper that
+does nothing outside the framework's own context is the worked case (`flat-entrypoint`, and the
+durable-execution templates its body sends you to). It exists precisely so a run function stays
+framework-free, which is the rule's purpose, and the grep's allow-list names it. **For a lone service it
+is a module of the service's own cross-cutting-setup package** — `core/` in the example above; in a
+workspace it is promoted to a shared package instead, and it is the same one exemption. Nothing else is
+exempt: a role is declared when the package is created, not assumed from a directory name (in a
+workspace, when the member is admitted — `flat-monorepo` rule 2).
 
 A service that never uses Temporal simply has no `temporal/` package; its `entrypoints/` call
 `ingest/` and `jobs/` directly. A very small service may collapse `ingest/` and `jobs/` into one
@@ -173,10 +193,10 @@ def get_settings() -> Settings:
 ```
 
 **One prefix per settings class, named after the component that owns it, and disjoint from its
-siblings.** `MYAPP_` above is the placeholder for this service's own stem — a service and the shared
-schema package it depends on are separate components reading the same environment, so they must not
-share a prefix or one component's variable silently satisfies the other's field
-(`flat-schema-package` states the shared package's half).
+siblings.** `MYAPP_` above is the placeholder for this service's own stem. A lone service has one
+prefix and is done; where a storage package is shared with sibling services it is a separate component
+reading the same environment, so the two prefixes must stay disjoint or one component's variable
+silently satisfies the other's field (`flat-persistence` states that package's half).
 
 **The timeout has no default.** A timeout is set from the upstream's observed latency and from what the
 caller can wait for, and no single number is right for every deployment — a default here is one
@@ -187,8 +207,8 @@ Required fields fail at the first `get_settings()` call, before any work starts.
 `settings = Settings()` runs at import time, so merely importing the package — from a test, from a
 type checker, from a sibling module that needs one constant — fails in any environment that has not
 set every required variable. The factory pushes that failure to the first real call, and `lru_cache`
-keeps it to one construction per process. The shared schema package uses the same shape
-(`flat-schema-package`).
+keeps it to one construction per process. The storage package builds its engine behind the same shape
+(`flat-persistence`).
 
 ### Template — an external-system client, on httpx
 
@@ -198,6 +218,7 @@ keeps it to one construction per process. The shared schema package uses the sam
 import httpx
 
 from myapp.exceptions import FooClientError
+from myapp.schemas.foo import FooPayload
 
 
 class FooClient:
@@ -205,15 +226,21 @@ class FooClient:
         self._base_url = base_url
         self._timeout_seconds = timeout_seconds
 
-    async def fetch(self, foo_id: str) -> dict:
+    async def fetch(self, foo_id: str) -> FooPayload:
         try:
             async with httpx.AsyncClient(timeout=self._timeout_seconds) as http:
                 response = await http.get(f"{self._base_url}/foos/{foo_id}")
                 response.raise_for_status()
         except httpx.HTTPError as exc:
             raise FooClientError(f"failed to fetch foo {foo_id}") from exc
-        return response.json()
+        return FooPayload.model_validate(response.json())
 ```
+
+**The client returns a declared type, never the parsed `dict`.** The payload leaves the scope that
+built it and arrives in a run function that has to know its fields; a bare mapping makes the receiving
+side learn them by reading the sender, and a renamed key then fails where it is read rather than where
+it changed. `python-style` owns that rule and its hard stop, and the parse happens here because this is
+the edge where the raw form arrives.
 
 The client takes its configuration as **constructor arguments**, not by reaching for a settings
 singleton. The entrypoint reads settings once and passes the values down; that is what lets a test
@@ -246,10 +273,13 @@ construct the client against a stub base URL without touching the environment.
    classes directly, or via a plain factory function if the object graph is non-trivial. A dependency-
    injection container is unwarranted machinery here: with one implementation per dependency there is
    nothing for it to choose between.
-4. **In a monorepo with a shared schema, the database is one such dependency.** A service imports
-   `Table` definitions and bulk-write helpers from the shared schema package (see
-   `flat-schema-package`) instead of opening its own connection or writing raw SQL — the same
-   "no ad-hoc duplication of a single shared thing" reasoning as rule 3, applied to the schema.
+4. **A service's data access lives in one package of its own, and no other package constructs a
+   statement or opens a connection.** The table definitions, the write path and the mapping from stored
+   rows back to this service's own types sit together, and every other package asks that one package for
+   data — the same "no ad-hoc duplication of a single shared thing" reasoning as rule 3, applied to
+   storage. A service's SQL is findable in one place or it is everywhere. What that package contains is
+   `flat-persistence`. Where several services share one store, that one package is shared between them
+   and `flat-persistence` states what changes.
 5. **Introduce a port only when a second real implementation is about to be written** — a second
    provider, a fake standing in for integration tests. Judge "about to be written" from the domain,
    not from caution (`coupling`): the credible case is a commodity dependency with a nameable
@@ -266,15 +296,17 @@ construct the client against a stub base URL without touching the environment.
    package unimportable — by a test, by a type checker, by a sibling module wanting one constant —
    anywhere the environment is incomplete.
 8. **One environment prefix per settings class, named after the component that owns it and disjoint
-   from every sibling's.** A service and the shared schema package it depends on are separate
-   components reading one environment; share a prefix and one component's variable silently satisfies
-   the other's field (`flat-schema-package` states the shared package's half).
+   from every sibling's.** A lone service has exactly one. Where a storage package is shared with
+   sibling services it is a second component reading the same environment; share a prefix and one
+   component's variable silently satisfies the other's field (`flat-persistence` states that package's
+   half).
 9. **Only a package whose declared role is framework wrapper may import the framework** — `temporal/`
-   for `temporalio` in this example — plus the workspace's framework-guarded shared helpers, which the
-   firewall's allow-list names explicitly. That one rule is what keeps the run functions callable from
+   for `temporalio` in this example — plus the one framework-guarded helper module the firewall's
+   allow-list names explicitly, which lives in the service's own cross-cutting-setup package and is
+   promoted to a shared package only in a workspace. That one rule is what keeps the run functions callable from
    a loop, a test or a one-off script, and it is what makes switching a service's trigger a wrapper
-   change rather than a rewrite. The role is declared when the package is admitted (`flat-monorepo`
-   rule 2), never inferred from a directory name.
+   change rather than a rewrite. The role is declared when the package is created — in a workspace, when
+   the member is admitted (`flat-monorepo` rule 2) — never inferred from a directory name.
 10. **A tunable with no single right value carries no default.** A timeout is set from the upstream's
     observed latency and from what the caller can wait for; a default is one deployment's tuning frozen
     into a template, and it converts a missing variable into a silent wrong answer instead of a startup
@@ -304,7 +336,7 @@ construct the client against a stub base URL without touching the environment.
 - Reaching for a DI container or a Protocol "in case we need to swap it later" with no concrete second
   implementation in sight → stop, that is the anticipatory abstraction this skill exists to avoid.
 - A framework import appears outside the package whose declared role is *framework wrapper*, or outside
-  the shared framework-guarded helper module — `import temporalio` outside `temporal/` in the example
+  the one framework-guarded helper module — `import temporalio` outside `temporal/` in the example
   above → stop, the run function has just been welded to the framework; move the wrapper into the
   framework-wrapper package and leave the body where it was.
 - A module builds its settings instance at import time → stop, expose `get_settings()` instead; the

@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Python house-style skills for writing services: one universal core plus two mutually exclusive architecture families.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {

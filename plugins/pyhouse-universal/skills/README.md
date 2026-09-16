@@ -1,7 +1,7 @@
 # House-style skills
 
-44 project-neutral Python skills in seven families: Universal (8), Meta (1), Hex core (12),
-Hex REST API (5), Hex tests (8), Flat core (5), and Flat tests (5).
+42 project-neutral Python skills in seven families: Universal (8), Meta (1), Hex core (12),
+Hex REST API (5), Hex tests (8), Flat core (4), and Flat tests (4).
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -16,7 +16,7 @@ repository:
 |---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 8 universal + `meta-skill-author`, and the `/choose-architecture` command |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 25 `hex-*` |
-| `pyhouse-flat` | `plugins/pyhouse-flat/` | the 10 `flat-*` |
+| `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
@@ -146,25 +146,23 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `hex-test-discovery-invariants` | App-construction smoke tests and discovered OpenAPI, CORS, and request-size invariants |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
-## Flat core (5)
+## Flat core (4)
 
 | Skill | Owns |
 |---|---|
-| `flat-layered` | The package-by-tech layout, package-naming-by-role, and what each package may import |
-| `flat-monorepo` | The uv workspace root: members, compose, Makefile |
-| `flat-schema-package` | The shared schema package: metadata, tables, bulk helpers, the registry |
-| `flat-entrypoint` | Trigger choice — loop, schedule, or stream — and the activity trio |
-| `flat-temporal-workflow` | Batch loops, `continue_as_new`, heartbeats, schedules |
+| `flat-layered` | The package-by-tech layout, package-naming-by-role, what each package may import, the settings factory and the one-implementation client |
+| `flat-monorepo` | The uv workspace root: members, in-repo edges, compose profiles, Makefile targets |
+| `flat-persistence` | One package owning a service's data access: transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
+| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the orchestration obligations once an engine is earned |
 
-## Flat tests (5)
+## Flat tests (4)
 
 | Skill | Owns |
 |---|---|
-| `flat-test-integration-setup` | The container plugin, the safety guard, both isolation mechanisms |
-| `flat-test-schema-package` | Schema-contract tests against a real database |
+| `flat-test-integration-setup` | The container, the safety guard, and the isolation fixture each declared transaction owner needs |
+| `flat-test-persistence` | The storage package's contract against a real datastore |
 | `flat-test-service-client` | One client class's test |
-| `flat-test-run-function` | Run-function and activity tests |
-| `flat-test-temporal-workflow` | Workflow orchestration tests under time skipping |
+| `flat-test-run-function` | What a trigger runs, at every level of wrapping — body, wrapper, orchestration |
 
 ## Conventions across both sets
 

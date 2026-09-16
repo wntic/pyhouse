@@ -63,9 +63,9 @@ A rule distilled from a real defect travels **verbatim** when it is moved, merge
 | Architecture | `test-architecture-rule` | None (greps the source tree) | < 100 ms | Static "no X in layer Y" invariants |
 | Pure unit | none — the test file stands alone | No | < 10 ms | Filter/normalize functions, `StrEnum` values, the exception catalog, schema validation |
 | Service client | `flat-test-service-client` | Stubbed HTTP transport, no socket | < 100 ms | Request shape, response parsing, SDK-error → catalog translation, timeouts |
-| Schema contract | `flat-test-schema-package` | Real Postgres via testcontainers | < 500 ms | Constraints, `ON CONFLICT` semantics, `RETURNING`, registry dedup, chunking |
+| Storage contract | `flat-test-persistence` | Real Postgres via testcontainers | < 500 ms | Constraints, `ON CONFLICT` semantics, `RETURNING`, driver-error translation, chunking |
 | Run function | `flat-test-run-function` | Real Postgres + stubbed transport | < 2 s | `run_once` wiring end to end, activity bodies |
-| Workflow | `flat-test-temporal-workflow` | Time-skipping test server | < 2 s | Orchestration, retry policy, batch-loop and `continue_as_new` semantics |
+| Orchestration | `flat-test-run-function` | Time-skipping test server, no datastore | < 2 s | Step dispatch, retry policy, batch-loop and continuation semantics |
 
 The shape is the goal: **fast layers run on every save; slow layers run on every commit; the slowest layers run in CI.** If a domain unit test starts touching IO or a repository test starts depending on the FastAPI app, the layer is leaking and the speed budget is gone.
 
@@ -158,13 +158,14 @@ One thing belongs to no member and stays at the repo root: **`tests/test_archite
 firewall, whose subject is the workspace itself rather than anything in it. (`test-architecture-rule`
 owns both placements and says which applies.)
 
-The datastore fixtures every member shares live in a **pytest plugin module** beside the tests of the
-package that owns the schema — `packages/myschema/tests/myschema_testing.py` — loaded by
+In a workspace, the datastore fixtures every member shares live in a **pytest plugin module** beside
+the tests of the package that owns the schema — `packages/myschema/tests/myschema_testing.py` — loaded by
 `addopts = "-p myschema_testing"` plus `pythonpath = ["packages/myschema/tests"]` in the root
 `pyproject.toml`. A plugin, not a conftest, because a plugin is registered **once per session**: every
 member shares one container, where a conftest copied into each member's `tests/` starts one container
 per member. Beside the tests, not inside `src/`: it is test-support code and has no business shipping in
-the wheel. Nothing in the plugin is autouse. `flat-test-integration-setup` owns the module.
+the wheel. Nothing in the plugin is autouse. `flat-test-integration-setup` owns both forms of the
+artifact — one service's own conftest by default, this plugin module once there are members to share it.
 
 ```
 tests/
@@ -179,14 +180,14 @@ packages/myschema/
     │   └── test_<thing>.py            # pure helpers only — no engine, no connection
     └── integration/
         ├── conftest.py                # only what this package adds — truncate_all made autouse
-        └── test_<table>_writes.py     # flat-test-schema-package
+        └── test_<table>_writes.py     # flat-test-persistence
 services/foo_parser/
 ├── src/foo_parser/…
 └── tests/
     ├── unit/
     │   ├── test_foo_client.py         # flat-test-service-client
     │   ├── test_filters.py            # pure unit
-    │   └── test_workflows.py          # flat-test-temporal-workflow
+    │   └── test_orchestration.py      # flat-test-run-function
     └── integration/
         └── test_foo_ingest.py         # flat-test-run-function
 ```
@@ -331,7 +332,7 @@ dashboards key on (`python-style`), so a test asserting on one couples the suite
 surface and reddens on a rename that broke nothing. Assert the returned value and the persisted
 state. Which layer may log at all, and what a line may carry → `python-style`.
 
-Artifact-specific coverage for domain behavior → `hex-test-domain`; repository contracts → `hex-test-repository-contract` or `flat-test-schema-package`; request shape and error translation → `flat-test-service-client`. Pin the observable contract those tests own.
+Artifact-specific coverage for domain behavior → `hex-test-domain`; repository contracts → `hex-test-repository-contract` or `flat-test-persistence`; request shape and error translation → `flat-test-service-client`. Pin the observable contract those tests own.
 
 ### No-mocks contract
 
@@ -386,7 +387,7 @@ is a hint that the caller wants a constructor parameter.
 ### Settings and shared resources (flat)
 
 Settings classes and engines are built behind `get_*` factories, not as module-level instances
-(`flat-layered`, `flat-schema-package`). That is what makes them testable: a test never mutates
+(`flat-layered`, `flat-persistence`). That is what makes them testable: a test never mutates
 a singleton and never reassigns a module attribute. It constructs what it needs, or takes the `engine`
 fixture, and passes it in.
 
@@ -422,7 +423,7 @@ integration tests reach the container through the `engine` fixture.
 4. **A test never waits out real time.** A test that looks like it needs a wait needs the right
    `await` on the event it is actually waiting for; a test that needs the clock to move forward
    advances the clock its runtime exposes rather than letting one pass — a workflow runtime's
-   time-skipping test environment is the worked case (`flat-test-temporal-workflow`). Sleeping makes
+   time-skipping test environment is the worked case (`flat-test-run-function`). Sleeping makes
    the suite slower than the behaviour it pins and hides the race that will surface in CI, and
    patching a sleep so a loop exits is the same defect wearing a different hat. A runtime that
    exposes no clock control is a reason to pin the policy — the delays computed, the attempts made —
@@ -460,9 +461,10 @@ integration tests reach the container through the `engine` fixture.
 - An autouse fixture is added to **the shared plugin** → stop, it would run for every unit test in the
   workspace; make it an explicit dependency, or make it autouse one level down, in a member's
   integration conftest.
-- Flat shared datastore fixtures are put in a root `conftest.py` → stop, they belong in the shared
-  pytest plugin module (`flat-test-integration-setup`). A root conftest would share correctly, but it
-  puts test infrastructure at the workspace root and reaches members only from above.
+- A workspace's shared datastore fixtures are put in a root `conftest.py` → stop, they belong in the
+  shared pytest plugin module (`flat-test-integration-setup`). A root conftest would share correctly,
+  but it puts test infrastructure at the workspace root and reaches members only from above. One
+  service on its own has no such problem — its fixtures are an ordinary `tests/integration/conftest.py`.
 - A settings test constructs its settings class without disabling dotenv loading → stop,
   pydantic-settings resolves the dotenv path against the process working directory, so the test passes
   or fails depending on which directory pytest was started from.

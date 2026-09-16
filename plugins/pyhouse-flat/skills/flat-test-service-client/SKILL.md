@@ -28,7 +28,7 @@ boundary — not an abstraction invented to make the code mockable.
 - The catalog exception this client translates *to*, and where it is declared → `exception-catalog`;
   asserting the catalog's own shape is a separate unit test, not this skill.
 - Where the client module sits in a flat service's package layout → `flat-layered`.
-- The workspace's shared Postgres fixtures → `flat-test-integration-setup`; nothing in this file needs
+- The family's shared datastore fixtures → `flat-test-integration-setup`; nothing in this file needs
   one.
 - The shared groundwork — the substitution ladder, naming, AAA → `test-principles`.
 - The client is an adapter behind a hexagonal `ICan<Verb>` capability port rather than a flat `*_client.py` → `hex-test-capability-adapter`, in the `pyhouse-hex` plugin, whose HTTP-gateway flavor is the same `respx` technique bound to a port.

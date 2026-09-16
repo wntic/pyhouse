@@ -267,7 +267,7 @@ same name, different shape — is never silently merged. Stop and surface it.
     `uuid.uuid7()` is standard library only from **Python 3.14**. Time-ordered v7 ids index better when
     rows created together are read together, and a project that wants them takes a third-party
     generator and applies it everywhere at once — never in half the templates. (The flat family does
-    exactly that for primary keys, for a reason `flat-schema-package` states in the `pyhouse-flat`
+    exactly that for primary keys, for a reason `flat-persistence` states in the `pyhouse-flat`
     plugin; the rule here does not depend on reading it.)
 
 ## Hard stops

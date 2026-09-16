@@ -1,6 +1,6 @@
 ---
 name: hex-persistence
-description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, or the paired Alembic revision. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not the shared workspace schema package (`flat-schema-package`), and not a nonrelational store (`hex-store-repository`).
+description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, or the paired Alembic revision. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not a flat-layered service's storage package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
 paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**"]
 ---
 
@@ -25,9 +25,8 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - The one-time migration bootstrap — config, `env.py`, the baseline revision → `hex-project-setup`.
 - A repository on a client-style store — key-value, document, search-index or vector, reached through an
   injected SDK client instead of the shared engine → `hex-store-repository`.
-- Shared tables, bulk upserts, the identity registry and migrations in a workspace-wide
-  `packages/myschema/` library that several services import → `flat-schema-package`, in the
-  `pyhouse-flat` plugin.
+- Tables, bulk upserts and migrations in a flat-layered service's own storage package, reached
+  directly rather than through a port → `flat-persistence`, in the `pyhouse-flat` plugin.
 - The settings class and the DI provider that construct this repository → `hex-wiring`.
 - The unit-of-work protocol and implementation, when the repository joins multi-repository transactions →
   `hex-patterns`.
