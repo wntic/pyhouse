@@ -1,6 +1,6 @@
 ---
 name: naming
-description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on protocols, and the vague-noun replacements. The mechanics around a name are `python-packaging`.
+description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on protocols, the error-class and repository-class identifier forms, and the vague-noun replacements. The mechanics around a name are `python-packaging`.
 when_to_use: Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repo already spells two ways.
 ---
 
@@ -35,8 +35,11 @@ never its layout.
 - Log event names, exception `code` values, task/workflow registration strings, database constraint
   names → those are *frozen external contracts*, owned by `python-style`, `exception-catalog` and
   whichever skill owns that artifact. See **Renaming** below.
-- A test builder, fixture, failure-injection subclass or test function needs a name → this skill for
-  the name; `test-principles` for whether it should be a fixture at all.
+- A test builder, fixture or failure-injection subclass needs a name → this skill for the name;
+  `test-principles` for whether it should be a fixture at all.
+- A test *function* or test *file* name → `test-principles`, which owns the `test_` file mirror and the
+  `test_<rule_being_pinned>` function pattern. This skill names the identifiers inside the test, not
+  the test.
 - Deriving a concrete *file path* for an artifact in a hexagonal project, rather than its name →
   `hex-conventions`, in the `pyhouse-hex` plugin.
 
@@ -135,6 +138,10 @@ decided by someone.
 | Package | the role it holds, one word where possible | `utils/`, `common/` | `ingest/`, `billing/` |
 | Module | matches its class in snake_case (`python-packaging`) | `helpers.py` | `retry_policy.py` |
 | Class | a noun phrase for the thing itself | `FooManager` | `FooValidator` |
+| Protocol | the `I` prefix, always — see **Protocol names carry the `I` prefix** below | `FooRepository` as the port's own name | `IFooRepository`, `ICanExportFoos` |
+| Repository adapter | the aggregate plus `Repository`; the `I` stays on the port, not on the class implementing it | `FooRepositoryImpl`, `FooDao` | `FooRepository`, implementing `IFooRepository` |
+| Exception class | the condition that was violated, suffixed `Error` (`exception-catalog` owns the class's `code` and the file it lives in) | `FooException`, `FooFailure`, `BadFoo` | `FooConflictError` |
+| Type alias | the concept the composite stands for, PascalCase like a class (`python-style` decides *when* to introduce one) | `FooTuple`, `StrDict` | `FooKey`, `BarIdsByFooId` |
 | Dataclass / DTO | the subject plus what it asserts | `CheckResult` | `UpstreamAvailability` |
 | Enum | singular noun naming the axis it varies on | `Types` | `FooKind` |
 | Enum member | the value, not its ordinal or encoding | `KIND_1` | `ARCHIVED` |
@@ -178,6 +185,15 @@ Their modules are `i_foo_repository.py` and `i_can_<verb>.py`, respectively.
 Both prefixes are mandatory: `i_` marks a port, and `i_can_` distinguishes a
 capability from a repository at a glance.
 
+**This is a deliberate departure from PEP 8**, which carries no such prefix, and from the `typing`
+documentation, whose own protocols are `Iterable`, `Sized`, `Hashable`. The departure buys something
+PEP 8 never had to price: where a port and the adapter satisfying it are both in scope, the two want
+the same noun, and one of them has to give it up. Without a prefix it is the adapter that has to
+absorb a qualifier, and the qualifiers available say nothing — `FooRepositoryImpl`, `FooRepositoryBase`
+— forms rejected outright further down this page. The prefix puts the mark on the abstraction, where
+it is true of every implementation that will ever satisfy it, and leaves the adapter free to be named
+for what it actually is.
+
 ## Vague-noun families — the fix is always the same
 
 Each of these names a category. The fix is to name the *subject* and the *assertion*.
@@ -207,8 +223,12 @@ ten seconds.
   public class, or anything crossing a package boundary earns full words. The distance between
   definition and use is what decides, not a character budget.
 - **No invented abbreviations.** Do not drop vowels (`cnt`, `msg`, `res`, `hdlr`) and do not truncate
-  (`conf`, `req`). Only two kinds are allowed: acronyms the domain already writes that way (`http`,
-  `url`, `id`, `csv`, `xml`) and technology names (`postgres`, `redis`, `s3`).
+  (`conf`, `req`). Three kinds are allowed, and the lists below name the kind rather than enumerate
+  its members: acronyms the domain already writes that way (`http`, `url`, `id`, `db`, `io`, `csv`,
+  `xml`), technology names (`postgres`, `redis`, `s3`), and the conventional throwaways `i`, `j` and
+  `_`, which carry no meaning to abbreviate and are bounded by the scope rule above rather than by
+  this one. An acronym the domain genuinely writes that way qualifies whether or not it is printed
+  here; a word you shortened yourself never does.
 - **Acronym casing is a project-wide choice made once** — `HttpClient` everywhere or `HTTPClient`
   everywhere, never both. This set's default is the first: only the leading letter capitalises, which
   keeps mechanical renames and case-sensitive searches predictable. On a project that already has a
@@ -244,10 +264,12 @@ retire the old one deliberately, with a migration.
    bool, a bare verb computes — so the call site can be written without opening the method.
 7. **Give each settings class its own environment prefix, named after the component that owns it**, and
    check it against every sibling's before using it.
-8. Apply the scope, abbreviation and acronym-casing choices in **Length, abbreviations, consistency**.
-9. Keep the repository's concept-to-word mapping unambiguous in both directions.
-10. Perform renames separately from behaviour changes; complete port-time naming before callers spread.
-11. Check the frozen-contract list in **Renaming** before changing a published name; migrate those names
+8. Apply the protocol prefixes in **Protocol names carry the `I` prefix** — `I<Aggregate>Repository`
+   for a repository port, `ICan<Verb>` for a capability port, both mandatory.
+9. Apply the scope, abbreviation and acronym-casing choices in **Length, abbreviations, consistency**.
+10. Keep the repository's concept-to-word mapping unambiguous in both directions.
+11. Perform renames separately from behaviour changes; complete port-time naming before callers spread.
+12. Check the frozen-contract list in **Renaming** before changing a published name; migrate those names
     instead of replacing them in place.
 
 ## Hard stops
@@ -271,6 +293,9 @@ retire the old one deliberately, with a migration.
   written against it.
 - A second settings class taking a prefix a sibling already uses, or one prefixed after the product
   rather than the component that owns it → stop, the two then read each other's variables.
+- A `typing.Protocol` port declared without the `I` prefix, or a capability port spelled anything but
+  `ICan<Verb>` → stop, the prefix is what lets a call site tell the port from the adapter satisfying
+  it without opening either file.
 - A name encodes the current mechanism rather than the job (`redis_cache`, `celery_task`) → stop, it
   will lie the day the mechanism changes.
 - Two siblings differ only by a qualifier (`handler`/`handler2`, `client`/`new_client`, `x`/`x_impl`)

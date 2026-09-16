@@ -159,6 +159,12 @@ Technology names stay concrete, because a rule about grouping infrastructure by 
 meaningless with the technology abstracted away: `postgres`, `redis`, `s3`, `jwt`, `temporalio`,
 `dishka`.
 
+One bounded exception sits outside that list: a **named third-party vendor used purely as a
+disambiguation example** — where the point of the example is that the reader recognises the name as
+one of several interchangeable providers, so a placeholder would blunt it. It stays an example and
+never becomes a subject: no rule, section or template may depend on that vendor, and the name may not
+travel into a path, a package, an env-var prefix or a shipped identifier.
+
 ## Out of scope (intentionally not in this catalog)
 
 - Process-only skills (brainstorming, retrospective notes). If reintroduced they belong under a separate

@@ -55,7 +55,7 @@ once rather than throughout — before the family is known:
 | Skill | Owns |
 |---|---|
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, and the cases where neither family applies |
-| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules, the vague-noun families, renaming |
+| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
 | `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, structured logging, comments |
 | `python-packaging` | One class per module, `__all__`, the `__init__.py` re-export contract, import rules |
