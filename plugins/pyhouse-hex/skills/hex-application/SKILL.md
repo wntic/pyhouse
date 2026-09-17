@@ -252,7 +252,7 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
 
 1. **`caller_id: UUID` is the first field of a command DTO — when the command runs behind an
    authenticated route.** Whether an app has auth at all is a property of its routes
-   (`hex-restapi-route-contracts`), so the actor is conditional: a command reached only by anonymous routes,
+   (`hex-restapi-auth`), so the actor is conditional: a command reached only by anonymous routes,
    or any command in an app with no auth, has no caller to thread and **omits `caller_id`** entirely.
    The templates show the authenticated form. On a query DTO the same field appears **only when the read
    is authorization-scoped**; a non-scoped read omits it.

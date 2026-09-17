@@ -13,7 +13,7 @@ Produces one resource's schema module — the declared HTTP wire format for that
 - Per-resource Pydantic schemas (request/response), including a field added to or removed from a body → this skill.
 - The route that consumes these schemas and maps them field by field → `hex-restapi-endpoint`.
 - The entity, value object, enum or filter record these models mirror — never imported here beyond enums → `hex-domain-model`.
-- Cross-cutting `ErrorResponse` / `error_responses()` in `restapi/schemas/errors.py` → `hex-restapi-app`; which of those codes a route advertises → `hex-restapi-route-contracts`.
+- Cross-cutting `ErrorResponse` / `error_responses()` in `restapi/schemas/errors.py` → `hex-restapi-app`; which of those codes a route advertises → `hex-restapi-endpoint`.
 - An auth login schema (`restapi/schemas/auth.py`) or any other auth-shaped wire type → `hex-restapi-auth`; reuse it, don't re-declare it per resource.
 - The handlers beneath this delivery layer, and the command DTO carrying the same partial-update contract → `hex-application`.
 - The container beneath this delivery layer → `hex-wiring`.

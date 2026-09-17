@@ -4,7 +4,7 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 42 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 41 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -20,7 +20,7 @@ too. The counts in every heading are the number of directories on disk.
 - `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; transport rendering stays at the boundary.
 - `test-principles` — Takes precedence whenever an artifact-specific test skill contradicts the shared constitution.
-- `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex discovery tests.
+- `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
 ### Meta (1)
 
@@ -41,12 +41,11 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-capability-adapter` — Implements an external action; aggregate persistence belongs to a repository skill.
 - `hex-store-repository` — Use for client-style storage; relational tables and Alembic revisions belong to the persistence skill.
 
-### Hex REST API (5)
+### Hex REST API (4)
 
 - `hex-restapi-app` — Establish the shared shell before adding resource routers; the shell it lays presumes no authentication.
-- `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body.
+- `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body, and keeps the errors the route advertises aligned with what it can actually produce.
 - `hex-restapi-schema` — Match the domain filter's chosen pagination shape and the command DTO's partial-update contract.
-- `hex-restapi-route-contracts` — Keep the errors a route advertises aligned with what its handler and middleware can actually produce.
 - `hex-restapi-auth` — Add only when the entrypoint itself authenticates; a gateway- or mTLS-fronted service declares no auth and skips it.
 
 ### Hex tests (8)
@@ -57,7 +56,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-test-repository-contract` — Exercise the same aggregate contract across adapters while selecting isolation for the actual store.
 - `hex-test-capability-adapter` — Select the backend-specific flavor; a pure-CPU implementation runs directly without a container.
 - `hex-test-restapi-endpoint` — Reuse the shared integration setup and keep resource-specific fixture preparation in the sibling conftest.
-- `hex-test-discovery-invariants` — Discovers applicable routes so new endpoints enter the checks without a hand-maintained route list.
+- `hex-test-app-invariants` — Pins properties of the assembled app that adding or removing an endpoint must never oblige anyone to edit.
 - `hex-test-restapi-auth` — Layer the auth fixtures over the shared integration setup; produced only for an app whose entrypoint authenticates.
 
 ### Flat core (3)
@@ -81,7 +80,7 @@ The catalogue is distributed on the Claude Code marketplace as three plugins und
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 9 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command | — |
-| `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (25) | `pyhouse-universal` |
+| `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
 
 A new skill's directory goes under that plugin's `skills/`, beside its siblings. The plugin's own

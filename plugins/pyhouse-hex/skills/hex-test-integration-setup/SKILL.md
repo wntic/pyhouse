@@ -14,7 +14,7 @@ One-shot per project, and everything else in the integration suite depends on it
 - Laying either conftest for the first time, or changing a fixture in one → this skill.
 - A repository contract test → `hex-test-repository-contract` (consumes `sf`).
 - An API endpoint test → `hex-test-restapi-endpoint` (consumes `sf` and `real_app`).
-- The cross-cutting OpenAPI / CORS / request-size invariants → `hex-test-discovery-invariants` (consumes `real_app` directly).
+- The cross-cutting OpenAPI / CORS / request-size invariants → `hex-test-app-invariants` (consumes `real_app` directly).
 - A handler test that runs on in-memory fakes and needs no database at all → `hex-test-application-handler`; none of these fixtures apply to it.
 - A capability adapter's own assertions — the respx gateway, the SDK-error translation, the pure-CPU case → `hex-test-capability-adapter`. The session-scoped container its backend needs is still declared here.
 - The signing-key and token-minting fixtures, the authenticated client, and the `jwt_settings` override `real_app` grows in an auth app → `hex-test-restapi-auth`. Only for an app that declares auth; this skill is complete without it.
@@ -95,7 +95,7 @@ in the sibling `tests/integration/<store-kind>/conftest.py`, next to the tests t
 because blob storage has no store-kind conftest of its own in this template.
 
 - Per-resource row factories (`make_foo`, `make_bar`, …) → not this skill; declare them in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
-- Cross-cutting "OpenAPI codes match `error_responses(...)`" / CORS / request-size invariants → `hex-test-discovery-invariants`; the every-protected-route-rejects-an-anonymous-caller probe → `hex-test-restapi-auth`.
+- Cross-cutting "OpenAPI codes match `error_responses(...)`" / CORS / request-size invariants → `hex-test-app-invariants`; the every-protected-route-rejects-an-anonymous-caller probe → `hex-test-restapi-auth`.
 
 ### `real_app` is usable only from `tests/integration/api/`
 
@@ -147,7 +147,7 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 - **An authenticated client is not this skill's.** The single sanctioned authenticated client, the
   signing keypair, the token-minting helper and their rules → `hex-test-restapi-auth`. A raw
   `AsyncClient` over `real_app` is sanctioned here only for an app with no auth, and for the
-  unauthenticated probes in `hex-test-discovery-invariants` / `hex-test-restapi-auth`.
+  unauthenticated probes in `hex-test-app-invariants` / `hex-test-restapi-auth`.
 - **No `localhost` / `127.0.0.1` base URL.** `http://testserver` is the convention; the ASGI transport
   short-circuits the network anyway, but `testserver` makes route logs distinguishable from real
   traffic in CI logs.

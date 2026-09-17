@@ -54,7 +54,7 @@ or, far more often, needs nothing and leaves `code` to do the work.
   `pyhouse-hex` plugin, which references this skill for the target class name.
 - Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
   plugin, same relationship.
-- Advertising an error's `code` on a REST route → `hex-restapi-route-contracts`, in the
+- Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
   `pyhouse-hex` plugin, which references the new `code`.
 - Where the error is logged and by whom → `python-style`.
 - Why this one file is exempt from one-class-per-module → `python-packaging`.

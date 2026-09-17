@@ -76,30 +76,23 @@ frozen role; it is the slot this skill fills.
 ### Coordinated advertisement — the join between the dependency and the codes
 
 The advertised codes **follow from the chosen dependency**. Getting them out of step is the failure this
-half exists to prevent — the discovery invariant that compares the decorator against the OpenAPI spec
+half exists to prevent — the app-wide invariant that compares the decorator against the OpenAPI spec
 fails on exactly that mismatch.
 
 - `Depends(get_current_user)` → the set includes `401`.
 - `Depends(require_role(...))` → the set includes `401` **and** `403`.
 - No auth dependency → the set includes neither.
 
-`hex-restapi-route-contracts` owns the per-operation code sets for a route with no auth dependency, and
-the rule that `422` is advertised on every route carrying any validated input. An authenticated route
-takes that set and adds its auth codes:
+`hex-restapi-endpoint` owns the per-operation code sets for a route with no auth dependency, and the
+rule that the input-validation status is advertised on every route carrying any validated input — both
+in its sibling `CONTRACTS.md`. **Read the base set for the operation there, then add the auth codes
+above and nothing else**: `401` where the dependency only authenticates, `401` **and** `403` where it
+gates on rank. The base set is not restated here, so there is no second copy of it to drift.
 
-| Operation | `error_responses(...)` on an authenticated route |
-|---|---|
-| Read, parameterless | `401` (plus `404` if it can not-find) |
-| Read by id (`{id}` path param) | `401, 404, 422` |
-| List / browse (filter or pagination params) | `401, 422` |
-| Create (body) | `401, 403, 409, 422` |
-| Update (`{id}` plus body) | `401, 403, 404, 409, 422` |
-| Delete (`{id}` path param) | `401, 403, 404, 409, 422` — `409` covers in-use |
-| Static collection action (a literal path segment) | `401, 403, 422` |
-| Lookup / detect (a read with input) | `401, 404, 422` |
-| Multipart upload | add `413` to whichever set applies |
+Which of the two a given operation gets follows from the decision rule at the top of this file, not from
+the operation's shape: a read that any authenticated caller may make takes `get_current_user` and so
+adds `401` alone; a mutation gated on a role rank takes `require_role(...)` and so adds `401` and `403`.
 
 `401` and `403` are auth codes, not universal. A **public** route, or any route in an app with no auth,
 **drops both**. This is load-bearing rather than cosmetic: `error_responses(...)` validates against the
 known set, and an auth-less app has no `UnauthorizedError` class, so a stray `401` raises `ValueError`.
-

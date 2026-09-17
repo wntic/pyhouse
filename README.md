@@ -2,7 +2,7 @@
 
 House-style rules for writing Python services, as Claude Code skills.
 
-Forty-two skills covering naming, packaging, errors and tests — plus two mutually exclusive service
+Forty-one skills covering naming, packaging, errors and tests — plus two mutually exclusive service
 architectures. They are project-neutral: worked examples use `myapp` and `Foo`, never a real service
 name. The skills are plain `SKILL.md` files, so Claude Code, opencode and Codex all read them.
 
@@ -19,7 +19,7 @@ language-level rules, or before you have picked an architecture.
 | Plugin | Skills | What it covers |
 |---|---|---|
 | `pyhouse-universal` | 10 | Naming, typing and logging, packaging and re-exports, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the architecture chooser. |
-| `pyhouse-hex` | 25 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
+| `pyhouse-hex` | 24 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-flat` | 7 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the package owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
 ## Which family?

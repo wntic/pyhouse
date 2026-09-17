@@ -1,7 +1,7 @@
 # House-style skills
 
-42 project-neutral Python skills in seven families: Universal (9), Meta (1), Hex core (12),
-Hex REST API (5), Hex tests (8), Flat core (3), and Flat tests (4).
+41 project-neutral Python skills in seven families: Universal (9), Meta (1), Hex core (12),
+Hex REST API (4), Hex tests (8), Flat core (3), and Flat tests (4).
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -15,7 +15,7 @@ repository:
 | Plugin | Directory | Skills |
 |---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 9 universal + `meta-skill-author`, and the `/choose-architecture` command |
-| `pyhouse-hex` | `plugins/pyhouse-hex/` | the 25 `hex-*` |
+| `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 7 `flat-*` |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
@@ -121,14 +121,13 @@ Hex projects also use the universal skills unchanged. `hex-architecture` adds th
 rules the layer split imposes on top of `python-packaging`; `python-style` carries the per-layer
 logging allocation (domain never logs, application logs successes only).
 
-## Hex REST API (5)
+## Hex REST API (4)
 
 | Skill | Owns |
 |---|---|
 | `hex-restapi-app` | FastAPI lifecycle, middleware, central error translation, and the shared error schemas |
-| `hex-restapi-endpoint` | Resource routers, JSON operations, multipart uploads, streaming downloads, and handler resolution |
+| `hex-restapi-endpoint` | Resource routers, JSON operations, multipart uploads, streaming downloads, handler resolution, and the error responses a route advertises |
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
-| `hex-restapi-route-contracts` | The advertised error responses a route declares, and the middleware-code registry |
 | `hex-restapi-auth` | Caller identity, the token-verifier port and adapter, route dependencies, the role gate, and the auth codes a route advertises |
 
 **The first four are complete on their own.** `hex-restapi-auth` is optional: a service behind an
@@ -144,7 +143,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `hex-test-repository-contract` | Real-backend repository contracts with relational rollback or client-store namespace isolation |
 | `hex-test-capability-adapter` | Capability adapter tests with containers, HTTP transport substitution, or real CPU work |
 | `hex-test-restapi-endpoint` | Real-app ASGI integration tests, response validation, and per-resource fixtures |
-| `hex-test-discovery-invariants` | App-construction smoke tests and discovered OpenAPI, CORS, and request-size invariants |
+| `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI, CORS, and request-size invariants |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
 ## Flat core (3)

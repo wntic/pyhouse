@@ -1,6 +1,6 @@
 ---
 name: hex-restapi-endpoint
-description: Use when adding or changing one REST route, or creating a resource's router file `restapi/routers/<resource>.py` — thin JSON routes, multipart upload, streaming download, dishka handler injection, route ordering. Which error codes the decorator advertises is `hex-restapi-route-contracts`, the pydantic models are `hex-restapi-schema`, the auth dependency `hex-restapi-auth`.
+description: Use when adding or changing one REST route, or creating a resource's router file `restapi/routers/<resource>.py` — thin JSON routes, multipart upload, streaming download, dishka handler injection, route ordering, and which error codes the route advertises. Owns the per-operation code sets, advertise-only-what-you-produce, and the registry for a status a middleware introduces. The pydantic models are `hex-restapi-schema`; the auth dependency and the `401` / `403` that follow it are `hex-restapi-auth`.
 paths: ["**/restapi/**", "**/api/**"]
 ---
 
@@ -8,16 +8,22 @@ paths: ["**/restapi/**", "**/api/**"]
 
 Produces one HTTP endpoint for one resource. Routers grow incrementally — this skill adds one route at a time. A "router file" exists once per resource; subsequent endpoint additions extend it.
 
+**Read the sibling `CONTRACTS.md` in this skill's own directory before choosing what a route advertises
+in `responses=error_responses(...)`.** It carries the per-operation code sets, the two symbols the
+decorator draws on, and the procedure for a status a middleware introduces; only `SKILL.md` is loaded
+automatically.
+
 ## When to use vs. neighbours
 
 - One new endpoint or modification of an existing one, including the multipart-upload and streaming-download kinds → this skill.
 - Pydantic request/response schemas this route maps to and from → `hex-restapi-schema`.
-- The `responses=error_responses(...)` declaration and which codes belong in it → `hex-restapi-route-contracts`.
+- The `responses=error_responses(...)` declaration and which codes belong in it → this skill, in the sibling `CONTRACTS.md`.
+- Defining a new error class whose status then becomes valid for `error_responses(...)`, and boundary translation → `exception-catalog`.
 - Attaching an auth dependency to a route, and the `401` / `403` that follow it → `hex-restapi-auth`.
 - The shell this router registers into — `restapi/main.py`, the CORS `expose_headers` list a download route extends, the request-size middleware behind a `413` → `hex-restapi-app`.
 - The composition root that binds the handler this route injects → `hex-wiring`.
 - Application handlers that consume upload bytes or produce download content → `hex-application`; storage capability protocols → `hex-domain-ports`.
-- Testing this route through the real app → `hex-test-restapi-endpoint`; the OpenAPI and app-construction properties discovered across all routes → `hex-test-discovery-invariants`.
+- Testing this route through the real app → `hex-test-restapi-endpoint`; the OpenAPI and app-construction properties discovered across all routes → `hex-test-app-invariants`.
 - Route, module and helper identifiers → `naming`; `__all__`, the private `_export_filename` helper and the router export → `python-packaging`.
 
 ## Template(s) — FastAPI router, dishka-injected
@@ -217,7 +223,7 @@ async def bulk_update_foos(
 ### Route ordering — FastAPI declaration order
 
 FastAPI resolves a request against the routes **in declaration order**, which makes the reachability
-obligation (`## Rules`) a property of where a route sits in the file. `/bulk` is captured by `/{id}` if
+obligation (rule 18) a property of where a route sits in the file. `/bulk` is captured by `/{id}` if
 `/{id}` was declared first — `"bulk"` parses as a string UUID until validation fails, by which time the
 wrong handler ran.
 
@@ -263,7 +269,7 @@ Rules:
 
 - `file: UploadFile` for the file slot. Companion scalar/UUID fields use `= Form(...)` — they share the same multipart envelope.
 - `await file.read()` loads the body into memory. This is bounded **only** when the app declares a request-size cap middleware (`hex-restapi-app`'s `MaxRequestSizeMiddleware`), which rejects oversize requests before the route runs. A request-size cap is a per-app `restapi.middlewares` choice, not a given: if the app declares none, the body is unbounded and `file.read()` is **not** safe — the app must add a size cap (or the route must stream-and-bound the read) before relying on it. The templates here assume the app declares such a cap.
-- **Advertise `413`** in `responses=error_responses(...)` **only when the app declares a request-size cap middleware** — 413 is produced by that middleware (its code registered in `MIDDLEWARE_ERRORS`), not by a domain exception, so an app without one has no 413 to advertise, and the OpenAPI discovery check (`hex-test-discovery-invariants`) would reject the orphan code. The `413` shown in the decorator templates is present because those templates assume a size-capped app; drop it for an app that declares no size middleware.
+- **Advertise `413`** in `responses=error_responses(...)` **only when the app declares a request-size cap middleware** — 413 is produced by that middleware (its code registered in `MIDDLEWARE_ERRORS`), not by a domain exception, so an app without one has no 413 to advertise, and the OpenAPI discovery check (`hex-test-app-invariants`) would reject the orphan code. The `413` shown in the decorator templates is present because those templates assume a size-capped app; drop it for an app that declares no size middleware.
 - The route does not parse the file — pass bytes to the handler via the command DTO (`file_data: bytes`).
 
 #### Multiple optional uploads (`slot: optional-many`)
@@ -376,21 +382,19 @@ An app with no CORS configured has no such list to extend. **Verify `expose_head
 
 ### Router file
 
-- One module per resource. File naming follows `naming`.
-- Only `router` is public; export mechanics follow `python-packaging`.
-- `prefix` matches the file name's resource; casing follows `naming`.
-- `tags=[...]` echoes the resource word.
-- **The auth imports are conditional.** `from myapp.domain.auth import CurrentUser, Role` and `from ..dependencies import get_current_user, require_role` appear **only** when the app declares auth (`hex-restapi-auth`) and this resource has ≥1 authenticated route. An auth-less app — or a router whose every route is public — omits both imports entirely; importing them would reference a `domain/auth` module and a `dependencies.py` that an auth-less app does not have. The skeleton above is the auth-free form.
+1. **One module per resource.** File naming follows `naming`.
+2. **Only `router` is public**; export mechanics follow `python-packaging`.
+3. **`prefix` matches the file name's resource**; casing follows `naming`.
+4. **`tags=[...]` echoes the resource word.**
+5. **The auth imports are conditional.** `from myapp.domain.auth import CurrentUser, Role` and `from ..dependencies import get_current_user, require_role` appear **only** when the app declares auth (`hex-restapi-auth`) and this resource has ≥1 authenticated route. An auth-less app — or a router whose every route is public — omits both imports entirely; importing them would reference a `domain/auth` module and a `dependencies.py` that an auth-less app does not have. The skeleton above is the auth-free form.
 
 ### Parameter order (load-bearing for readability, not FastAPI)
 
-1. Path params (`id: UUID`)
-2. Body (`body: FooCreateRequest`)
-3. Injected handlers (`handler: FromDishka[CreateFooHandler]`) — they carry no default, so they must precede every defaulted parameter anyway
-4. Query params with defaults (`limit`, `offset`)
-5. Auth dep **last** (`_` or `user`), when the route has one — `hex-restapi-auth`
+6. **Parameters go in one order** — path params (`id: UUID`), then body (`body: FooCreateRequest`), then injected handlers (`handler: FromDishka[CreateFooHandler]`), which carry no default and so must precede every defaulted parameter anyway, then query params with defaults (`limit`, `offset`), and the auth dependency **last** (`_` or `user`) when the route has one — `hex-restapi-auth`.
 
 ### Status codes (defaults)
+
+7. **The operation fixes the success status and the return type.**
 
 | Operation | Decorator | Return type |
 |-----------|-----------|-------------|
@@ -403,47 +407,54 @@ An app with no CORS configured has no such list to extend. **Verify `expose_head
 
 For 204 endpoints, the function return annotation is `-> Response` and the body is `return Response(status_code=204)`. **Do not return `None`** — FastAPI then emits an empty 200.
 
+### What the route advertises
+
+The per-operation code sets, the helper and the middleware registry are in the sibling `CONTRACTS.md`.
+
+8. **Routes only advertise.** A route never builds an error response itself: one translator owns the error body's shape, and a hand-built body is the copy that drifts from it. The error catalogue and boundary translation are `exception-catalog`'s; logging is `python-style`'s.
+9. **Advertise exactly what the route can produce.** The set follows from the operation — which domain exceptions its handler can raise, which middleware sits in front of it, and whether it takes any validated input. A code that cannot occur is removed; a code that can occur and is missing makes the published document wrong in the direction clients notice last.
+10. **Never hand-write the advertisement mapping** — `responses={404: {...}}` typed out at the decorator. Always go through the helper, because the helper is what checks the code against the set of codes something can actually produce; a hand-written entry is the one path by which a status nothing raises reaches the document.
+11. **One hand-maintained registry, and only one.** A status a middleware introduces, with no domain exception behind it, is the only kind registered by hand; everything domain-side derives from the error catalogue's own exported set.
+12. **A middleware-introduced status is registered before it is advertised.** The helper validates against the known set, so an unregistered status fails loudly at import rather than reaching the document.
+13. **A route taking any validated input advertises the input-validation status.** Path parameter, query parameter, filter, pagination or body — any of them can be rejected before the handler runs, so the document must say so. It is *any-input* validation, not body validation: a lone `{id}` produces it, and only a parameterless, body-less route omits it. Where the framework publishes that response on its own, the decorator still names it, so the document reads the same whichever half put it there.
+
 ### Handler injection
 
 ```python
 handler: FromDishka[ListFoosHandler],
 ```
 
-- **The handler is named by its type, not by a container attribute.** The composition root (`hex-wiring`) decides what satisfies `ListFoosHandler`; the route never spells a binding's name, so renaming a handler class is a single rename that the type checker follows.
-- The annotation is the concrete handler class, which is also what gives the type checker `execute`.
-- **Never resolve at module level, and never hold a container reference in the module.** Injection happens per request; a module-level resolution captures state too early and defeats the per-test composition root.
-- For create/update with read-back, take `handler` and `get_handler` as two separate injected parameters with distinct names.
+14. **The handler is named by its type, not by a container attribute.** The composition root (`hex-wiring`) decides what satisfies `ListFoosHandler`; the route never spells a binding's name, so renaming a handler class is a single rename that the type checker follows.
+15. **The annotation is the concrete handler class**, which is also what gives the type checker `execute`.
+16. **Never resolve at module level, and never hold a container reference in the module.** Injection happens per request; a module-level resolution captures state too early and defeats the per-test composition root.
+17. **For create/update with read-back**, take `handler` and `get_handler` as two separate injected parameters with distinct names.
 
 ### Route reachability
 
-**Every route the file declares must be the one a matching request actually reaches.** A path a more
-general sibling can also match is dead, and it fails silently — the wrong handler runs and answers, so
-there is no routing error to see. Where the framework resolves paths by a rule the file's own layout
-can violate — declaration order, a first-match table — satisfying that rule is part of writing the
-route. The FastAPI spelling and its stop are under `### Route ordering` above.
+18. **Every route the file declares must be the one a matching request actually reaches.** A path a more general sibling can also match is dead, and it fails silently — the wrong handler runs and answers, so there is no routing error to see. Where the framework resolves paths by a rule the file's own layout can violate — declaration order, a first-match table — satisfying that rule is part of writing the route. The FastAPI spelling and its stop are under `### Route ordering` above.
 
 ### What never goes in a route
 
-- **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is the mixed multipart+JSON parse above.
-- **No logging.** Logging ownership follows `python-style`.
-- **No business logic, no policy checks, no domain construction beyond mapping body→command.**
-- **No infrastructure imports.** Only `application/*` and `domain/*` types.
-- **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
+19. **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is the mixed multipart+JSON parse above.
+20. **No logging.** Logging ownership follows `python-style`.
+21. **No business logic, no policy checks, no domain construction beyond mapping body→command.**
+22. **No infrastructure imports.** Only `application/*` and `domain/*` types.
+23. **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
 
 ### Handler contract for downloads
 
-- The handler returns **raw bytes** (or an `AsyncIterator[bytes]` for true streaming). It does not return a Pydantic model, a Response, or a file path.
-- The route does not transform the bytes — it only wraps them in `StreamingResponse` and attaches the filename / `Content-Disposition`.
-- Authorization, filtering, and content generation all live in the handler. The route is a transport adapter.
+24. **The handler returns raw bytes** (or an `AsyncIterator[bytes]` for true streaming). It does not return a Pydantic model, a Response, or a file path.
+25. **The route does not transform the bytes** — it only wraps them in `StreamingResponse` and attaches the filename / `Content-Disposition`.
+26. **Authorization, filtering, and content generation all live in the handler.** The route is a transport adapter.
 
 ### What never goes in a file-transfer route
 
-- **Writing the upload to disk inside the route.** Pass bytes (or an `UploadFile`) to the handler; storage is an infrastructure concern (`hex-capability-adapter`).
-- **Computing or enforcing a per-route size limit.** `MaxRequestSizeMiddleware` is the single chokepoint. If a specific route needs a tighter cap, add it as an application-layer rule that raises `ValidationError` after parsing.
-- **Streaming without `media_type`.** Browsers and clients rely on it.
-- **Catching exceptions other than the one sanctioned `PydanticValidationError → ValidationError` translation in mixed-multipart-json mode.** Do not extend the `try/except`.
-- **Returning `FileResponse` from a path on disk.** All file content originates from the handler's bytes. The API does not serve filesystem paths.
-- **`response_model` on a streaming route.** Meaningless and confuses OpenAPI.
+27. **Writing the upload to disk inside the route.** Pass bytes (or an `UploadFile`) to the handler; storage is an infrastructure concern (`hex-capability-adapter`).
+28. **Computing or enforcing a per-route size limit.** `MaxRequestSizeMiddleware` is the single chokepoint. If a specific route needs a tighter cap, add it as an application-layer rule that raises `ValidationError` after parsing.
+29. **Streaming without `media_type`.** Browsers and clients rely on it.
+30. **Catching exceptions other than the one sanctioned `PydanticValidationError → ValidationError` translation in mixed-multipart-json mode.** Do not extend the `try/except`.
+31. **Returning `FileResponse` from a path on disk.** All file content originates from the handler's bytes. The API does not serve filesystem paths.
+32. **`response_model` on a streaming route.** Meaningless and confuses OpenAPI.
 
 ## Inlined typing / import rules
 
@@ -479,3 +490,7 @@ app.include_router(foos_router)
 - Spec wants the route to compute file size limits → stop, that's the middleware's job.
 - Spec wants the route to parse the file content → stop, that's the handler's job; the route passes bytes.
 - Spec adds a download response header beyond `Content-Disposition` without updating CORS `expose_headers` (when CORS is configured) → stop, update both in the same change.
+- Spec asks a route to catch a domain exception and translate it → stop, use `exception-catalog`.
+- Spec advertises `401` or `403` on a route that attaches no auth dependency → stop, those codes follow the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
+- Spec proposes a third auth dependency type, or any other auth machinery → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.
+- Spec omits the input-validation status on a route that takes a path param, query param, filter or body → stop. Where the framework publishes that response itself — FastAPI does — the decorator names it too, so the document reads the same whichever half put it there; where the framework publishes nothing of its own, the decorator is the only thing documenting the status at all.

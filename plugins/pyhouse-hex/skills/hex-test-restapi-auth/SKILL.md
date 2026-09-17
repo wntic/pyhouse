@@ -24,7 +24,7 @@ from a flag.
 - A per-endpoint test's non-auth half — happy path, schema validation, per-resource fixtures →
   `hex-test-restapi-endpoint`.
 - The other discovered invariants — OpenAPI error codes, CORS, request-size limit, the construct smoke →
-  `hex-test-discovery-invariants`.
+  `hex-test-app-invariants`.
 - The route-side dependencies, the verifier and the code sets under test → `hex-restapi-auth`.
 - A handler-level authorization rule, tested without HTTP → `hex-test-application-handler`.
 - The `Role` enum's own unit test → `hex-test-domain`.

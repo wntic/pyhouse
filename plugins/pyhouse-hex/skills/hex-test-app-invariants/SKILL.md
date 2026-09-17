@@ -1,9 +1,9 @@
 ---
-name: hex-test-discovery-invariants
-description: Use when testing a property that holds across every route at once rather than one route's own behaviour — the one-shot OpenAPI error-code cross-check against `error_responses(...)`, the CORS preflight, the request-size limit, and the app-construction smoke, each discovering its inputs from the running app. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
+name: hex-test-app-invariants
+description: Use when testing a property of the assembled app itself rather than one route's own behaviour — a check that needs no edit when an endpoint is added or removed. Covers the one-shot OpenAPI error-code cross-check against `error_responses(...)`, the CORS preflight, the request-size limit, and the app-construction smoke, each taking its inputs from the running app rather than from a maintained list. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
 ---
 
-# Hex Test — Discovery Invariants
+# Hex Test — App Invariants
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
@@ -15,7 +15,7 @@ One-shot per project. Two to four integration files under `tests/integration/api
 - A per-endpoint integration test → `hex-test-restapi-endpoint`.
 - The rollback fixture / containers / `real_app` → `hex-test-integration-setup` (owns `real_app`, which every test here imports).
 - The every-protected-route-rejects-an-anonymous-caller probe, and the fixtures that mint tokens → `hex-test-restapi-auth` (auth apps only; nothing here consumes them — see Rule 8).
-- The route-side `error_responses(...)` declaration this skill cross-checks the document against → `hex-restapi-route-contracts`; the 401/403 half of it → `hex-restapi-auth`.
+- The route-side `error_responses(...)` declaration this skill cross-checks the document against → `hex-restapi-endpoint`, in its sibling `CONTRACTS.md`; the 401/403 half of it → `hex-restapi-auth`.
 - A grep-firewall static rule → `test-architecture-rule` (compile-time, not runtime).
 - The testing constitution — markers, async mode, the mocking prohibition → `test-principles`.
 
@@ -63,7 +63,7 @@ from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 # input at all: measured on a live app, `GET /foos/{id}: decorator=[401, 404] spec=[401, 404,
 # 422] extra=[422]`, while the parameterless route on the same app matched. So it is the one code
 # allowed to stand in the document undeclared, and the only one. Declaring it anyway stays the
-# house style (`hex-restapi-route-contracts`): a declared `422` is published and matches either way.
+# house style (`hex-restapi-endpoint`): a declared `422` is published and matches either way.
 _FRAMEWORK_VALIDATION_CODE = 422
 
 def _declared_codes(app: FastAPI) -> dict[tuple[str, str], set[int]]:
@@ -257,7 +257,7 @@ Consult `test-principles` for the testing constitution.
 5. **Each file holds one invariant.** Don't merge `test_cors.py` and `test_request_size_limit.py` even though both are tiny — failures in one don't mask the other, and the file names form the spec.
 6. **CORS test uses an OPTIONS preflight.** Asserting on a GET response's `Access-Control-Allow-Origin` is a softer test; the preflight is the one browsers actually consult.
 7. **Request-size test uses raw bytes**, not JSON-encoded data, to bypass schema validation and hit the middleware directly. Otherwise the response is `422` (validation) before the middleware sees the body.
-8. **No authenticated client here.** Every test in this skill reads OpenAPI or route metadata, or probes an unauthenticated path. A discovery test that needs a token is either the auth probe (`hex-test-restapi-auth`) or a per-endpoint concern (`hex-test-restapi-endpoint`).
+8. **No authenticated client here.** Every test in this skill reads OpenAPI or route metadata, or probes an unauthenticated path. A test here that needs a token is either the auth probe (`hex-test-restapi-auth`) or a per-endpoint concern (`hex-test-restapi-endpoint`).
 9. **Test markers and async mode** → `test-principles`.
 10. **Parametrize from the discovered list at collection time — one reported case per discovered item, never a loop inside a single test.** A loop stops at the first failure and says nothing about the items it never reached, so one broken route hides the rest. The runner's collection hook (`pytest_generate_tests`) is what can read a list discovered at import time; a fixture cannot feed parametrization.
 11. **Emit only the files the app's features justify.** `test_openapi_advertises_error_codes.py` and `test_cors.py` are always produced; `test_request_size_limit.py` only with a size-cap middleware; `test_info.py` only with an info or health endpoint. A file whose module-level imports name something the app does not have fails at collection time and takes down the whole `tests/integration/api/` package — which is also why the auth probe is `hex-test-restapi-auth`'s and is emitted only by an app that declares auth.
@@ -280,5 +280,5 @@ Consult `test-principles` for the testing constitution.
 - Spec hardcodes the request-size limit (e.g. 10 MiB) in `test_request_size_limit.py`, or presumes the middleware is always present → stop, read the cap off the app's `MaxRequestSizeMiddleware` and compute `limit + 1`; `pytest.skip` when no size middleware is declared (it is a per-app `restapi.middlewares` entry, not universal).
 - Project has no `/info` (or `/health`) endpoint and the spec sets `info_endpoint = none` → stop, produce four files, skip `test_info.py`.
 - Spec asks for an authentication probe here → stop, use `hex-test-restapi-auth`; it owns that invariant and is emitted only by an app that declares auth.
-- Spec proposes placing `test_app_constructs.py` under `tests/integration/` (next to the other discovery tests) → stop, it stays at `tests/unit/restapi/`: under `tests/integration/` the session-autouse `_migrated_db` / `_guard_against_real_db` fixtures would force Postgres on a check that opens no connection, so it could no longer run without a Docker daemon — the one place the construct-time defect class is catchable.
+- Spec proposes placing `test_app_constructs.py` under `tests/integration/` (next to the other app-wide invariants) → stop, it stays at `tests/unit/restapi/`: under `tests/integration/` the session-autouse `_migrated_db` / `_guard_against_real_db` fixtures would force Postgres on a check that opens no connection, so it could no longer run without a Docker daemon — the one place the construct-time defect class is catchable.
 - Spec makes the construct smoke `async` / gives it `real_app` or any DB fixture → stop, it constructs via `create_app()` directly and is plain sync; needing a fixture means it is no longer the Docker-less unit smoke.

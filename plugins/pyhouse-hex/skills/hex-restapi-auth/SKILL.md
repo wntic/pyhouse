@@ -1,6 +1,6 @@
 ---
 name: hex-restapi-auth
-description: Use when an HTTP entrypoint must authenticate its caller or gate a route on a role. Owns the caller identity, the token-verifier port and adapter, the `get_current_user` / `require_role` route dependencies, the role-rank gate, the RFC-7235 challenge, and the 401/403 codes a route advertises because of them — a route's other error codes are `hex-restapi-route-contracts`'.
+description: Use when an HTTP entrypoint must authenticate its caller or gate a route on a role. Owns the caller identity, the token-verifier port and adapter, the `get_current_user` / `require_role` route dependencies, the role-rank gate, the RFC-7235 challenge, and the 401/403 codes a route advertises because of them — a route's other error codes are `hex-restapi-endpoint`'s.
 when_to_use: Adding auth to a REST service, choosing between an authenticated and a role-gated route, wiring a token verifier, or deciding what an authenticated route advertises in OpenAPI.
 paths: ["**/restapi/**", "**/api/**"]
 ---
@@ -10,7 +10,7 @@ paths: ["**/restapi/**", "**/api/**"]
 Authentication and transport-level authorization for a hexagonal REST service. Everything here is
 **optional**: a service behind an authenticating gateway, an mTLS-fronted API, or an internal
 worker-facing API declares no auth and never loads this skill. The REST core (`hex-restapi-app`,
-`hex-restapi-endpoint`, `hex-restapi-schema`, `hex-restapi-route-contracts`) is complete without it.
+`hex-restapi-endpoint`, `hex-restapi-schema`) is complete without it.
 
 **Auth is conditional, not presumed.** An app has auth when some endpoint is non-anonymous, or a
 token-verifier capability is wired — there is no separate flag for it. "Adding auth" means adding the
@@ -26,8 +26,8 @@ is a *transport* rule — a single role-rank check — belongs here.
 
 - The app shell, middleware, the central error translator and `schemas/errors.py` → `hex-restapi-app`.
 - A route's signature and body, including multipart and streaming routes → `hex-restapi-endpoint`.
-- Which error codes a route advertises for non-auth reasons, and the `MIDDLEWARE_ERRORS` registry →
-  `hex-restapi-route-contracts`.
+- Which error codes a route advertises for non-auth reasons, and the registry for a status a middleware
+  introduces → `hex-restapi-endpoint`, in its sibling `CONTRACTS.md`.
 - `UnauthorizedError` / `ForbiddenError` themselves, and boundary translation → `exception-catalog`.
 - The `Role` enum's rank-ordered `StrEnum` form, and `CurrentUser` as a value object →
   `hex-domain-model`.
@@ -325,7 +325,7 @@ issue. Those are two different answers, not two spellings of one; `exception-cat
 **`ROUTES.md`** — the half consulted every time a route is written: the decision table for which
 dependency an operation takes, the `_`-vs-`user` binding rule and the stamp-from-the-identity rule,
 the four things that derive an authenticated route from an auth-free one, and the coordinated
-advertisement table joining the chosen dependency to the codes the route declares.
+advertisement rule joining the chosen dependency to the codes the route declares.
 
 ## The composition-root wiring
 
@@ -398,7 +398,7 @@ ordering and the settings lifecycle follow `hex-wiring`.
 8. **The advertised codes match the chosen dependency.** Authenticate-only advertises the
    unauthenticated code; rank-gated advertises the unauthenticated **and** the forbidden code; no
    dependency advertises neither. A code no route can produce is a lie in the published document
-   (`hex-restapi-route-contracts`).
+   (`hex-restapi-endpoint`).
 9. **A challenge, where the scheme defines one, carries the scheme and nothing else.** The realm is
    app-specific: drive it from settings or omit it, and never freeze a literal realm in a template or a
    test. The challenge belongs to the unauthenticated response alone — a forbidden response has no

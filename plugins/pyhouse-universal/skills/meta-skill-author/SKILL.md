@@ -80,7 +80,7 @@ invoked by hand.
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue.** 42 skills at ~400 characters is ~4,200 tokens,
+- **There is no total budget across the catalogue.** 41 skills at ~400 characters is ~4,100 tokens,
   about 2% of a 200k window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
@@ -360,9 +360,8 @@ Extends an existing file rather than creating one. Emphasis: `Template(s)` shows
 class body, a function, a decorator argument — not a whole file; `Package wiring` is usually absent
 because the file already lives in a package.
 
-Examples: `hex-wiring` (modifies the composition root), `hex-restapi-route-contracts` (adds a decorator
-argument), `hex-patterns` (shapes a handler body), `test-architecture-rule` (appends a test
-function).
+Examples: `hex-wiring` (modifies the composition root), `hex-patterns` (shapes a handler body),
+`test-architecture-rule` (appends a test function).
 
 ### Bootstrap
 
@@ -370,7 +369,7 @@ Produces a fixed set of files, once per project. Emphasis: `Template(s)` carries
 templates under `###` subheadings, one per file; `When to use vs. neighbours` says plainly that it is
 one-shot and names what other skills depend on it having run.
 
-Examples: `hex-restapi-app`, `hex-test-integration-setup`, `hex-test-discovery-invariants`.
+Examples: `hex-restapi-app`, `hex-test-integration-setup`, `hex-test-app-invariants`.
 
 ### Reference
 

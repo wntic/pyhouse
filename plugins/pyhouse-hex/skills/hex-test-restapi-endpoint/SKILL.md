@@ -1,6 +1,6 @@
 ---
 name: hex-test-restapi-endpoint
-description: Use when testing one REST endpoint through the real ASGI app — one file per endpoint under `tests/integration/api/<resource>/`, asserting the happy path and validating the success body against its schema, with per-resource fixtures in a sibling `conftest.py`. Not properties discovered across all routes at once (`hex-test-discovery-invariants`), not the auth half — a token verifier's unit test, 401/403, role rejection, cross-tenant 404 (`hex-test-restapi-auth`) — and not the fixtures themselves (`hex-test-integration-setup`).
+description: Use when testing one REST endpoint through the real ASGI app — one file per endpoint under `tests/integration/api/<resource>/`, asserting the happy path and validating the success body against its schema, with per-resource fixtures in a sibling `conftest.py`. Not properties discovered across all routes at once (`hex-test-app-invariants`), not the auth half — a token verifier's unit test, 401/403, role rejection, cross-tenant 404 (`hex-test-restapi-auth`) — and not the fixtures themselves (`hex-test-integration-setup`).
 ---
 
 # Hex Test — REST API Endpoint
@@ -18,7 +18,7 @@ Produces one integration-test file per endpoint. Self-contained: every test in t
 - Driving a route as an authenticated caller, asserting a role rejection or a cross-tenant 404 → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
 - The token verifier's own unit test — no HTTP, real keys, one case per translation arm → `hex-test-restapi-auth`, not this skill and not `hex-test-capability-adapter`.
 - The route-side auth dependency, the role gate and the 401/403 codes a route advertises because of them → `hex-restapi-auth`.
-- Cross-cutting "every route's OpenAPI codes match `error_responses(...)`" / CORS / request-size → `hex-test-discovery-invariants` (one-shot; discovers from `app.routes` and `app.openapi()`).
+- Cross-cutting "every route's OpenAPI codes match `error_responses(...)`" / CORS / request-size → `hex-test-app-invariants` (one-shot; discovers from `app.routes` and `app.openapi()`).
 - Repository contract (real DB, no HTTP) → `hex-test-repository-contract`.
 - Pure domain unit test → `hex-test-domain`.
 - The testing constitution these rules defer to — speed targets, fixture placement, the mocking prohibition → `test-principles`.
@@ -198,7 +198,7 @@ Consult `test-principles` for the testing constitution.
 
 1. **One file per endpoint.** Use `naming` for filenames: `test_create_foo.py`, `test_list_foos.py`, `test_delete_foo.py`. Each file holds the happy path + every error path for that one endpoint. No mega-files spanning a whole resource.
 2. **Every success body is validated through the route's own declared response schema — the whole body, not picked fields.** `FooResponse.model_validate(response.json())` reds on a field the route dropped, renamed or retyped; a handful of `body["name"] == ...` assertions pass through all three, which is the drift this layer exists to catch. Schema imports follow `python-packaging` (`from myapp.restapi.schemas import FooResponse`).
-3. **No cross-cutting registries.** Adding a new endpoint touches exactly one new test file. The discovered global checks — "every route declares its error codes in OpenAPI", and in an auth app "every protected route rejects an anonymous caller" — are owned by `hex-test-discovery-invariants` and `hex-test-restapi-auth`, and derive their inputs from `app.routes` / `app.openapi()`; there are no `_endpoints()` / `_EXPECTED` tables to extend.
+3. **No cross-cutting registries.** Adding a new endpoint touches exactly one new test file. The discovered global checks — "every route declares its error codes in OpenAPI", and in an auth app "every protected route rejects an anonymous caller" — are owned by `hex-test-app-invariants` and `hex-test-restapi-auth`, and derive their inputs from `app.routes` / `app.openapi()`; there are no `_endpoints()` / `_EXPECTED` tables to extend.
 4. **Endpoint state.** Follow `test-principles` for test isolation. Each test builds its own state via per-resource factory fixtures (`make_foo`) or by POSTing through the API. Since the rollback contract guarantees an empty DB at test start, fixed natural keys (`name="alpha"`) are safe — no `uuid4().hex[:8]` suffix required.
 5. **Response assertions.** Follow `test-principles` for assertion strength. `assert len(items) == N`, `assert items[0].id == ...`, `assert response.json()["total"] == 3` — the empty-DB-at-start contract makes these reliable. Defensive `any(...)` filters belong to the pre-rollback world; remove them.
 6. **The client matches the route's auth dependency, and it is always entered as a context manager.** A route with no auth dependency is driven by a plain client over `real_app`, as above; a route that attaches one is driven by the authenticated client `hex-test-restapi-auth` owns. Bare-assigning the client instead of entering it leaks the transport either way, and the leak surfaces as an unrelated test failing later in the session.
@@ -218,7 +218,7 @@ Consult `test-principles` for the testing constitution.
 ## Hard stops
 
 - Nothing up-tree provides an isolated session handle, or an app built on the test's own infrastructure bindings (`sf` / `real_app` under this catalogue's binding) → stop, use `hex-test-integration-setup`; the missing thing is the guarantee, not the fixture name.
-- Spec asks to add a row to `RESOURCES.append(...)` / `_endpoints()` / `_EXPECTED` → stop, use `hex-test-discovery-invariants`; those registries are deleted and the equivalent check derives from the running app.
+- Spec asks to add a row to `RESOURCES.append(...)` / `_endpoints()` / `_EXPECTED` → stop, use `hex-test-app-invariants`; those registries are deleted and the equivalent check derives from the running app.
 - Spec asserts a role rejection or a cross-tenant 404 here → stop, use `hex-test-restapi-auth`; those assertions need a caller identity this skill does not mint.
 - Spec asks the test to use `unittest.mock` / `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
 - Spec asserts on a response field that is not in the Pydantic response schema → stop, use `hex-restapi-schema` to extend the schema first.

@@ -62,10 +62,10 @@ not its identity. A project in neither family has the same layers and writes the
 | Pure unit | nothing — the subject has no out-of-process collaborator | the subject | construction-time invariants, identity and equality, enum and constant values, single-rule policies, filter and normalize functions, schema validation, the exception catalog | < 10 ms | `hex-test-domain`; elsewhere the test file stands alone |
 | Collaborator unit | every out-of-process collaborator, by an in-memory double the subject already accepts, or by the runtime's own test environment | the subject's own orchestration | orchestration and step dispatch, branch selection, partial-update semantics, normalization, retry and continuation policy, exception propagation, compensating undo | < 50 ms, or < 2 s where the double is a runtime's test environment | `hex-test-application-handler`, `flat-test-run-function` (orchestration level) |
 | Boundary unit | only the transport beneath one dependency — the socket, never the dependency's own code | the client's request building, response parsing and error translation | request shape, response parsing, library-error → catalog translation, timeouts | < 100 ms | `flat-test-service-client`, `hex-test-capability-adapter` |
-| Wiring smoke | nothing, but nothing out-of-process is reached either | the object graph, constructed the way the entrypoint constructs it | construct-time wiring and framework dependencies the type, lint and unit layers all miss; generated-schema build | < 100 ms | `hex-test-discovery-invariants` |
+| Wiring smoke | nothing, but nothing out-of-process is reached either | the object graph, constructed the way the entrypoint constructs it | construct-time wiring and framework dependencies the type, lint and unit layers all miss; generated-schema build | < 100 ms | `hex-test-app-invariants` |
 | Datastore contract | nothing — a real store, started and disposed by the suite | the driver, the schema, the statements | constraint behaviour and generated constraint names, conflict and upsert semantics, cascades, returned and auto-updated values, driver-error translation, chunking | < 500 ms | `hex-test-repository-contract`, `flat-test-persistence` |
 | Entrypoint | nothing, or only the transport beneath a remote dependency | the entrypoint driven the way a caller drives it, with its real dependencies | dispatch and routing, dependency wiring, input and output validation, the run wired end to end; where the entrypoint authenticates, role gating and tenancy scoping | < 1 s, or < 2 s with a real datastore behind it | `hex-test-restapi-endpoint` (with `hex-test-restapi-auth`), `flat-test-run-function` |
-| Surface invariant | nothing — the surface is enumerated from the running program | the program's own declared surface | global properties no single test owns — every advertised error code matching what the code can raise, every protected route refusing an anonymous caller, cross-origin and request-size policy | < 500 ms | `hex-test-discovery-invariants` |
+| Surface invariant | nothing — the surface is enumerated from the running program | the program's own declared surface | global properties no single test owns — every advertised error code matching what the code can raise, every protected route refusing an anonymous caller, cross-origin and request-size policy | < 500 ms | `hex-test-app-invariants` |
 | Architecture | everything — nothing runs | the source tree, read as text | static "no X in layer Y" invariants | < 100 ms | `test-architecture-rule` |
 
 **A project has the layers its subject has, and writes no others.** One with no datastore has no
@@ -109,7 +109,7 @@ tests/
 │   │   └── fake_foo_repository.py              # protocol fake; imports follow python-packaging
 │   ├── domain/                                  # domain unit tests
 │   ├── application/                             # handler unit tests
-│   ├── restapi/                                 # test_app_constructs.py — construct smoke, no DB (hex-test-discovery-invariants)
+│   ├── restapi/                                 # test_app_constructs.py — construct smoke, no DB (hex-test-app-invariants)
 │   └── test_architecture.py                     # grep firewalls
 └── integration/
     ├── conftest.py                              # OWNED BY hex-test-integration-setup
@@ -280,7 +280,7 @@ Rules for it:
 
 **Use `@pytest.mark.parametrize`** when:
 
-- The parameter set is **discovered from the running system** — every protected route in `app.routes`, every operation in `app.openapi()`. `hex-test-discovery-invariants` is the canonical example.
+- The parameter set is **discovered from the running system** — every protected route in `app.routes`, every operation in `app.openapi()`. `hex-test-app-invariants` is the canonical example.
 - The test is **input-domain coverage**: a single behavior verified against many inputs (10 invalid emails, 20 valid date formats). The behavior is one thing; the inputs vary.
 - Adding a new parameter would extend, not duplicate, an existing test set.
 
@@ -465,7 +465,7 @@ integration tests reach the container through the `engine` fixture.
 ## Hard stops
 
 - A hex domain or handler unit test imports from `myapp.infrastructure.*` → stop, unit tests use fakes; reach for `tests/integration/` if the real adapter is what's under test.
-- A hex test exercises the HTTP surface from `tests/unit/` → stop, use `hex-test-restapi-endpoint`; the app-construct smoke belongs to `hex-test-discovery-invariants`.
+- A hex test exercises the HTTP surface from `tests/unit/` → stop, use `hex-test-restapi-endpoint`; the app-construct smoke belongs to `hex-test-app-invariants`.
 - A test uses `MagicMock` / `AsyncMock` / `patch` → stop, follow the applicable family’s substitution ladder.
 - A test adds `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, neither is used.
 - A test reads `os.environ` to fork behavior → stop, the isolation fixture handles environment differences once.

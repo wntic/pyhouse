@@ -6,7 +6,7 @@ paths: ["**/restapi/**", "**/api/**"]
 
 # Hex REST App
 
-The shell every route lands inside, and the middleware layers that wrap it. The shell is laid once per project so subsequent work (`hex-restapi-endpoint`, `hex-restapi-schema`, `hex-restapi-route-contracts`) has somewhere to go; a middleware is added whenever a cross-cutting per-request concern appears. After bootstrap, the only file this skill ever touches again is `restapi/main.py` (when a router needs to be registered or a CORS-exposed header added), and that's normally folded into the consuming skill.
+The shell every route lands inside, and the middleware layers that wrap it. The shell is laid once per project so subsequent work (`hex-restapi-endpoint`, `hex-restapi-schema`) has somewhere to go; a middleware is added whenever a cross-cutting per-request concern appears. After bootstrap, the only file this skill ever touches again is `restapi/main.py` (when a router needs to be registered or a CORS-exposed header added), and that's normally folded into the consuming skill.
 
 ## When to use vs. neighbours
 
@@ -14,16 +14,16 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - A new router added afterwards, or logic for one route → `hex-restapi-endpoint`, a thin route over an application handler that also `app.include_router(...)`s itself.
 - A resource's request/response models added into the `schemas/` package this skill creates → `hex-restapi-schema`.
 - A new domain exception is plumbed → `exception-catalog` (creates/extends `domain/exceptions.py`); the catalog used by `error_responses(...)` derives from `domain.exceptions.__all__` automatically.
-- A middleware introducing a new HTTP status → `hex-restapi-route-contracts`, the middleware-code path.
+- A middleware introducing a new HTTP status → `hex-restapi-endpoint`, the middleware-code path in its `CONTRACTS.md`.
 - Authenticating a caller or gating a route on a role → `hex-restapi-auth`; route auth is a FastAPI dependency, not a middleware, and it is optional — this shell is complete without it.
-- Which error codes a route advertises → `hex-restapi-route-contracts`.
+- Which error codes a route advertises → `hex-restapi-endpoint`.
 - Constructing or extending the composition root this shell attaches → `hex-wiring`.
 - Creating the application handlers routes receive from it → `hex-application`.
 - Whether the service should be hexagonal at all → `architecture-choice`; the project substrate, dependencies, lint and initial Alembic setup around this shell → `hex-project-setup`.
 - Middleware class naming and the `restapi/middleware/` package layout → `naming` and `python-packaging`.
-- The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-discovery-invariants`.
+- The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-app-invariants`.
 
-**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and `hex-restapi-route-contracts` and the upload/download kinds in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no middleware** — no request-size cap, no request id. `main.py` leaves a placeholder where they are wired in, after CORS, and the middleware section below is the form each one takes.
+**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes and the upload/download kinds in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no middleware** — no request-size cap, no request id. `main.py` leaves a placeholder where they are wired in, after CORS, and the middleware section below is the form each one takes.
 
 ## Template(s) — FastAPI, dishka-wired
 
@@ -209,7 +209,7 @@ class ErrorResponse(BaseModel):
 # catalogue class was raised at all. The status 500 is already derivable (DomainError
 # defaults to it); the CODE STRING is not, and it is a wire contract clients key on, so
 # it is registered here rather than invented at the call site (`exception-catalog` rule 1).
-# The hex-restapi-route-contracts middleware-code path adds an entry when a declared
+# The hex-restapi-endpoint middleware-code path adds an entry when a declared
 # middleware introduces a code (e.g. a size-cap middleware → PAYLOAD_TOO_LARGE 413).
 MIDDLEWARE_ERRORS: dict[str, int] = {"INTERNAL_ERROR": 500}
 
@@ -257,7 +257,7 @@ The domain-side registry is **derived dynamically** from `domain.exceptions.__al
 
 Status descriptions are **looked up, not listed** — `HTTPStatus(code).phrase` names every standard status, so adding a `DomainError` with a status no route used before needs no edit to this file. `DESCRIPTION_OVERRIDES` exists for the app that must word one status differently; it starts empty and an entry equal to the standard phrase is noise.
 
-This file is the **single source of truth** for the error wire-shape, the `error_responses(...)` helper, the description lookup, and `MIDDLEWARE_ERRORS`. `hex-restapi-route-contracts` only *references* it and appends to `MIDDLEWARE_ERRORS` on the rare middleware-code path — it never restates this template (the two copies once drifted; do not reintroduce a second copy).
+This file is the **single source of truth** for the error wire-shape, the `error_responses(...)` helper, the description lookup, and `MIDDLEWARE_ERRORS`. `hex-restapi-endpoint` only *references* it and appends to `MIDDLEWARE_ERRORS` on the rare middleware-code path — it never restates this template (the two copies once drifted; do not reintroduce a second copy).
 
 ### `restapi/schemas/__init__.py`
 
@@ -391,7 +391,7 @@ and this middleware is the app-layer defence in depth on top of it.
 - **A reverse proxy or gateway in front of the app.** A concern that is purely about bytes on the wire —
   a size ceiling, a request id — may live there instead of in the app, and then no middleware is written
   at all. Unchanged: the status it returns still needs a registered code if a client can see it
-  (`hex-restapi-route-contracts`), and the app keeps its own defence in depth where the edge can be
+  (`hex-restapi-endpoint`), and the app keeps its own defence in depth where the edge can be
   bypassed.
 
 ### Dependency injection
@@ -420,7 +420,7 @@ and this middleware is the app-layer defence in depth on top of it.
    `{"code", "message", "context"}` shape the central translator emits, built through the shared schema
    rather than hand-rolled, carrying the status it owns and a **stable** machine-readable code — the
    API contract and `MIDDLEWARE_ERRORS` in `schemas/errors.py` key on that string
-   (`hex-restapi-route-contracts`). A middleware that does not reject always reaches the wrapped app.
+   (`hex-restapi-endpoint`). A middleware that does not reject always reaches the wrapped app.
 10. **The order middlewares see a request in is chosen, not inherited.** Which one sees the raw request
     first is a decision the app makes — a size cap has to see it before anything has read the body —
     and it is written according to whatever wrapping rule the framework applies to the order they are
@@ -450,4 +450,4 @@ For `restapi/__init__.py` and `restapi/middleware/__init__.py`, follow `python-p
 - A concern is for one route rather than all → stop, use `hex-restapi-endpoint` plus a handler.
 - A middleware needs a domain entity, a repository or an application handler → stop, use `hex-application` for application logic.
 - A middleware authenticates or authorizes → stop, use `hex-restapi-auth`; caller authentication is a route dependency, not a middleware.
-- A middleware introduces an HTTP status with no domain exception behind it → stop, use `hex-restapi-route-contracts`, the middleware-code path, to register the code.
+- A middleware introduces an HTTP status with no domain exception behind it → stop, use `hex-restapi-endpoint`, the middleware-code path in its `CONTRACTS.md`, to register the code.
