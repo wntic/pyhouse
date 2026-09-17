@@ -69,7 +69,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 _EXTERNAL_FLAG = "MYAPP_TEST_USE_EXTERNAL"
-_REQUIRED_EXTERNAL_VARS = ("MYAPP_DATABASE_DSN",)
+_REQUIRED_EXTERNAL_VARS = ("MYAPP_STORAGE_DSN",)
 # The image the suite starts: the major version this project runs in production, pinned.
 # `17-alpine` is one project's answer — a project on another major writes its own.
 _CONTAINER_IMAGE = "postgres:17-alpine"
@@ -95,7 +95,7 @@ def db_dsn() -> Iterator[str]:
             raise RuntimeError(
                 f"{_EXTERNAL_FLAG}=1 but these are unset: {', '.join(missing)}"
             )
-        dsn = os.environ["MYAPP_DATABASE_DSN"]
+        dsn = os.environ["MYAPP_STORAGE_DSN"]
         _refuse_if_not_a_test_database(dsn)
         yield dsn
         return
@@ -129,7 +129,7 @@ def _migrated_db(db_dsn: str) -> str:
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         capture_output=True,
         text=True,
-        env={**os.environ, "MYAPP_DATABASE_DSN": db_dsn},
+        env={**os.environ, "MYAPP_STORAGE_DSN": db_dsn},
     )
     assert result.returncode == 0, result.stderr
     return db_dsn
@@ -248,7 +248,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
-env = ["D:MYAPP_DATABASE_DSN=postgresql+asyncpg://test:test@localhost:1/placeholder"]
+env = ["D:MYAPP_STORAGE_DSN=postgresql+asyncpg://test:test@localhost:1/placeholder"]
 ```
 
 Several members add three lines at the **root** `pyproject.toml`, which registers the plugin module and
