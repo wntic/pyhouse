@@ -30,7 +30,7 @@ needed to reach a recommendation and state its reason is here; the family skills
   skill chooses the family, not the port.
 - Which trigger a flat service runs on — loop, schedule, stream, durable execution → `flat-entrypoint`,
   in the `pyhouse-flat` plugin.
-- A workspace holding several services → `flat-monorepo` (`pyhouse-flat`) owns the workspace root; the
+- A workspace holding several services → `python-workspace` owns the workspace root; the
   family is still chosen once per service, here.
 - Reviewing an existing service against the style it already has → not this skill; load that family's
   skill directly.
@@ -195,7 +195,7 @@ which is exactly what makes waiting cheap.
 
 ### A monorepo holding both
 
-**The choice is per service, never per repository.** `flat-monorepo` (`pyhouse-flat`) lays a workspace
+**The choice is per service, never per repository.** `python-workspace` lays a workspace
 root that hosts several members; nothing about a shared root, a shared schema package or a shared toolchain requires
 the members to share an internal layout. One member enforcing pricing rules can be hexagonal while its
 three sibling crawlers stay flat, and the workspace is not inconsistent for it. Run this skill once per

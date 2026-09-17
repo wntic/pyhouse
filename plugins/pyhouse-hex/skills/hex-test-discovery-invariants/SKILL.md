@@ -1,7 +1,6 @@
 ---
 name: hex-test-discovery-invariants
 description: Use when testing a property that holds across every route at once rather than one route's own behaviour — the one-shot OpenAPI error-code cross-check against `error_responses(...)`, the CORS preflight, the request-size limit, and the app-construction smoke, each discovering its inputs from the running app. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
-paths: ["**/tests/**"]
 ---
 
 # Hex Test — Discovery Invariants

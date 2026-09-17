@@ -1,40 +1,40 @@
 ---
-name: flat-monorepo
-description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, apply migrations and launch each member from its own directory. Nothing here is specific to a layering style — a member laid out either way needs the same root. One distribution on its own needs none of it and stays on `flat-layered`; what a library owning a shared store contains is `flat-persistence`.
+name: python-workspace
+description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, apply migrations and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
 when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per runnable member.
 ---
 
-# Monorepo — uv workspace root
+# Workspace — the root for several distributions in one repository
 
 One-shot bootstrap for a repository holding several distributions: the runnable ones plus the library
 packages they depend on. Run once per repository; adding the Nth member afterward is just a new member
 directory, not a re-run of this skeleton.
 
 **The rules below are about members, not about what is inside one.** A member's own internal layout is
-its family's business — `flat-layered` for a flat member, `hex-architecture` (in the `pyhouse-hex`
-plugin) for a hexagonal one — and this root is the same either way.
+its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin, for a hexagonal member;
+`flat-layered`, in the `pyhouse-flat` plugin, for a flat one — and this root is the same either way.
 
 ## When to use vs. neighbours
 
 - The architecture family of the members going into the workspace is not settled →
   `architecture-choice` decides hexagonal versus flat per distribution; nothing here depends on the
   answer.
-- Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill, use
-  `flat-persistence` — this skill only creates the empty `packages/myschema/` shell.
-- Adding one member's internal layout — the cross-cutting setup modules at its package root, its
-  clients, its work units → not this skill, use `flat-layered`.
-- Choosing a member's trigger — a loop, a cron entry or a timer by default, durable execution only
-  once it is earned → `flat-entrypoint`.
-- Building a single standalone distribution with no siblings and no shared store → not this skill;
-  it needs no workspace root at all. `flat-layered` lays its package skeleton, including the
-  data-access role, and `flat-persistence` states what that package holds — neither assumes anything
-  above the distribution.
-- Bootstrapping one hexagonal project's dependency substrate and tool configuration → the other
-  family's `hex-project-setup`, in the `pyhouse-hex` plugin. Nothing below needs it: the tooling
-  values this root settles are stated here, and the interpreter floor behind them is
-  `python-style`'s.
-- The pytest plugin module the root `addopts` loads, and the fixtures inside it →
-  `flat-test-integration-setup`.
+- Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill; what a
+  storage package holds is the member family's own persistence skill. This skill only creates the empty
+  `packages/myschema/` shell.
+- Adding one member's internal layout — its layer or role packages, its clients, its work units → not
+  this skill, use that member's architecture skill.
+- Choosing a member's trigger — a loop, a cron entry or a timer by default, durable execution only once
+  it is earned → the member family's entrypoint skill (`flat-entrypoint`, in the `pyhouse-flat`
+  plugin, is one).
+- Bootstrapping one member's dependency substrate and tool configuration → the member family's setup
+  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one). Nothing below needs it: the tooling
+  values this root settles are stated here, and the interpreter floor behind them is `python-style`'s.
+- The pytest plugin module the root `addopts` loads, and the fixtures inside it → the member family's
+  integration-setup skill (`flat-test-integration-setup`, in the `pyhouse-flat` plugin, is one).
+- Building a single standalone distribution with no siblings and no shared store → not this skill; it
+  needs no workspace root at all. Its own architecture skill lays its package skeleton, including the
+  data-access role — neither assumes anything above the distribution.
 - Whether a proposed member is a boundary at all — its encapsulated knowledge and change vectors →
   `coupling`.
 - The repository-wide grep firewall in `tests/test_architecture.py` → `test-architecture-rule`.
@@ -51,7 +51,7 @@ myrepo/
 ├── tests/
 │   └── test_architecture.py  # repository-wide grep firewall
 ├── packages/
-│   └── myschema/             # a library the runnable members depend on — see flat-persistence
+│   └── myschema/             # a library the runnable members depend on
 └── services/
     ├── myapp/                # one runnable distribution per directory
     └── <second-service>/
@@ -67,7 +67,8 @@ has only the one.
 beside the owning library's own tests, `packages/myschema/tests/myschema_testing.py`, loaded
 repository-wide from the root `pyproject.toml` with `addopts = "-p myschema_testing"` and
 `pythonpath = ["packages/myschema/tests"]`. A plugin is registered once per session, so every member
-shares one container. `flat-test-integration-setup` owns the module and the settings that load it.
+shares one container. What goes inside that module is the member family's integration-setup skill's;
+what this root owns is the two settings that load it.
 
 Root `pyproject.toml`:
 
@@ -219,17 +220,19 @@ repo root reads none of them.
    whose knowledge cannot be named is a category word, not a boundary; one whose every change vector
    drags a sibling along is drawn in the wrong place. The reasoning is `coupling`'s; the check costs two
    sentences and is the cheapest boundary test available.
-3. **The distribution owning a shared store is a library member, and no runnable member defines a
-   table.** That one library owns the schema and the migration history for the store its dependants
-   share — the obligation itself is `flat-persistence`'s, and this rule is its workspace half: the owner
-   sits in the library group, every dependant declares an edge to it, and a grep firewall enforces that
-   no runnable member constructs a statement of its own (`test-architecture-rule`).
-4. **The one migration command runs from where the schema is defined** — `make migrate` here, which
-   `cd`s into the owning member. That there is one history per store, applied by one command, is
-   `flat-persistence`'s obligation; what this rule adds is workspace-specific and is a property of
-   members, not of storage: a migration run from inside a *dependant* resolves its connection settings
-   from that member's environment and working directory, so two members can apply one migration history
-   to two different databases and neither of them notices.
+3. **Exactly one member owns a shared store's schema and its migration history, and it is a library
+   member.** Two members defining tables over one store means two migration histories over one schema,
+   and the second one to run decides what the first one's tables look like. So the owner sits in the
+   library group, every dependant declares an edge to it, and a grep firewall enforces that no runnable
+   member constructs a statement of its own (`test-architecture-rule`). The flat family states the
+   same ownership obligation from a member's side, under `flat-persistence`, in the `pyhouse-flat`
+   plugin.
+4. **One migration history per store is applied by one command, and that command runs from the member
+   that defines the schema** — `make migrate` here, which `cd`s into the owning member. What makes the
+   working directory load-bearing is a property of members, not of storage: a migration run from inside
+   a *dependant* resolves its connection settings from that member's environment and working directory,
+   so two members can apply one migration history to two different databases and neither of them
+   notices.
 5. **A member declares its in-repo dependencies as edges the packaging tool resolves** —
    `[tool.uv.sources]` under uv — never a path hack, a `sys.path` append, or a copy-pasted module. A
    dependency the packaging tool cannot see is one the installer, the type checker and CI each resolve
@@ -238,8 +241,8 @@ repo root reads none of them.
    length, the interpreter floor, the lint target, the test-runner configuration: the *values* are the
    project's to choose, and what the workspace fixes is that they live in one file. A member overrides
    one only for a genuine per-package exception, and never the test-runner's own configuration block —
-   declaring it in a member moves the runner's rootdir and silently invalidates every root-relative
-   path in the test setup (`flat-test-integration-setup`).
+   declaring it in a member moves the runner's rootdir down to that member, and every root-relative
+   path the test configuration carries then resolves against a directory nobody wrote it for.
 7. **Runnable members never import each other.** Two of them needing the same code means that code
    belongs in a library member. A deployable-to-deployable import is what turns a workspace of
    independent deployables into one program.
@@ -257,14 +260,14 @@ repo root reads none of them.
 ## Hard stops
 
 - Only one distribution will ever exist, or the runnable members share no datastore → stop, this is a
-  single-distribution project and it needs no workspace root; `flat-layered` lays its packages and
-  `flat-persistence` its data-access package.
+  single-distribution project and it needs no workspace root; its own architecture skills lay its
+  packages and its data access.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.
 - A runnable member needs its own private tables no other member touches → still put the `Table` in the
   one owning library; a second schema owner over one store means two migration histories and the second
-  to run decides what the first one's tables look like (`flat-persistence`).
+  to run decides what the first one's tables look like.
 - A runnable member imports a sibling runnable member → stop, promote the shared code into a library
   member.
 - Runtime code is being added to the root `pyproject.toml`'s project → stop, the root is a container;

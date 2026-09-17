@@ -10,13 +10,14 @@ next to it. It is written to agree with that skill's own `description` and body,
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
 too. The counts in every heading are the number of directories on disk.
 
-### Universal (8)
+### Universal (9)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
 - `python-style` — Owns the declared-type-over-bare-`dict` rule and the logging allocation that keeps every re-raising scope silent, whatever the project's layering.
 - `python-packaging` — Keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
+- `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; transport rendering stays at the boundary.
 - `test-principles` — Takes precedence whenever an artifact-specific test skill contradicts the shared constitution.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex discovery tests.
@@ -59,10 +60,9 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-test-discovery-invariants` — Discovers applicable routes so new endpoints enter the checks without a hand-maintained route list.
 - `hex-test-restapi-auth` — Layer the auth fixtures over the shared integration setup; produced only for an app whose entrypoint authenticates.
 
-### Flat core (4)
+### Flat core (3)
 
 - `flat-layered` — Four role kinds carry the rules; the worked example's directory names are one project's and are replaceable, and one distribution on its own is the default.
-- `flat-monorepo` — Establish workspace ownership before adding shared libraries or runnable members; a lone distribution needs none of it, and neither does any particular layering style.
 - `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; relational throughout.
 - `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
 
@@ -80,9 +80,9 @@ The catalogue is distributed on the Claude Code marketplace as three plugins und
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 8 unprefixed universal skills + `meta-skill-author` + the architecture chooser `architecture-choice`, with its `/choose-architecture` command | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 9 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (25) | `pyhouse-universal` |
-| `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
+| `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
 
 A new skill's directory goes under that plugin's `skills/`, beside its siblings. The plugin's own
 manifest is the single file `.claude-plugin/plugin.json`; nothing else belongs in that directory, and

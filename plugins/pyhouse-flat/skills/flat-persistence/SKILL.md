@@ -1,6 +1,6 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a storage library several distributions share is `flat-monorepo`.
+description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a storage library several distributions share is `python-workspace`.
 when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a storage or repository class in a flat service, a constraint naming convention, a migration for a flat service, or where a service's SQL is allowed to live.
 ---
 
@@ -26,7 +26,7 @@ package becomes a library they all depend on and one rule below says what that c
   package sits inside, the rule that each configured component declares its own settings class, and the
   no-`Protocol` rule this skill applies to the datastore.
 - Several distributions sharing one repository, and where a shared storage library sits inside it →
-  `flat-monorepo`.
+  `python-workspace`.
 - What triggers a run and hands this package its connection handle → `flat-entrypoint`.
 - Testing these tables, helpers and the storage class against the real datastore →
   `flat-test-persistence`.
@@ -40,350 +40,29 @@ package becomes a library they all depend on and one rule below says what that c
   not this family: that is `hex-persistence`, in the `pyhouse-hex` plugin, where the repository sits
   behind a port. `architecture-choice` settles which family applies before either.
 
-## The metadata module — SQLAlchemy Core (once)
+## Template(s) — SQLAlchemy Core, asyncpg, Alembic
 
-One `MetaData`, in a module of its own, carrying a naming convention. Both halves matter.
+```
+myapp/storage/
+├── __init__.py        # re-exports every table module and the metadata
+├── metadata.py        # the one MetaData, carrying the naming convention
+├── settings.py        # this package's own settings class and its factory
+├── engine.py          # the engine factory and the chunked bulk write helpers
+├── foo_table.py       # the Table definitions
+└── foo_storage.py     # the class that owns a multi-statement write
 
-`myapp/storage/metadata.py`:
-
-```python
-from sqlalchemy import MetaData
-
-metadata = MetaData(
-    naming_convention={
-        "ix": "ix_%(table_name)s_%(column_0_name)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s",
-    }
-)
+myapp/alembic/
+└── env.py             # points target_metadata at that one MetaData
 ```
 
-**Its own module, not a table module.** Every table module imports `metadata`, so hosting it inside one
-of them makes that table the accidental root of the import graph and creates a cycle the first time it
-references another. **The naming convention is load-bearing**: it lets a migration, a translator branch
-and a test name the same constraint without inventing it. Left to the backend, names differ by engine and
-change under an upsert.
-
-For a `CheckConstraint`, `name=` is the **suffix** — the convention prepends `ck_<table>_`, so passing a
-full name yields `ck_foos_ck_foos_name_non_empty`.
-
-## The settings module — pydantic-settings
-
-This package is a component with configuration of its own, so it declares that configuration here rather
-than borrowing a field from the service's class (`flat-layered` rule 8).
-
-`myapp/storage/settings.py`:
-
-```python
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class StorageSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_STORAGE_")
-
-    dsn: str
-
-
-def get_storage_settings() -> StorageSettings:
-    return StorageSettings()
-```
-
-**The prefix is this component's own and claims no variable another component's fields could claim** —
-the same terms where the package is shared between distributions, and the `## Other bindings` bullet says
-what else changes there. **The process definition is the only caller of this factory**: declaring the
-class here does not let a module in this package call it. The process definition calls it, reads `dsn`,
-and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 below).
-
-**No `@lru_cache` on either factory here.** With one caller by construction there is nothing to collapse,
-and memoising an engine keyed by its connection string pins a live pool for the life of the process,
-outliving the shutdown path and the test that wanted to dispose of it. Needing one is a sign that
-something below the process definition is building its own connection instead of being handed one.
-
-## Engine and write helpers — SQLAlchemy async, asyncpg
-
-The engine is built by a **factory taking the connection string**, never as a module-level object: the
-process definition reads this package's settings once and hands the value down (`flat-layered` rules 7
-and 8), and `import myapp.storage.engine` must not fail in an environment that has set nothing.
-
-`myapp/storage/engine.py` — two write primitives: a plain chunked bulk write, and a `RETURNING` variant
-for when a later step needs the rows just written:
-
-```python
-from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
-
-from sqlalchemy import Table
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
-
-_CHUNK_SIZE = 2000  # see below: chunk_size * columns-per-row stays under the driver's bind limit
-
-
-def get_engine(dsn: str) -> AsyncEngine:
-    return create_async_engine(dsn, pool_pre_ping=True)
-
-
-async def bulk_upsert(
-    conn: AsyncConnection,
-    table: Table,
-    rows: Iterable[Mapping[str, Any]],
-    *,
-    conflict_columns: Sequence[str],
-    update_columns: Sequence[str],
-    chunk_size: int = _CHUNK_SIZE,
-) -> None:
-    rows = list(rows)
-    for start in range(0, len(rows), chunk_size):
-        chunk = rows[start : start + chunk_size]
-        stmt = pg_insert(table).values(chunk)
-        if update_columns:
-            stmt = stmt.on_conflict_do_update(
-                index_elements=conflict_columns,
-                set_={col: getattr(stmt.excluded, col) for col in update_columns},
-            )
-        else:
-            stmt = stmt.on_conflict_do_nothing(index_elements=conflict_columns)
-        await conn.execute(stmt)
-
-
-async def bulk_upsert_returning(
-    conn: AsyncConnection,
-    table: Table,
-    rows: Iterable[Mapping[str, Any]],
-    *,
-    conflict_columns: Sequence[str],
-    update_columns: Sequence[str],
-    returning_columns: Sequence[str],
-    chunk_size: int = _CHUNK_SIZE,
-) -> list[dict[str, Any]]:
-    """Like bulk_upsert, but hands back the row identity a later write step needs."""
-    rows = list(rows)
-    results: list[dict[str, Any]] = []
-    for start in range(0, len(rows), chunk_size):
-        chunk = rows[start : start + chunk_size]
-        stmt = (
-            pg_insert(table)
-            .values(chunk)
-            .on_conflict_do_update(
-                index_elements=conflict_columns,
-                set_={col: getattr(stmt.excluded, col) for col in update_columns},
-            )
-            .returning(*[table.c[col] for col in returning_columns])
-        )
-        results.extend(dict(row._mapping) for row in (await conn.execute(stmt)).all())
-    return results
-```
-
-Both helpers take an **already-open `AsyncConnection`** and never commit: they are the
-connection-accepting half of rule 3, which is what lets one caller run several tables' writes inside one
-transaction, and what makes them testable inside a rolled-back one.
-
-The chunk size is a **named module constant, not a literal at the call site** (rule 10). `2000` is one
-project's worked value against its widest table; a project computes its own from that table's column
-count and its driver's bind-parameter cap, and writes the answer here once.
-
-An empty `update_columns` list must become `ON CONFLICT DO NOTHING`, not an `UPDATE` with an empty
-`SET` — the latter is a syntax error, and "the row already exists and that is fine" is a real case.
-
-## The table — SQLAlchemy Core on Postgres
-
-Every primary key is a **UUIDv7**, minted client-side through the `uuid6` package's `uuid7()` — never
-`uuid.uuid4()` and never a database-side `server_default`. UUIDv7 is time-ordered, so ids inserted
-together sort and index together; `uuid.uuid4()`'s randomness scatters otherwise-related rows across a
-b-tree index for no benefit, and a database-side default means the writer cannot know the id it just
-created without reading it back. `uuid6.uuid7()` returns a `uuid.UUID` subclass, so it drops straight
-into `Column(..., default=uuid7)`.
-
-`myapp/storage/foo_table.py`:
-
-```python
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    String,
-    Table,
-    UniqueConstraint,
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from uuid6 import uuid7
-
-from myapp.storage.metadata import metadata
-
-foo_table = Table(
-    "foos",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid7),
-    Column("reference", String, nullable=False, unique=True),  # the normalized natural key
-    Column("name", String, nullable=False),
-    Column("observed_at", DateTime(timezone=True), nullable=False),
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
-)
-
-bar_table = Table(
-    "bars",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid7),
-    Column("foo_id", UUID(as_uuid=True), ForeignKey("foos.id"), nullable=False),
-    Column("label", String(64), nullable=False),  # declared width — labels are short
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
-    UniqueConstraint("foo_id", "label"),
-)
-```
-
-The declared width on `label` is a schema fact a test can read off the column to force a failure the
-schema itself defines, rather than inventing a value that only happens to be rejected
-(`flat-test-persistence`).
-
-`storage/__init__.py` re-exports every table module and the metadata, so migration autogenerate sees the
-whole schema from one import.
-
-## The storage class — SQLAlchemy async (one declared transaction owner)
-
-`myapp/storage/foo_storage.py` — a concrete class, no `Protocol` (rule 2). **Every public method opens
-and owns its transaction**, which is this class's declared half of rule 3; the helpers it calls accept
-the connection and never commit.
-
-```python
-from collections.abc import Sequence
-from datetime import UTC
-
-from sqlalchemy import select
-from sqlalchemy.engine import RowMapping
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncEngine
-
-from myapp.exceptions import FooAlreadyRecorded, FooNotFound, MyappError, StorageWriteRejected
-from myapp.schemas.foo import Foo
-from myapp.storage.engine import bulk_upsert, bulk_upsert_returning
-from myapp.storage.foo_table import bar_table, foo_table
-
-
-def normalize_reference(reference: str) -> str:
-    """The one normalized form of the natural key, used on the way in and on the way out."""
-    return reference.strip().lower()
-
-
-def _to_row(foo: Foo) -> dict[str, object]:
-    return {
-        "reference": normalize_reference(foo.reference),
-        "name": foo.name,
-        "observed_at": foo.observed_at,
-    }
-
-
-def _to_foo(rows: Sequence[RowMapping]) -> Foo:
-    head = rows[0]
-    observed_at = head["observed_at"]
-    return Foo(
-        id=head["id"],
-        reference=normalize_reference(head["reference"]),
-        name=head["name"],
-        observed_at=observed_at if observed_at.tzinfo else observed_at.replace(tzinfo=UTC),
-        labels=tuple(sorted(row["label"] for row in rows if row["label"] is not None)),
-    )
-
-
-def _translate(exc: DBAPIError) -> MyappError:
-    constraint = getattr(exc.orig, "constraint_name", None) or str(exc.orig)
-    if "uq_foos_reference" in constraint:
-        return FooAlreadyRecorded(
-            "a foo with this reference is already recorded",
-            context={"field": "reference", "constraint": "uq_foos_reference"},
-        )
-    return StorageWriteRejected(
-        "the datastore rejected the write", context={"constraint": constraint}
-    )
-
-
-class FooStorage:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self._engine = engine
-
-    async def record_batch(self, foos: Sequence[Foo]) -> None:
-        """Owns the transaction: the foos and their labels land together or not at all."""
-        if not foos:
-            return
-        async with self._engine.begin() as conn:
-            try:
-                written = await bulk_upsert_returning(
-                    conn,
-                    foo_table,
-                    [_to_row(foo) for foo in foos],
-                    conflict_columns=["reference"],
-                    update_columns=["name", "observed_at"],
-                    returning_columns=["id", "reference"],
-                )
-                foo_id_by_reference = {row["reference"]: row["id"] for row in written}
-                await bulk_upsert(
-                    conn,
-                    bar_table,
-                    [
-                        {
-                            "foo_id": foo_id_by_reference[normalize_reference(foo.reference)],
-                            "label": label,
-                        }
-                        for foo in foos
-                        for label in foo.labels
-                    ],
-                    conflict_columns=["foo_id", "label"],
-                    update_columns=[],
-                )
-            except DBAPIError as exc:
-                raise _translate(exc) from exc
-
-    async def get_by_reference(self, reference: str) -> Foo:
-        async with self._engine.connect() as conn:
-            result = await conn.execute(
-                select(foo_table, bar_table.c.label)
-                .join(bar_table, bar_table.c.foo_id == foo_table.c.id, isouter=True)
-                .where(foo_table.c.reference == normalize_reference(reference))
-            )
-            rows = result.mappings().all()
-        if not rows:
-            raise FooNotFound("no foo with this reference", context={"reference": reference})
-        return _to_foo(rows)
-```
-
-The class takes its engine as a **constructor argument**, never reaching for the factory itself, so a
-test can point it at a container without touching the environment.
-
-`record_batch` is the worked case of rule 4: the second write needs an id the first one produced, so the
-two statements sit inside **one** `engine.begin()`. Split across two connection blocks, a failure in the
-second leaves parentless rows behind.
-
-`update_columns=[]` on the second write resolves to *do nothing*: a label already recorded for that foo is
-not an error, and an update with an empty assignment list is a syntax error.
-
-`_translate` **ends by returning a catalogue exception**: the last statement is the fallback, not a
-re-raise of the driver's type. Without it every caller's `except` clause ends up written against a
-library it was supposed never to import.
-
-`_to_foo` is a **pure function**: no IO, no logging. It normalizes what the driver hands back — the
-natural key's one form, a naive timestamp's offset — so one unit test pins both and nothing above this
-package sees a column name.
-
-The conflict column is excluded from `update_columns`: writing back the key you matched on is a no-op at
-best and, on a partial index, a way to make the statement fail.
-
-## Migration bootstrap — Alembic (once)
-
-`myapp/alembic/env.py` points `target_metadata` at the one `MetaData`, importing the package first so
-every `Table` is registered on it:
-
-```python
-import myapp.storage  # noqa: F401  — registers every Table on the shared metadata
-
-from myapp.storage.metadata import metadata
-
-target_metadata = metadata
-```
-
-Every schema change is one revision generated from where the schema is defined, and one command applies
-it, run from that same place.
+The full file templates live in three topic files beside this one, one per group of artifacts in that
+layout. Only this file is loaded automatically, so open the one you need:
+
+- **Read `SETUP.md`** before writing the metadata module, the settings class, the engine factory, a bulk
+  write helper or the migration environment — it binds rules 8, 9, 10, 11, 12, 14 and 15.
+- **Read `TABLE.md`** before defining a table, a column or a key — it binds rules 8 and 13.
+- **Read `STORAGE.md`** before writing the class that owns a write, its error translator or its row
+  mapper — it binds rules 2, 3, 4, 5, 6 and 7.
 
 ## Other bindings
 
@@ -400,11 +79,11 @@ it, run from that same place.
   is not mechanical: a backend without `ON CONFLICT` carries rule 12 as a `MERGE` or as a lock-and-check,
   and "nothing to update" must still become a no-op there rather than an error.
 - **This package as a separate distribution, shared by several others.** The templates are unchanged,
-  the settings class above included — it is already this component's own. What changes is where its
+  the settings class in `SETUP.md` included — it is already this component's own. What changes is where its
   prefix comes from: no longer one service's stem but the shared package's own (`MYSCHEMA_`), because
   every dependant now reads the same variables and none of them owns the component. It also gains its own
   migration command run from its own directory, and a standing restriction that the distributions
-  importing it define no table of their own (`flat-monorepo`).
+  importing it define no table of their own (`python-workspace`).
 
 ## Rules
 

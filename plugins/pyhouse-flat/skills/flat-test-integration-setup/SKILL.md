@@ -40,7 +40,7 @@ The split is about ownership, not about which family the service is in.
 - What the storage package under test contains, and which callables own their transactions →
   `flat-persistence`.
 - Where members sit when several distributions share one repository, and the root configuration that
-  registers a shared fixture module → `flat-monorepo`.
+  registers a shared fixture module → `python-workspace`.
 - Which scope a fixture takes, which conftest level it belongs at, builders versus fixtures →
   `test-principles`, the constitution. This skill is the flat-family artifact that implements it.
 - The project has a domain layer and a dishka composition root → `hex-test-integration-setup`, in the
@@ -225,7 +225,7 @@ pure-unit collection pays nothing for it.
 - **One shared instance of these fixtures, where several distributions in one repository share a
   datastore.** The bodies move verbatim into a pytest plugin module beside the tests of the library that
   owns the schema, registered once per session from the repository root, so every member shares one
-  container instead of starting one each (`flat-monorepo` carries the root configuration). Three things
+  container instead of starting one each (`python-workspace` carries the root configuration). Three things
   change and nothing else does: every environment name follows the owning library rather than a
   dependant, the migration subprocess runs from that library's directory, and **nothing in the module is
   autouse** — a plugin is loaded for every collection in the repository, so `truncate_all` keeps its body

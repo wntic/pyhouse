@@ -1,7 +1,6 @@
 ---
 name: hex-test-domain
 description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` alone — no IO, no fixtures, no fakes, no container. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a canonicalization rule gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
-paths: ["**/tests/**"]
 ---
 
 # Hex Test — Domain

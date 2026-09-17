@@ -1,7 +1,7 @@
 # House-style skills
 
-42 project-neutral Python skills in seven families: Universal (8), Meta (1), Hex core (12),
-Hex REST API (5), Hex tests (8), Flat core (4), and Flat tests (4).
+42 project-neutral Python skills in seven families: Universal (9), Meta (1), Hex core (12),
+Hex REST API (5), Hex tests (8), Flat core (3), and Flat tests (4).
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -14,9 +14,9 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 8 universal + `meta-skill-author`, and the `/choose-architecture` command |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 9 universal + `meta-skill-author`, and the `/choose-architecture` command |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 25 `hex-*` |
-| `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
+| `pyhouse-flat` | `plugins/pyhouse-flat/` | the 7 `flat-*` |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
@@ -46,7 +46,7 @@ character cap: `description` has no documented maximum, `description` + `when_to
 **1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
 rewritten as complete sentences to fit, never truncated.
 
-## Universal (8) — always in play
+## Universal (9) — always in play
 
 These skills bind in **every** project in this style, whichever architecture it uses. They are
 unprefixed because they belong to neither architecture family. `architecture-choice` is the one read
@@ -59,6 +59,7 @@ once rather than throughout — before the family is known:
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
 | `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
 | `python-packaging` | One class per module, `__all__`, the `__init__.py` re-export contract, import rules |
+| `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
@@ -146,12 +147,11 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `hex-test-discovery-invariants` | App-construction smoke tests and discovered OpenAPI, CORS, and request-size invariants |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
-## Flat core (4)
+## Flat core (3)
 
 | Skill | Owns |
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
-| `flat-monorepo` | The workspace root for several distributions in one repository: members, in-repo edges, compose profiles, Makefile targets — nothing in it is specific to a layering style |
 | `flat-persistence` | One package owning a service's data access, relational: transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
 | `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps; the obligations an engine adds are in its sibling binding |
 

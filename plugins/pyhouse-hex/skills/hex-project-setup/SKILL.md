@@ -22,8 +22,7 @@ it recurs per feature. The derivation rules that do recur are `hex-conventions`;
 - Module files, `__all__` and the re-export contract inside the package → `python-packaging`.
 - The runtime DI bindings and the env-backed settings classes → `hex-wiring`; this skill stops at which libraries exist.
 - Whether the project should be hexagonal or flat-layered at all → `architecture-choice`; settle that before laying this down.
-- A multi-service uv workspace rather than a single package → `flat-monorepo`, in the `pyhouse-flat`
-  plugin.
+- A multi-service uv workspace rather than a single package → `python-workspace`.
 
 ## A. Stack substrate (library ROLES, no versions)
 

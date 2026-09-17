@@ -1,6 +1,6 @@
 ---
 name: flat-layered
-description: Use when structuring a worker, crawler, pipeline, ETL job or integration service whose family is already settled as flat — one distribution on its own by default, and one of several in a repository under the same rules. Defines the four role kinds a flat service divides into and the import contract between them, the packages named for the roles this service actually has, the settings class each configured component owns, the single-implementation client, and why no `Protocol` appears until a second real implementation does. A service's data access has its own package whose rules are `flat-persistence`; several distributions sharing one repository is `flat-monorepo`; an unsettled family is `architecture-choice`.
+description: Use when structuring a worker, crawler, pipeline, ETL job or integration service whose family is already settled as flat — one distribution on its own by default, and one of several in a repository under the same rules. Defines the four role kinds a flat service divides into and the import contract between them, the packages named for the roles this service actually has, the settings class each configured component owns, the single-implementation client, and why no `Protocol` appears until a second real implementation does. A service's data access has its own package whose rules are `flat-persistence`; several distributions sharing one repository is `python-workspace`; an unsettled family is `architecture-choice`.
 when_to_use: Also when asked for a worker's or a pipeline's package layout, where a client class or a settings class belongs, whether a dependency deserves an interface, or how to lay out a single-distribution repository with no workspace around it.
 ---
 
@@ -45,7 +45,7 @@ the family is chosen.
   data-access role. A service with no datastore skips it.
 - This service is one of several distributions sharing one repository → this skill still covers its own
   internal layout unchanged; the repository root, the member split and the tooling settled once are
-  `flat-monorepo`. One distribution on its own needs none of that.
+  `python-workspace`. One distribution on its own needs none of that.
 - What triggers a run — a loop, a cron entry, a stream, or durable execution once it is earned →
   `flat-entrypoint`, which owns the run function's own obligations.
 

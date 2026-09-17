@@ -18,9 +18,9 @@ language-level rules, or before you have picked an architecture.
 
 | Plugin | Skills | What it covers |
 |---|---|---|
-| `pyhouse-universal` | 9 | Naming, typing and logging, packaging and re-exports, the error catalogue, the testing constitution, the architecture chooser. |
+| `pyhouse-universal` | 10 | Naming, typing and logging, packaging and re-exports, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the architecture chooser. |
 | `pyhouse-hex` | 25 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
-| `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the package owning a service's data access, trigger choice from loop to durable execution, the multi-service workspace when there is one, four test families. |
+| `pyhouse-flat` | 7 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the package owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
 ## Which family?
 

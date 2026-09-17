@@ -28,9 +28,9 @@ step degrades to a manual review if that command is absent.
 
 ```
 .claude-plugin/marketplace.json          lists the three plugins
-plugins/pyhouse-universal/               9 skills (8 universal + meta-skill-author), /choose-architecture
+plugins/pyhouse-universal/               10 skills (9 universal + meta-skill-author), /choose-architecture
 plugins/pyhouse-hex/                     25 hex-* skills
-plugins/pyhouse-flat/                    8 flat-* skills
+plugins/pyhouse-flat/                    7 flat-* skills
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and

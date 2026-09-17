@@ -205,9 +205,9 @@ are the cheapest possible test of a boundary, run before any code exists to be c
 ### Worked example — the shared-schema monorepo
 
 Several services, one database. Service-to-service distance is the highest in the repository, so
-service-to-service strength must be the lowest: no service imports a sibling (`flat-monorepo`, in the
-`pyhouse-flat` plugin), and no service defines a table or writes its own SQL (`flat-persistence`, in
-the same plugin). The schema itself, though, is *shared model knowledge* that cannot be avoided — so
+service-to-service strength must be the lowest: no service imports a sibling
+(`python-workspace`), and no service defines a table or writes its own SQL — the flat family states
+that under `flat-persistence`, in the `pyhouse-flat` plugin. The schema itself, though, is *shared model knowledge* that cannot be avoided — so
 the house puts it in one owning package and serves it through that package's own storage methods
 (`flat-persistence` again), which turns every
 service's integration with the store from model coupling into contract coupling, exactly because the

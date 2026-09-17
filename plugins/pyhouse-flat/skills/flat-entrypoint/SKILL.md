@@ -25,7 +25,7 @@ nothing here assumes a sibling distribution or a repository above it.
   `flat-layered`, which owns the role kinds and the import contract between them.
 - The tables, the write path and the storage class the run function calls → `flat-persistence`.
 - Several distributions sharing one repository — the member split, the container profiles, the root task
-  runner → `flat-monorepo`. One distribution on its own needs none of it.
+  runner → `python-workspace`. One distribution on its own needs none of it.
 - **Durable execution, once it is earned** — the obligations that exist only under a workflow engine, and
   the worked code binding them → the sibling `DURABLE.md` in this skill's own directory. Read it only
   once shape 2 below is earned; nothing in this file depends on it.

@@ -1,7 +1,6 @@
 ---
 name: hex-test-capability-adapter
 description: Use when testing the infrastructure adapter behind an `ICan<Verb>` capability port in one of its three flavours — a containerized backend through testcontainers, an HTTP gateway intercepted with `respx` over real `httpx`, or a pure-CPU canonicalizer or renderer — asserting the SDK-error to catalogue-exception translation row by row. Not a repository adapter, which is `hex-test-repository-contract`, and not a token verifier, which is `hex-test-restapi-auth`.
-paths: ["**/tests/**"]
 ---
 
 # Hex Test — Capability Adapter

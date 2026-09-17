@@ -334,7 +334,13 @@ Rules:
 its own — `identity="alpha"` needs no random suffix, and `assert len(rows) == 2` is correct; no
 defensive `any(...)` filters, no `+1` for the test's own row.
 
-**Pin the contract, not a coincidence.** Assert the returned state or observable effect that proves the behavior, including exact values and counts the contract guarantees. A successful call alone does not prove that the intended state was written.
+**Pin the contract, not a coincidence.** Assert the returned state or observable effect that proves the behavior, including exact values and counts the contract guarantees. A successful call alone does not prove that the intended state was written. An assert is **strong** only if a plausibly-wrong body would fail it, so read each one against *would this fail on a plausibly-wrong implementation?* Five recipes keep it strong at authoring time, whatever the artifact under test:
+
+1. **Assert a survivor, never an empty result.** A drop, skip or filter asserted on an empty result passes a body that drops everything, or empties for the wrong reason. Seed one item that must survive alongside the one that must go, and assert the survivor present and the other absent.
+2. **Seed at least two rows wherever one cannot prove scoping or a join.** A tenant-scope, parent-link or join assertion made against a single seeded row passes a body that ignores the scope entirely. Seed a second row — another tenant, another parent — that must be excluded.
+3. **For an echoed or derived field, pick an input a constant would not satisfy.** Asserting a returned role, a token subject or a copied identifier against a default or fixed-looking value passes a body that returns a constant. Choose a non-default input, so only the real wiring satisfies it.
+4. **On a reject path, assert that no side effect occurred — not just the raised exception.** Over-quota, already-in-final-state, not-found and unauthorized must also assert that nothing was persisted, sent or recorded, or a body that raises *after* writing still passes.
+5. **Exercise a non-boundary case, not only the boundary.** A test that pins only the `>=` edge, or only one tier of a graded rule, leaves the selection logic — is the right threshold even chosen? — unpinned. Add a case clearly inside the rule alongside the one on its edge.
 
 **Never assert on what the subject logged.** A log line is a side effect of a successful run, not the
 contract: a subject that logs the right event and writes nothing must red, and it passes every test

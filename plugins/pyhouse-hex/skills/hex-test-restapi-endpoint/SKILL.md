@@ -1,7 +1,6 @@
 ---
 name: hex-test-restapi-endpoint
 description: Use when testing one REST endpoint through the real ASGI app — one file per endpoint under `tests/integration/api/<resource>/`, asserting the happy path and validating the success body against its schema, with per-resource fixtures in a sibling `conftest.py`. Not properties discovered across all routes at once (`hex-test-discovery-invariants`), not the auth half — a token verifier's unit test, 401/403, role rejection, cross-tenant 404 (`hex-test-restapi-auth`) — and not the fixtures themselves (`hex-test-integration-setup`).
-paths: ["**/tests/**"]
 ---
 
 # Hex Test — REST API Endpoint
