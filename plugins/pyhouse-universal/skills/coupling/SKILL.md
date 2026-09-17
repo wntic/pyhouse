@@ -14,8 +14,13 @@ of both get the same answers — and it is loaded *alongside* whichever architec
 layout, never instead of it.
 
 The vocabulary below — shared knowledge, distance, volatility, the counterbalance between them — is
-Vlad Khononov's Balanced Coupling ([coupling.dev](https://coupling.dev)), distilled into this set's
-terms. It absorbs the two older models rather than competing with them. Constantine's module coupling
+**Vlad Khononov's Balanced Coupling model**, set out in *Balancing Coupling in Software Design*
+(Addison-Wesley) and at [coupling.dev](https://coupling.dev). The model is his. What follows is this
+catalogue's own restatement of it in this set's terms rather than a reproduction of his text, and where
+the two differ the book is right. Read it for the full treatment — the continuous form of the balance
+rule, the worked cases and the connascence detail all live there and are only gestured at here.
+
+It absorbs the two older models rather than competing with them. Constantine's module coupling
 supplies the rungs of the strength ladder — content, common/external/control, stamp and data coupling
 are the classic names for intrusive, functional, model and contract. Connascence grades *within* a
 rung: its static levels (name, type, meaning, algorithm, position) separate a weak contract from a
@@ -138,7 +143,7 @@ Strength and distance must **counterbalance** — one high, one low:
 
 | | low distance | high distance |
 |---|---|---|
-| **low strength** | low cohesion — unrelated things living together, drifting toward a ball of mud | **loose coupling** — balanced |
+| **low strength** | low cohesion — unrelated things sharing one boundary that names nothing; the cost is cognitive and it compounds | **loose coupling** — balanced |
 | **high strength** | **high cohesion** — balanced; co-evolution is cheap because the sides are close | tight coupling — cascading changes at coordination prices; the distributed-monolith signature |
 
 "Loose coupling" and "high cohesion" are not two goals to trade off; they are the same rule read
