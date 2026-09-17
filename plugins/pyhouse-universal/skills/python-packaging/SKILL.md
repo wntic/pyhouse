@@ -1,6 +1,6 @@
 ---
 name: python-packaging
-description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import. Owns one class per module, the four-part re-export contract, and building nothing at import time. Naming a module is `naming`.
+description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap, the four-part re-export contract, and building nothing at import time. Naming a module is `naming`.
 when_to_use: Adding a public module to a package; a wildcard import; import order; a module-level settings object, engine or client.
 ---
 
@@ -47,8 +47,9 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 
 ## Modules
 
-- **One class per module file**, and the module name matches the class in snake_case (`foo_client.py` →
-  `FooClient`, `entity_registry.py` → `EntityRegistry`).
+- **A module that defines a class defines exactly one**, and the module name matches it in snake_case
+  (`foo_client.py` → `FooClient`, `entity_registry.py` → `EntityRegistry`). The rule caps classes per
+  module; it does not require one. A module of related functions is a first-class shape — see below.
 - **`__all__` goes after the imports and before the class definition**, never at the top of the file.
 - A module filename must describe its contents, by the rules in `naming`.
 
@@ -62,6 +63,33 @@ __all__ = ["FooClient"]
 class FooClient:
     pass
 ```
+
+### When a module needs a class at all
+
+A module is already a namespace. A class earns its place when it **holds state its methods share and
+callers should not manage** — a connection, a base address, a compiled ruleset, injected collaborators.
+That is the whole test, and it is about state, not about size or subject matter.
+
+With no such state the module is the unit and its functions are its interface. A transformation — parse
+this payload, normalise this record, select these rows — is that shape, and wrapping it in a class
+produces an object callers construct only to discard.
+
+The tells that a class is the wrong shape: there is no `__init__`, or it takes nothing; every method
+could be a `@staticmethod`; no method reads an attribute the constructor set. The tells that it is the
+right one: two or more methods read the same constructor-set attributes; the object is injected
+somewhere; it has a lifecycle to open and close.
+
+**A helper that does not need `self` is a module function, not a private method.** Putting it at module
+level beside the class is the better shape, not a compromise: it cannot reach instance state, so a
+reader knows it is stateless without reading it, and a test can call it without constructing anything.
+This is why a module may hold one class and several private functions and still obey the rule above.
+
+**Module-level constants are correct; module-level mutable state is not.** A compiled pattern, a
+timeout, a lookup table belongs at module level, where it is built once and is easy to find — hoisting
+it into the class as a class attribute buys nothing. A mutable module-level binding is a singleton
+nobody declared, shared by every caller in the process and every test in the run; it belongs to an
+object with an owner, or it does not exist. Anything that must be *built* rather than declared is
+rule 8's, mutable or not.
 
 ### The named exceptions to one-class-per-module
 
@@ -269,8 +297,9 @@ hand-written imports land in the right block.
 ## Rules
 
 1. Use `naming` for identifier choice and renaming; check module filenames against their class names.
-2. Check class counts against **Modules** and its two exact-file exceptions; function-only modules do
-   not engage that rule.
+2. Check class counts against **Modules** and its two exact-file exceptions; the rule caps classes at
+   one and does not require one, so a function-only module does not engage it. Whether the module wants
+   a class at all is **When a module needs a class at all**: state its methods share, or no class.
 3. Put module exports between imports and definitions, using the placement shown in **Modules**.
 4. Check each re-exporting `__init__.py` against all four parts of the re-export contract.
 5. When adding a public module, complete all four package edits listed under that contract.
@@ -292,6 +321,13 @@ hand-written imports land in the right block.
 - A new module file with two top-level classes → stop, split it. The only exceptions are the exception
   catalog and a per-resource wire-schema module.
 - A module filename that does not match its class in snake_case → stop, rename the file.
+- A class with no constructor state, whose methods never read an attribute its `__init__` set → stop,
+  the module is already the namespace; these are module-level functions.
+- A private method that never touches `self` → stop, it is a module-level function, and moving it there
+  is what tells the reader it holds no state.
+- A mutable module-level binding — a dict used as a cache, an accumulating list, a registry filled at
+  run time → stop, it is a singleton nobody declared, shared by every caller and every test; give it an
+  owner or drop it.
 - `__all__` placed above the imports → stop, it goes after the imports and before the class.
 - An `__init__.py` with `from .module import ClassName` instead of the wildcard → stop, use the wildcard
   so the package `__all__` can be `+`-joined.

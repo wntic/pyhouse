@@ -58,7 +58,7 @@ once rather than throughout — before the family is known:
 | `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
 | `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
-| `python-packaging` | One class per module, `__all__`, the `__init__.py` re-export contract, import rules |
+| `python-packaging` | Whether a module wants a class at all and the one-class cap, `__all__`, the `__init__.py` re-export contract, import rules |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
