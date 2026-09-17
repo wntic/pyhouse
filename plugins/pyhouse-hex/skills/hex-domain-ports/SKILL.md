@@ -23,7 +23,7 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 - The token-verifier port, its adapter and the route dependency that resolves it → `hex-restapi-auth`; it is the sync shape below, bound to auth, and exists only in an app whose entrypoint authenticates.
 - The `i_` and `i_can_` filename prefixes and the rest of the identifier derivation → `naming`.
 - The command or query handler that consumes one of these protocols → `hex-application`.
-- The `*_best_effort` cleanup method a compensating handler calls on one of these ports → declared here, used by `hex-patterns`.
+- The `*_best_effort` cleanup method a compensating handler calls on one of these ports → its contract is `hex-patterns`'; this skill only says such a method is a port method like any other.
 
 ## Template(s) — stdlib `typing.Protocol`
 

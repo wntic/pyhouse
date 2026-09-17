@@ -189,8 +189,10 @@ subsections beneath give the reasoning and the judgement calls.
 
 1. **Check every import in `domain/` resolves to `domain/` or the standard library.** Nothing else — no
    third-party package beyond the logger, no other layer.
-2. **Check `application/` and `infrastructure/` import only `domain/` and stdlib**, never each other and
-   never an entrypoint. Only entrypoint packages may import all three.
+2. **Check `application/` imports only `domain/` and stdlib**, and **`infrastructure/` only `domain/`,
+   stdlib and third-party libraries** — that last allowance is the layer's whole purpose, and the table
+   above grants it. Neither imports the other, and neither imports an entrypoint. Only entrypoint
+   packages may import all three.
 3. **Check no import cycle exists** between modules, subpackages or layers.
 4. **Check each new module against the placement table** — pure logic in `domain/`, a rule needing a port
    in `domain/` as a domain service, orchestration in `application/`, anything touching a datastore,

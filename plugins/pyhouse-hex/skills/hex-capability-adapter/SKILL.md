@@ -19,7 +19,7 @@ here, into the classes `exception-catalog` owns.
 - The settings class (`<Tech>Settings`) the adapter consumes → `hex-wiring`.
 - The binding that constructs this adapter (almost always process-lifetime) → `hex-wiring`.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
-- The `*_best_effort` undo method a compensating handler calls on this adapter → declared in `hex-domain-ports`, consumed by `hex-patterns`.
+- The `*_best_effort` undo method a compensating handler calls on this adapter → its contract is `hex-patterns`', declared on a port by `hex-domain-ports`.
 - An in-memory test stand-in for this capability (the `Fake<Capability>` flavor) → `hex-test-application-handler`.
 - Testing the real adapter — containerized backend, `respx`-intercepted HTTP, or pure CPU → `hex-test-capability-adapter`.
 - A token verifier — its port, its adapter and the dependency that resolves it → `hex-restapi-auth`; the form is this skill's sync pure-CPU one, bound there.

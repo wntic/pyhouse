@@ -48,7 +48,7 @@ Elsewhere:
 - A flat service's run function and trigger wrappers → `flat-entrypoint`, in the `pyhouse-flat` plugin.
 - Layer boundaries and the injection site → `hex-architecture`.
 - The repository that joins a unit of work → `hex-persistence`.
-- The `*_best_effort` cleanup method a compensation calls → declared in `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`.
+- The `*_best_effort` cleanup method a compensation calls → its contract is stated here, declared on a port by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`.
 - The composition-root declarations both patterns need — the `IUnitOfWork` binding and its scope → `hex-wiring`.
 - What the handler may log → `python-style`.
 

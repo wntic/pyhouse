@@ -336,8 +336,9 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
 4. **No business logic.** A read passes parameters to the repository, optionally consults a domain
    service for "can this caller see this?", and returns.
 5. **Reads never log business events and never mutate.** A read is not an event, and a log line per
-   read buries the events that are; who-read-what is an audit concern the entrypoint owns
-   (`python-style`).
+   read buries the events that are. Who-read-what is a different concern with a different retention and
+   a different reader, and it belongs to the entrypoint that served the request; this catalogue states
+   no rule for it.
 6. **No `try/except`.** Follow `exception-catalog` for exception propagation.
 7. **No transaction management.** Reads do not open transactions.
 
@@ -374,4 +375,4 @@ provider that constructs a handler is `hex-wiring`.
 - Spec asks for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.
 - A `*Result` grows past about three fields and starts looking like a different concept → stop, model the
   response as a domain value object or a read-model and return that.
-- Spec asks a query handler to log a read event → stop, use `python-style` for audit logging at the entrypoint.
+- Spec asks a query handler to log a read event → stop, a read is not a business event; an audit trail of who read what belongs to the entrypoint, not to the handler.
