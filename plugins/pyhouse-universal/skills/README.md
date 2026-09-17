@@ -6,7 +6,7 @@ Hex REST API (5), Hex tests (8), Flat core (4), and Flat tests (4).
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
 **Adapting to a project**.
-Technology names (`postgres`, `redis`, `jwt`, `s3`, `temporalio`) stay concrete, because the
+Technology names (`postgres`, `redis`, `jwt`, `s3`) stay concrete, because the
 folder-per-technology rule is meaningless with the technology abstracted away.
 
 Add the `pyhouse` marketplace and install the plugin you need; each one lives under `plugins/` in this
@@ -198,20 +198,22 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 
 Three kinds of name appear in these skills, with different rules for adapting each.
 
-**Placeholders — always replace.** `myapp` (a service's own root package), `myschema` (the shared
-schema library a workspace's services depend on), `myrepo` (the repository root), `foo_parser` (a
-specific service in a monorepo example), `foos`/`bars`, and `Foo`/`Bar`. These stand in for whatever
-the project actually calls things, and the environment prefixes `MYAPP_` and `MYSCHEMA_` follow their
-packages.
+**Placeholders — always replace.** `myapp` (a distribution's own root package), `myschema` (a shared
+library several distributions depend on), `myrepo` (the repository root), `myframework` (a framework a
+rule is about wrapping), `foos`/`bars`, and `Foo`/`Bar`. These stand in for whatever the project
+actually calls things, and the environment prefixes `MYAPP_` and `MYSCHEMA_` follow their packages.
+None of them asserts a repository shape — one distribution and no `myschema` is the ordinary case.
 
-**Structural names — replace when the role does not exist.** `ingest/`, `jobs/`, `temporal/`,
+**Structural names — replace when the role does not exist.** `ingest/`, `jobs/`,
 `entrypoints/`, `services/` in the flat-layered set are *role names from a worked example*, not
 a required vocabulary; `flat-layered` opens with the rule. Create the packages your service's roles
 require, named for those roles, and no others. The canonical hexagonal names — `domain/`,
 `application/`, `infrastructure/` — are the exception: those are the style's own terms and stay.
 
-**Technology names — keep.** `postgres`, `redis`, `s3`, `jwt`, `temporalio`. Abstracting these would
-destroy the meaning of the rule that infrastructure is grouped by the real technology.
+**Technology names — keep.** `postgres`, `redis`, `s3`, `jwt`. Abstracting these would
+destroy the meaning of the rule that infrastructure is grouped by the real technology. The one
+exception is a technology a rule is about *wrapping*, which takes `myframework` — naming a real one
+there makes the rule that framework's instead of the project's.
 
 The same three categories govern `naming`'s examples, which are deliberately drawn from no real
 project: `Foo`/`Bar` and a generic upstream-availability check, with `redis`/`stripe`/`s3` kept

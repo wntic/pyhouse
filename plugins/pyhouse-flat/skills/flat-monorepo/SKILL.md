@@ -52,8 +52,8 @@ myrepo/
 │   ├── myschema/             # the shared storage package — see flat-persistence
 │   └── shared/               # cross-cutting helpers with no schema of their own
 └── services/
-    ├── foo_parser/
-    └── bar_parser/
+    ├── myapp/                # one runnable service per directory
+    └── <second-service>/
 ```
 
 **Two shared packages, with a sharp line between them.** `myschema` owns the schema: tables,
@@ -110,7 +110,7 @@ workspace's choice shown whole, not a requirement.
 Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 
 ```toml
-# services/foo_parser/pyproject.toml
+# services/myapp/pyproject.toml
 [project]
 name = "foo-parser"
 version = "0.1.0"
@@ -184,7 +184,7 @@ migrate:  ## the ONLY sanctioned way schema changes reach a database
 	cd packages/myschema && uv run alembic upgrade head
 
 run-foo:
-	cd services/foo_parser && uv run python -m foo_parser
+	cd services/myapp && uv run python -m myapp
 ```
 
 Two details in there are load-bearing. `uv sync --all-packages` is needed because a bare `uv sync`

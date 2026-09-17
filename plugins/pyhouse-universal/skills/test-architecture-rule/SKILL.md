@@ -86,8 +86,9 @@ _MEMBER_DIRS = ("packages", "services")
 # Source trees only: a member's tests/ legitimately names what its src/ may not.
 _SRC_DIRS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src")]
 
-# The member that owns the shared database schema, where there is one. `myschema` stands in for
-# whatever this repository calls it; a repository with no such member drops these three constants.
+# `myschema` is the shared library the other members import, under whatever name this repository
+# gave it; here it is the member that owns the database schema, and it is also where the framework
+# guard below sits. A repository with no shared library drops these three constants.
 _SCHEMA = str(_ROOT / "packages" / "myschema")
 _SCHEMA_SRC = str(_ROOT / "packages" / "myschema" / "src")
 _SRC_OUTSIDE_SCHEMA = [p for p in _SRC_DIRS if p != _SCHEMA_SRC]
@@ -99,14 +100,19 @@ _TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests")] + [
 ]
 _UNIT_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests/unit")]
 
-# A repository may declare that exactly one package wraps a given framework and that no other
-# member imports it. The declared name is stated here once, with an entry for any member that
-# declared another — never inferred from a directory name (rule 9).
-_FRAMEWORK_WRAPPER_PACKAGE = "temporal"
-_FRAMEWORK_WRAPPER_BY_MEMBER = {"foo_parser": "durable"}
-# The repository's shared framework-guarded helper module. It exists so a run function stays
-# framework-free, so it is exempted by the rule's allow-list below, never by going unswept.
-_SHARED_FRAMEWORK_GUARD = str(_ROOT / "packages" / "mycommon" / "src" / "mycommon" / "temporal.py")
+# A project may declare that exactly one package wraps a given framework and that nothing else
+# imports it. Both names below are the ones THIS project declared — fill in your own; they are two
+# constants because a project that names the wrapping package for its role rather than for the
+# framework changes one without the other. Neither is inferred from a directory name (rule 9).
+_FRAMEWORK_IMPORT = "myframework"            # the top-level module the framework is imported as
+_FRAMEWORK_WRAPPER_PACKAGE = "myframework"   # the package the declaration allows to import it
+# The one module outside that package the declaration exempts — the shared helper that holds the
+# framework import so its callers stay framework-free. It is exempted by the rule's allow-list
+# below, never by going unswept. A project that declared no such helper drops this constant and the
+# filter that reads it.
+_FRAMEWORK_GUARD_MODULE = str(
+    _ROOT / "packages" / "myschema" / "src" / "myschema" / "myframework.py"
+)
 # Every member's src/ EXCEPT the package holding the wrapper role. Every member directory is
 # swept, and loose top-level modules are kept (no is_dir() filter) — that is what puts the shared
 # helper in front of the allow-list instead of leaving it exempt because nothing looked at it.
@@ -114,8 +120,7 @@ _SRC_OUTSIDE_FRAMEWORK_WRAPPER = [
     str(p)
     for d in _MEMBER_DIRS
     for p in _ROOT.glob(f"{d}/*/src/*/*")
-    if p.name
-    != _FRAMEWORK_WRAPPER_BY_MEMBER.get(p.parents[2].name, _FRAMEWORK_WRAPPER_PACKAGE)
+    if p.name != _FRAMEWORK_WRAPPER_PACKAGE
 ]
 ```
 
@@ -165,13 +170,16 @@ def test_no_service_reaches_the_shared_tables_directly() -> None:
 
 The pattern stays simple; the exception is explicit and visible to whoever reads the failure.
 
-The framework-import rule is the second allow-listed one, and the entry is the repository's shared
-framework-guarded helper module:
+The framework-import rule is the second allow-listed one, and the entry is the module the
+declaration exempts. It is not a multi-member rule — a single distributable sweeps `_SRC` with the
+wrapper package's directory filtered out, and every line below is unchanged. The pattern is built
+from the constant rather than spelled out, so the name the project declared and the name the rule
+greps for cannot drift apart:
 
 ```python
 def test_no_framework_import_outside_the_wrapper_package() -> None:
-    all_hits = _grep(r"\btemporalio\b", *_SRC_OUTSIDE_FRAMEWORK_WRAPPER)
-    forbidden = [h for h in all_hits if not h.startswith(_SHARED_FRAMEWORK_GUARD)]
+    all_hits = _grep(rf"\b{_FRAMEWORK_IMPORT}\b", *_SRC_OUTSIDE_FRAMEWORK_WRAPPER)
+    forbidden = [h for h in all_hits if not h.startswith(_FRAMEWORK_GUARD_MODULE)]
     assert forbidden == [], (
         "framework import outside the declared framework-wrapper package:\n" + "\n".join(forbidden)
     )
@@ -249,7 +257,7 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
 6. **Exceptions are allow-listed inside the test, by name, and cap at three.** Filter the result
    against named paths — `startswith(...)` against a path constant under the grep binding — rather
    than weakening the pattern, so the pattern stays readable and the exception is visible to whoever
-   reads the failure. The framework-import rule's one entry is `_SHARED_FRAMEWORK_GUARD`, the shared
+   reads the failure. The framework-import rule's one entry is `_FRAMEWORK_GUARD_MODULE`, the shared
    framework-guarded helper module. A fourth entry means the rule has too many exceptions to be a
    firewall: split it into something more specific, or demote it to prose.
 7. **A rule never imports what it forbids, or anything from the tree it polices.** Importing it
@@ -262,13 +270,16 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
    plain `|` for alternation. A pattern that also catches a longer identifier, a comment or a
    docstring makes the rule's own name a lie, and the first false hit is what gets it deleted.
 9. **A rule that exempts a package because of the role it holds reads that role from what the
-   repository declared, never from a directory name.** The standing case is the framework wrapper: a
-   repository declares that exactly one package wraps the framework and that no other member may
-   import it, so the exempted name lives in a constant a repository that chose another name
-   overrides. (The flat family declares that role when a member is admitted, in `flat-monorepo`, and
-   states the import restriction in `flat-layered` — both in the `pyhouse-flat` plugin. The rule
-   here holds wherever such a role is declared at all.) A rule with the name hardcoded is green on a
-   repository where it is checking nothing.
+   project declared, never from a directory name.** The worked case is the framework wrapper: a
+   project declares that exactly one package wraps a framework and that nothing else imports it, so
+   the framework's import name, the wrapping package's name and any exempted module are each a
+   constant a project that chose other names overrides — and the pattern is built from the constant,
+   so the two cannot drift apart. **One constant per declared name.** A repository whose members each
+   chose a different name for the same role widens that constant into its own lookup on the way in;
+   the rule as written carries the single declaration, because a per-member override table is a
+   second allow-list with no cap (rule 6) and it is unreadable to everyone but the repository that
+   needed it. (Both families make such declarations; this rule holds wherever one is made at all.) A
+   rule with the name hardcoded is green on a project where it is checking nothing.
 
 ### Candidates, by family
 

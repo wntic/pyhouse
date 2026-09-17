@@ -139,9 +139,10 @@ Fake modules and imports follow `python-packaging`.
 
 ### Flat — tests tree and conftest hierarchy (pytest, uv workspace)
 
-Read `myschema` here as the catalogue's placeholder for **the shared library a workspace's services
-import** — the package that owns the database schema, whatever the workspace calls it — and `foo_parser`
-as one such service. Substitute both; no rule below depends on the names.
+Read `myschema` here as the catalogue's placeholder for **the library the repository's other
+distributions import** — in this example the one that owns the database schema, whatever the
+repository calls it — and `myapp` as one distribution that imports it. Substitute both; no rule below
+depends on the names, and a repository sharing no library at all has neither.
 
 **A flat service that ships on its own is the same tree with one member.** It has no root `tests/`
 and no cross-member plugin: its tests sit at `tests/unit/` and `tests/integration/` exactly as the
@@ -181,8 +182,8 @@ packages/myschema/
     └── integration/
         ├── conftest.py                # only what this package adds — truncate_all made autouse
         └── test_<table>_writes.py     # flat-test-persistence
-services/foo_parser/
-├── src/foo_parser/…
+services/myapp/
+├── src/myapp/…
 └── tests/
     ├── unit/
     │   ├── test_foo_client.py         # flat-test-service-client
@@ -233,7 +234,7 @@ Flat examples:
 
 - **Test file**: mirror the source file with a `test_` prefix. `application/foos/create_foo_handler.py` → `tests/unit/application/test_create_foo_handler.py`.
 - **Test function**: `test_<rule_being_pinned>` in snake_case. `test_assigns_uuid_and_stores`, `test_duplicate_name_raises_conflict`, `test_partial_update_leaves_unspecified_fields_untouched`. The name **is** the spec line — reading the file's `def test_*` list reads as a list of behaviors.
-- **Flat test files** mirror the source file inside their own member’s tree: `services/foo_parser/src/foo_parser/services/foo_client.py` → `services/foo_parser/tests/unit/test_foo_client.py`.
+- **Flat test files** mirror the source file inside their own member’s tree: `services/myapp/src/myapp/services/foo_client.py` → `services/myapp/tests/unit/test_foo_client.py`.
 - Builder, failure-injection subclass, and other identifier names → `naming`.
 
 ### The acceptance-criteria marker

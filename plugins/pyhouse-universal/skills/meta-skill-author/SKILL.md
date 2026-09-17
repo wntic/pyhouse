@@ -1,6 +1,6 @@
 ---
 name: meta-skill-author
-description: Use when creating a skill or reviewing its format. Defines the catalogue frontmatter and its real length limits, the two-layer principle/binding anatomy, section order, skill shapes, naming, rule ownership, and which plugin a skill belongs to.
+description: Use when creating a skill or reviewing its format. Defines the catalogue frontmatter and its real length limits, the two-layer principle/binding anatomy, the five-question portability gate, section order, skill shapes, naming, rule ownership, and which plugin a skill belongs to.
 ---
 
 # Meta — Skill Author
@@ -213,6 +213,33 @@ stdlib-only code, or a directory layout.
 withdrawn. **Dropping a real routing edge to hit a count is a defect**, not tidiness — a reader who
 lands in the wrong skill and finds no route out does the work in the wrong place.
 
+## The portability gate
+
+A skill ships to projects the author has never seen, so it is written against five questions and
+re-read against them before every edit. The swap test above answers question 3 only — a skill can pass
+it while saturated with one project's directory roles and workload assumptions.
+
+1. **Provenance** — does anything name or imply one particular application: its domain, services,
+   tables, queues, env prefixes, role names, or vocabulary invented for it?
+2. **Repository shape** — does it assume a layout beyond the one artifact it describes — a monorepo, a
+   workspace, sibling packages, a shared library — or carry `paths` globs matching one project's
+   directory names?
+3. **Technology** — is any library, framework, vendor or protocol required rather than illustrated?
+   Would every rule and every hard stop still fire if it were swapped?
+4. **Workload** — does it assume what the program is: that it has a database, an HTTP surface, a
+   scheduler, a queue, a long-running process, more than one deployable?
+5. **Residue** — strip everything the first four flag. Is there a rule left that a reader could
+   actually violate, and is it the rule the skill claims to own?
+
+### Hedging is not placeholdering
+
+The failure these questions catch is a **disclaimer standing in for a placeholder**. "One app's
+model", "rename these to suit", "illustrative only" above a concrete example lets the example
+survive, and readers copy examples, not disclaimers. The proof case in this catalogue was one skill
+pair carrying two source projects' role ladders and tenant names at once, each labelled "one app's
+model" — when two projects each donate a ladder and both get a disclaimer, the disclaimer is doing a
+placeholder's work. **The fix for a hedge is a placeholder or a deletion, never a better hedge.**
+
 ## Rules
 
 1. **Match the section order exactly — with one allowance for templates, and one for Reference
@@ -248,7 +275,7 @@ lands in the wrong skill and finds no route out does the work in the wrong place
    session, so every line is a recurring cost. State what to do rather than narrating how or why. A
    body past ~500 lines is the signal to split into sibling topic files.
 4. **Templates are literal, not prose.** Show the entire file to be written. Use the placeholders the
-   sibling `CONVENTIONS.md` defines — `Foo`, `Bar`, `myapp`, `myschema`, `myrepo`, `foo_parser` — and
+   sibling `CONVENTIONS.md` defines — `Foo`, `Bar`, `myapp`, `myschema`, `myrepo`, `myframework` — and
    read that file for the full set rather than guessing at it.
 5. **One artifact kind per skill, or one set that always arrives together.** Two unrelated artifact
    types means two skills. Producing 2–3 tightly-coupled files (command + handler; protocol + adapter)
@@ -260,10 +287,10 @@ lands in the wrong skill and finds no route out does the work in the wrong place
    This is how a reader recovers from misclassification without overreaching. A hard stop keeps its
    *reason*; softening "X → stop, use `Y`" into advice deletes the rule.
 8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `myapp` for
-   a service's own root package, `myschema` for the shared schema library, `myrepo` for the repository
-   root, `foo_parser` for a specific service inside a monorepo example. Never name a real aggregate,
-   role, tenant, bucket or service from the application at hand. The banned vocabulary is in the
-   sibling `CONVENTIONS.md`.
+   a distribution's own root package, `myschema` for a library several distributions share, `myrepo`
+   for the repository root, `myframework` for a framework a rule is about wrapping. Never name a real
+   aggregate, role, tenant, bucket or service from the application at hand. The banned vocabulary is
+   in the sibling `CONVENTIONS.md`.
 9. **No author-side notes in the body.** Lines like "do not duplicate these rules here" address the
    author, not the reader, and they cost context on every load. Put them in the commit message.
 10. **A skill must not know what invokes it.** No mention of who calls it, what it reports back, or what
@@ -299,7 +326,11 @@ A rule lives in exactly one skill. Every other skill points at it.
 | Where a boundary goes, split vs merge | `coupling` |
 | Testing constitution | `test-principles` |
 | Choosing between the hex and flat families | `architecture-choice` |
-| Transport authentication — token verification, caller identity, role dependencies | `hex-restapi-auth` |
+
+**Every owner in this table is a universal skill**, so every rule it assigns is present in a
+`pyhouse-universal`-only install. A rule only one family has is owned inside that family and does not
+get a row — transport authentication is `hex-restapi-auth`'s, in the `pyhouse-hex` plugin — because a
+row is a requirement, and a universal file may name a family skill only as an example.
 
 **Before replacing a restatement with a reference, open the owner and confirm the rule is there.** A
 pointer to a rule the owner does not state is a silent deletion, and it is invisible: both files read as
@@ -434,3 +465,7 @@ own frontmatter.
   them first; that channel fails hard on unknown keys.
 - Templates use application-specific names (`Order`, `Material`, `Invoice`) → stop, replace with
   `Foo`/`Bar`.
+- A skill fails any of the five portability questions → stop, replace what the question flagged with a
+  placeholder or delete it; a disclaimer above the example is not a fix.
+- Nothing survives question 5 once the project-bound material is stripped → stop, there is no skill
+  here — the material was a case study, not a subject.

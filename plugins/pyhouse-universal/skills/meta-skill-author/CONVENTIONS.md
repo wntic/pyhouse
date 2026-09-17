@@ -119,16 +119,18 @@ One vocabulary for the whole catalogue.
 |---|---|
 | `Foo` | the primary aggregate |
 | `Bar` | the secondary aggregate |
-| `myapp` | a service's **own root package** |
-| `myschema` | the **shared schema library** a workspace's services depend on |
-| `mycommon` | a **shared support library** a workspace's members depend on that is not the schema — framework guards, cross-cutting helpers |
+| `myapp` | a distribution's **own root package** |
+| `myschema` | a **shared library several distributions depend on** — imported by them, owned by none of them |
+| `myframework` | a **third-party framework** a rule is about *wrapping*, where naming a real one would make the rule that framework's |
 | `myrepo` | the repository root |
-| `foo_parser` | a *specific* service, where a monorepo example must name one |
 
 `myapp` and `myschema` are two names because they are two roles. One name for both is what broke the
-flat family's worked examples: a reader cannot tell the service's own package from the library it
-imports when both are called the same thing. Environment prefixes follow the package: `MYAPP_` for a
-service's own settings, `MYSCHEMA_` for the shared schema library's.
+flat family's worked examples: a reader cannot tell a distribution's own package from a library it
+imports when both are called the same thing. **Neither name asserts a repository shape.** One
+distribution and no `myschema` at all is the ordinary case; `myschema` appears only where an example
+needs a library that more than one distribution imports, and it says nothing about what that library
+holds — a database schema is one thing shared code can be, not the definition. Environment prefixes
+follow the package: `MYAPP_` for a distribution's own settings, `MYSCHEMA_` for a shared library's.
 
 Names derived from them:
 
@@ -137,7 +139,8 @@ Names derived from them:
 - Protocol `IFooRepository` in `i_foo_repository.py`; capability `ICan<Verb>` in `i_can_<verb>.py`
 - Commands/queries `CreateFooCommand`, `ListFoosQuery`, `CreateFooHandler`, `ListFoosResult`
 - REST `FooResponse`, `FooListResponse`, `FooCreateRequest`, `FooUpdateRequest`, router `restapi/routers/foos.py`
-- Monorepo members `myrepo/services/foo_parser/`, `myrepo/packages/myschema/`
+- A repository of several distributions groups them as it chose — `myrepo/<group>/myapp/` for one
+  distribution, `myrepo/<group>/myschema/` for a library they share
 
 ## Banned vocabulary
 
@@ -147,15 +150,17 @@ travels in — snake_case, kebab-case, and the SCREAMING env-var prefix derived 
 teaches through one system's vocabulary is unreadable to everyone else on it.
 
 Use the placeholder vocabulary above instead: `Foo`/`Bar` for aggregates, `myapp` for a service's own
-package, `myschema` for the shared schema library, `myrepo` for the repo root, `foo_parser` where an
-example must name one service. A real name with no placeholder to map onto gets a row added to the
+package, `myschema` for a library several distributions share, `myrepo` for the repo root,
+`myframework` where a rule is about wrapping a framework rather than about that framework. A real
+name with no placeholder to map onto gets a row added to the
 table above — never an exception here. The repo's own lint and review check carries the literal
 blocklist of names already found and removed, so this file states the category and does not reprint
 them.
 
 Technology names stay concrete, because a rule about grouping infrastructure by technology is
-meaningless with the technology abstracted away: `postgres`, `redis`, `s3`, `jwt`, `temporalio`,
-`dishka`.
+meaningless with the technology abstracted away: `postgres`, `redis`, `s3`, `jwt`, `dishka`. A
+technology the rule is *about wrapping* is the opposite case and takes `myframework`, because naming
+one there makes the rule that framework's instead of the project's.
 
 One bounded exception sits outside that list: a **named third-party vendor used purely as a
 disambiguation example** — where the point of the example is that the reader recognises the name as

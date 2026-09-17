@@ -75,11 +75,12 @@ auto-firing), no application-specific names. `paths` narrows auto-activation, so
 directory prefixed `**/` (`**/domain/**`) and never appears on a universal skill or on
 `architecture-choice`, which must fire on a greenfield tree.
 
-**Placeholders only.** `Foo`/`Bar` aggregates, `myapp` a service's own package, `myschema` the shared
-schema library, `myrepo` the repo root, `foo_parser` a named service in a monorepo example. Real role,
-tenant, bucket, queue, database or product names are banned in every spelling including SCREAMING
-env-var prefixes. Technology names (`postgres`, `redis`, `jwt`, `s3`, `temporalio`, `dishka`) stay
-concrete on purpose.
+**Placeholders only.** `Foo`/`Bar` aggregates, `myapp` a distribution's own package, `myschema` a
+shared library several distributions depend on, `myrepo` the repo root, `myframework` a framework a
+rule is about *wrapping*. No placeholder asserts a repository shape — one distribution and no
+`myschema` is the ordinary case. Real role, tenant, bucket, queue, database or product names are
+banned in every spelling including SCREAMING env-var prefixes. Technology names (`postgres`, `redis`,
+`jwt`, `s3`, `dishka`) stay concrete on purpose, except one a rule is about wrapping.
 
 ## Source material is evidence, never a model to copy
 

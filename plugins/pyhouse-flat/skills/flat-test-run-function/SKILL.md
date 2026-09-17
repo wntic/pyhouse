@@ -54,11 +54,11 @@ import respx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from foo_parser.exceptions import FooClientError
-from foo_parser.ingest.foo_ingest import run_once
-from foo_parser.services.foo_client import FooClient
-from foo_parser.storage.foo_storage import FooStorage
-from foo_parser.storage.foo_table import bar_table, foo_table
+from myapp.exceptions import FooClientError
+from myapp.ingest.foo_ingest import run_once
+from myapp.services.foo_client import FooClient
+from myapp.storage.foo_storage import FooStorage
+from myapp.storage.foo_table import bar_table, foo_table
 
 _BASE_URL = "https://foo.test"
 
@@ -179,10 +179,10 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from temporalio.exceptions import ApplicationError
 from temporalio.testing import ActivityEnvironment
 
-from foo_parser.services.foo_client import FooClient
-from foo_parser.storage.foo_storage import FooStorage
-from foo_parser.storage.foo_table import foo_table
-from foo_parser.temporal.activities import FooActivities
+from myapp.services.foo_client import FooClient
+from myapp.storage.foo_storage import FooStorage
+from myapp.storage.foo_table import foo_table
+from myapp.temporal.activities import FooActivities
 
 _BASE_URL = "https://foo.test"
 
@@ -240,9 +240,9 @@ from temporalio import activity
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from foo_parser.schemas.foo import RecheckResult
-from foo_parser.temporal import workflows as workflows_module
-from foo_parser.temporal.workflows import FooRecheckWorkflow
+from myapp.schemas.foo import RecheckResult
+from myapp.temporal import workflows as workflows_module
+from myapp.temporal.workflows import FooRecheckWorkflow
 
 _TASK_QUEUE = "test-queue"
 _CUTOFF = datetime(2024, 1, 1, 12, 0, 0)

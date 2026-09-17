@@ -35,15 +35,15 @@ boundary — not an abstraction invented to make the code mockable.
 
 ## Template — pytest, `respx` over `httpx`
 
-`services/foo_parser/tests/unit/test_foo_client.py`:
+`services/myapp/tests/unit/test_foo_client.py`:
 
 ```python
 import httpx
 import pytest
 import respx
 
-from foo_parser.exceptions import FooClientError
-from foo_parser.services.foo_client import FooClient
+from myapp.exceptions import FooClientError
+from myapp.services.foo_client import FooClient
 
 _BASE_URL = "https://foo.test"
 

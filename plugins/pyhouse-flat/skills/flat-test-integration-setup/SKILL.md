@@ -215,7 +215,7 @@ into a plugin module beside the owning package's tests —
   on for its own tests, in one line:
 
 ```python
-# services/foo_parser/tests/integration/conftest.py
+# services/myapp/tests/integration/conftest.py
 import pytest
 
 
