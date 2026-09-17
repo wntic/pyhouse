@@ -1,41 +1,43 @@
 ---
 name: flat-monorepo
-description: Use when several flat-layered services live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-service member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per service, and the task-runner targets that sync every member, apply migrations and launch each service from its own directory. One service on its own needs none of this and stays on `flat-layered`; what the package owning a shared store contains is `flat-persistence`.
-when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per service.
-paths: ["**/packages/**", "**/services/**"]
+description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, apply migrations and launch each member from its own directory. Nothing here is specific to a layering style — a member laid out either way needs the same root. One distribution on its own needs none of it and stays on `flat-layered`; what a library owning a shared store contains is `flat-persistence`.
+when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per runnable member.
 ---
 
-# Flat-Layered Monorepo — uv workspace root
+# Monorepo — uv workspace root
 
-One-shot bootstrap for a repository holding several `flat-layered` services plus the shared library
-packages they all depend on. Run once per repository; adding the Nth service afterward is just a new
-`services/<name>/` package, not a re-run of this skeleton.
+One-shot bootstrap for a repository holding several distributions: the runnable ones plus the library
+packages they depend on. Run once per repository; adding the Nth member afterward is just a new member
+directory, not a re-run of this skeleton.
+
+**The rules below are about members, not about what is inside one.** A member's own internal layout is
+its family's business — `flat-layered` for a flat member, `hex-architecture` (in the `pyhouse-hex`
+plugin) for a hexagonal one — and this root is the same either way.
 
 ## When to use vs. neighbours
 
-- The architecture family of the services going into the workspace is not settled →
-  `architecture-choice` decides hexagonal versus flat per service; this skill assumes flat-layered
-  members.
+- The architecture family of the members going into the workspace is not settled →
+  `architecture-choice` decides hexagonal versus flat per distribution; nothing here depends on the
+  answer.
 - Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill, use
   `flat-persistence` — this skill only creates the empty `packages/myschema/` shell.
-- Adding one service's internal layout — the cross-cutting setup modules at its package root, its
-  clients, its run functions; `settings.py`, `services/`, `ingest/`, `jobs/` in `flat-layered`'s worked
-  example → not this skill, use `flat-layered`.
-- Choosing a service's trigger — a loop, a cron entry or a timer by default, durable execution only
+- Adding one member's internal layout — the cross-cutting setup modules at its package root, its
+  clients, its work units → not this skill, use `flat-layered`.
+- Choosing a member's trigger — a loop, a cron entry or a timer by default, durable execution only
   once it is earned → `flat-entrypoint`.
-- Building a single standalone service with no sibling services and no shared store → not this skill;
-  a plain `flat-layered` project needs no workspace root at all. `flat-layered` lays its package
-  skeleton, including the storage role, and `flat-persistence` states what that package holds — neither
-  assumes anything above the service.
+- Building a single standalone distribution with no siblings and no shared store → not this skill;
+  it needs no workspace root at all. `flat-layered` lays its package skeleton, including the
+  data-access role, and `flat-persistence` states what that package holds — neither assumes anything
+  above the distribution.
 - Bootstrapping one hexagonal project's dependency substrate and tool configuration → the other
   family's `hex-project-setup`, in the `pyhouse-hex` plugin. Nothing below needs it: the tooling
   values this root settles are stated here, and the interpreter floor behind them is
   `python-style`'s.
-- The `myschema_testing` pytest plugin module the root `addopts` loads, and the fixtures inside it →
+- The pytest plugin module the root `addopts` loads, and the fixtures inside it →
   `flat-test-integration-setup`.
 - Whether a proposed member is a boundary at all — its encapsulated knowledge and change vectors →
   `coupling`.
-- The workspace-wide grep firewall in `tests/test_architecture.py` → `test-architecture-rule`.
+- The repository-wide grep firewall in `tests/test_architecture.py` → `test-architecture-rule`.
 
 ## Template — uv workspace, Docker Compose and Make
 
@@ -47,25 +49,23 @@ myrepo/
 │   ├── local.compose.yaml    # development — what every make target drives
 │   └── compose.yaml          # deployment template — registry images, resource limits
 ├── tests/
-│   └── test_architecture.py  # workspace-wide grep firewall
+│   └── test_architecture.py  # repository-wide grep firewall
 ├── packages/
-│   ├── myschema/             # the shared storage package — see flat-persistence
-│   └── shared/               # cross-cutting helpers with no schema of their own
+│   └── myschema/             # a library the runnable members depend on — see flat-persistence
 └── services/
-    ├── myapp/                # one runnable service per directory
+    ├── myapp/                # one runnable distribution per directory
     └── <second-service>/
 ```
 
-**Two shared packages, with a sharp line between them.** `myschema` owns the schema: tables,
-migrations, repositories, the engine. `shared` owns everything cross-cutting that is *not* schema —
-logging setup, framework-guarded helpers, common settings base classes. The split matters because
-`myschema` pulls in the database driver and the migration tool, and a service that only wants the
-logging setup should not inherit those. A repository with nothing cross-cutting yet has no `shared`
-package; add it when the second service copies the same helper.
+**A library that drags a heavy dependency in is not the same member as one that does not.** A library
+owning the schema pulls in the database driver and the migration tool; a member that only wants the
+logging setup should not inherit those. When the second cross-cutting helper appears, that is the signal
+for a second `packages/` member, not a bigger first one — and a repository with nothing cross-cutting yet
+has only the one.
 
 **The datastore fixtures every member shares are not at the root.** They live in a pytest plugin module
-beside the schema package's own tests, `packages/myschema/tests/myschema_testing.py`, loaded workspace-wide
-from the root `pyproject.toml` with `addopts = "-p myschema_testing"` and
+beside the owning library's own tests, `packages/myschema/tests/myschema_testing.py`, loaded
+repository-wide from the root `pyproject.toml` with `addopts = "-p myschema_testing"` and
 `pythonpath = ["packages/myschema/tests"]`. A plugin is registered once per session, so every member
 shares one container. `flat-test-integration-setup` owns the module and the settings that load it.
 
@@ -112,14 +112,13 @@ Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 ```toml
 # services/myapp/pyproject.toml
 [project]
-name = "foo-parser"
+name = "myapp"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["myschema", "shared"]
+dependencies = ["myschema"]
 
 [tool.uv.sources]
 myschema = { workspace = true }
-shared = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
@@ -134,7 +133,7 @@ name: myrepo
 services:
   postgres:
     image: postgres:17-alpine
-    profiles: ["postgres", "foo-parser", "bar-parser"]
+    profiles: ["postgres", "myapp", "second-service"]
     environment:
       POSTGRES_USER: myrepo
       POSTGRES_PASSWORD: myrepo
@@ -150,14 +149,14 @@ volumes:
 file — `docker/` — and every volume is recreated under a new prefix the first time someone runs it
 from a different path.
 
-**One compose profile per service**, named after the service, and each service profile also pulls in
-the datastores it depends on. That is what makes `--profile foo-parser` bring up exactly what one
-service needs and nothing else.
+**One compose profile per runnable member**, named after the member, and each such profile also pulls in
+the datastores it depends on. That is what makes `--profile myapp` bring up exactly what one member needs
+and nothing else.
 
 `Makefile`:
 
 ```makefile
-.PHONY: help install lint fmt typecheck test verify migrate run-foo run-bar
+.PHONY: help install lint fmt typecheck test verify migrate run-myapp
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -183,14 +182,14 @@ verify: lint typecheck test  ## run before pushing
 migrate:  ## the ONLY sanctioned way schema changes reach a database
 	cd packages/myschema && uv run alembic upgrade head
 
-run-foo:
+run-myapp:
 	cd services/myapp && uv run python -m myapp
 ```
 
 Two details in there are load-bearing. `uv sync --all-packages` is needed because a bare `uv sync`
 syncs only the root project and leaves every member's dependencies uninstalled. And `run-*` targets
-`cd` into the service directory first: a service's settings and the schema package's settings both
-resolve their dotenv files relative to the process working directory, so a service launched from the
+`cd` into the member directory first: a member's settings and the shared library's settings both
+resolve their dotenv files relative to the process working directory, so a member launched from the
 repo root reads none of them.
 
 ## Other bindings
@@ -202,34 +201,35 @@ repo root reads none of them.
   literally — whatever the tool, the edge is *declared*, never faked with a path insert.
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
   `invoke` and `nox` give the same one-discoverable-command-set-at-the-root property; a dev Kubernetes
-  cluster or Tilt gives the same per-service profile. What must survive either swap: one command syncs
-  *every* member and not only the root, one command applies migrations, each service still starts from
-  its own directory, and a cleanup command names what it destroys instead of sweeping the project.
+  cluster or Tilt gives the same per-member profile. What must survive either swap: one command syncs
+  *every* member and not only the root, one command applies migrations, each runnable member still
+  starts from its own directory, and a cleanup command names what it destroys instead of sweeping the
+  project.
 
 ## Rules
 
-1. **One workspace, two member groups.** `packages/*` holds shared libraries with no entrypoint of
-   their own; `services/*` holds runnable services, one directory per worker. Never put runnable code
-   in `packages/` or shared library code in `services/`.
-2. **A new member is admitted with two sentences, not just a directory.** Before creating
-   `services/<name>/` (or a new `packages/` member), the change that adds it names the member's
-   **encapsulated knowledge** — the tables it owns, the upstream it speaks, the vocabulary it
-   defines, none of which another member may assume — and two or three **change vectors**: plausible
-   changes that would touch *only* this member. A member whose knowledge cannot be named is a
-   category word, not a boundary; one whose every change vector drags a sibling along is drawn in
-   the wrong place. The reasoning is `coupling`'s; the check costs two sentences and is the cheapest
-   boundary test available.
-3. **The package owning a shared store is a `packages/*` member, and no `services/*` member defines a
-   table.** That one package owns the schema and the migration history for the store its services share —
-   the obligation itself is `flat-persistence`'s, and this rule is its workspace half: the owner sits in
-   `packages/`, every service declares an edge to it, and a grep firewall enforces that no service
-   constructs a statement of its own (`test-architecture-rule`).
+1. **One workspace, two member groups.** One group holds libraries with no entrypoint of their own;
+   the other holds runnable distributions, one directory per deployable. `packages/*` and `services/*`
+   are this example's names for them. Never put runnable code in the library group or shared library
+   code in the runnable one.
+2. **A new member is admitted with two sentences, not just a directory.** Before creating the
+   directory, the change that adds it names the member's **encapsulated knowledge** — the tables it
+   owns, the upstream it speaks, the vocabulary it defines, none of which another member may assume —
+   and two or three **change vectors**: plausible changes that would touch *only* this member. A member
+   whose knowledge cannot be named is a category word, not a boundary; one whose every change vector
+   drags a sibling along is drawn in the wrong place. The reasoning is `coupling`'s; the check costs two
+   sentences and is the cheapest boundary test available.
+3. **The distribution owning a shared store is a library member, and no runnable member defines a
+   table.** That one library owns the schema and the migration history for the store its dependants
+   share — the obligation itself is `flat-persistence`'s, and this rule is its workspace half: the owner
+   sits in the library group, every dependant declares an edge to it, and a grep firewall enforces that
+   no runnable member constructs a statement of its own (`test-architecture-rule`).
 4. **The one migration command runs from where the schema is defined** — `make migrate` here, which
-   `cd`s into the owning package. That there is one history per store, applied by one command, is
+   `cd`s into the owning member. That there is one history per store, applied by one command, is
    `flat-persistence`'s obligation; what this rule adds is workspace-specific and is a property of
-   members, not of storage: a migration run from inside a *service* resolves its connection settings from
-   that service's environment and working directory, so two services can apply one migration history to
-   two different databases and neither of them notices.
+   members, not of storage: a migration run from inside a *dependant* resolves its connection settings
+   from that member's environment and working directory, so two members can apply one migration history
+   to two different databases and neither of them notices.
 5. **A member declares its in-repo dependencies as edges the packaging tool resolves** —
    `[tool.uv.sources]` under uv — never a path hack, a `sys.path` append, or a copy-pasted module. A
    dependency the packaging tool cannot see is one the installer, the type checker and CI each resolve
@@ -240,12 +240,12 @@ repo root reads none of them.
    one only for a genuine per-package exception, and never the test-runner's own configuration block —
    declaring it in a member moves the runner's rootdir and silently invalidates every root-relative
    path in the test setup (`flat-test-integration-setup`).
-7. **Services never import each other.** Two services needing the same code means that code belongs in
-   `packages/shared` (or `packages/myschema` if it touches the schema). A service-to-service import is
-   what turns a workspace of independent deployables into one program.
-8. **Each service is launched from its own directory** — `cd services/<svc> && uv run python -m <svc>`,
-   which is what `make run-<svc>` does. Both a service's settings and the shared schema package's
-   resolve their env files against the process working directory, so a service started from the repo
+7. **Runnable members never import each other.** Two of them needing the same code means that code
+   belongs in a library member. A deployable-to-deployable import is what turns a workspace of
+   independent deployables into one program.
+8. **Each runnable member is launched from its own directory** — `cd services/<member> && uv run python
+   -m <member>`, which is what `make run-<member>` does. Both a member's settings and a shared library's
+   resolve their env files against the process working directory, so a member started from the repo
    root silently reads none of them. Migrations and syncs have no such restriction.
 9. **Infrastructure with its own schema owner gets its own datastore.** A workflow engine, a metrics
    store or a queue that ships its own migration tool does not share the application's database: the
@@ -256,16 +256,17 @@ repo root reads none of them.
 
 ## Hard stops
 
-- Only one service will ever exist, or services do not share a datastore → stop, this is a single
-  `flat-layered` project and it needs no workspace root; `flat-layered` lays its packages and
-  `flat-persistence` its storage package.
+- Only one distribution will ever exist, or the runnable members share no datastore → stop, this is a
+  single-distribution project and it needs no workspace root; `flat-layered` lays its packages and
+  `flat-persistence` its data-access package.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.
-- A service needs its own private tables no other service touches → still put the `Table` in the one
-  owning package; a second schema owner over one store means two migration histories and the second to
-  run decides what the first one's tables look like (`flat-persistence`).
-- A service imports a sibling service → stop, promote the shared code into `packages/`.
+- A runnable member needs its own private tables no other member touches → still put the `Table` in the
+  one owning library; a second schema owner over one store means two migration histories and the second
+  to run decides what the first one's tables look like (`flat-persistence`).
+- A runnable member imports a sibling runnable member → stop, promote the shared code into a library
+  member.
 - Runtime code is being added to the root `pyproject.toml`'s project → stop, the root is a container;
   create a member for it.
 - A cleanup target runs `docker compose down -v` → stop, name the one volume to remove; `-v` drops

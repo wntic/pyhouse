@@ -150,10 +150,10 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 
 | Skill | Owns |
 |---|---|
-| `flat-layered` | The package-by-tech layout, package-naming-by-role, what each package may import, the settings factory and the one-implementation client |
-| `flat-monorepo` | The uv workspace root: members, in-repo edges, compose profiles, Makefile targets |
-| `flat-persistence` | One package owning a service's data access: transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the orchestration obligations once an engine is earned |
+| `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
+| `flat-monorepo` | The workspace root for several distributions in one repository: members, in-repo edges, compose profiles, Makefile targets — nothing in it is specific to a layering style |
+| `flat-persistence` | One package owning a service's data access, relational: transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
+| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps; the obligations an engine adds are in its sibling binding |
 
 ## Flat tests (4)
 
@@ -162,7 +162,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `flat-test-integration-setup` | The container, the safety guard, and the isolation fixture each declared transaction owner needs |
 | `flat-test-persistence` | The storage package's contract against a real datastore |
 | `flat-test-service-client` | One client class's test |
-| `flat-test-run-function` | What a trigger runs, at every level of wrapping — body, wrapper, orchestration |
+| `flat-test-run-function` | What a trigger runs — the body and the wrapper that invokes it; the orchestration level is in its sibling binding |
 
 ## Conventions across both sets
 

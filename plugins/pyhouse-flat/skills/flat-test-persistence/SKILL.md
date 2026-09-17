@@ -1,21 +1,20 @@
 ---
 name: flat-test-persistence
 description: Use when testing a flat-layered service's storage package against the real datastore — its tables, its bulk helpers and the class that owns a multi-statement write — pinning the generated constraint name rather than only the exception type, the declared update set from both sides, an empty update set resolving to a no-op, the rows a read-back returns, a deliberately crossed chunk boundary, the catalogue exception a driver error is translated into, and the atomicity of a write whose last statement fails. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the run function that calls this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
-paths: ["**/tests/**"]
 ---
 
 # Flat Test — Storage Contract
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-One integration-test file per table or per storage class, under the service's own
+One integration-test file per table or per storage class, under the distribution's own
 `tests/integration/`, driven against the **real** datastore from `flat-test-integration-setup`. This is
 the only level that can catch what the storage package exists to guarantee: that a batch write is a
 handful of round trips, that a conflict updates the columns it claims to, that a driver error arrives as
 the service's own exception, and that a multi-statement write is one transaction.
 
-Where several services share one storage package, the files sit with that package's own tests instead —
-`packages/myschema/tests/integration/` — and nothing else changes.
+Where several distributions share one storage library, the files sit with that library's own tests
+instead — `myschema/tests/integration/` — and nothing else changes.
 
 **Which isolation fixture applies follows from the declared transaction owner** (`flat-persistence`
 rule 3), never from a guess:

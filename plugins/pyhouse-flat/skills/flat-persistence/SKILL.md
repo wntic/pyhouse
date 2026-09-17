@@ -1,19 +1,23 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the workspace hosting a storage package several services share is `flat-monorepo`.
+description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a storage library several distributions share is `flat-monorepo`.
 when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a storage or repository class in a flat service, a constraint naming convention, a migration for a flat service, or where a service's SQL is allowed to live.
-paths: ["**/storage/**", "**/persistence/**", "**/alembic/**", "**/migrations/**"]
 ---
 
 # Flat Persistence — one package owns the data access
 
-The package a `flat-layered` service keeps its data access in — `storage/` in that skill's worked
-example, whatever this service calls the role. It holds the table definitions, the write path, the
-mapping from stored rows back to the service's own types, and the migration history. **No other package
-in the service constructs a statement or opens a connection.**
+The package a `flat-layered` service keeps its data access in — the *data access* role kind in that
+skill's import contract, whatever this service names the package. It holds the table definitions, the
+write path, the mapping from stored rows back to the service's own types, and the migration history.
+**No other package in the service constructs a statement or opens a connection.**
 
-The default subject is **one service with its own store**. Where several services share one store, the
-same package is shared between them and one rule below says what that changes.
+**Precondition — the store is relational and transactional.** Rules 3, 4, 6, 8, 9, 10, 11, 12 and 15
+presuppose it: transactions, constraint names, statements, bind parameters, conflict clauses and a
+migration history. A document store, a key-value store or a vendor-managed index satisfies none of them
+as written; rules 1, 2, 5, 7, 13 and 14 hold for any store and are what carries across.
+
+The default subject is **one distribution with its own store**. Where several share one store, the same
+package becomes a library they all depend on and one rule below says what that changes.
 
 ## When to use vs. neighbours
 
@@ -21,7 +25,7 @@ same package is shared between them and one rule below says what that changes.
   package root, the clients, the run functions → `flat-layered`, which owns the import contract this
   package sits inside, the rule that each configured component declares its own settings class, and the
   no-`Protocol` rule this skill applies to the datastore.
-- Several services sharing one repository, and where a shared storage package sits inside it →
+- Several distributions sharing one repository, and where a shared storage library sits inside it →
   `flat-monorepo`.
 - What triggers a run and hands this package its connection handle → `flat-entrypoint`.
 - Testing these tables, helpers and the storage class against the real datastore →
@@ -58,11 +62,11 @@ metadata = MetaData(
 
 **Its own module, not a table module.** Every table module imports `metadata`, so hosting it inside one
 of them makes that table the accidental root of the import graph and creates a cycle the first time it
-wants to reference another. **The naming convention is load-bearing**: it is what lets a migration, a
-translator branch and a test refer to the same constraint by a name none of them invented. Left to the
-backend, names differ by engine and change under an upsert.
+references another. **The naming convention is load-bearing**: it lets a migration, a translator branch
+and a test name the same constraint without inventing it. Left to the backend, names differ by engine and
+change under an upsert.
 
-For a `CheckConstraint`, `name=` is the **suffix** — the convention prepends `ck_<table>_`. Passing a
+For a `CheckConstraint`, `name=` is the **suffix** — the convention prepends `ck_<table>_`, so passing a
 full name yields `ck_foos_ck_foos_name_non_empty`.
 
 ## The settings module — pydantic-settings
@@ -87,15 +91,14 @@ def get_storage_settings() -> StorageSettings:
 ```
 
 **The prefix is this component's own and claims no variable another component's fields could claim** —
-the same terms where the package is shared between services, and the `## Other bindings` bullet says
+the same terms where the package is shared between distributions, and the `## Other bindings` bullet says
 what else changes there. **The process definition is the only caller of this factory**: declaring the
 class here does not let a module in this package call it. The process definition calls it, reads `dsn`,
 and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 below).
 
-**No `@lru_cache` on either factory here.** With one caller by construction there is no second call to
-collapse, and memoising an engine keyed by its connection string additionally pins a live connection
-pool for the life of the process, outliving the shutdown path and the test that wanted to dispose of it.
-Add the decorator only where a second caller genuinely exists, and treat needing one as a sign that
+**No `@lru_cache` on either factory here.** With one caller by construction there is nothing to collapse,
+and memoising an engine keyed by its connection string pins a live pool for the life of the process,
+outliving the shutdown path and the test that wanted to dispose of it. Needing one is a sign that
 something below the process definition is building its own connection instead of being handed one.
 
 ## Engine and write helpers — SQLAlchemy async, asyncpg
@@ -177,11 +180,9 @@ Both helpers take an **already-open `AsyncConnection`** and never commit: they a
 connection-accepting half of rule 3, which is what lets one caller run several tables' writes inside one
 transaction, and what makes them testable inside a rolled-back one.
 
-The chunk size is a **named module constant, not a literal at the call site**, and the rule it encodes
-is *chunk below the driver's bind-parameter limit*: one statement binds `chunk_size * columns-per-row`
-parameters, and a batch crossing the driver's cap fails at execute time on size alone, whatever the data
-says. `2000` is one project's worked value against its widest table; a project computes its own from
-that table's column count and its driver's cap, and writes the answer here once.
+The chunk size is a **named module constant, not a literal at the call site** (rule 10). `2000` is one
+project's worked value against its widest table; a project computes its own from that table's column
+count and its driver's bind-parameter cap, and writes the answer here once.
 
 An empty `update_columns` list must become `ON CONFLICT DO NOTHING`, not an `UPDATE` with an empty
 `SET` — the latter is a syntax error, and "the row already exists and that is fine" is a real case.
@@ -347,31 +348,31 @@ class FooStorage:
         return _to_foo(rows)
 ```
 
-The class takes its engine as a **constructor argument**, never reaching for the factory itself — that is
-what lets a test point it at a container without touching the environment.
+The class takes its engine as a **constructor argument**, never reaching for the factory itself, so a
+test can point it at a container without touching the environment.
 
 `record_batch` is the worked case of rule 4: the second write needs an id the first one produced, so the
 two statements sit inside **one** `engine.begin()`. Split across two connection blocks, a failure in the
-second leaves parentless rows behind, and the whole class stops being worth having.
+second leaves parentless rows behind.
 
 `update_columns=[]` on the second write resolves to *do nothing*: a label already recorded for that foo is
 not an error, and an update with an empty assignment list is a syntax error.
 
 `_translate` **ends by returning a catalogue exception**: the last statement is the fallback, not a
-re-raise of the driver's type. Without it an unrecognised constraint escapes as a driver exception and
-every caller's `except` clause is written against a library it was supposed never to import.
+re-raise of the driver's type. Without it every caller's `except` clause ends up written against a
+library it was supposed never to import.
 
 `_to_foo` is a **pure function**: no IO, no logging. It normalizes what the driver hands back — the
-natural key's one form, and a naive timestamp's offset — so a single unit test pins both for the whole
-service, and nothing above this package ever sees a column name.
+natural key's one form, a naive timestamp's offset — so one unit test pins both and nothing above this
+package sees a column name.
 
 The conflict column is excluded from `update_columns`: writing back the key you matched on is a no-op at
 best and, on a partial index, a way to make the statement fail.
 
 ## Migration bootstrap — Alembic (once)
 
-`myapp/alembic/env.py` points `target_metadata` at the one `MetaData`, importing the storage package so
-every `Table` is registered on it first:
+`myapp/alembic/env.py` points `target_metadata` at the one `MetaData`, importing the package first so
+every `Table` is registered on it:
 
 ```python
 import myapp.storage  # noqa: F401  — registers every Table on the shared metadata
@@ -398,12 +399,12 @@ it, run from that same place.
   translator matches on and the read-back clause all change together. Conflict resolution is the one that
   is not mechanical: a backend without `ON CONFLICT` carries rule 12 as a `MERGE` or as a lock-and-check,
   and "nothing to update" must still become a no-op there rather than an error.
-- **This package as a separate distribution, shared by several services.** The templates are unchanged,
+- **This package as a separate distribution, shared by several others.** The templates are unchanged,
   the settings class above included — it is already this component's own. What changes is where its
   prefix comes from: no longer one service's stem but the shared package's own (`MYSCHEMA_`), because
-  every service now reads the same variables and none of them owns the component. It also gains its own
-  migration command run from its own directory, and a standing restriction that the services importing
-  it define no table of their own (`flat-monorepo`).
+  every dependant now reads the same variables and none of them owns the component. It also gains its own
+  migration command run from its own directory, and a standing restriction that the distributions
+  importing it define no table of their own (`flat-monorepo`).
 
 ## Rules
 
@@ -466,8 +467,8 @@ it, run from that same place.
     at module scope makes merely importing the package fail wherever the environment is incomplete — and
     no module in this package calls either factory: the process definition calls them and hands the
     values down (`flat-layered` rule 7).
-15. **Where several services share a store, exactly one package owns its schema and its migration
-    history, and every other service depends on that package.** Two packages defining tables in one
+15. **Where several distributions share a store, exactly one of them owns its schema and its migration
+    history, and every other one depends on it.** Two packages defining tables in one
     database means two migration histories over one schema, and the second one to run decides what the
     first one's tables look like.
 

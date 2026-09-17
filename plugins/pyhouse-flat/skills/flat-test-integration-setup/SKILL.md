@@ -1,20 +1,16 @@
 ---
 name: flat-test-integration-setup
-description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration run, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Defaults to one service's own `tests/integration/conftest.py`; several members share a single instance of it as a plugin module registered once per session instead. Testing the storage package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
+description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration run, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the storage package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
 when_to_use: Also when asked where a flat service's test fixtures live, how integration tests get a real database, why a test suite must never truncate a developer's database, or why a session-scoped engine needs a session-scoped event loop.
-paths: ["**/tests/**"]
 ---
 
 # Flat-Layered Test — Integration Setup
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-One-shot per service. Everything under that service's `tests/integration/` depends on it: the datastore
+One-shot per distribution. Everything under its `tests/integration/` depends on this file: the datastore
 the suite runs against, the migration history replayed onto it, the engine every test shares, and the two
-isolation fixtures. **The default home is the service's own `tests/integration/conftest.py`.** Where
-several services share one repository and one datastore, the identical fixtures move into a pytest plugin
-module registered once per session, so the members share one container instead of starting one each —
-that is the second kind of the same artifact, not a different one.
+isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.**
 
 **Two isolation fixtures, and which one a test uses follows from the declared transaction owner.** Every
 callable in the storage package either *accepts* a live connection and never commits, or *opens and owns*
@@ -38,25 +34,22 @@ The split is about ownership, not about which family the service is in.
   `conn` and `truncate_all` and lays none of its own.
 - A run function, a trigger wrapper or the orchestration above them → `flat-test-run-function`; its code
   owns its transactions, so it takes the wipe.
-- A `services/*_client.py` test → `flat-test-service-client`; it needs no datastore and must not live
-  under `tests/integration/`.
+- An external-system client's own test → `flat-test-service-client`; it needs no datastore and must not
+  live under `tests/integration/`.
 - Row builders → not this skill; they are module-level `def`s in the test file using them.
 - What the storage package under test contains, and which callables own their transactions →
   `flat-persistence`.
-- Where members, packages and the shared storage package sit when several services share one repository →
-  `flat-monorepo`; this skill only adds the test-support module beside them.
+- Where members sit when several distributions share one repository, and the root configuration that
+  registers a shared fixture module → `flat-monorepo`.
 - Which scope a fixture takes, which conftest level it belongs at, builders versus fixtures →
   `test-principles`, the constitution. This skill is the flat-family artifact that implements it.
 - The project has a domain layer and a dishka composition root → `hex-test-integration-setup`, in the
   `pyhouse-hex` plugin.
 - The family itself is unsettled → `architecture-choice`, before either setup skill.
 
-## Template(s) — the shared fixtures (testcontainers, SQLAlchemy async, Alembic)
+## Template — the shared fixtures (testcontainers, SQLAlchemy async, Alembic)
 
-One artifact, two kinds. Write the first unless the repository holds several services sharing one
-datastore.
-
-### One service — `tests/integration/conftest.py`
+`tests/integration/conftest.py`:
 
 ```python
 import os
@@ -201,46 +194,9 @@ returned to the pool. Because it is autouse, pytest sets it up before any fixtur
 name and therefore finalizes it last. Request it by name alongside `conn` and that ordering is no longer
 guaranteed, and the wipe can deadlock against the still-open transaction.
 
-### Several members — one registered plugin module
-
-Where several services share one repository and one datastore, the fixture bodies above move verbatim
-into a plugin module beside the owning package's tests —
-`packages/myschema/tests/myschema_testing.py` — and three things change:
-
-- **Every environment name follows the owning package**, not a service: `MYSCHEMA_DSN`, and the migration
-  subprocess runs with `cwd="packages/myschema"`, because that is where the schema is defined.
-- **Nothing in the module is autouse.** A plugin is loaded for *every* collection in the repository,
-  pure-unit runs included, and an autouse fixture there would start a container for tests that asked for
-  none. `truncate_all` keeps its body but loses `autouse=True`; each member whose code commits turns it
-  on for its own tests, in one line:
-
-```python
-# services/myapp/tests/integration/conftest.py
-import pytest
-
-
-@pytest.fixture(autouse=True)
-async def _truncate_all(truncate_all: None) -> None:
-    """Everything under this directory commits; wipe the schema after each test."""
-```
-
-- **The module is registered once per session**, from the root configuration below. No import is needed:
-  a plugin's fixtures are visible by name everywhere in the session, and the wrapper body is empty
-  because the work is the dependency.
-
-A plugin rather than a conftest because a plugin is registered **once per session**: every member shares
-one container, where a conftest copied into each member's `tests/` starts one container per member. A
-root `conftest.py` would share correctly but puts test infrastructure at the repository root and reaches
-members only from above.
-
-Beside the tests, not inside `src/`: it is test-support code and has no business shipping in the wheel or
-the runtime image. `pythonpath` is what makes it importable by name — it needs a distinctive one, since
-the entry lands on `sys.path` for the whole session. That entry resolves against pytest's **rootdir**, so
-a member that later grows its own `[tool.pytest.ini_options]` (moving rootdir) has to repeat it.
-
 ## Template — pytest configuration (pytest, pytest-asyncio, pytest-env)
 
-One service, in its own `pyproject.toml`:
+In the distribution's own `pyproject.toml`:
 
 ```toml
 [tool.pytest.ini_options]
@@ -249,15 +205,6 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
 env = ["D:MYAPP_STORAGE_DSN=postgresql+asyncpg://test:test@localhost:1/placeholder"]
-```
-
-Several members add three lines at the **root** `pyproject.toml`, which registers the plugin module and
-names every member root the runner must collect:
-
-```toml
-addopts = "-p myschema_testing --import-mode=importlib"
-pythonpath = ["packages/myschema/tests"]
-testpaths = ["packages", "services", "tests"]  # every member root, plus repository-level tests
 ```
 
 Both loop-scope lines are load-bearing, not decoration. The `engine` fixture is session-scoped, so every
@@ -270,15 +217,20 @@ aborted command on a closed loop.
 The `D:` prefix on the placeholder makes it a **default** rather than an override, so the opt-in external
 path still sees a real exported DSN.
 
-`testpaths` names the member roots the repository actually has; the three above are one repository's, not
-a required shape. Leaving a root out means its integration tests never run under a bare `pytest`.
-
-Keep the plugin module to fixtures alone — pytest imports it for the whole suite, so anything at module
-scope there is paid for by every unit collection too. The container library is imported *inside* the
-fixture that needs it for exactly this reason.
+The container library is imported **inside** the fixture that needs it, not at module scope, so a
+pure-unit collection pays nothing for it.
 
 ## Other bindings
 
+- **One shared instance of these fixtures, where several distributions in one repository share a
+  datastore.** The bodies move verbatim into a pytest plugin module beside the tests of the library that
+  owns the schema, registered once per session from the repository root, so every member shares one
+  container instead of starting one each (`flat-monorepo` carries the root configuration). Three things
+  change and nothing else does: every environment name follows the owning library rather than a
+  dependant, the migration subprocess runs from that library's directory, and **nothing in the module is
+  autouse** — a plugin is loaded for every collection in the repository, so `truncate_all` keeps its body
+  but loses `autouse=True` and each member whose code commits turns it on for its own tests in a
+  one-line wrapper fixture.
 - **A pre-provisioned throwaway database** — a compose service, a CI service container, one issued per
   branch. The container fixture disappears and `db_dsn` takes the external branch it already carries;
   the migration run, the engine scope and both isolation fixtures are unchanged. **The name guard must
@@ -295,9 +247,9 @@ fixture that needs it for exactly this reason.
 
 ## Rules
 
-1. **The migration runs from wherever the schema is defined** — the service itself when it owns its
-   store, the owning package when several services share one. One store, one history, replayed the same
-   way the deploy command replays it.
+1. **The migration runs from wherever the schema is defined** — this distribution when it owns its
+   store, the owning library when several share one. One store, one history, replayed the same way the
+   deploy command replays it.
 2. **The safety guard lives inside the fixture producing the connection details**, and guards on an
    exact database name drawn from a project-declared constant, never a port or substring heuristic.
 3. **Using a datastore the suite did not start is opt-in and explicit.** Key it on a dedicated variable,
@@ -311,7 +263,8 @@ fixture that needs it for exactly this reason.
    disposed. Tests take the shared fixture and pass it explicitly to whatever needs one.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
-   still starts empty. Shared across members it is defined once, non-autouse, and switched on per member.
+   still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to
+   diverge.
 7. **Do not request the wipe by name in a test that only uses the rollback connection.** The rollback
    already covers it, and a by-name request loses the autouse ordering that keeps the wipe's exclusive
    table lock from meeting the connection's still-open transaction.
@@ -331,8 +284,9 @@ fixture that needs it for exactly this reason.
   both are how a suite ends up truncating a developer's database.
 - The external-database branch is being keyed on `CI` or any other ambient variable → stop, use a
   dedicated opt-in flag; ambient variables are exported by tools that know nothing about this suite.
-- An autouse fixture is being added to a plugin module shared across members → stop, it fires for every
-  unit test in the repository; define it non-autouse there and wrap it as autouse per member.
+- An autouse fixture is being added to a fixture module shared with other distributions → stop, it fires
+  for every collection in the repository, pure-unit runs included; define it non-autouse there and wrap
+  it as autouse where the tests actually commit.
 - The body of `truncate_all` is being copied into a second conftest → stop, depend on the shared fixture
   and add `autouse=True` in the wrapper; one body, one place.
 - A savepoint-rollback fixture is being added so the storage class's tests can avoid the wipe → stop, that
@@ -345,5 +299,5 @@ fixture that needs it for exactly this reason.
   TRUNCATEs every table in the schema; that is exactly the accident the guard prevents.
 - `filterwarnings = ["error"]` is being dropped because a dependency is noisy → stop, write one narrow
   `"ignore:..."` entry after `"error"` with its reason in a comment.
-- The service has no relational store at all → stop, none of this applies; there is no transaction to
+- The distribution has no relational store at all → stop, none of this applies; there is no transaction to
   roll back and no schema to truncate.

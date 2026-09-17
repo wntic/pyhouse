@@ -61,9 +61,9 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Flat core (4)
 
-- `flat-layered` — Create packages only for roles the service actually has; one service on its own is the default and the worked example's directory names are replaceable.
-- `flat-monorepo` — Establish workspace ownership before adding shared packages or runnable service members; a lone service needs none of it.
-- `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated.
+- `flat-layered` — Four role kinds carry the rules; the worked example's directory names are one project's and are replaceable, and one distribution on its own is the default.
+- `flat-monorepo` — Establish workspace ownership before adding shared libraries or runnable members; a lone distribution needs none of it, and neither does any particular layering style.
+- `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; relational throughout.
 - `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
 
 ### Flat tests (4)
@@ -71,7 +71,7 @@ too. The counts in every heading are the number of directories on disk.
 - `flat-test-integration-setup` — Choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
 - `flat-test-persistence` — Pin the storage package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
-- `flat-test-run-function` — Test every level of wrapping around one call, and keep the orchestration level asserting orchestration only.
+- `flat-test-run-function` — Test the body and the wrapper that invokes it; the orchestration level and its engine bindings are in the sibling file.
 
 ## Packaging — which plugin a skill ships in
 

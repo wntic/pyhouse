@@ -1,14 +1,14 @@
 ---
 name: flat-test-service-client
 description: Use when testing one external-service client class with `respx` over real `httpx` transport — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception. A unit test needing no database and no container, unlike `flat-test-run-function`, which substitutes this client whole. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`.
-paths: ["**/tests/**"]
 ---
 
 # Flat-Layered Test — Service Client
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-One unit-test file per client class, under `services/<service>/tests/unit/`. No database, no container,
+One unit-test file per client class, under the distribution's own `tests/unit/`. No database, no
+container,
 no network — `respx` intercepts at the `httpx` transport layer, so everything the client itself does
 (URL assembly, headers, `raise_for_status`, JSON parsing, the `except httpx.HTTPError` translation) runs
 unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a process boundary.
@@ -19,7 +19,7 @@ boundary — not an abstraction invented to make the code mockable.
 ## When to use vs. neighbours
 
 - The client wraps a vendor SDK rather than raw `httpx` (a cloud SDK, a database driver) → not `respx`;
-  test it against the real thing in a container under that service's `tests/integration/`, or, where
+  test it against the real thing in a container under this distribution's `tests/integration/`, or, where
   there is no container for it, against the SDK's own test double if it ships one.
 - The filter/normalize function the client's output feeds → a plain unit test with no fixtures; it is
   pure and needs nothing from this skill.
@@ -35,7 +35,7 @@ boundary — not an abstraction invented to make the code mockable.
 
 ## Template — pytest, `respx` over `httpx`
 
-`services/myapp/tests/unit/test_foo_client.py`:
+`tests/unit/test_foo_client.py`:
 
 ```python
 import httpx
