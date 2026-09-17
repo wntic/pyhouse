@@ -93,9 +93,10 @@ def authed_client(
         role: Role,
         **extra_claims: object,
     ) -> AsyncClient:
-        # Mint only the universal claims every verifier needs (sub + role). Any
-        # app-specific claim (tenant/org id, display names, …) is the caller's to
-        # pass via **extra_claims — never bake one app's identity model in here.
+        # Mint only what the identity type declares (subject + rank). Anything
+        # further this app's identity carries (a tenant id, a display name, …) is
+        # the caller's to pass via **extra_claims — never bake one app's identity
+        # model in here.
         claims = {
             "sub": str(uuid4()),
             "role": role.value,
@@ -274,7 +275,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
 The endpoint-test file's shape, its one-file-per-endpoint rule, schema validation and per-resource
 fixtures are `hex-test-restapi-endpoint`'s. These are the auth-carrying variants of that shape, and the
-`Role.ADMIN` / `Role.COLLABORATOR` ladder shown is **one app's model, not universal**.
+`Role.LOWER` / `Role.HIGHER` ladder they name is the catalogue's **placeholder** pair
+(`hex-restapi-auth`) — substitute the app's own members, and however many of them it has.
 
 ### JSON mutation, role-gated
 
@@ -290,7 +292,7 @@ from myapp.restapi.schemas import FooResponse
 async def test_create_foo_happy_path(
     authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID
 ) -> None:
-    async with authed_client(role=Role.ADMIN) as client:
+    async with authed_client(role=Role.HIGHER) as client:
         response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
 
     assert response.status_code == 201
@@ -301,7 +303,7 @@ async def test_create_foo_happy_path(
 async def test_create_foo_forbidden_for_lower_role(
     authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID
 ) -> None:
-    async with authed_client(role=Role.COLLABORATOR) as client:
+    async with authed_client(role=Role.LOWER) as client:
         response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
 
     assert response.status_code == 403
@@ -319,24 +321,24 @@ from myapp.domain.auth import Role
 from myapp.restapi.schemas import FooResponse
 
 async def test_get_foo_returns_payload(
-    authed_client: Callable[..., AsyncClient], foo_in_org: tuple[uuid.UUID, uuid.UUID]
+    authed_client: Callable[..., AsyncClient], foo_in_tenant: tuple[uuid.UUID, uuid.UUID]
 ) -> None:
-    foo_id, org_id = foo_in_org
-    # The tenancy keyword is the app's JWT claim name, forwarded via authed_client's
-    # **extra_claims (there is no built-in org_id parameter — see Rule 8).
-    async with authed_client(role=Role.COLLABORATOR, organization_id=org_id) as client:
+    foo_id, tenant_id = foo_in_tenant
+    # The tenancy keyword is this app's own claim name, forwarded via authed_client's
+    # **extra_claims (the factory has no tenant parameter — see Rule 8).
+    async with authed_client(role=Role.LOWER, tenant_id=tenant_id) as client:
         response = await client.get(f"/foos/{foo_id}")
 
     assert response.status_code == 200
     FooResponse.model_validate(response.json())
 
-async def test_get_foo_in_other_org_returns_404(
-    authed_client: Callable[..., AsyncClient], foo_in_org: tuple[uuid.UUID, uuid.UUID]
+async def test_get_foo_in_other_tenant_returns_404(
+    authed_client: Callable[..., AsyncClient], foo_in_tenant: tuple[uuid.UUID, uuid.UUID]
 ) -> None:
-    foo_id, _ = foo_in_org
-    other_org = uuid.uuid4()
+    foo_id, _ = foo_in_tenant
+    other_tenant = uuid.uuid4()
 
-    async with authed_client(role=Role.COLLABORATOR, organization_id=other_org) as client:
+    async with authed_client(role=Role.LOWER, tenant_id=other_tenant) as client:
         response = await client.get(f"/foos/{foo_id}")
 
     assert response.status_code == 404  # NOT 403 — prevents enumeration

@@ -345,6 +345,29 @@ Per-resource fixtures (`make_foo`, `foo_id`, `bar_id`, …) live in `tests/integ
 
 ## Other bindings
 
+### Provisioning — where the store under test comes from
+
+The obligations below hold under every one of these; what changes is who creates the store, how the
+schema gets there, and what the disposability marker is set by.
+
+- **A developer- or CI-supplied store.** The suite starts nothing: connection details come from a
+  **dedicated** opt-in variable, and whatever provisioned the store sets the disposability marker. The
+  container fixtures go; the guard, the schema step, the isolation handle and the substitution are
+  unchanged — and the guard matters *more* here, the one branch that can reach a store the suite did
+  not create. The template's external branch is this binding, written in.
+- **An in-process store.** An embedded engine — a file-backed or in-memory relational database, an
+  embedded key-value store — inside the test process. No container and no opt-in variable; it is
+  disposable by construction, so the fixture that creates it sets the marker, and the schema step runs
+  in-process rather than as a subprocess. The isolation obligation is unchanged, its mechanism may not
+  be: an engine without nested transactions isolates by a fresh store per test rather than by undo.
+- **A fresh schema (or database) per session on a shared server.** The session creates a uniquely-named
+  schema inside a long-lived server and drops it at session end. That creation is what makes the target
+  disposable, so it sets the marker; the schema step targets the new namespace and the per-test handle
+  sits inside it unchanged. Reach for this where a container is not available to the suite but a server
+  is.
+
+### Dependency injection
+
 - **`dependency-injector`.** The container fixtures, the migration run, the guard and the savepoint-rollback `sf` are unchanged; only `real_app` differs, and it differs in kind rather than in spelling. There is no `TestInfraProvider`: the fixture builds the real container, calls `.override(value)` on each provider **after** construction, and must `.reset_override()` each one in the `finally` block. Because the substitution lands on a live container, an already-resolved singleton may have captured the pre-override value — the classic case is a singleton whose `__init__` snapshots a settings field — so the fixture set grows an autouse teardown that calls `.reset()` on every such capturing singleton, and `containers.py` has to be audited once to find them. That failure mode does not exist under the primary binding, where the graph is assembled with the test factories already in it.
 - **Manual composition.** The composition root is a factory function, so the fixture calls it with the test objects as arguments. No provider classes, no override marking, and teardown is whatever `AsyncExitStack` the factory returned.
 
@@ -381,28 +404,65 @@ the running test outward, so that only works for tests under `tests/integration/
 repository contract tests use `sf` directly and never construct the FastAPI app. The mechanism, and the
 override that depends on it, are `hex-test-restapi-auth`'s.
 
-### Isolation
+### The obligations
+
+Stated without a mechanism, because both halves of this file vary: provisioning varies by binding
+(above) and isolation varies by what the store can undo. Every binding of this file delivers these.
+
+1. **Each test starts against an empty store and leaves nothing behind.** The undo is automatic — a
+   property of the handle the test was given, not a teardown someone remembers to write — and it
+   covers writes the *subject* made, not only the test's own.
+2. **One sanctioned handle, and nothing reaches the store around it.** Every test, fixture and
+   substituted infrastructure binding goes through the handle this file provides. A handle a test
+   opens for itself writes outside the isolation boundary, so its rows survive into the next test and
+   the failure surfaces somewhere else entirely.
+3. **The expensive resource is per session; the isolated unit is per test.** Starting the store,
+   establishing the schema and building the pool happen once per run; what each test owns alone is the
+   cheap thing — a transaction, a namespace, a schema. Reversing either end is a defect: a per-test
+   store costs seconds a test, a per-session isolated unit serialises the suite.
+4. **The suite refuses to run against a store nothing declared disposable.** This suite rewrites
+   schema and wipes rows, so disposability is **declared** by whatever provisioned the store — never
+   deduced from a port number, a substring of the name or any other property of the connection, because
+   the deduction is wrong in exactly the case that matters.
+5. **The schema the tests assume is established once, by the project's own schema path.** The suite
+   does not hand-build tables; it runs the same migration or schema-creation path production runs, so a
+   schema change that was never migrated reds here rather than in production.
+6. **Substitution happens before the composition root is built, never after.** The test's
+   infrastructure objects are in the graph from the start, so nothing production-side can have resolved
+   and captured a pre-substitution value, and there is no reset or teardown ordering to get right.
+7. **A substituted binding is the fixture object itself, under the exact type the production binding
+   declares.** No wrapper, no adapter — the type is what binds it.
+8. **Whatever the composition root opened, the fixture closes.** One close call in the fixture's
+   `finally`, releasing the test's resources in reverse order.
+9. **A store with no undo isolates by namespace instead.** Where nothing can be rolled back — a blob
+   store, most client-style stores — each test owns a freshly-named namespace and asserts only inside
+   it; cleanup is best-effort at session end, so a test that asserts on global contents is asserting on
+   other tests.
+10. **The isolation guarantee is what licenses strong assertions.** Because the store is empty at test
+    start, fixed natural keys need no unique suffix and exact counts are correct — no defensive
+    `any(...)` filters, no `+1` for the test's own row.
+
+### How this binding spells them — testcontainers, Alembic, SQLAlchemy savepoints
 
 1. **`sf` is the only sanctioned sessionmaker.** Every integration test, fixture, and replaced infrastructure binding goes through `sf` (function-scoped, joins the outer transaction). Direct `async_sessionmaker(bind=engine, ...)` inside `tests/integration/` bypasses rollback and leaks rows. The `test-architecture-rule` skill enforces this with a grep.
 2. **`join_transaction_mode="create_savepoint"` is non-negotiable.** Without it, the handler's `session.commit()` either commits to disk (defeating rollback) or raises `InvalidRequestError`. With it, commit() releases a SAVEPOINT inside the outer transaction — exactly what the test needs.
 3. **`expire_on_commit=False`** keeps loaded entities usable after a savepoint release. With `True`, every commit detaches attributes; tests asserting on returned entities then trigger lazy loads against a closed session.
 4. **The outer connection is function-scoped, engine is session-scoped.** One Postgres container + one engine for the whole run; one connection (and one transaction) per test. Reversing this — session-scoped connection — serializes the whole suite and defeats `pytest-xdist`. Reversing the engine — function-scoped — re-establishes the pool every test and adds seconds.
 5. Test-suite separation and collection by path → `test-principles`; enforcement → `test-architecture-rule`.
-6. **Fixed natural keys are now allowed.** Without rollback, every UNIQUE column needed a `uuid4().hex[:8]` suffix to avoid collisions across tests. With rollback, the DB is empty at test start — `name="alpha"` is fine. Builders may still use unique suffixes for readability, but it's no longer load-bearing.
-7. **`assert len(items) == N` is now correct.** Tests may assert exact counts; no defensive `any(...)` filters; no `+1` for the test's own row in a shared list. The fixture model gives the test sole ownership of the DB during its run.
-8. **Substitution happens before the composition root is built, never after.** `TestInfraProvider` is passed to `create_container` and the graph is assembled once, with the test factories last. Nothing production-side can have resolved and captured a pre-substitution value, because nothing has resolved at all yet — so there is no reset, no teardown ordering to get right, and no need to audit what `containers.py` snapshots. Substituting a binding on an already-built composition root is not possible; if a test needs a different binding, it builds a different composition root.
-9. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings` and `storage_settings`. The return annotation is what binds it, so it must be the exact type the production factory binds.
-10. **Close the composition root in the fixture's `finally`.** One `await container.close()` releases every resource the test's bindings opened, in reverse order. It is function-scoped, so each test gets a clean graph.
-11. **S3 has no transactions.** Per-test `s3_prefix` is the substitute: each test writes under its own prefix; the bucket is cleaned at session end (best effort). Tests must not assert on global bucket contents — only on contents under their `s3_prefix`.
-12. **Container fixtures are session-scoped autouse for migration + guard.** The relational and blob-store containers start once per session. **The guard refuses to run unless the test environment explicitly marked the database disposable** — an env marker or a settings flag set by whatever provisioned it, never a deduction from the port number or the database name, because a real database on an unusual port passes that deduction and is then migrated over.
+6. **Obligation 10, spelled out** — rollback leaves the DB empty at test start, so `name="alpha"` needs no `uuid4().hex[:8]` suffix and `assert len(items) == N` is correct. Builders may still use unique suffixes for readability; it is no longer load-bearing.
+7. **Obligation 6, spelled out** — `TestInfraProvider` is passed to `create_container` and the graph is assembled once, with the test factories last, so there is no reset, no teardown ordering to get right, and no need to audit what `containers.py` snapshots. Substituting a binding on an already-built composition root is not possible; a test that needs a different binding builds a different composition root.
+8. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings` and `storage_settings`. The return annotation is what binds it, so it must be the exact type the production factory binds.
+9. **Obligation 8 is one `await container.close()`** in the `real_app` fixture's `finally`; it is function-scoped, so each test gets a clean graph.
+10. **S3 has no transactions.** Per-test `s3_prefix` is obligation 9's spelling here: each test writes under its own prefix; the bucket is cleaned at session end (best effort). Tests must not assert on global bucket contents — only on contents under their `s3_prefix`.
+11. **Container fixtures are session-scoped autouse for migration + guard.** The relational and blob-store containers start once per session, and the container branch is the one place entitled to set the marker obligation 4 requires — an env marker or a settings flag, **never a deduction from the port number or the database name**, because a real database on an unusual port passes that deduction and is then migrated over.
 
 ### The authenticated client
 
-13. **An authenticated client is not this skill's.** The single sanctioned authenticated client, the
+12. **An authenticated client is not this skill's.** The single sanctioned authenticated client, the
     signing keypair, the token-minting helper and their rules → `hex-test-restapi-auth`. A raw
     `AsyncClient` over `real_app` is sanctioned here only for an app with no auth, and for the
     unauthenticated probes in `hex-test-discovery-invariants` / `hex-test-restapi-auth`.
-14. **No `localhost` / `127.0.0.1` base URL.** `http://testserver` is the convention; the ASGI transport
+13. **No `localhost` / `127.0.0.1` base URL.** `http://testserver` is the convention; the ASGI transport
     short-circuits the network anyway, but `testserver` makes route logs distinguishable from real
     traffic in CI logs.
 

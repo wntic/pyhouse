@@ -63,8 +63,8 @@ class CurrentUser:
     role: Role
 ```
 
-A multi-tenant app adds the tenant claim as a further field (`workspace_id: UUID`), and the route stamps
-it onto the DTO exactly like `caller_id`. Value-object form follows `hex-domain-model`.
+A multi-tenant app adds the tenant as a further field (`tenant_id: UUID`), and the route stamps it onto
+the DTO exactly like `caller_id`. Value-object form follows `hex-domain-model`.
 
 ### `domain/auth/role.py`
 
@@ -73,12 +73,11 @@ from enum import StrEnum
 
 __all__ = ["Role"]
 
-_RANK = {"MEMBER": 0, "AGENT": 1, "ADMIN": 2}
+_RANK = {"LOWER": 0, "HIGHER": 1}
 
 class Role(StrEnum):
-    MEMBER = "MEMBER"
-    AGENT = "AGENT"
-    ADMIN = "ADMIN"
+    LOWER = "LOWER"
+    HIGHER = "HIGHER"
 
     def satisfies(self, required: "Role") -> bool:
         return _RANK[self.value] >= _RANK[required.value]
@@ -87,12 +86,12 @@ class Role(StrEnum):
 The self-reference is quoted — `required: "Role"` — because the name is not bound until the class
 statement finishes and the catalogue bans `from __future__ import annotations` (`python-style`).
 
-`MEMBER < AGENT < ADMIN` is **illustrative only** — another app may have a two-tier or
-differently-named ladder. The rank-ordered `StrEnum` with `satisfies` is the shape; the members are the
-app's own. Enum form and the `_RANK` module constant follow `hex-domain-model`.
+`LOWER` and `HIGHER` are **placeholder ranks**, the way `Foo` is the placeholder aggregate: substitute
+the app's own members, and however many of them it has. The rank-ordered `StrEnum` with `satisfies` is
+the shape. Enum form and the `_RANK` module constant follow `hex-domain-model`.
 
-Use the placeholder `Role.<MIN_RANK>` in a template; the concrete member comes from the route's own
-requirement against the app's `Role`, never a fixed `SUPER_ADMIN`.
+A route template names the slot rather than a member — `Role.<MIN_RANK>` — and the concrete member comes
+from the route's own requirement against the app's `Role`.
 
 ## The token-verifier port
 
@@ -110,8 +109,9 @@ class ICanVerifyToken(Protocol):
 ```
 
 Signature verification is pure CPU, so the method is **sync**, not async — the capability-shape rule in
-`hex-domain-ports`. The verifier returns the domain's own identity type; a raw claims dict never leaves
-the adapter.
+`hex-domain-ports`. **The port names no claim.** Its contract is credential in, identity out; which
+keys, headers or certificate fields a scheme yields, and how they map onto the identity's fields, is the
+adapter's alone (rule 13).
 
 ## The verifier adapter
 
@@ -205,6 +205,26 @@ works" rather than as an error, so the only place to catch it is process startup
 unescape is the other sanctioned validator purpose — normalization, accepting the env-friendly
 single-line form and storing the canonical one. Settings rules, secrets and `SecretStr` handling are
 `hex-wiring`'s; this file is one instance of them.
+
+### Binding traps — bearer JWS
+
+**Verification trusts configuration, not the token.** The accepted algorithm set is declared in settings
+and validated against an allowlist at startup; the token's own header never selects it. That obligation,
+the `Authorization` header the dependency below reads and the RFC-7235 challenge the error branch
+attaches are **this scheme's own** — an opaque token, a session cookie and a gateway header have none of
+the three — so these stops sit with the template that names the stack, and they stop wherever this
+binding is in use.
+
+- Spec takes the algorithm from the token's `alg` header, or widens the allowlist to include `none` or a
+  symmetric algorithm against a published public key → stop, the accepted set is configuration and is
+  validated at startup.
+- Spec asks a route to read the `Authorization` header directly → stop, that is what the bearer scheme
+  is for.
+- Spec asks to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
+  manual header parsing.
+- Spec asks for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
+- Spec freezes a literal realm (`Bearer realm="myapp"`) as the contract → stop, only the scheme is
+  load-bearing; the realm is app-specific and comes from settings, or is omitted.
 
 ## The route dependencies
 
@@ -369,7 +389,7 @@ ordering and the settings lifecycle follow `hex-wiring`.
    after the identity is bound. A rule more nuanced than a single role rank is a handler concern; the
    handler raises the forbidden class.
 5. **The required rank is visible at the call site.** `require_role(Role.X)` is called inline at each
-   route; do not memoize it at module level (`_admin = require_role(Role.ADMIN)`) — the role is the most
+   route; do not memoize it at module level (`_gate = require_role(Role.HIGHER)`) — the role is the most
    important detail in a route review.
 6. **The auth dependency is the last parameter.** Path, body, `request` and query parameters come first;
    identity last.
@@ -379,22 +399,23 @@ ordering and the settings lifecycle follow `hex-wiring`.
    unauthenticated code; rank-gated advertises the unauthenticated **and** the forbidden code; no
    dependency advertises neither. A code no route can produce is a lie in the published document
    (`hex-restapi-route-contracts`).
-9. **The challenge carries the scheme, and the scheme only.** The realm is app-specific: drive it from
-   settings or omit it, and never freeze a literal realm in a template or a test. The challenge belongs
-   to the unauthenticated response alone — a forbidden response has no challenge to issue.
-10. **Verification trusts configuration, not the token.** The accepted algorithm set is declared in
-    settings and validated against an allowlist at startup; the token's own header never selects it.
-11. **In an app that has auth, authentication is the default for a non-public route.** A "trusted
+9. **A challenge, where the scheme defines one, carries the scheme and nothing else.** The realm is
+   app-specific: drive it from settings or omit it, and never freeze a literal realm in a template or a
+   test. The challenge belongs to the unauthenticated response alone — a forbidden response has no
+   challenge to issue, and a scheme that defines no challenge sends none at all.
+10. **In an app that has auth, authentication is the default for a non-public route.** A "trusted
     internal" route that skips auth is forbidden; internal-only access is enforced at the network or
     gateway layer. This does **not** manufacture auth on an app that has none.
-12. **A rank ladder is the app's own.** Ranks are declared as a rank-ordered enum with a
-    rank-satisfaction method; the member names and their number belong to the app. A template uses the
-    `Role.<MIN_RANK>` placeholder, never a concrete member.
-13. **Auth-derived values come from the resolved identity, never from the request.** Actor, tenant and
-    any other claim are stamped from the identity object; reading a tenant id from the path, query or
-    body lets a client choose another tenant's scope.
-14. **The identity type is a domain type.** The verifier returns it; a raw claims mapping never leaves
-    the adapter, and no layer above the adapter sees the token's wire shape.
+11. **A rank ladder is the app's own.** Ranks are declared as a rank-ordered enum with a
+    rank-satisfaction method; the member names and their number belong to the app. A route template
+    names the slot (`Role.<MIN_RANK>`), and the ladder shown anywhere in this catalogue is the
+    placeholder pair `Role.LOWER` / `Role.HIGHER` — never a member carried over from some app.
+12. **Auth-derived values come from the resolved identity, never from the request.** Actor, tenant and
+    anything else the credential carries are stamped from the identity object; reading a tenant id from
+    the path, query or body lets a client choose another tenant's scope.
+13. **The identity type is a domain type.** The verifier returns it; the credential's own wire shape —
+    a claims mapping, an introspection payload, a header set — never leaves the adapter, and no layer
+    above it sees one.
 
 ## Inlined typing / import rules
 
@@ -430,20 +451,10 @@ the entrypoint package `hex-restapi-app` creates, under that package's entrypoin
 - Spec asks a route to inline a role check after `get_current_user` → stop, use `require_role(...)`.
 - Spec asks for a custom verifier per route → stop, the verifier is bound in `containers.py`; routes use
   the standard dependency.
-- Spec asks a route to read the `Authorization` header directly → stop, that is what the bearer scheme
-  is for.
-- Spec asks to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
-  manual header parsing.
-- Spec asks for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
-- Spec freezes a literal realm (`Bearer realm="myapp"`) as the contract → stop, only the scheme is
-  load-bearing; the realm is app-specific and comes from settings, or is omitted.
 - Spec mints a second exception class for the credential case under any name → stop, use
   `exception-catalog`'s single unauthorized class; the challenge branch keys on it.
 - Spec asks the translator to branch on more than the unauthorized class → stop, encode new behaviour
   via subclass `code` / `http_status` (`hex-restapi-app` rule 3 caps it at one branch).
-- Spec takes the algorithm from the token's `alg` header, or widens the allowlist to include `none` or a
-  symmetric algorithm against a published public key → stop, the accepted set is configuration and is
-  validated at startup.
 - Spec asks the verifier to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
 - Spec asks to omit auth on a non-public route of an app that **does** have auth → stop, authenticated is
   the default and only health or info endpoints are public.

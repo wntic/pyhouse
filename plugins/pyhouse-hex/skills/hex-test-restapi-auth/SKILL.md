@@ -103,11 +103,12 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
    nothing to do with the test that leaked it. The scoped form is non-negotiable.
 7. **Each call mints a fresh token.** Tokens are not reused across tests, calls, or roles. A test that
    needs two roles in one body calls `authed_client(...)` twice.
-8. **Mint only the universal claims; pass app-specific ones via `extra_claims`.** The factory bakes in
-   just `sub` and `role` — the claims every verifier needs. Any app-specific claim (tenant/org id,
-   display name, …) is the caller's to pass via `extra_claims`, pinned only when a test must share it
-   with a fixture row (don't reuse such a value across unrelated tests). Never hardcode one app's
-   identity model into the factory.
+8. **Mint only what the identity type declares; pass everything else via `extra_claims`.** The factory
+   bakes in the subject and the rank and nothing more — the two fields the domain identity carries in
+   every app (`hex-restapi-auth`). Anything further this app's identity carries (a tenant id, a display
+   name, …) is the caller's to pass via `extra_claims`, pinned only when a test must share it with a
+   fixture row (don't reuse such a value across unrelated tests). Never hardcode one app's identity
+   model into the factory, and never name a claim key outside the binding files.
 9. **The keypair and the verifier settings are session-scoped.** Generating an RSA key is expensive
    (~100 ms); generating per test would dominate suite wall time. The client factory stays
    function-scoped — each test's transport must be closed at teardown.
@@ -166,8 +167,9 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     the resource is tenant-scoped.
 23. **Error responses are asserted by `code`, not by message** (`hex-test-restapi-endpoint`). The HTTP
     status is asserted separately.
-24. **A role ladder in a test is the app's own.** The members named in `INTEGRATION.md` are one app's;
-    use the app's own, and never a fixed `SUPER_ADMIN`.
+24. **A role ladder in a test is the app's own.** `INTEGRATION.md` uses the catalogue's placeholder
+    pair `Role.LOWER` / `Role.HIGHER` (`hex-restapi-auth`); substitute the app's own members, and
+    however many of them it has.
 
 ## Inlined typing / import rules
 
@@ -199,8 +201,8 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
   `jwt_settings` parameter from `real_app` and its field and factory from `TestInfraProvider`. An
   auth-less app binds no `JwtSettings`, so a factory claiming to override one fails when the graph is
   assembled.
-- `real_app` is not defined up-tree → stop, use `hex-test-integration-setup`; the suite cannot collect
-  without it.
+- Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this
+  catalogue's binding) → stop, use `hex-test-integration-setup`; the suite cannot collect without it.
 - Spec proposes a session-scoped `authed_client` "to speed up tests" → stop, the factory is
   function-scoped because each test's transport must be closed at teardown; the cost is negligible.
 - Spec asks to mock the verifier → stop, the integration test signs a real token against the same

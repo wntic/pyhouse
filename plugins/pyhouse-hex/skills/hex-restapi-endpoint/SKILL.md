@@ -198,7 +198,7 @@ async def delete_foo(
 
 ### Static collection path — a collection-level action (204)
 
-A route whose path segment is a **literal, not a parameter**: a bulk update, a reorder, a nested-collection read. Which action a resource has is the resource's own business; this template fixes only the shape, and the load-bearing part of it is the route's **position in the file** — a static segment declared below `/{id}` is unreachable (see Route ordering). `/bulk` below is the example's action.
+A route whose path segment is a **literal, not a parameter**: a bulk update, a reorder, a nested-collection read. Which action a resource has is the resource's own business; this template fixes only the shape, and the load-bearing part of it is the route's **position in the file** — see the ordering note below. `/bulk` below is the example's action.
 
 ```python
 @router.patch(
@@ -213,6 +213,22 @@ async def bulk_update_foos(
     await handler.execute(BulkUpdateFoosCommand(updates=body.updates))
     return Response(status_code=204)
 ```
+
+### Route ordering — FastAPI declaration order
+
+FastAPI resolves a request against the routes **in declaration order**, which makes the reachability
+obligation (`## Rules`) a property of where a route sits in the file. `/bulk` is captured by `/{id}` if
+`/{id}` was declared first — `"bulk"` parses as a string UUID until validation fails, by which time the
+wrong handler ran.
+
+**Declare every static collection-level path (`/bulk`, `/export`, `/bars`) above the `/{id}` route** —
+any non-parameterized sibling of `/{id}`, whatever the method. When extending an existing router file,
+place a new static endpoint **above** the `update` / `get_by_id` / `delete` routes for `/{id}`.
+
+- Static collection path would be declared after `/{id}` in the file → stop, reorder.
+
+A framework that resolves by specificity instead has no such stop: the obligation is unchanged, and
+nothing in the file's layout can violate it.
 
 File transfer breaks the otherwise-uniform CRUD shape: routes accept multipart bodies or return raw bytes. The conventions below must be repeated verbatim in any new file-transfer route — they encode several non-obvious rules and the single route-body `try/except` exemption.
 
@@ -398,13 +414,13 @@ handler: FromDishka[ListFoosHandler],
 - **Never resolve at module level, and never hold a container reference in the module.** Injection happens per request; a module-level resolution captures state too early and defeats the per-test composition root.
 - For create/update with read-back, take `handler` and `get_handler` as two separate injected parameters with distinct names.
 
-### Route ordering (load-bearing gotcha)
+### Route reachability
 
-FastAPI matches routes in declaration order. A path like `/bulk` will be captured by `/{id}` if `/{id}` is declared first — `"bulk"` parses as a string UUID until validation fails, by which time the wrong handler ran.
-
-**Declare every static collection-level path (`/bulk`, `/export`, `/bars`) above the `/{id}` route** — any non-parameterized sibling of `/{id}`, whatever the method.
-
-When extending an existing router file, place a new static endpoint **above** the `update`/`get_by_id`/`delete` routes for `/{id}`.
+**Every route the file declares must be the one a matching request actually reaches.** A path a more
+general sibling can also match is dead, and it fails silently — the wrong handler runs and answers, so
+there is no routing error to see. Where the framework resolves paths by a rule the file's own layout
+can violate — declaration order, a first-match table — satisfying that rule is part of writing the
+route. The FastAPI spelling and its stop are under `### Route ordering` above.
 
 ### What never goes in a route
 
@@ -457,7 +473,6 @@ app.include_router(foos_router)
 - Spec asks the route to log → stop, use `python-style` for logging ownership.
 - Spec asks for a `try/except` in the route body → stop, use the mixed multipart+JSON template only for that sanctioned case.
 - Spec asks the route to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
-- Static collection path would be declared after `/{id}` in the file → stop, reorder.
 - Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
 
 - Spec asks for a `try/except` other than the mixed-multipart-json one → stop, no other `try/except` belongs in a route body.

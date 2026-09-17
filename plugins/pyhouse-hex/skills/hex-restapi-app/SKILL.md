@@ -287,6 +287,27 @@ Two shapes, picked by whether the middleware ever stops a request. Both share th
 non-`http` passthrough, `app` plus config on `self` — and differ only in whether `__call__` grows a reject
 branch.
 
+### How this binding spells the middleware obligations — raw ASGI, Starlette
+
+Each line below is one obligation from `## Rules` in this stack's spelling; none of them is an
+obligation of its own.
+
+- **Raw ASGI callable, never a `starlette.middleware.base.BaseHTTPMiddleware` subclass** — that class
+  buffers the whole body, which breaks streaming and the size cap. Spec reaches for
+  `BaseHTTPMiddleware` → stop, write the raw ASGI class.
+- **Exact shape** (rule 7). `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on
+  `self`; `async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None`. Configuration
+  arrives as constructor keyword arguments passed at `app.add_middleware(Cls, **config)`, and the
+  constructor validates them there.
+- **Pass non-`http` scopes straight through** (rule 8) —
+  `if scope["type"] != "http": await self._app(scope, receive, send); return`. Lifespan and websocket
+  scopes must not be intercepted.
+- **Reject before the wrapped app** (rule 9) — `return` **before** `await self._app(...)`, with the body
+  built from `ErrorResponse`.
+- **Starlette wraps the last-added outermost** (rule 10). Each `app.add_middleware(...)` call wraps the
+  app as a new **outermost** layer, so the **last** one added is the first to see a request and the last
+  to touch a response. A size cap is therefore added **last**.
+
 ### Middleware — pass-through (observes or annotates, never short-circuits)
 
 ```python
@@ -360,6 +381,21 @@ and this middleware is the app-layer defence in depth on top of it.
 
 ## Other bindings
 
+### Middleware
+
+- **A framework with its own middleware abstraction** — Litestar, Django, or a decorator-based hook.
+  Unchanged: transport-only scope, configuration fixed and validated at wiring time, the shared error
+  body with a registered code, and a deliberate order. What changes: the class shape and how
+  non-matching traffic is passed through, and whether the framework's own base class buffers the body —
+  the reason the primary binding refuses one here.
+- **A reverse proxy or gateway in front of the app.** A concern that is purely about bytes on the wire —
+  a size ceiling, a request id — may live there instead of in the app, and then no middleware is written
+  at all. Unchanged: the status it returns still needs a registered code if a client can see it
+  (`hex-restapi-route-contracts`), and the app keeps its own defence in depth where the edge can be
+  bypassed.
+
+### Dependency injection
+
 - **`dependency-injector`.** The shell, the middleware order, the error handlers and the schemas are unchanged. What changes is the two ends of the composition root: `create_app` attaches it to `app.state` itself rather than calling an integration's setup function, and `_lifespan` must dispose each long-lived handle **by name** (`await container.engine().dispose()`) — which means this file grows a per-app teardown variant and has to be kept in step with what `containers.py` actually opened. That coupling is the reason the primary binding closes the composition root instead.
 
 ## Rules
@@ -370,30 +406,25 @@ and this middleware is the app-layer defence in depth on top of it.
 4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened.
 5. **Routes receive their dependencies by type** (`hex-restapi-endpoint`); `main.py` neither resolves anything nor exposes the composition root for others to resolve from. Never module-level resolution.
 
-6. **Middleware naming and module layout** follow `naming` and `python-packaging`, under `restapi/middleware/`. It is a **raw ASGI
-   callable**, never a `starlette.middleware.base.BaseHTTPMiddleware` subclass — that buffers the whole
-   body and breaks streaming and the size cap.
-7. **Exact ASGI shape.** `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on `self`;
-   `async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None`. Configuration arrives
-   as constructor keyword arguments, passed at `app.add_middleware(Cls, **config)`, and the constructor
-   validates them at wiring time so a bad value fails on startup rather than mid-request.
-8. **Pass non-`http` scopes straight through** —
-   `if scope["type"] != "http": await self._app(scope, receive, send); return`. Lifespan and websocket
-   scopes must not be intercepted.
-9. **A middleware that rejects a request emits an `ErrorResponse`-shaped JSON body** —
-   `{"code": "<STABLE_STRING>", "message": "…", "context": {}}` — with the status it owns, and `return`s
-   **before** `await self._app(...)`. A pass-through always reaches that call. Keep the code string
-   stable: the API contract and `MIDDLEWARE_ERRORS` in `schemas/errors.py` key on it
-   (`hex-restapi-route-contracts`).
-10. **No business or domain logic.** A middleware is transport-level — bytes, headers, timing, the
-    structlog context. Anything needing a domain entity, a repository or an application handler is not a
-    middleware.
-11. **`self` holds only `app` plus config**, built once at wiring time. Any per-request value is a local
-    inside `__call__` — the request id, the declared content length — never an instance attribute.
-12. **Ordering is significant: Starlette wraps the last-added outermost.** Each `app.add_middleware(...)`
-    call wraps the app as a new **outermost** layer, so the **last** one added is the first to see a
-    request and the last to touch a response. A middleware that must see the raw request before anything
-    else — a size cap — is therefore added **last**. The relative order is the consuming app's decision.
+6. **A middleware is transport-level and nothing else.** Bytes, headers, timing, the logging context.
+   Anything that needs a domain entity, a repository or an application handler is not a middleware.
+   Naming and module layout follow `naming` and `python-packaging`, under `restapi/middleware/`.
+7. **A middleware's configuration is fixed and validated at wiring time.** It holds the wrapped
+   application plus its configuration and nothing else, built once; every per-request value — the
+   request id, the declared content length — is a local, never stored on the instance. A bad
+   configuration value fails when the app is assembled, not mid-request.
+8. **A middleware acts only on the kind of traffic it is for, and passes every other kind through
+   untouched.** An HTTP concern must not intercept the framework's startup, shutdown or non-HTTP
+   connections; a middleware that swallows one of those breaks a part of the app it was never about.
+9. **A middleware that rejects a request emits the app's own error body, with a registered code.** Same
+   `{"code", "message", "context"}` shape the central translator emits, built through the shared schema
+   rather than hand-rolled, carrying the status it owns and a **stable** machine-readable code — the
+   API contract and `MIDDLEWARE_ERRORS` in `schemas/errors.py` key on that string
+   (`hex-restapi-route-contracts`). A middleware that does not reject always reaches the wrapped app.
+10. **The order middlewares see a request in is chosen, not inherited.** Which one sees the raw request
+    first is a decision the app makes — a size cap has to see it before anything has read the body —
+    and it is written according to whatever wrapping rule the framework applies to the order they are
+    registered in. The relative order is the consuming app's decision; that it was decided is not.
 
 ## Inlined typing / import rules
 
@@ -419,6 +450,4 @@ For `restapi/__init__.py` and `restapi/middleware/__init__.py`, follow `python-p
 - A concern is for one route rather than all → stop, use `hex-restapi-endpoint` plus a handler.
 - A middleware needs a domain entity, a repository or an application handler → stop, use `hex-application` for application logic.
 - A middleware authenticates or authorizes → stop, use `hex-restapi-auth`; caller authentication is a route dependency, not a middleware.
-- Reaching for `BaseHTTPMiddleware` → stop, use the raw ASGI class; `BaseHTTPMiddleware` buffers the body
-  and breaks the size cap and streaming downloads.
 - A middleware introduces an HTTP status with no domain exception behind it → stop, use `hex-restapi-route-contracts`, the middleware-code path, to register the code.

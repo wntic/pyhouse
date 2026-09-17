@@ -3,7 +3,7 @@
 Topic file of `hex-restapi-auth`. `SKILL.md` builds the auth layer — the identity, the port, the
 verifier adapter, the two dependencies, the error branch and the wiring — once per project. This file
 is the half consulted **every time a route is written**: which dependency the operation takes, how the
-identity is bound, and which codes the route must then advertise. The obligations are rules 1–15 in
+identity is bound, and which codes the route must then advertise. The obligations are rules 1–13 in
 `SKILL.md`; this is the FastAPI binding of the ones about route shape and advertisement.
 
 
@@ -31,7 +31,7 @@ Do not bind to `user` and leave it unused — a reviewer reads that as "did the 
 `caller_id`?".
 
 **All auth-derived fields come from `CurrentUser`, never from the request.** In a multi-tenant app the
-token also carries the tenant: stamp it from the bound user (`workspace_id=user.workspace_id`), exactly
+token also carries the tenant: stamp it from the bound user (`tenant_id=user.tenant_id`), exactly
 like `caller_id=user.id`, and bind `user` rather than `_`. A tenant id must never be read from the path,
 query or body — that would let a client choose another tenant's scope. The DTO carries the field
 (`hex-application`); the route stamps it.

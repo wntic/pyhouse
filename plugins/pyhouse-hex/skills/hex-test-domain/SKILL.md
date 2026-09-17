@@ -87,11 +87,12 @@ def test_name_must_be_non_empty() -> None:
     assert exc.value.context["field"] == "name"
 ```
 
-The builder spreads **only the entity's real declared fields** — `id` plus its domain fields. Two things
-it must not carry: `created_at` / `updated_at`, because audit timestamps are a DB-managed table
-convention and never entity fields, so `Foo(created_at=...)` fails; and any `import datetime` that exists
-only to feed them. `datetime` enters the file **only** when the entity genuinely declares a datetime
-domain field.
+The builder spreads **only the entity's real declared fields** — `id` plus its domain fields — because a
+domain test constructs the subject the way the domain layer declares it and knows nothing of what a
+store adds around it. Two things it must therefore not carry: `created_at` / `updated_at`, which are not
+entity fields at all (`hex-domain-model` rule 6 — the audit timestamps are a DB-managed table
+convention), so `Foo(created_at=...)` fails; and any `import datetime` that exists only to feed them.
+`datetime` enters the file **only** when the entity genuinely declares a datetime domain field.
 
 ### Entity — few fields, so no builder
 
@@ -341,8 +342,9 @@ Identical for all four kinds:
 - Spec re-implements the rule in the test to compute the expected value → stop, assert literal values.
 - Spec asserts on log output or captured logs → stop, the domain layer logs nothing at all
   (`python-style` allocates logging by layer); assert the return value or the raised exception.
-- Asked to put `created_at` / `updated_at` in an entity builder, or to treat them as entity fields → stop,
-  omit audit timestamps; they are a DB-managed table convention.
+- Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
+  entity's own fields and nothing else. `created_at` / `updated_at` are the usual case: the store
+  maintains them, so they are not entity fields (`hex-domain-model` rule 6).
 - The value object declares no invariant of its own and no custom equality → stop, produce no file.
 - Spec proposes looping over enum members → stop, write explicit asserts.
 - Spec uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent

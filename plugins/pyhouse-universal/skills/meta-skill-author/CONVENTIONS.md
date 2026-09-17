@@ -123,6 +123,8 @@ One vocabulary for the whole catalogue.
 | `myschema` | a **shared library several distributions depend on** — imported by them, owned by none of them |
 | `myframework` | a **third-party framework** a rule is about *wrapping*, where naming a real one would make the rule that framework's |
 | `myrepo` | the repository root |
+| `Role.LOWER` / `Role.HIGHER` | the **placeholder rank ladder** — two positional members, lower first; a project substitutes its own members and however many it has |
+| `tenant_id` | the **placeholder tenant or scope identifier** an authenticated identity carries |
 
 `myapp` and `myschema` are two names because they are two roles. One name for both is what broke the
 flat family's worked examples: a reader cannot tell a distribution's own package from a library it

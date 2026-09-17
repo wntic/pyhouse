@@ -321,7 +321,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ## Hard stops
 
-- `tests/integration/conftest.py` does not provide the required resource fixture (`s3_session`, `redis`, …) for a containerized flavor → stop, use `hex-test-integration-setup` to extend the fixtures first.
+- Nothing session-scoped up-tree provides the live backend a containerized flavor drives (`s3_session`, `redis`, … under this catalogue's binding) → stop, use `hex-test-integration-setup` to extend the fixtures first; what the flavor needs is the running backend, not a particular fixture name.
 - Spec asks for `unittest.mock` / `MagicMock` of the SDK client → stop, use `test-principles` for substitution rules; the SDK boundary is exactly what this test exists to verify.
 - Spec asks to mock the adapter itself → stop, use `hex-test-application-handler`.
 - Spec asks for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles` for marker rules.

@@ -44,7 +44,7 @@ _SETTINGS = JwtSettings(
     algorithm="RS256",
     public_key=_PUBLIC_PEM,
     issuer="test-issuer",
-    audience="myapp",
+    audience="test-audience",
 )
 
 _CALLER_ID = "11111111-1111-1111-1111-111111111111"
@@ -56,7 +56,7 @@ def _token(
     ttl_seconds: int = 300,
 ) -> str:
     return sign_token(
-        {"sub": _CALLER_ID, "role": Role.ADMIN.value},
+        {"sub": _CALLER_ID, "role": Role.HIGHER.value},
         private_pem=_PRIVATE_PEM,
         issuer=issuer or _SETTINGS.issuer,
         audience=audience or _SETTINGS.audience,
@@ -69,7 +69,7 @@ def test_verify_valid_token_returns_current_user() -> None:
 
     result = verifier.verify(_token())
 
-    assert result == CurrentUser(id=UUID(_CALLER_ID), role=Role.ADMIN)
+    assert result == CurrentUser(id=UUID(_CALLER_ID), role=Role.HIGHER)
 
 def test_verify_expired_token_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
@@ -83,7 +83,7 @@ def test_verify_wrong_audience_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
     with pytest.raises(UnauthorizedError) as exc:
-        verifier.verify(_token(audience="other-app"))
+        verifier.verify(_token(audience="other-audience"))
 
     assert exc.value.context["reason"] == "InvalidAudienceError"
 

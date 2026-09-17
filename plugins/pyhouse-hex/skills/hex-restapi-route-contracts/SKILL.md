@@ -153,5 +153,7 @@ This skill produces no file. `error_responses` lives in `restapi/schemas/errors.
   the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
 - Spec proposes a third auth dependency type, or any other auth machinery → stop, use `hex-restapi-auth`;
   this skill owns advertisement only.
-- Spec omits `422` on a route that takes a path param, query param, filter or body → stop, the framework
-  publishes it either way and the document must say so.
+- Spec omits the input-validation status on a route that takes a path param, query param, filter or
+  body → stop. Where the framework publishes that response itself — FastAPI does — the decorator names
+  it too, so the document reads the same whichever half put it there; where the framework publishes
+  nothing of its own, the decorator is the only thing documenting the status at all.

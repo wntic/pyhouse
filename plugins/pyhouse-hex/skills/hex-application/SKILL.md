@@ -257,9 +257,9 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
    The templates show the authenticated form. On a query DTO the same field appears **only when the read
    is authorization-scoped**; a non-scoped read omits it.
 2. **Every auth-derived field is stamped by the endpoint from the token, never read from the request.**
-   A multi-tenant app threads more than the actor: a `workspace_id` / `tenant_id` / `org_id` the token
-   carries is a field on the DTO set by the endpoint from `CurrentUser`
-   (`workspace_id=user.workspace_id`), exactly like `caller_id=user.id` — never from the request body or
+   A multi-tenant app threads more than the actor: the tenant or scope identifier the credential carries
+   — `tenant_id` here, whatever the project calls it — is a field on the DTO set by the endpoint from
+   `CurrentUser` (`tenant_id=user.tenant_id`), exactly like `caller_id=user.id` — never from the body or
    path, because a client must not choose its own tenant or read another's data. The handler then scopes
    every repository call by it. Auth-derived inputs come from the token; request-derived inputs from the
    body or path.

@@ -218,12 +218,12 @@ Consult `test-principles` for the testing constitution.
 
 ## Hard stops
 
-- `tests/integration/conftest.py` does not exist or does not provide `sf` / `real_app` → stop, use `hex-test-integration-setup`.
+- Nothing up-tree provides an isolated session handle, or an app built on the test's own infrastructure bindings (`sf` / `real_app` under this catalogue's binding) → stop, use `hex-test-integration-setup`; the missing thing is the guarantee, not the fixture name.
 - Spec asks to add a row to `RESOURCES.append(...)` / `_endpoints()` / `_EXPECTED` → stop, use `hex-test-discovery-invariants`; those registries are deleted and the equivalent check derives from the running app.
 - Spec asserts a role rejection or a cross-tenant 404 here → stop, use `hex-test-restapi-auth`; those assertions need a caller identity this skill does not mint.
 - Spec asks the test to use `unittest.mock` / `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
 - Spec asserts on a response field that is not in the Pydantic response schema → stop, use `hex-restapi-schema` to extend the schema first.
-- Spec uses `[:4]` or `[:5]` natural-key suffixes "to avoid collisions" → stop, use `hex-test-integration-setup` for rollback isolation; fixed names are fine.
+- Spec uses `[:4]` or `[:5]` natural-key suffixes "to avoid collisions" → stop, the isolation `hex-test-integration-setup` establishes leaves the store empty at test start; fixed names are fine.
 - Spec asserts `len(items) == N + 1` to account for "the test's own row plus seed rows" → stop, assert the exact count under `test-principles`; rollback isolation drops everything.
 - Spec uses a plain `AsyncClient` for a request to a route that attaches an auth dependency → stop, use `hex-test-restapi-auth`'s authenticated client; a plain client on a gated route tests the rejection, not the endpoint.
 - Spec adds `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.

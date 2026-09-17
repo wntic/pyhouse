@@ -174,8 +174,9 @@ the call site needs a branch, a `try`, or neither. `check_*` fails this test twi
 verb and it answers the failure question not at all.
 
 **One environment prefix per settings class, named after the component that owns it and disjoint from
-every sibling's.** A service's own settings read `MYAPP_`, a named sibling service's read `FOO_PARSER_`,
-the shared schema library's read `MYSCHEMA_`. Two components sharing one prefix read each
+every sibling's.** A distribution's own settings read `MYAPP_`, a shared library's read `MYSCHEMA_`,
+and a component inside one reads that distribution's stem plus its own segment. Two components
+sharing one prefix read each
 other's variables: a field added for one silently changes the other's configuration, and neither owner
 sees it in their own file. A deployed prefix is a frozen external contract — see **Renaming**.
 

@@ -337,7 +337,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 
 ### Relational
 
-1. **Every test takes the rollback-scoped session factory the integration setup owns (`sf`) and opens nothing of its own.** That fixture is what makes the database empty at test start and discards every write at teardown. A test that builds its own session factory, connection or engine writes outside the outer transaction, so its rows survive into the next test and the failure surfaces somewhere else entirely. No marker, no second database fixture.
+1. **Every test takes the session handle the integration setup provides — the one whose writes are discarded when the test ends — and opens nothing of its own.** That handle is what makes the database empty at test start and undoes every write at teardown; `sf`, the rollback-scoped session factory, is its name under this catalogue's binding (`hex-test-integration-setup`), and what this rule requires is the property, not the name. A test that builds its own session factory, connection or engine writes outside that boundary, so its rows survive into the next test and the failure surfaces somewhere else entirely. No marker, no second database fixture.
 2. Follow `test-principles` for the `_<aggregate>()` builder form. Defaults must be valid; no-override construction succeeds.
 3. Follow `test-principles` for natural-key test values. Rollback isolation guarantees an empty DB; `name="alpha"` is safe across tests.
 4. **`assert exc.value.context["constraint"] == "<constraint_name>"` on every `ConflictError`.** This is the only place the `IntegrityError`-to-domain-exception translator's name map is exercised end-to-end — the fake-based unit-test path can't verify it.
@@ -377,7 +377,7 @@ replace the SQLAlchemy and Postgres imports; the `store` fixture is annotated wi
 
 ## Hard stops
 
-- `tests/integration/conftest.py` missing or `sf` not provided → stop, use `hex-test-integration-setup`.
+- Nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding) → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
 - Spec asks for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.
 - Spec asks the test to `dispose_engine` / start its own connection / instantiate `async_sessionmaker(bind=engine)` directly → stop, that bypasses rollback; use `sf`.
 - Spec asks to assert on `len(items) == N + 1` or use `any(...)` defensively → stop, use `test-principles`.
