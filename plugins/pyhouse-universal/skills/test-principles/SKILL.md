@@ -52,22 +52,32 @@ A rule distilled from a real defect travels **verbatim** when it is moved, merge
 
 ### The testing pyramid
 
-| Layer | Skill | Touches IO? | Target speed (per test) | What it catches |
-|-------|-------|-------------|-------------------------|-----------------|
-| Domain unit | `hex-test-domain` | No | < 10 ms | Identity equality, `__post_init__` invariants, enum values, pure-logic services, single-rule policies |
-| Application handler unit | `hex-test-application-handler` | No (in-memory fakes) | < 50 ms | Handler orchestration, PATCH semantics, normalization, domain-exception propagation, compensating-tx undo |
-| App construct smoke | `hex-test-discovery-invariants` | No (constructs the app, no DB) | < 100 ms | Construct-time wiring + framework deps the type/lint/unit layers miss (e.g. `python-multipart`), OpenAPI schema build |
-| Repository contract | `hex-test-repository-contract` | Real Postgres via testcontainers, transaction-rollback isolation | < 500 ms | `IntegrityError` translation, constraint-name map, cascades, `onupdate=`, `get_by_*` semantics |
-| REST endpoint | `hex-test-restapi-endpoint` | Real app + real Postgres via ASGI | < 1 s | Routing, DI wiring, request/response validation; with `hex-test-restapi-auth` when the app declares auth, also role gating and tenancy scoping |
-| Discovery invariants | `hex-test-discovery-invariants` | Real app, no DB calls | < 500 ms | Global properties (every code in OpenAPI matches `error_responses(...)`; CORS; 413) — plus, in an auth app, every protected route rejecting an anonymous caller (`hex-test-restapi-auth`) |
-| Architecture | `test-architecture-rule` | None (greps the source tree) | < 100 ms | Static "no X in layer Y" invariants |
-| Pure unit | none — the test file stands alone | No | < 10 ms | Filter/normalize functions, `StrEnum` values, the exception catalog, schema validation |
-| Service client | `flat-test-service-client` | Stubbed HTTP transport, no socket | < 100 ms | Request shape, response parsing, SDK-error → catalog translation, timeouts |
-| Storage contract | `flat-test-persistence` | Real Postgres via testcontainers | < 500 ms | Constraints, `ON CONFLICT` semantics, `RETURNING`, driver-error translation, chunking |
-| Run function | `flat-test-run-function` | Real Postgres + stubbed transport | < 2 s | `run_once` wiring end to end, activity bodies |
-| Orchestration | `flat-test-run-function` | Time-skipping test server, no datastore | < 2 s | Step dispatch, retry policy, batch-loop and continuation semantics |
+A row is a **test layer**, and what defines one is what it substitutes, what it leaves real, the defect
+class it is the cheapest place to catch, and the budget that keeps it cheap. The last column names the
+skills that *produce* that row's files in each architecture family — those are bindings of the layer,
+not its identity. A project in neither family has the same layers and writes them itself.
 
-The shape is the goal: **fast layers run on every save; slow layers run on every commit; the slowest layers run in CI.** If a domain unit test starts touching IO or a repository test starts depending on the FastAPI app, the layer is leaking and the speed budget is gone.
+| Layer | What is substituted | What stays real | What it catches | Budget | Bindings |
+|---|---|---|---|---|---|
+| Pure unit | nothing — the subject has no out-of-process collaborator | the subject | construction-time invariants, identity and equality, enum and constant values, single-rule policies, filter and normalize functions, schema validation, the exception catalog | < 10 ms | `hex-test-domain`; elsewhere the test file stands alone |
+| Collaborator unit | every out-of-process collaborator, by an in-memory double the subject already accepts, or by the runtime's own test environment | the subject's own orchestration | orchestration and step dispatch, branch selection, partial-update semantics, normalization, retry and continuation policy, exception propagation, compensating undo | < 50 ms, or < 2 s where the double is a runtime's test environment | `hex-test-application-handler`, `flat-test-run-function` (orchestration level) |
+| Boundary unit | only the transport beneath one dependency — the socket, never the dependency's own code | the client's request building, response parsing and error translation | request shape, response parsing, library-error → catalog translation, timeouts | < 100 ms | `flat-test-service-client`, `hex-test-capability-adapter` |
+| Wiring smoke | nothing, but nothing out-of-process is reached either | the object graph, constructed the way the entrypoint constructs it | construct-time wiring and framework dependencies the type, lint and unit layers all miss; generated-schema build | < 100 ms | `hex-test-discovery-invariants` |
+| Datastore contract | nothing — a real store, started and disposed by the suite | the driver, the schema, the statements | constraint behaviour and generated constraint names, conflict and upsert semantics, cascades, returned and auto-updated values, driver-error translation, chunking | < 500 ms | `hex-test-repository-contract`, `flat-test-persistence` |
+| Entrypoint | nothing, or only the transport beneath a remote dependency | the entrypoint driven the way a caller drives it, with its real dependencies | dispatch and routing, dependency wiring, input and output validation, the run wired end to end; where the entrypoint authenticates, role gating and tenancy scoping | < 1 s, or < 2 s with a real datastore behind it | `hex-test-restapi-endpoint` (with `hex-test-restapi-auth`), `flat-test-run-function` |
+| Surface invariant | nothing — the surface is enumerated from the running program | the program's own declared surface | global properties no single test owns — every advertised error code matching what the code can raise, every protected route refusing an anonymous caller, cross-origin and request-size policy | < 500 ms | `hex-test-discovery-invariants` |
+| Architecture | everything — nothing runs | the source tree, read as text | static "no X in layer Y" invariants | < 100 ms | `test-architecture-rule` |
+
+**A project has the layers its subject has, and writes no others.** One with no datastore has no
+datastore-contract row and is missing nothing; a library's entrypoint layer is its public API called
+the way a caller calls it, and its surface-invariant layer is what that API promises — every name in
+`__all__` importable, every documented error class reachable; a command-line tool's entrypoint layer
+invokes the command through the runner its users invoke it through. A row with no defects of its own
+to catch is not written to fill the table.
+
+The shape is the goal: **fast layers run on every save; slow layers run on every commit; the slowest
+layers run in CI.** If a pure unit test starts touching IO, or a datastore test starts constructing the
+entrypoint, the layer is leaking and the speed budget is gone.
 
 ### Reading the family-flavoured sections
 
@@ -320,9 +330,9 @@ Rules:
 
 ### Assert strength — pin the contract, not a coincidence
 
-**Fixed natural keys are fine.** With an empty database per test, `identity="alpha"` needs no random
-suffix, and `assert len(rows) == 2` is correct — no defensive `any(...)` filters, no `+1` for the
-test's own row.
+**Fixed natural keys are fine.** With per-test isolation — an empty database, a temporary directory of
+its own — `identity="alpha"` needs no random suffix, and `assert len(rows) == 2` is correct; no
+defensive `any(...)` filters, no `+1` for the test's own row.
 
 **Pin the contract, not a coincidence.** Assert the returned state or observable effect that proves the behavior, including exact values and counts the contract guarantees. A successful call alone does not prove that the intended state was written.
 
@@ -415,8 +425,13 @@ integration tests reach the container through the `engine` fixture.
    throwaway list (`flat-test-integration-setup` carries both guards). An *unguarded* "developer's
    local Postgres" mode → stop; the suite TRUNCATEs every table it can see, and the variable that
    would divert it is exported by tools that know nothing about this suite.
-2. **Every test starts with an empty database.** Either the outer-transaction rollback or
-   `truncate_all` guarantees it — `hex-test-integration-setup` and `flat-test-integration-setup` say which applies.
+2. **Every test starts from state it established itself, never from a predecessor's leftovers**, and
+   the isolation that guarantees it is part of the suite rather than something a test remembers to do.
+   Where the subject has a datastore that means an empty database at the start of every test — either
+   the outer-transaction rollback or a whole-schema truncation, and `hex-test-integration-setup` and
+   `flat-test-integration-setup` say which applies. Where it has none, the same rule binds whatever
+   state there is: a temporary directory created per test, a fresh in-process object rather than a
+   module-level one, an environment the test sets and the fixture restores.
 3. **The suite's result does not depend on the order it was collected in.** Each test constructs the
    state it asserts on rather than inheriting a predecessor's. Run it once in a randomized order and
    once in file order and get the same result — under this binding, `pytest-randomly` supplies the

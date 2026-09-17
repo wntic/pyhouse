@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which layer logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -9,9 +9,9 @@ Project-wide rules that are stricter than CPython's defaults and hold **whatever
 a hexagonal app, a flat-layered worker, or a standalone script. Three subjects: what the types look like,
 who logs what, and where a comment is warranted.
 
-Only one thing here varies by architecture, and it varies as a *consequence*, not as a separate rule:
-an error is logged once, by the layer that can add context and will not re-raise it — and the families
-differ in which layer that is. Everything else is unconditional.
+Only one thing here varies from project to project, and it varies as a *consequence*, not as a separate
+rule: an error is logged once, by the scope that can add context and will not re-raise it — and where a
+project's errors propagate to decides which scope that is. Everything else is unconditional.
 
 ## When to use vs. neighbours
 
@@ -263,7 +263,7 @@ sentence with values spliced into it. Four obligations, whichever library provid
 - **The event name is a stable contract** — snake_case, `<subject>_<past_tense_verb>`.
 - **Identifiers and counts ride as fields**, never interpolated into the message.
 
-Plus one allocation rule — *which* layer logs an error — stated at the end of this section.
+Plus one allocation rule — *which* scope logs an error — stated at the end of this section.
 
 ### Binding — `structlog`
 
@@ -302,9 +302,8 @@ log.info(f"created foo {foo.id}")
 
 `log.x(...)` immediately followed by `raise` in the same scope is two entries for one event, and there is
 **no sanctioned exception**. A scope that re-raises is not the scope that will explain the failure: the
-detail it was about to log belongs in the exception it raises — the structured fields in `context`, the
-original error in `__cause__` through `from exc` (`exception-catalog`). The layer that stops the
-exception has both, and it is the layer that logs.
+detail belongs in the exception it raises — the fields in `context`, the original error in `__cause__`
+through `from exc` (`exception-catalog`) — where the scope that stops it will find both.
 
 ```python
 # yes — translate, carry the detail forward, stay silent
@@ -322,7 +321,7 @@ except IntegrityError as exc:
     raise ConflictError("foo name already exists", {"field": "name"}) from exc
 ```
 
-Level guide, for the layer that does log: `warning` for an expected rule violation surfacing at a
+Level guide, for the scope that does log: `warning` for an expected rule violation surfacing at a
 boundary — uniqueness, a foreign key; `error` for an unexpected failure — a network timeout, a
 third-party 5xx, malformed data.
 
@@ -337,16 +336,23 @@ any other failure.
 - A password, bearer token, API key or connection string → log a length or a hash, never the value.
 - A `UUID` object rather than `str(uuid_value)` → some sinks render it poorly.
 
-The first two reach an exception's `context` as well, because the layer that logs renders `context`
+The first two reach an exception's `context` as well, because the scope that logs renders `context`
 verbatim into the log line. `exception-catalog` owns that statement of the rule.
 
-### Who logs what — one principle, two allocations
+### Who logs an error
 
-**An error is logged once, by the layer that can add context and will not re-raise it.** That is the
-whole rule. The two families differ only in *which* layer that is, because they differ in which layer is
-contractually obliged to re-raise.
+**An error is logged once, by the scope that can add context and will not re-raise it.** That is the
+whole rule, and it binds with no layers at all: a scope that re-raises stays silent — what it was about
+to log rides in the exception instead, the fields in `context` and the cause through `from exc` — and
+the scope that stops the exception is the only one that logs.
 
-**Hexagonal projects** propagate every error to a single central handler, so the layer that does not
+To apply it, trace the exception outward to the first scope that handles it rather than re-raising.
+A project that funnels every failure into one handler makes that handler the scope; where nothing above
+a failure is obliged to re-raise, the scope is usually the point of failure itself; where the exception
+leaves the codebase entirely — a distributed package handing it to its caller — no scope inside
+qualifies and nothing inside logs. Each family fixes that answer once; the two this catalogue covers:
+
+**Hexagonal projects** propagate every error to a single central handler, so the scope that does not
 re-raise is the entrypoint:
 
 | Layer | May log |
@@ -356,24 +362,16 @@ re-raise is the entrypoint:
 | `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. |
 | entrypoints | Errors, once, at the central handler, with request context attached. |
 
-**The level the central handler uses**, since this table claims the entrypoint row:
+**A central handler takes the same guide**, plus one case only it sees: an exception that is not a
+catalogue class → `error`, logged *before* the framework turns it into a 500, or it is never seen.
 
-- **4xx class** — the caller's request was wrong (validation, conflict, not-found, unauthorized,
-  forbidden) → `warning`. Nothing is broken; do not page on it.
-- **5xx class** — a `DomainError` whose status is 5xx, including an upstream failure → `error`.
-- **Anything that is not a `DomainError`** → `error`, logged at the handler *before* the framework
-  converts it to a 500. That is the only place it will ever be seen.
+This skill owns the level rule; the **call** that implements it belongs to the entrypoint template with
+a central handler — `error_handler.py` in `hex-restapi-app`, in the `pyhouse-hex` plugin. The rule
+outlives any one framework; the call is framework-shaped.
 
-This skill owns the level rule; the **call** that implements it belongs to the entrypoint template that
-has a central handler — `error_handler.py` in `hex-restapi-app`, in the `pyhouse-hex` plugin. The split
-is deliberate: the rule is a logging-level rule and outlives any one framework, the call is
-framework-shaped.
-
-**Flat-layered services** have no such contract — nothing above a failure is obliged to re-raise into one
-handler — so the layer that will not re-raise is usually the point of failure itself: **log the failure
-there, with its context**. Where a scope does re-raise (a client translating an SDK error for its
-caller), the principle points the same way: that scope stays silent and whoever stops the exception logs
-it. The universal obligations above hold unchanged.
+**Flat-layered services** funnel nothing — nothing above a failure is obliged to re-raise — so the scope
+is usually the point of failure itself: **log the failure there, with its context**. A scope that does
+re-raise (a client translating an SDK error) stays silent; whoever stops the exception logs.
 
 ## Comments
 
@@ -441,9 +439,10 @@ The structured logger is the one library this skill binds; typing and comments b
     and counts as fields rather than interpolating them into the message.** A value inside a sentence
     cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
     the old string.
-12. **Log an error once, in the layer that can add context and will not re-raise it** — the entrypoint's
-    central handler in a hexagonal project, the scope that stops the failure in a flat one. A scope that
-    re-raises does not log; the detail it would have logged goes into the exception's `context`.
+12. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
+    from the raise to the first scope that handles the exception rather than re-raising it; a project
+    that funnels failures into one handler makes that handler the scope. A scope that re-raises does
+    not log; the detail it would have logged goes into the exception's `context`.
 13. Check logged fields against **What never reaches a log line** before emitting them, and apply the
     same two bans to anything placed in an exception's `context`.
 14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
@@ -489,9 +488,10 @@ Logging:
 - An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
   `foo_created`. Once shipped, never rename — dashboards depend on the string.
 - Logging a full body, a secret, or a bare `UUID` object → stop.
-- In a hexagonal project: any log call in `domain/` or `infrastructure/`, or an error logged in
-  `application/` → stop, see the allocation table. An adapter translates and re-raises, so it never logs
-  — the detail goes into the translated exception's `context`.
+- A scope that re-raises the failure logs it as well → stop, it is not the scope that explains it; the
+  detail goes into the translated exception's `context` and whoever stops the exception logs. In a
+  hexagonal project that fires on any log call in `domain/` or `infrastructure/`, and on an error logged
+  in `application/`.
 
 Comments:
 

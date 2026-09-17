@@ -158,10 +158,24 @@ package's own `__all__`. Miss one and the collapsed form breaks at the first cal
 
 ### Carve-outs — where re-export stops
 
-**1 — the distribution root stays minimal.** The top-level `<package>/__init__.py` carries only
-`__version__`. Aggregating everything to the root makes `import <package>` transitively pull every
-third-party dependency the project has on every use, and destroys any dependency-free import path the
-architecture was maintaining. Re-export stops below the root; it does not climb to it.
+**1 — the distribution root carries what that root is, and nothing more.** The rule keys on whether
+anything outside the distribution imports it, and there are two cases.
+
+- **An application's root is not an API.** Nothing outside imports it, so the top-level
+  `<package>/__init__.py` carries only `__version__`. Aggregating to it would make `import <package>`
+  transitively pull every third-party dependency the project has on every use, and destroy any
+  dependency-free import path the architecture was maintaining, in exchange for an import path nobody
+  outside uses. Re-export stops below the root; it does not climb to it.
+- **A distributable package's root *is* its public API.** A library or SDK is imported by code that
+  should not have to learn its file layout, so the root re-exports the names it promises — and only
+  those. That is an **enumerated** surface, not the aggregation the first case forbids: a name is
+  re-exported because it is part of the published contract, never because it is a child, and a name
+  whose import pulls a heavy or optional dependency stays off the root and is reached by its own module
+  path, so the cost above lands on whoever asked for that name rather than on every importer.
+
+One test covers both: **does an importer of the root need this name?** An application's root has no
+importer, so the answer is always no; a library's root has one, and the answer is the contract it
+published.
 
 **2 — a module with import-time side effects is not wildcarded.** If importing the module *does*
 something — builds an application object, opens a connection, registers a handler — its package
@@ -260,8 +274,9 @@ hand-written imports land in the right block.
 3. Put module exports between imports and definitions, using the placement shown in **Modules**.
 4. Check each re-exporting `__init__.py` against all four parts of the re-export contract.
 5. When adding a public module, complete all four package edits listed under that contract.
-6. Apply each re-export carve-out at its documented scope: distribution root, side effects or colliding
-   exports, and bare-object modules.
+6. Apply each re-export carve-out at its documented scope: the distribution root by what that root is —
+   an application's carries `__version__`, a library's carries the names it publishes and no others —
+   side effects or colliding exports, and bare-object modules.
 7. Select relative or absolute reach using **Relative vs absolute**, without routing a sibling import
    through its parent. A layer boundary is a package boundary and takes the absolute form.
 8. **Build nothing at import time.** Importing a module binds names; anything that reaches the network
@@ -284,7 +299,12 @@ hand-written imports land in the right block.
 - An `__init__.py` referencing `module.__all__` with no matching `from . import module` line → stop, add
   the explicit submodule import; the wildcard alone does not bind the name for the type checker.
 - A package with children and an empty `__init__.py` → stop, re-export them.
-- The distribution root's `__init__.py` wildcarding its subpackages → stop, it carries `__version__` only.
+- An application's distribution root `__init__.py` wildcarding its subpackages → stop, nothing outside
+  imports that root, and every importer would pay for the dependencies it drags in; it carries
+  `__version__` only.
+- A library or SDK root re-exporting whatever sits beneath it rather than the names it publishes → stop,
+  that root is the contract; enumerate it, and leave a name whose import pulls a heavy or optional
+  dependency to its own module path.
 - A module with import-time side effects being wildcarded into its package → stop, importing the package
   would now run it.
 - A module-level `settings = Settings()`, client, engine or connection → stop, put it behind a factory;

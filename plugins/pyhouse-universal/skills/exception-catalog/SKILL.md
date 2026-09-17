@@ -9,14 +9,28 @@ Every project in this style has **exactly one file** where its own exceptions ar
 root error plus one bare subclass per named error, so the catalog stays auditable in a single read and
 nothing raises a type that was invented at the call site.
 
-Where that file sits depends on the architecture, and that is the only thing that varies:
+Where that file sits is the only thing that varies, and one obligation settles it for any project
+shape: **one catalog module, at a place every part of the codebase may import from without creating a
+cycle, named for what it holds.** The catalog imports nothing of the project's own, so anything may
+import it; put it wherever the project's own import direction makes that true — `exceptions.py`, or
+`exceptions/__init__.py` when the package form is the one that fits. The root class is named for the
+project, and every other class in the file descends from it.
+
+Two worked cases, one per architecture family this catalogue covers:
 
 | Architecture | Catalog file | Root class |
 |---|---|---|
 | Hexagonal (`hex-architecture`) | `<package>/domain/exceptions.py` | `DomainError` |
 | Flat-layered (`flat-layered`) | `<package>/exceptions/__init__.py` | `<Service>Error` |
 
-The **shape** below is identical in both, and in both **`code` is the only required field**.
+A project in neither family reads the obligation rather than the table, and it answers as easily: a
+framework-shaped tree puts the module where every one of the framework's units already imports from,
+a distributable package puts it at its own root because the classes its callers catch are part of the
+published surface, and a command-line tool puts it above the command modules that raise from it. One
+file either way — the reason for a single file is that the catalog stays auditable in one read, and
+that reason is not architectural.
+
+The **shape** below is identical in every case, and **`code` is the only required field**.
 Everything else is a transport annotation, added when a transport actually reads it and omitted when
 none does. `http_status` is the one this catalogue writes out, because an HTTP entrypoint has a central
 handler that translates it into a response — but **the trigger is the HTTP surface, not the architecture
@@ -63,6 +77,9 @@ or, far more often, needs nothing and leaves `code` to do the work.
 - Order: `__all__`, then the root, then direct subclasses, then refinements.
 
 ## Template — a flat-layered service catalog
+
+This is also the form to copy when the project is in neither family — the `code`-only catalog, with a
+transport annotation added below only if something in the project actually reads one.
 
 ```python
 # myapp/exceptions/__init__.py
@@ -273,23 +290,31 @@ one becomes a silent wrong answer.
 12. **No secret in `context`.** A token, key, password or connection string placed there reaches the log
     line, and the response body where the project renders one, by construction — both render `context`
     verbatim. `python-style` bans the same values from a log line; this is the path around it.
-13. **Where the entrypoint serves HTTP, errors render through one central handler.** Its response status is
-    `exc.http_status`; the `ErrorResponse` body carries `code=exc.code`, `message=str(exc)`, and
-    `context=exc.context`. The custom raise above renders HTTP 409 with
+13. **A caught error is rendered in exactly one place, off the exception's own attributes.** Whatever
+    the project shows the outside world — a response body, a message on stderr and an exit code, a
+    failure record — one scope produces it, and it produces it by reading `code`, `str(exc)` and
+    `context` from the class rather than by mapping a class onto a rendering. That is what keeps a
+    hand-maintained `code`→rendering table from reappearing: a new class renders correctly the day it
+    is added, with no second edit. Where the entrypoint serves HTTP, that scope is the central handler,
+    its response status is `exc.http_status`, and the `ErrorResponse` body carries `code=exc.code`,
+    `message=str(exc)` and `context=exc.context` — the custom raise above renders HTTP 409 with
     `{"code": "FOO_NAME_TAKEN", "message": "foo name already exists", "context": {"name": foo.name}}`.
-    The rule is complete here; the hexagonal family's handler and response-schema templates that
-    implement it are in `hex-restapi-app`, in the `pyhouse-hex` plugin.
-14. **`UnauthorizedError` is the single name for every credential or token rejection.** A bad, missing,
-    expired or unverifiable credential — at the HTTP entrypoint or inside a capability adapter that calls
-    a verifier — raises `UnauthorizedError`. Do not mint a second, parallel class for the credential case
-    under any name: the central handler's RFC-7235 `WWW-Authenticate` branch keys on this one class, and a
-    second spelling silently skips it. `ForbiddenError` is the distinct case — the caller is known and
-    is not permitted. **Both classes are conditional on the project having an authenticating entrypoint**
-    — a project whose entrypoint authenticates nobody omits them from the catalog entirely, the same way
-    a project with no HTTP surface omits `http_status` (see the hard stop below). An entrypoint that
-    authenticates is one that verifies a caller's credential itself, rather than trusting a gateway or
-    mTLS in front of it; the hexagonal family's binding for that is `hex-restapi-auth`, in the
-    `pyhouse-hex` plugin.
+    A project whose only caller is its own importer — a distributed package — renders nothing and lets
+    the class reach that caller intact, which is the same rule with the rendering scope outside the
+    project. The rule is complete here; the hexagonal family's handler and response-schema templates
+    that implement it are in `hex-restapi-app`, in the `pyhouse-hex` plugin.
+14. **One class for every credential rejection, and a second for the distinct permission case.** A bad,
+    missing, expired or unverifiable credential raises `UnauthorizedError`, wherever the verification
+    happens; a caller who is known and is not permitted raises `ForbiddenError`. Do not mint a second,
+    parallel class for the credential case under any name — everything the project does with that
+    condition is written once against one class, and a second spelling silently skips all of it. The
+    HTTP binding is the visible instance of that cost, not its reason: a central handler's RFC-7235
+    `WWW-Authenticate` branch keys on `UnauthorizedError` alone, so a parallel class renders as a plain
+    failure with no challenge. **Both classes are conditional on the project verifying a credential at
+    all** — one that verifies nobody, because something in front of it did or because it has no caller
+    to authenticate, omits them from the catalog entirely, the same way a project with no HTTP surface
+    omits `http_status` (see the hard stop below). The hexagonal family's binding for an entrypoint
+    that verifies credentials itself is `hex-restapi-auth`, in the `pyhouse-hex` plugin.
 15. **The two roots name their upstream failure differently, deliberately.** Hexagonal has
     `UpstreamError`, a direct child of `DomainError`: any dependency failure, rendered `502`. Flat-layered
     has `UpstreamUnavailableError`, a refinement of the *client* class for one upstream — and in the
@@ -307,6 +332,8 @@ one becomes a silent wrong answer.
 ## Hard stops
 
 - A new exception type is being defined outside the catalog file → stop, add it there first.
+- A second catalog is being added because some package cannot import the first one → stop, the catalog
+  is placed where every part of the codebase may import it; move the one file rather than splitting it.
 - A subclass is being given an `__init__` override or extra fields → stop, use the inherited `context`.
 - A library exception is re-raised without `from exc` → stop, the cause is lost and the translation
   becomes unprovable.

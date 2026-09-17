@@ -15,7 +15,7 @@ too. The counts in every heading are the number of directories on disk.
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
-- `python-style` — Owns the declared-type-over-bare-`dict` rule and the per-layer logging allocation that keeps domain code silent.
+- `python-style` — Owns the declared-type-over-bare-`dict` rule and the logging allocation that keeps every re-raising scope silent, whatever the project's layering.
 - `python-packaging` — Keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; transport rendering stays at the boundary.
 - `test-principles` — Takes precedence whenever an artifact-specific test skill contradicts the shared constitution.
