@@ -93,10 +93,14 @@ at module level, because none of them needs anything to exist.
 settings = Settings()
 
 # yes — the caller decides when, and the failure names the missing value
-@lru_cache
 def get_settings() -> Settings:
     return Settings()
 ```
+
+Cache the factory only once a second caller genuinely exists — a framework resolving it per request,
+say. Where the entrypoint reads settings once and hands concrete values down, nothing calls it twice
+and the cache buys nothing; needing one is usually a sign something below the entrypoint is reading
+configuration instead of being handed values.
 
 The reason is the import graph, which is why it lives here. A module-level construction runs for every
 importer, including ones that never touch the object: a test collector importing a sibling symbol, a

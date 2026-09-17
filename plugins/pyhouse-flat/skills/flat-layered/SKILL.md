@@ -1,6 +1,6 @@
 ---
 name: flat-layered
-description: Use when structuring a worker, crawler, pipeline, ETL job or integration service whose family is already settled as flat — one service on its own by default, and a workspace member under the same rules. Defines packages named for the technical roles the service actually has, the import contract between those roles, the settings factory, the single-implementation client, and why no `Protocol` appears until a second real implementation does. A service's data access has its own package whose rules are `flat-persistence`; several services sharing one repository is `flat-monorepo`; an unsettled family is `architecture-choice`.
+description: Use when structuring a worker, crawler, pipeline, ETL job or integration service whose family is already settled as flat — one service on its own by default, and a workspace member under the same rules. Defines packages named for the technical roles the service actually has, the import contract between those roles, the settings class each configured component owns, the single-implementation client, and why no `Protocol` appears until a second real implementation does. A service's data access has its own package whose rules are `flat-persistence`; several services sharing one repository is `flat-monorepo`; an unsettled family is `architecture-choice`.
 when_to_use: Also when asked for a worker's or a pipeline's package layout, where a client class or a settings class belongs, whether a dependency deserves an interface, or how to lay out a single-service repository with no workspace around it.
 ---
 
@@ -70,7 +70,9 @@ Copying a package name because it appears here, when the service has no such rol
 this warning exists to prevent — it produces an empty `jobs/` package and a reviewer who assumes work
 lives there. What *is* fixed is the shape of the decision:
 
-- cross-cutting setup gets its own package, whatever it is called;
+- cross-cutting setup — logging, and the process's own settings — sits in modules at the package root,
+  never in a package named after the category; and a component with configuration of its own keeps its
+  settings module beside it;
 - each external system gets one module holding one class;
 - run functions are grouped by kind and sit **below** the process that runs them;
 - a framework wrapper is isolated in its own package so the work it wraps stays framework-free;
@@ -91,10 +93,9 @@ process, an activity class and a run function equally badly.
 myapp/
 ├── __init__.py
 ├── __main__.py                  # the declared entry point — `python -m myapp` selects and runs one
-├── core/
-│   ├── __init__.py
-│   ├── settings.py               # one pydantic-settings class, env-prefixed
-│   └── logging.py                # structlog/stdlib logging setup, called once at startup
+├── settings.py                  # the process's own pydantic-settings class, env-prefixed
+├── logging.py                   # structlog/stdlib logging setup, called once at startup
+├── durable.py                   # the one framework-guarded helper module (rule 9), where one is needed
 ├── enums/
 │   └── __init__.py               # ONLY vocabulary genuinely used across packages — see rule 11
 ├── exceptions/
@@ -107,6 +108,7 @@ myapp/
 │   └── foo_client.py             # one concrete class per external system, SDK exceptions caught here
 ├── storage/
 │   ├── __init__.py
+│   ├── settings.py               # this component's own class and prefix — `flat-persistence`
 │   ├── foo_table.py              # this service's own table definitions
 │   └── foo_storage.py            # the ONLY place a statement is built or a connection opened
 ├── ingest/
@@ -160,7 +162,7 @@ it (`test-architecture-rule`).
 does nothing outside the framework's own context is the worked case (`flat-entrypoint`, and the
 durable-execution templates its body sends you to). It exists precisely so a run function stays
 framework-free, which is the rule's purpose, and the grep's allow-list names it. **For a lone service it
-is a module of the service's own cross-cutting-setup package** — `core/` in the example above; in a
+is one named module at the root of the service's own package** — `durable.py` in the example above; in a
 workspace it is promoted to a shared package instead, and it is the same one exemption. Nothing else is
 exempt: a role is declared when the package is created, not assumed from a directory name (in a
 workspace, when the member is admitted — `flat-monorepo` rule 2).
@@ -172,11 +174,10 @@ untestable without starting a process.
 
 ### Template — settings, on pydantic-settings
 
-`core/settings.py`:
+`myapp/settings.py` — the process's own configuration, beside the modules that hold the rest of the
+cross-cutting setup:
 
 ```python
-from functools import lru_cache
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -187,16 +188,19 @@ class Settings(BaseSettings):
     foo_api_timeout_seconds: float
 
 
-@lru_cache
 def get_settings() -> Settings:
     return Settings()
 ```
 
-**One prefix per settings class, named after the component that owns it, and disjoint from its
-siblings.** `MYAPP_` above is the placeholder for this service's own stem. A lone service has one
-prefix and is done; where a storage package is shared with sibling services it is a separate component
-reading the same environment, so the two prefixes must stay disjoint or one component's variable
-silently satisfies the other's field (`flat-persistence` states that package's half).
+**A settings class belongs to the component whose configuration it holds, and lives in a `settings.py`
+beside it.** The process's own fields sit here; the storage component declares its connection settings
+in its own `settings.py` under its own prefix (`flat-persistence`), and so does any other component with
+configuration of its own. `MYAPP_` above is the placeholder for this service's stem, and a component's
+prefix extends it with that component's own segment — `MYAPP_STORAGE_` for the storage package. Two
+components must never be able to claim one variable. Extending a stem this way keeps them apart only
+while the outer class declares no field beginning with the inner segment: `storage_dsn` here would read
+`MYAPP_STORAGE_DSN`, the same variable the storage class already claims. Treat each component's segment
+as reserved in the classes above it, or give the components stems that do not nest at all.
 
 **The timeout has no default.** A timeout is set from the upstream's observed latency and from what the
 caller can wait for, and no single number is right for every deployment — a default here is one
@@ -206,9 +210,15 @@ Required fields fail at the first `get_settings()` call, before any work starts.
 **Build settings behind a factory, never as a bare module-level instance.** A module-level
 `settings = Settings()` runs at import time, so merely importing the package — from a test, from a
 type checker, from a sibling module that needs one constant — fails in any environment that has not
-set every required variable. The factory pushes that failure to the first real call, and `lru_cache`
-keeps it to one construction per process. The storage package builds its engine behind the same shape
-(`flat-persistence`).
+set every required variable. The factory pushes that failure to the first real call. The storage package
+builds its own settings and its engine behind the same shape (`flat-persistence`).
+
+**`@lru_cache` on a settings factory is conditional, not automatic.** Under rule 7 the process
+definition calls the factory once and hands concrete values down, so in a correctly structured service
+there is no second call for the decorator to collapse. Add it only where a second caller genuinely
+exists — a web framework resolving the factory per request is the case it comes from. Needing one
+otherwise is usually the signal that something below the process definition is reading configuration
+instead of being handed values, which rule 7 forbids.
 
 ### Template — an external-system client, on httpx
 
@@ -254,9 +264,9 @@ construct the client against a stub base URL without touching the environment.
   count: one declared entry point per runnable process, so a reader can find where the process begins
   without grepping for `asyncio.run`.
 - **Another settings library in place of pydantic-settings.** `environ-config`, `dynaconf` or a
-  hand-parsed `os.environ` all satisfy rules 7, 8 and 10 — what survives the swap is that fields are
-  declared and validated in one class, that required fields have no defaults, and that the object is
-  built behind a factory rather than at import time.
+  hand-parsed `os.environ` all satisfy rules 7, 8 and 10 — what survives the swap is that a component's
+  fields are declared and validated in one class of its own, that required fields have no defaults, and
+  that the object is built behind a factory rather than at import time.
 - **Another HTTP or SDK client in place of `httpx`.** `aiohttp`, `niquests`, a vendor SDK: the client
   class keeps its shape — configuration through the constructor, the library's own exceptions caught
   and translated inside it, no `Protocol` above it. Only the call and the exception type change.
@@ -289,21 +299,31 @@ construct the client against a stub base URL without touching the environment.
    *that one dependency*; do not retrofit the rest of the service.
 6. **One exception catalog**, and SDK/library exceptions are translated into it at the boundary — inside
    the client class that called the SDK. Shape and translation rules: `exception-catalog`.
-7. **Settings are built by a factory and passed down as values.** The cross-cutting-setup package —
-   `core/settings.py` in the example above — exposes `get_settings()`; the process definition calls it
-   once and hands concrete arguments to the clients and run functions it constructs. Nothing below the
-   process-definition package imports settings. A settings object built at import time makes the
+7. **Settings are built by a factory and passed down as values.** A settings module — `myapp/settings.py`
+   in the example above — exposes `get_settings()`; the process definition calls it once and hands
+   concrete arguments to the clients and run functions it constructs. Nothing below the
+   process-definition package imports settings, and no module below it calls a settings factory, its own
+   component's included. A settings object built at import time makes the
    package unimportable — by a test, by a type checker, by a sibling module wanting one constant —
    anywhere the environment is incomplete.
-8. **One environment prefix per settings class, named after the component that owns it and disjoint
-   from every sibling's.** A lone service has exactly one. Where a storage package is shared with
-   sibling services it is a second component reading the same environment; share a prefix and one
-   component's variable silently satisfies the other's field (`flat-persistence` states that package's
-   half).
+8. **Every component that has configuration declares its own settings class, in a `settings.py` beside
+   it, under its own environment prefix.** The process's configuration and a storage package's
+   connection settings are two components' configuration and two classes, not one class with both sets
+   of fields. Each class exposes a factory and stops there — declaring one is not licence to call it
+   below the process definition, which rule 7 forbids. **No variable may ever satisfy two components'
+   fields.** Sharing a prefix outright is the obvious way to break that; a *nested* prefix is the quiet
+   one. `MYAPP_` for the process and `MYAPP_STORAGE_` for its storage package hold only while no field
+   on the outer class begins with the inner segment — `storage_dsn` under `MYAPP_` and `dsn` under
+   `MYAPP_STORAGE_` are the same variable. Either keep the stems disjoint, or treat each inner segment
+   as reserved in the outer class and never declare a field there that begins with it. The failure is
+   the same whether the second component is a package inside this service or a storage distribution
+   shared with siblings (`flat-persistence` states that package's half).
 9. **Only a package whose declared role is framework wrapper may import the framework** — `temporal/`
    for `temporalio` in this example — plus the one framework-guarded helper module the firewall's
-   allow-list names explicitly, which lives in the service's own cross-cutting-setup package and is
-   promoted to a shared package only in a workspace. That one rule is what keeps the run functions callable from
+   allow-list names explicitly. For a lone service that is a single named module at the root of the
+   service's own package — `durable.py` in the example above — and in a workspace it is promoted to a
+   shared package instead. The allow-list names that module by path, so the exemption stays one entry a
+   reviewer can read. That one rule is what keeps the run functions callable from
    a loop, a test or a one-off script, and it is what makes switching a service's trigger a wrapper
    change rather than a rewrite. The role is declared when the package is created — in a workspace, when
    the member is admitted (`flat-monorepo` rule 2) — never inferred from a directory name.
@@ -341,6 +361,9 @@ construct the client against a stub base URL without touching the environment.
   framework-wrapper package and leave the body where it was.
 - A module builds its settings instance at import time → stop, expose `get_settings()` instead; the
   bare instance makes the package unimportable wherever the environment is incomplete.
+- A module below the process definition calls a settings factory, its own component's included → stop,
+  the process definition calls it and passes the values down; owning a settings class is not permission
+  to read it from inside the component.
 - Business logic appears inside a process definition → stop, a process definition wires and runs; the
   work belongs in a run-function package where a test can call it directly.
 - A package is being created because the example above shows it, with nothing to put in it → stop, the

@@ -1,6 +1,6 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the workspace hosting a storage package several services share is `flat-monorepo`.
+description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the workspace hosting a storage package several services share is `flat-monorepo`.
 when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a storage or repository class in a flat service, a constraint naming convention, a migration for a flat service, or where a service's SQL is allowed to live.
 paths: ["**/storage/**", "**/persistence/**", "**/alembic/**", "**/migrations/**"]
 ---
@@ -17,9 +17,10 @@ same package is shared between them and one rule below says what that changes.
 
 ## When to use vs. neighbours
 
-- The service's own role packages around this one — cross-cutting setup, clients, run functions →
-  `flat-layered`, which owns the import contract this package sits inside and the no-`Protocol` rule
-  this skill applies to the datastore.
+- The service's own modules and role packages around this one — the settings and logging modules at the
+  package root, the clients, the run functions → `flat-layered`, which owns the import contract this
+  package sits inside, the rule that each configured component declares its own settings class, and the
+  no-`Protocol` rule this skill applies to the datastore.
 - Several services sharing one repository, and where a shared storage package sits inside it →
   `flat-monorepo`.
 - What triggers a run and hands this package its connection handle → `flat-entrypoint`.
@@ -64,18 +65,50 @@ backend, names differ by engine and change under an upsert.
 For a `CheckConstraint`, `name=` is the **suffix** — the convention prepends `ck_<table>_`. Passing a
 full name yields `ck_foos_ck_foos_name_non_empty`.
 
+## The settings module — pydantic-settings
+
+This package is a component with configuration of its own, so it declares that configuration here rather
+than borrowing a field from the service's class (`flat-layered` rule 8).
+
+`myapp/storage/settings.py`:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class StorageSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_STORAGE_")
+
+    dsn: str
+
+
+def get_storage_settings() -> StorageSettings:
+    return StorageSettings()
+```
+
+**The prefix is this component's own and claims no variable another component's fields could claim** —
+the same terms where the package is shared between services, and the `## Other bindings` bullet says
+what else changes there. **The process definition is the only caller of this factory**: declaring the
+class here does not let a module in this package call it. The process definition calls it, reads `dsn`,
+and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 below).
+
+**No `@lru_cache` on either factory here.** With one caller by construction there is no second call to
+collapse, and memoising an engine keyed by its connection string additionally pins a live connection
+pool for the life of the process, outliving the shutdown path and the test that wanted to dispose of it.
+Add the decorator only where a second caller genuinely exists, and treat needing one as a sign that
+something below the process definition is building its own connection instead of being handed one.
+
 ## Engine and write helpers — SQLAlchemy async, asyncpg
 
 The engine is built by a **factory taking the connection string**, never as a module-level object: the
-process definition reads settings once and hands the value down (`flat-layered` rules 7 and 8), and
-`import myapp.storage.engine` must not fail in an environment that has set nothing.
+process definition reads this package's settings once and hands the value down (`flat-layered` rules 7
+and 8), and `import myapp.storage.engine` must not fail in an environment that has set nothing.
 
 `myapp/storage/engine.py` — two write primitives: a plain chunked bulk write, and a `RETURNING` variant
 for when a later step needs the rows just written:
 
 ```python
 from collections.abc import Iterable, Mapping, Sequence
-from functools import lru_cache
 from typing import Any
 
 from sqlalchemy import Table
@@ -85,7 +118,6 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 _CHUNK_SIZE = 2000  # see below: chunk_size * columns-per-row stays under the driver's bind limit
 
 
-@lru_cache
 def get_engine(dsn: str) -> AsyncEngine:
     return create_async_engine(dsn, pool_pre_ping=True)
 
@@ -366,11 +398,12 @@ it, run from that same place.
   translator matches on and the read-back clause all change together. Conflict resolution is the one that
   is not mechanical: a backend without `ON CONFLICT` carries rule 12 as a `MERGE` or as a lock-and-check,
   and "nothing to update" must still become a no-op there rather than an error.
-- **This package as a separate distribution, shared by several services.** The templates are unchanged;
-  what changes is that it becomes its own component — its own settings class with its own environment
-  prefix disjoint from every service's (`flat-layered` rule 8 owns the prefix rule), its own migration
-  command run from its own directory, and a standing restriction that the services importing it define no
-  table of their own (`flat-monorepo`).
+- **This package as a separate distribution, shared by several services.** The templates are unchanged,
+  the settings class above included — it is already this component's own. What changes is where its
+  prefix comes from: no longer one service's stem but the shared package's own (`MYSCHEMA_`), because
+  every service now reads the same variables and none of them owns the component. It also gains its own
+  migration command run from its own directory, and a standing restriction that the services importing
+  it define no table of their own (`flat-monorepo`).
 
 ## Rules
 
@@ -425,10 +458,14 @@ it, run from that same place.
     shares.** A random identifier scatters rows inserted together across the index for no benefit, and a
     database-side default means the writer cannot know the id it just created without reading it back.
     One table diverging onto a different scheme splits the schema's id policy in two.
-14. **Engines, sessions and connection settings are reached through factories and passed as arguments
-    below the process definition.** Nothing here builds them at import time — an object constructed at
-    module scope makes merely importing the package fail wherever the environment is incomplete — and
-    nothing in this package reads settings itself.
+14. **This package declares its own connection settings, and engines, sessions and those settings are
+    all reached through factories and passed as arguments below the process definition.** Being a
+    component with configuration of its own, it states that configuration in one settings class beside
+    the package under its own environment prefix (`flat-layered` rule 8) and exposes a factory for it.
+    Nothing here builds a settings object, an engine or a session at import time — an object constructed
+    at module scope makes merely importing the package fail wherever the environment is incomplete — and
+    no module in this package calls either factory: the process definition calls them and hands the
+    values down (`flat-layered` rule 7).
 15. **Where several services share a store, exactly one package owns its schema and its migration
     history, and every other service depends on that package.** Two packages defining tables in one
     database means two migration histories over one schema, and the second one to run decides what the

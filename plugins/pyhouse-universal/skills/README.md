@@ -205,7 +205,7 @@ the project actually calls things, and the environment prefixes `MYAPP_` and `MY
 packages.
 
 **Structural names — replace when the role does not exist.** `ingest/`, `jobs/`, `temporal/`,
-`entrypoints/`, `services/`, `core/` in the flat-layered set are *role names from a worked example*, not
+`entrypoints/`, `services/` in the flat-layered set are *role names from a worked example*, not
 a required vocabulary; `flat-layered` opens with the rule. Create the packages your service's roles
 require, named for those roles, and no others. The canonical hexagonal names — `domain/`,
 `application/`, `infrastructure/` — are the exception: those are the style's own terms and stay.

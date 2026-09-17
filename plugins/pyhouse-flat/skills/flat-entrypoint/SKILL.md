@@ -24,8 +24,8 @@ Every template below is one service, one distribution: `myapp` is this service's
 
 - The architecture family is not settled yet — this may not be a flat-layered service at all →
   `architecture-choice` decides hexagonal versus flat first; everything here assumes flat.
-- The service's own cross-cutting-setup, client and payload modules — `core/`, `services/`, `schemas/`
-  in the worked example → not this skill, use `flat-layered`.
+- The service's own settings and logging modules, its client and payload packages — `settings.py`,
+  `services/`, `schemas/` in the worked example → not this skill, use `flat-layered`.
 - The tables, the write path and the storage class the run function calls → `flat-persistence`.
 - Several services sharing one repository — the member split, the container profiles, the root task
   runner → `flat-monorepo`. A lone service needs none of it.
@@ -114,11 +114,12 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 
-from myapp.core.settings import get_settings
 from myapp.ingest.foo_ingest import run_once
 from myapp.services.foo_client import FooClient
+from myapp.settings import get_settings
 from myapp.storage.engine import get_engine
 from myapp.storage.foo_storage import FooStorage
+from myapp.storage.settings import get_storage_settings
 
 logger = structlog.get_logger()
 
@@ -135,7 +136,7 @@ async def guarded(run: Callable[[], Awaitable[object]]) -> None:
 
 async def main() -> None:
     settings = get_settings()
-    storage = FooStorage(get_engine(settings.database_dsn))
+    storage = FooStorage(get_engine(get_storage_settings().dsn))
     client = FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds)
 
     while True:
@@ -146,6 +147,11 @@ async def main() -> None:
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+**The process definition is the only place a settings factory is called.** It reads each configured
+component's settings — the process's own and the storage package's — and hands concrete values down to
+the client, the storage class and the run function. A component owning its settings class does not give
+a module inside it licence to call that factory (`flat-layered` rules 7 and 8).
 
 **Extract the `try/except` into `guarded`.** The loop's contract is "one failed run does not kill the
 process", and that is the only part worth testing. A `try/except` written inline inside `while True`
@@ -298,7 +304,7 @@ stream that was meant to resume.
 19. **Progress reporting goes through a guarded helper, never the framework call directly.** The same
     body is called from a plain loop and from its own test, where the raw call raises because there is
     no framework context — the guard is what lets the body keep one shape under every trigger. **The
-    helper is a module of the service's own cross-cutting-setup package** — `core/` in the worked
+    helper is one named module at the root of the service's own package** — `durable.py` in the worked
     example — and it is the one module outside the framework-wrapper package allowed to import the
     framework, which is why the architecture firewall's allow-list names it (`flat-layered` rule 9,
     `test-architecture-rule`). Where several services share one repository it is promoted to a shared

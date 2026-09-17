@@ -18,9 +18,9 @@ packages they all depend on. Run once per repository; adding the Nth service aft
   members.
 - Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill, use
   `flat-persistence` — this skill only creates the empty `packages/myschema/` shell.
-- Adding one service's internal role-package layout — cross-cutting setup, clients, run functions;
-  `core/`, `services/`, `ingest/`, `jobs/` in `flat-layered`'s worked example → not this skill, use
-  `flat-layered`.
+- Adding one service's internal layout — the cross-cutting setup modules at its package root, its
+  clients, its run functions; `settings.py`, `services/`, `ingest/`, `jobs/` in `flat-layered`'s worked
+  example → not this skill, use `flat-layered`.
 - Choosing a service's trigger — a loop, a cron entry or a timer by default, durable execution only
   once it is earned → `flat-entrypoint`.
 - Building a single standalone service with no sibling services and no shared store → not this skill;

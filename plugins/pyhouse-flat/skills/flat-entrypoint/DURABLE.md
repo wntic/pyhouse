@@ -93,10 +93,11 @@ import asyncio
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from myapp.core.settings import get_settings
 from myapp.services.foo_client import FooClient
+from myapp.settings import get_settings
 from myapp.storage.engine import get_engine
 from myapp.storage.foo_storage import FooStorage
+from myapp.storage.settings import get_storage_settings
 from myapp.temporal.activities import FooActivities
 from myapp.temporal.workflows import FooIngestWorkflow
 
@@ -110,7 +111,7 @@ async def main() -> None:
     )
     activities = FooActivities(
         FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds),
-        FooStorage(get_engine(settings.database_dsn)),
+        FooStorage(get_engine(get_storage_settings().dsn)),
     )
     worker = Worker(
         client,
@@ -125,8 +126,8 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**Connection settings carry no defaults.** The address and namespace are required fields on the settings
-class, like the datastore's connection string. A default would let a deployment that forgets them connect
+**Connection settings carry no defaults.** The address and namespace are required fields on the process's
+own settings class, like the connection string on the storage package's. A default would let a deployment that forgets them connect
 silently to the wrong cluster or namespace instead of failing at startup.
 
 **Task queue names are code, not configuration.** `TASK_QUEUE` is a module constant that the schedule
@@ -228,10 +229,11 @@ from the body's loop.
 
 The body is **also called directly** — by its own test and by a plain loop entrypoint — so it cannot call
 `activity.heartbeat()` unguarded: outside an activity context that raises. The guarded helper lives in
-the service's own cross-cutting-setup package, so the body keeps one shape under both triggers:
+one named module at the root of the service's own package, so the body keeps one shape under both
+triggers:
 
 ```python
-# myapp/core/durable.py
+# myapp/durable.py
 from temporalio import activity
 
 
@@ -246,7 +248,7 @@ def heartbeat(*details: object) -> None:
 Then, in the run function:
 
 ```python
-from myapp.core.durable import heartbeat
+from myapp.durable import heartbeat
 
 ...
     inserted += await self._flush(batch)
