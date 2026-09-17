@@ -95,8 +95,9 @@ a settings library.
 `db/`.** The tech token is:
 
 - a repository's **store kind** — the kind of the datastore it sits on; with no datastore named, the
-  implicit single `postgres` store. Relational repositories, their write-once table, and the shared
-  engine / `session_factory` / `metadata.py` bootstrap all sit under `infrastructure/postgres/`
+  project's single relational store under whatever kind it is named (block B: a project has at most one
+  relational kind). Relational repositories, their write-once table, and the shared engine / session
+  factory / shared-metadata bootstrap all sit under `infrastructure/<relational-kind>/`
   (`repositories/`, `tables/`).
 - a non-relational datastore's **kind** — `infrastructure/<kind>/`, one directory per kind the project
   actually uses, holding `connection.py` (the `create_<name>_client` factory) and its settings. The kind
@@ -228,17 +229,25 @@ subpackage, and the provider that injects it is wired in the one shared `contain
 
 **The shared substrate exists once, as the union of the contexts.** Per-context artifacts — everything
 under `domain/<subdomain>/` and `application/<subdomain>/`, a context's repositories and adapters under
-their tech subpackage, its routers and per-resource schemas — are per context. These are **one each for
-the whole app**, and writing them per context would clobber the other context's contributions:
+their tech subpackage, its entrypoint modules and per-resource schemas — are per context. These are
+**one each for the whole app**, and writing them per context would clobber the other context's
+contributions. **Each entry below exists only where the app has the thing it names** — the rule is the
+union, not the list, so an app with no relational store carries no relational bootstrap row and a
+worker- or CLI-only app carries no HTTP ones; whatever the app does have, it has once:
 
 - `domain/exceptions.py` — the single catalog is the union of every context's exceptions, deduped by
   name; two contexts both declaring `ValidationError` collapse to one.
-- `infrastructure/postgres/` bootstrap (engine, `session_factory`, `metadata.py`) and the single
-  `DbSettings` — one relational substrate; a `DbSettings` or a `main` datastore named in several contexts
-  collapses to one, deduped by name and environment prefix.
-- `restapi/main.py` — one app shell, including **every** context's router.
-- `restapi/error_handler.py`, `restapi/schemas/errors.py`, `restapi/dependencies.py` — one each. Shared
-  dependencies are used by every context that needs them, not only the one that introduced them.
+- the relational bootstrap under `infrastructure/<relational-kind>/` (engine, session factory, shared
+  metadata) and the single relational settings class — one relational substrate; that settings class, or
+  a datastore named in several contexts, collapses to one, deduped by name and environment prefix. Only
+  where a relational store backs a repository at all.
+- **the shell of each entrypoint package the app has** — one per entrypoint kind, registering **every**
+  context's contribution to it: `restapi/main.py` includes every context's router, and a worker's or a
+  CLI's shell registers every context's consumers or commands the same way.
+- **each entrypoint package's cross-cutting modules** — failure rendering, shared dependencies, shared
+  error schemas — one each per entrypoint package, never one per context, and used by every context that
+  needs them rather than only the one that introduced them. Under the HTTP binding that is
+  `restapi/error_handler.py`, `restapi/schemas/errors.py` and `restapi/dependencies.py`.
 - `containers.py` — ONE composition root, binding every context's classes.
 - `pyproject.toml` — the substrate plus the union of every context's packages (`hex-project-setup`).
 

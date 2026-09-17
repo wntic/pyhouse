@@ -162,13 +162,9 @@ adapter the same way. Mechanics: `hex-architecture`.
   (rule 4).
 - Spec changes a constraint name → stop, that is a breaking change; the table, the repository's
   translator and the revision all change in the same commit.
-- About to pass a SQL expression to an index or check constraint as a bare string → stop, a bare string
-  is a column NAME; see `TABLE.md` — it raises at table-construct time with lint and type-check green.
 - Spec asks the repository to commit inside the unit-of-work-managed form → stop, that breaks atomicity.
 - Spec asks the repository to log → stop, a repository never logs; the central error handler or the
   calling handler owns that (`python-style`).
 - Spec asks for id generation inside the repository → stop, the application handler generates ids.
 - Spec includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision file; this
   skill covers DDL only.
-- A composite unique constraint or index is being added without an explicit name → stop, the convention
-  interpolates only the first column and two constraints collide under one name.

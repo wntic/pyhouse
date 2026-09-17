@@ -1,7 +1,7 @@
 ---
 name: hex-wiring
-description: Use when adding a binding in `containers.py` or an env-backed settings class — dishka `Provider` classes, binding `Scope`, the `create_container` composition root and its declaration order, and the `pydantic-settings` class with its env prefix, `.env` and `SecretStr`. The class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate and toolchain are `hex-project-setup`, not runtime wiring.
-paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
+description: Use when adding a binding in `containers.py` or an env-backed settings class — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and the settings class owning one integration's env namespace, its secret fields and its derived values. Bound here to dishka and pydantic-settings, with other DI and settings libraries mapped under `## Other bindings`. The class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate and toolchain are `hex-project-setup`, not runtime wiring.
+paths: ["**/containers.py", "**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
 # Hex — Wiring
@@ -104,6 +104,16 @@ the template does fix is that the timeout is a **settings field**, read once by 
 injected — never a constant hardcoded inside the adapter. Whether it carries a default at all is rule 1
 and rule 2's question: default it only if one value is safe for every deployment, and make it required
 otherwise.
+
+### How this binding spells the settings obligations
+
+Three `model_config` keys are mandatory **under pydantic-settings**, and each is one obligation from
+`### Rules — settings`: `env_prefix` declares the class's env namespace; `env_file` points at the
+project's dotenv file, so local development reads it while production injects real environment and the
+file simply is not there; and `extra="ignore"` keeps the namespace non-strict, without which a
+neighbouring variable in it crashes startup. `SecretStr` is this binding's non-printing secret type and
+`.get_secret_value()` its unwrap; `@computed_field @property` is where a derived value is computed on
+the object; `@field_validator` is where normalization and rejection are written.
 
 ### Explicit settings values for tests
 
@@ -233,6 +243,26 @@ to the repository call that opened it or to the unit of work, never to the compo
 
 ## Other bindings
 
+### Settings
+
+`### Rules — settings` is what a settings library has to satisfy, and none of those rules names one.
+What changes between libraries is only where each obligation is written.
+
+- **`environ-config`, `dynaconf`, or attrs plus `os.environ`.** The env namespace becomes that library's
+  own prefix argument, a secret field becomes its secret wrapper — or a `str` behind a `__repr__` that
+  refuses to print it — a derived value becomes an ordinary read-only property on the settings class, and
+  a validator becomes that library's converter or validator hook. Unchanged: one class per integration,
+  one prefix per class, a required field with no default, no default on a secret, construction only in
+  the composition root, and no environment read anywhere else.
+- **A hand-rolled settings module.** A frozen dataclass with a `from_env()` classmethod that reads each
+  variable, raises on a missing required one, wraps each secret, and exposes derived values as
+  properties. The obligations are identical; what the library was doing for free — the missing-value
+  error, the type coercion, the non-strict namespace — becomes a few lines written once. A secret still
+  gets a wrapper type rather than a bare `str`, because "keeps itself out of reprs and logs" is the
+  obligation, not the library's class.
+
+### Dependency injection
+
 Both libraries below are actively maintained; this is a fit decision, not a liveness one. The honest
 counterweights to the primary binding: `dependency-injector` is far more widely known, and `dishka`
 requires Python 3.10 or newer — which the union type syntax used throughout this catalogue already does.
@@ -293,29 +323,36 @@ salient name; resist it and stem on the deployable.
 
 ### Rules — settings
 
-**All three `model_config` keys are mandatory:** `env_prefix` set to the deployable's stem plus this
-integration's name, `MYAPP_DB_` in the template above; `env_file=".env"`, so
-local dev reads the file while production injects real environment and the file simply is not there; and
-`extra="ignore"`, without which a stray env var in the namespace crashes startup.
+**A settings class owns one env namespace, and that namespace is non-strict.** Every field it reads is
+prefixed with the deployable's stem plus this integration's name — `MYAPP_DB_` in the template above —
+and a variable inside the namespace that the class does not declare must **not** fail startup: the
+process environment is shared with the deployment's own variables and with every other settings class,
+so strictness there turns an unrelated variable into an outage. Where the project also keeps a local
+dotenv file for development, the class reads it when it is present and the real environment when it is
+not, so one class serves both without a branch.
 
 1. **A required field has no default.** A missing value fails loudly the first time the composition root
    builds the settings object, before any request is served.
 2. **An optional field has an inline default**, and the default must be safe for a production-like setup.
 3. Field typing → `python-style`.
 4. **Engine-pool fields are relational-only, and their sizes are the deployment's.** `port`,
-   `pool_size`, `max_overflow`, `pool_pre_ping`, `echo` and a `dsn` computed field belong to the
+   `pool_size`, `max_overflow`, `pool_pre_ping`, `echo` and a computed connection string belong to the
    relational template, with the numbers set from the deployment rather than copied. A non-engine
    integration omits them entirely; carrying them is dead config copied from a database class.
-5. **`SecretStr` for any value that must not appear in a log, a repr or a traceback** — passwords, API
-   keys, signing secrets, JWT keys.
+5. **A value that must not appear in a log, a repr or a traceback carries a type that keeps it out of
+   them** — passwords, API keys, signing secrets, JWT keys. A bare `str` is printed by every default
+   repr in the program, so the type is what makes disclosure impossible rather than merely discouraged.
 6. **Never default a secret.** A missing secret env var must crash the process at startup.
-7. **`.get_secret_value()` is called only at the point of use** — inside a `@computed_field` like `dsn`,
-   or when constructing an SDK client. Follow `python-style` for logging and output.
-8. **Derived values live in `@computed_field @property`** — DSNs, composite URLs, normalized strings.
-    Adapters consume the computed value, not the parts.
+7. **A secret is unwrapped only at the point of use** — inside the derived value that assembles a
+   connection string, or when constructing an SDK client. Never into a local, a log field or an
+   intermediate string. Follow `python-style` for logging and output.
+8. **A value assembled from other fields is computed on the settings object, never reassembled by its
+    consumers** — connection strings, composite URLs, normalized strings. Every consumer reads the
+    computed value, so one place decides how the parts go together and a change to that recipe is one
+    edit rather than a search.
 9. **Two integrations do not share fields by importing one settings class from another.** Each is
     self-contained; copy the field if both genuinely need it.
-10. **`@field_validator` for two purposes only:** normalization, accepting an env-friendly form and
+10. **Field validation exists for two purposes only:** normalization, accepting an env-friendly form and
     storing the canonical one (unescaping `\\n` in a multi-line key); and rejection, refusing a value
     that would cause silent misbehaviour (an allowlist of JWT algorithms). Validation messages should be
     clear — they surface at startup, where stack traces get read.
@@ -365,8 +402,9 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ### Settings lifecycle in the composition root
 
-- Each `*Settings` is process-lifetime, built by a factory that constructs it with no arguments;
-  Pydantic reads env in `__init__`.
+- Each `*Settings` is process-lifetime, built by a factory that constructs it with no arguments — the
+  environment is read during construction, so the factory passes nothing and a missing required variable
+  fails there.
 - A consumer that needs the whole settings object declares it as a constructor parameter and receives it
   by type.
 - A **tunable value object** that needs a single field gets a factory of its own, which reads the field
@@ -386,11 +424,12 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ## Inlined typing / import rules
 
-- `from pydantic import SecretStr, computed_field` — add `field_validator` to that line **only when the
-  class defines one** (settings rule 10); an unused import is an F401.
-- `from pydantic_settings import BaseSettings, SettingsConfigDict`.
+- **Under the pydantic-settings binding:** `from pydantic import SecretStr, computed_field`, adding
+  `field_validator` to that line **only when the class defines one** (settings rule 10) — an unused
+  import is an F401 — plus `from pydantic_settings import BaseSettings, SettingsConfigDict`. Another
+  settings library imports its own names; what carries over is that each is imported only where used.
 - Full annotations on every field and validator (`python-style`). **Booleans are Python types**, not
-  strings — Pydantic parses `"true"`, `"1"`, `"yes"` correctly. **Numerics are real types**:
+  strings — a settings library coerces `"true"`, `"1"`, `"yes"` for you. **Numerics are real types**:
   `port: int`, never `str`. **Optional is `T | None = None`**, never `T = ""`.
 
 - **A factory's return annotation is the binding's type**, and it is the whole contract: `-> DbSettings`
@@ -432,6 +471,9 @@ package member. For the classes it imports, follow `python-packaging`.
 - Spec asks to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
 - Spec asks the composition root to hand out a unit of work → stop, it hands out the factory callable;
   the unit of work's lifetime is the handler's `async with` (`hex-patterns`).
-- Spec asks for a per-request session binding so a repository can be session-injected outside a unit of
-  work → stop, nothing would own the commit; use the standalone repository form (`hex-persistence`) or a
-  unit of work (`hex-patterns`).
+- Spec asks the composition root to bind a store connection or transaction handle per operation, so a
+  repository can be injected with one outside a unit of work → stop, nothing would then own the commit;
+  use the standalone repository form, which opens and owns its own (`hex-persistence` for a relational
+  store, `hex-store-repository` for a client-style one), or a unit of work (`hex-patterns`). A store
+  whose client is the connection and has nothing to commit is bound at process lifetime, not per
+  operation.

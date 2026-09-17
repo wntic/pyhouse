@@ -291,7 +291,8 @@ For package wiring, see `python-packaging`; for infrastructure placement, see `h
 
 ## Hard stops
 
-- Spec asks the adapter to talk to Postgres / SQLAlchemy / Alembic → stop, use `hex-persistence`.
+- Spec asks the adapter to carry relational aggregate CRUD — a table, the statements against it and the
+  migration that ships it → stop, that is a repository and not a capability; use `hex-persistence`.
 - Spec asks the adapter to inherit from `ICanX` explicitly → stop, structural subtyping is the contract.
 - Spec asks the adapter to log → stop, adapters do not log; the central error handler owns failure logs.
 - Spec asks the adapter to retry, cache, or batch internally → stop, configure that on the client where

@@ -49,7 +49,7 @@ class IFooRepository(Protocol):
     async def delete(self, id: UUID) -> None: ...
 ```
 
-### Capability protocol — async (the default)
+### Capability protocol — async (the default in an event-loop program)
 
 ```python
 from collections.abc import Sequence
@@ -120,8 +120,13 @@ own subdomain package (`domain/auth/`, `domain/observability/`).
 
 ### Repository protocol
 
-1. **Every method is `async`.** A repository method reaches a store once implemented, without exception;
-   a sync signature forces every future adapter to either block the event loop or break the contract.
+1. **Every method carries the same mode, and the mode is the program's.** A repository method reaches a
+   store, so in a program that runs an event loop it is `async` — there a sync signature forces every
+   future adapter to either block the loop or break the contract. A program that runs no event loop — a
+   synchronous batch job, a single-command entrypoint that returns — declares the port sync throughout,
+   and the templates above are the async mode. What is not negotiable is **uniformity within one port**:
+   never a mix, because the mode is part of every signature an adapter and a caller must match, and
+   changing it later changes both sides at once.
 2. **Keyword-only arguments for `list`, `count` and any multi-parameter method**; positional only on a
    single-parameter lookup such as `get_by_id(id)`. Two positional parameters of the same type are
    silently swappable at the call site and no checker catches it — a one-parameter lookup cannot be.
@@ -137,9 +142,12 @@ own subdomain package (`domain/auth/`, `domain/observability/`).
 1. **One method is the default; two is the maximum**, and only when the pair is one reversible action —
    `upload` plus `delete` on the same key. Three or more means the port has stopped being one action:
    split it, or model it as a repository.
-2. **Async unless the operation is pure CPU.** Anything that may do IO is `async`; sync is reserved for
-   work that provably cannot block — cryptographic, parsing and encoding helpers. Getting this wrong is
-   only discovered under load, because the sync port cannot be widened without changing every caller.
+2. **In a program that awaits its IO, async unless the operation is pure CPU.** Anything that may do IO
+   is `async`; sync is reserved for work that provably cannot block — cryptographic, parsing and
+   encoding helpers. Getting this wrong is only discovered under load, because the sync port cannot be
+   widened without changing every caller. A program that runs no event loop has no such split — every
+   method is sync — and the split returns the moment one is introduced, which is why the distinction is
+   worth recording even there (`hex-domain-service` states the same condition for a service method).
 
 ## Inlined typing / import rules
 

@@ -1,7 +1,7 @@
 ---
 name: hex-project-setup
 description: Use when laying a hexagonal project down once — the `pyproject.toml` dependency substrate by role, the ruff and mypy configuration, and the initial Alembic bootstrap the revision chain cannot start without. Never per feature — the per-change migration revision is `hex-persistence`, runtime DI bindings and settings classes are `hex-wiring`.
-paths: ["**/pyproject.toml", "**/alembic.ini", "**/alembic/**", "**/migrations/**"]
+paths: ["**/pyproject.toml", "**/migrations/**", "**/ruff.toml", "**/mypy.ini", "**/alembic.ini", "**/alembic/**"]
 ---
 
 # Hexagonal Project Setup — substrate, toolchain, migration bootstrap
@@ -27,10 +27,18 @@ it recurs per feature. The derivation rules that do recur are `hex-conventions`;
 
 ## A. Stack substrate (library ROLES, no versions)
 
-`pyproject.toml` carries the framework substrate plus whatever each infrastructure adapter needs.
+`pyproject.toml` carries the core substrate plus whatever each entrypoint package and each
+infrastructure adapter needs.
 
-- **Framework substrate** (always present in a layered web app): the web framework and its server, the
-  validation library, the settings library, the dependency-injection library, and the structured logger.
+- **Core substrate** (always present, whatever the program is): the settings library, the
+  dependency-injection library, and the structured logger. Every hexagonal program reads configuration,
+  composes its adapters at one root, and logs — a worker, a batch job and a single-command CLI included.
+- **Entrypoint substrate** (whatever the entrypoint packages the project actually has require, and
+  nothing else): an HTTP entrypoint brings its web framework, that framework's server, and the
+  validation library its wire schemas are written in; a queue or scheduled entrypoint brings its broker
+  or scheduler client; a CLI entrypoint brings its argument parser, which may be the standard library
+  and therefore nothing at all. A project with no HTTP entrypoint carries no web framework and no
+  server — the same trigger rule as a feature extra, applied to the entrypoint layer.
 - **Relational bootstrap** (only when a relational store backs a repository): the ORM/Core library with
   its async extra, the async driver, and the migration tool.
 - **Feature-triggered extras** — a package required only because some endpoint or adapter uses a specific
@@ -38,8 +46,10 @@ it recurs per feature. The derivation rules that do recur are `hex-conventions`;
   multipart library at app-construct time for any form route, and without it constructing the app raises
   — which lint, type-check and the unit tier do **not** catch. An app with no such endpoint must not
   carry it.
-- **Dev** (always present): the test runner and its async plugin, the linter, the type checker, the
-  container library for integration tests, and an HTTP test client.
+- **Dev** (always present): the test runner and its async plugin, the linter and the type checker.
+  Triggered alongside them: the container library, once an integration tier drives a real backing
+  service, and a transport test client for each entrypoint the suite drives over its own transport — an
+  HTTP test client belongs to a project with HTTP routes to call.
 - **Test-bootstrap extras** follow the same trigger rule as feature extras: a suite that mints
   asymmetric-signature tokens needs the crypto library that generates the keypair; a project verifying
   symmetric or opaque tokens generates no keypair and must **not** carry it. A dev dependency nothing
@@ -93,10 +103,14 @@ commands read, because it is house style and has no other home.
   - Per-file, `__init__.py` ignores the two wildcard-import warnings, because the re-export contract in
     `python-packaging` requires wildcards. **This is the only sanctioned suppression on a content
     module** — never an inline ignore comment there.
-  - **One file is not a content module: Alembic's `env.py`.** It sits outside `src/`, ships in no wheel,
-    and imports the tables package purely for its registration side effect, so the `# noqa: F401` on
-    that line is sanctioned and required — block C's template carries it. Delete it and the linter
-    deletes the import, and migration autogeneration silently stops seeing the schema.
+  - **One kind of file is not a content module: a module outside the packaged tree whose import exists
+    for a registration side effect.** It sits outside `src/`, ships in no wheel, and imports a package
+    purely so that importing it registers something — so the unused-import suppression on that line is
+    sanctioned and required there, and nowhere else. Delete it and the linter deletes the import, and
+    whatever the import was registering silently stops being registered. The standing case is the
+    migration tool's environment module importing the tables package (`migrations/env.py` under the
+    binding in block C, which carries the `# noqa: F401`), where losing it makes autogeneration stop
+    seeing the schema.
 - **`line-length` is the project's own parameter. The rule is the decision, not the number.** Settle it
   when the project is laid down, **write it in the root `pyproject.toml` explicitly**, and never argue it
   again. A decision invisible in the config has not been made, and a later reader cannot tell a chosen 88
@@ -255,7 +269,8 @@ formatter count taken over `src tests` alone is not the count the full check pro
 
 ## Rules
 
-1. Select dependencies by block A's substrate and feature triggers; include an SDK only with its adapter.
+1. Select dependencies by block A's core substrate plus its entrypoint, store and feature triggers;
+   include an SDK only with its adapter.
 2. Keep substrate declarations unversioned; justify any SDK floor with the documented breaking boundary.
 3. Declare development dependencies in the group table the package manager installs by default, never a
    deprecated tool-specific one, and lay the project down in the packaged `src/` layout from the first
@@ -285,8 +300,9 @@ formatter count taken over `src tests` alone is not the count the full check pro
   nothing imports is a stray package.
 - An inline lint-ignore or type-ignore comment is being added to a content module → stop, the only
   sanctioned suppressions are the `__init__.py` wildcard per-file ignore and a per-package missing-stub
-  override. Alembic's `env.py` is not a content module: its `# noqa: F401` on the tables import is
-  sanctioned, and removing it breaks migration autogeneration.
+  override. A registration-side-effect import on a non-content module outside the packaged tree is the
+  one exception — the migration tool's environment module is that case (`migrations/env.py` under
+  Alembic), where removing the suppression breaks migration autogeneration.
 - `line-length` is being left unwritten → stop, write the number; an unwritten decision has not been
   made.
 - `line-length` is being changed mid-feature on an established project → stop, it reformats the tree;
