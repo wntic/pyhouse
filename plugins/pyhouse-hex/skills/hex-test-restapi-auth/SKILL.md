@@ -129,10 +129,13 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 ### The discovered probe
 
 15. **Protected-route detection is structural, not by name.** Enumerate the operations the framework
-    itself resolved — not a filter over the app's raw route list, which on a framework that defers
-    router inclusion finds zero operations, measured — and identify the auth dependency by **callable
-    identity**, importing it, rather than by matching its function name as a string. A renamed
-    dependency then breaks the import, which is loud; a name match would silently stop finding it.
+    itself resolved — never a hand-maintained list, and never a path assembled by hand from a router
+    prefix and a decorator argument — and probe each one under the path a client must actually request.
+    Identify the auth dependency by **callable identity**, importing it, rather than by matching its
+    function name as a string: a renamed dependency then breaks the import, which is loud, where a name
+    match would silently stop finding it. *FastAPI binding:* the resolved operations are `app.routes`
+    filtered to `APIRoute` — `include_router` expands its router onto the app at include time, prefix,
+    router-level dependencies and all — and the requestable path is each route's `path_format`.
 16. **The probe substitutes path placeholders with valid-shaped dummies, by pattern and never by a
     name list.** A test for `GET /foos/{id}` with literal `{id}` in the URL hits the router as 404
     instead of triggering auth. UUID-shaped placeholders (`00000000-...`) route correctly and the
@@ -219,7 +222,7 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 - Spec writes the probe against a hardcoded URL with literal placeholders (`/foos/{id}`) → stop,
   substitute UUID-shaped dummies so the route resolves before the auth dependency runs.
 - Spec uses string matching to identify "protected" routes (`if "auth" in route.name`) → stop, walk the
-  route contexts and compare `context.dependant.dependencies` callables by identity.
+  resolved routes and compare `route.dependant.dependencies` callables by identity.
 - Spec asks to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
   returns 401 unauth") → stop, the parametrized probe already covers it via discovery; add the endpoint
   and it joins the suite automatically.

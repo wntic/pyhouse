@@ -55,15 +55,16 @@ This lives at the **unit** layer, not under `tests/integration/`, on purpose: `c
 
 ```python
 from fastapi import FastAPI
-from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
+from fastapi.routing import APIRoute
 
 # FastAPI publishes a `422` on any operation whose input it validates — a path param, a query
 # param, a body — whether or not the decorator declared one, and the decorator side of this
 # comparison cannot see it. Without this exemption the test reds on every route that takes any
-# input at all: measured on a live app, `GET /foos/{id}: decorator=[401, 404] spec=[401, 404,
-# 422] extra=[422]`, while the parameterless route on the same app matched. So it is the one code
-# allowed to stand in the document undeclared, and the only one. Declaring it anyway stays the
-# house style (`hex-restapi-endpoint`): a declared `422` is published and matches either way.
+# input at all: on a live app, `GET /foos/{id}: decorator=[401, 404] spec=[401, 404, 422]
+# extra=[422]` and `POST /foos: decorator=[409] spec=[409, 422] extra=[422]`, while the
+# parameterless `GET /foos` on the same app matched exactly. So it is the one code allowed to
+# stand in the document undeclared, and the only one. Declaring it anyway stays the house style
+# (`hex-restapi-endpoint`): a declared `422` is published and matches either way.
 _FRAMEWORK_VALIDATION_CODE = 422
 
 def _declared_codes(app: FastAPI) -> dict[tuple[str, str], set[int]]:
@@ -79,30 +80,27 @@ def _declared_codes(app: FastAPI) -> dict[tuple[str, str], set[int]]:
             out[(method.upper(), path)] = codes
     return out
 
-def _api_operations(app: FastAPI) -> list[RouteContext]:
-    """Every API operation the app serves, one route context each.
+def _api_operations(app: FastAPI) -> list[APIRoute]:
+    """Every API operation the app serves, one route object each.
 
-    Walked with `iter_route_contexts` and NOT by filtering `app.routes` for
-    `APIRoute`: a FastAPI that defers `include_router` leaves a router
-    placeholder in `app.routes` and not one `APIRoute`, so the filtering walk
-    finds zero on a live version of the framework — measured. The context walk
-    is the one FastAPI's own OpenAPI generator uses, and it finds the
-    operations whether the framework expanded the routers or not. It also
-    reports each route under its EFFECTIVE path — the one the document keys
-    on — so an include-time prefix does not desynchronise the two sides."""
-    return [
-        context
-        for context in iter_route_contexts(app.routes)
-        if isinstance(context.route, APIRoute)
-    ]
+    `include_router(...)` expands its router at include time — it copies each
+    of the router's routes onto the app — so by the time `create_app` returns,
+    `app.routes` holds the operations themselves and not router placeholders.
+    Everything in it that is not an `APIRoute` (the documentation routes, a
+    mount, a plain Starlette route) advertises no operation and drops out.
 
-def _expected_codes_from_route(context: RouteContext) -> set[int]:
-    """The set of error codes the route's decorator advertised. FastAPI
-    stores them on `responses` as the dict produced by `error_responses(...)`.
-    `responses` is a route internal mypy may not see, the same way `dependant`
-    is — reach it via `getattr`; present at runtime."""
-    responses = getattr(context, "responses", {})
-    return {code for code in responses if isinstance(code, int) and code >= 400}
+    Key on `path_format` and not `path`: `path_format` is the string the
+    document is keyed on, and the two diverge the moment a route uses a path
+    converter — `/files/{file_path:path}` is published as `/files/{file_path}`.
+    Either already carries the include-time prefix; only one of them matches
+    the document on every route."""
+    return [route for route in app.routes if isinstance(route, APIRoute)]
+
+def _expected_codes_from_route(route: APIRoute) -> set[int]:
+    """The set of error codes the route's decorator advertised. FastAPI keeps
+    the dict `error_responses(...)` produced on the route's own `responses`,
+    keyed by status code, and `include_router` carries it across unchanged."""
+    return {code for code in route.responses if isinstance(code, int) and code >= 400}
 
 async def test_every_route_advertises_what_its_decorator_declared(
     real_app: FastAPI,
@@ -110,22 +108,21 @@ async def test_every_route_advertises_what_its_decorator_declared(
     operations = _api_operations(real_app)
     # The failure this file must not have is silence: a walk that discovers no
     # operation compares no operation, and `mismatches == []` then passes green
-    # having proved nothing. Measured on a live FastAPI, so this is not a
-    # precaution — it is the shape the previous walk actually degenerated into.
+    # having proved nothing. An app whose routers were never wired, or a walk
+    # filtered on the wrong class, discovers nothing — and nothing is what this
+    # assertion, and only this assertion, tells apart from a clean run.
     assert operations, "no API operation was discovered, so nothing was compared"
 
     declared = _declared_codes(real_app)
     mismatches: list[str] = []
 
-    for context in operations:
-        path = context.path
-        if path is None:
-            continue
-        for method in context.methods or set():  # Starlette types `methods` as set[str] | None
+    for route in operations:
+        path = route.path_format
+        decorator_codes = _expected_codes_from_route(route)
+        for method in sorted(route.methods):
             if method == "HEAD":
                 continue
             spec_codes = declared.get((method, path), set())
-            decorator_codes = _expected_codes_from_route(context)
             missing = decorator_codes - spec_codes
             extra = spec_codes - decorator_codes - {_FRAMEWORK_VALIDATION_CODE}
             if missing or extra:
@@ -238,8 +235,9 @@ async def test_info_endpoint_is_public_and_returns_200(real_app: FastAPI) -> Non
 ## Other bindings
 
 - **Another web framework.** Every rule here survives the swap; two mechanisms do not. The route walk
-  (rule 2) becomes whatever that framework's own document generator iterates, and the exemption of rule 4
-  has to be re-derived by measuring a live app — carrying `422` across because it is written here is how
+  (rule 2) becomes whatever that framework exposes as its list of resolved operations, keyed by whichever
+  attribute on them carries the *published* path — the string its document is keyed on. The exemption of
+  rule 4 has to be re-derived by measuring a live app — carrying `422` across because it is written here is how
   this test starts lying. Reading the CORS origin and the size cap off the running app rather than
   freezing them stays the rule; only the attribute they are read from is the framework's.
 - **A framework that generates no API document.** The cross-check then has nothing to compare against and
@@ -251,9 +249,9 @@ async def test_info_endpoint_is_public_and_returns_200(real_app: FastAPI) -> Non
 Consult `test-principles` for the testing constitution.
 
 1. **Every test discovers its inputs from `real_app`** — never from a hand-written `_endpoints()` / `_EXPECTED` / `RESOURCES` table. The cost of adding a new endpoint must be zero in this directory.
-2. **Walk the routes the way the framework's own document generator does, never a hand-rolled filter over the app's route list.** A filter that keeps only the framework's route class finds *zero* operations on a FastAPI that defers `include_router` — measured — and an empty walk passes green (rule 3). The generator's own walk (`iter_route_contexts(app.routes)`) also reports each route under its EFFECTIVE path, include-time prefix and all, so both sides of a comparison key on the same string.
-3. **A walk that discovers nothing is a failure, not a pass.** Every file here asserts the walk returned operations before comparing them; `mismatches == []` over an empty walk passes green having proved nothing, and that is the shape a previous walk actually degenerated into.
-4. **OpenAPI cross-check compares decorator-declared codes to spec codes.** The `iter_route_contexts(app.routes)` walk of Rule 2 supplies the *key* the two sides meet on — the effective path, include-time prefix and all — and only the key. The decorator side comes off the route context: `responses`, a route internal reached with `getattr`, is FastAPI's authoritative store of what the `responses=error_responses(...)` decorator put there. The document side comes out of `app.openapi()`, read per `(METHOD, path)`; the route context does not carry it. The two are compared exactly **except** for the validation code the framework inserts on its own — FastAPI publishes a `422` on any operation whose input it validates, whether or not the decorator declared one, and the decorator side cannot see it. The template keeps that one code in `_FRAMEWORK_VALIDATION_CODE` and subtracts it from the `extra` set; comparing without the exemption reds every route that takes any input at all, measured. Bounded that way, the test catches decorator mismatches and genuine framework drift both. **Exempt exactly what the framework inserts unasked, and nothing else** — every code added to that exemption is a code this test stops checking, and the list is re-derived per framework by measuring a live app, never copied.
+2. **Walk the app's resolved operations, and key both sides of the comparison on the published path.** The comparison is only a comparison if the walk reports every operation the app serves under the same string the document is keyed on — include-time prefix and all — and if a walk that finds nothing fails rather than passes (rule 3). Never assemble that key by hand out of a router prefix and a decorator argument; the framework already resolved it, and a hand-assembled key drifts the moment a router is nested or re-prefixed. *FastAPI binding:* `include_router` expands its router onto the app at include time, so the resolved operations are `app.routes` filtered to `APIRoute`, and the published path is each route's `path_format` — not `path`, which keeps a path converter's suffix (`/files/{file_path:path}`) where the document publishes `/files/{file_path}`.
+3. **A walk that discovers nothing is a failure, not a pass.** Every file here asserts the walk returned operations before comparing them; `mismatches == []` over an empty walk passes green having proved nothing. An app whose routers are never wired, and a walk filtered on the wrong class, both land there — and the assertion is the only thing between that and a green run.
+4. **OpenAPI cross-check compares decorator-declared codes to spec codes.** The walk of Rule 2 supplies the *key* the two sides meet on — the published path, include-time prefix and all — and only the key. The decorator side comes off the route object itself, from wherever the framework stores what the decorator declared (FastAPI: the route's `responses`, holding the dict `error_responses(...)` produced). The document side comes out of `app.openapi()`, read per `(METHOD, path)`; the route does not carry it. The two are compared exactly **except** for the validation code the framework inserts on its own — FastAPI publishes a `422` on any operation whose input it validates, whether or not the decorator declared one, and the decorator side cannot see it. The template keeps that one code in `_FRAMEWORK_VALIDATION_CODE` and subtracts it from the `extra` set; comparing without the exemption reds every route that takes any input at all. Bounded that way, the test catches decorator mismatches and genuine framework drift both. **Exempt exactly what the framework inserts unasked, and nothing else** — every code added to that exemption is a code this test stops checking, and the list is re-derived per framework by measuring a live app, never copied.
 5. **Each file holds one invariant.** Don't merge `test_cors.py` and `test_request_size_limit.py` even though both are tiny — failures in one don't mask the other, and the file names form the spec.
 6. **CORS test uses an OPTIONS preflight.** Asserting on a GET response's `Access-Control-Allow-Origin` is a softer test; the preflight is the one browsers actually consult.
 7. **Request-size test uses raw bytes**, not JSON-encoded data, to bypass schema validation and hit the middleware directly. Otherwise the response is `422` (validation) before the middleware sees the body.
@@ -274,7 +272,7 @@ Consult `test-principles` for the testing constitution.
 - Spec asks to maintain a hand-rolled list of `(method, path, codes)` to compare against → stop, the whole point is discovery from `real_app` / `app.openapi()`.
 - Spec asks to add a `@pytest.mark.integration` marker → stop, use `test-principles`.
 - Spec asks to fold a per-endpoint test into one of these files → stop, these files hold discovered global properties only; a single endpoint's behaviour belongs to `hex-test-restapi-endpoint`.
-- Spec compares the OpenAPI spec to a hardcoded `_EXPECTED` table → stop, derive expectations from the route context's `responses` so the source of truth is the decorator.
+- Spec compares the OpenAPI spec to a hardcoded `_EXPECTED` table → stop, derive expectations from the route's own `responses` so the source of truth is the decorator.
 - Nothing up-tree builds the app on the test's own infrastructure bindings — the `real_app` fixture under this catalogue's binding, owned by `hex-test-integration-setup` → stop, the suite cannot collect without it. (No authenticated client is consumed here — Rule 8 — so the absence of the auth fixture set does not block this skill.)
 - Spec hardcodes a CORS origin (e.g. `http://localhost:3000`) in `test_cors.py` → stop, read a configured origin off `real_app`'s `CORSMiddleware` and `pytest.skip` when none is configured; never freeze the source app's dev origin or assume `allow_credentials`.
 - Spec hardcodes the request-size limit (e.g. 10 MiB) in `test_request_size_limit.py`, or presumes the middleware is always present → stop, read the cap off the app's `MaxRequestSizeMiddleware` and compute `limit + 1`; `pytest.skip` when no size middleware is declared (it is a per-app `restapi.middlewares` entry, not universal).

@@ -168,42 +168,34 @@ import re
 
 import pytest
 from fastapi import FastAPI
-from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
+from fastapi.routing import APIRoute
 from httpx import ASGITransport, AsyncClient
 
 from myapp.domain.exceptions import UnauthorizedError
 from myapp.restapi.dependencies import get_current_user
 
-def _api_operations(app: FastAPI) -> list[RouteContext]:
-    """Every API operation the app serves, one route context each.
+def _api_operations(app: FastAPI) -> list[APIRoute]:
+    """Every API operation the app serves, one route object each.
 
-    Walked with `iter_route_contexts` and NOT by filtering `app.routes` for
-    `APIRoute`: a FastAPI that defers `include_router` leaves a router
-    placeholder in `app.routes` and not one `APIRoute`, so the filtering walk
-    finds zero on a live version of the framework — measured. The context walk
-    is the one FastAPI's own OpenAPI generator uses, and it finds the
-    operations whether the framework expanded the routers or not.
+    `include_router(...)` expands its router at include time — it copies each
+    of the router's routes onto the app — so `app.routes` holds the operations
+    themselves and not router placeholders. Two things the probe depends on
+    survive that expansion onto the route object: `path_format`, the path a
+    client must actually request (the `include_router(prefix=...)` one, with a
+    path converter's suffix already stripped), and the dependencies that
+    `include_router(..., dependencies=[...])` added, which are inserted into
+    the route's own dependency tree — so router-level auth is seen here."""
+    return [route for route in app.routes if isinstance(route, APIRoute)]
 
-    Two things come with the context and not with the route object: the
-    EFFECTIVE path (the `include_router(prefix=...)` one, which is what a
-    client must request) and the dependencies that `include_router(...,
-    dependencies=[...])` added — so router-level auth is seen here."""
-    return [
-        context
-        for context in iter_route_contexts(app.routes)
-        if isinstance(context.route, APIRoute)
-    ]
-
-def _is_protected(context: RouteContext) -> bool:
+def _is_protected(route: APIRoute) -> bool:
     """A route is protected iff its dependency tree includes `get_current_user`
     or `require_role`. Public routes (info, health, OpenAPI itself) are
     naturally excluded.
 
-    `dependant` is a FastAPI route INTERNAL — not part of the typed public
-    surface, and across FastAPI versions mypy may not see it. Reach it via
-    `getattr` so the test type-checks on whatever version `uv` pins; the
-    attribute is present at runtime."""
-    dependant = getattr(context, "dependant", None)
+    `dependant` is a FastAPI route internal rather than part of its documented
+    surface. Reach it via `getattr` so the test type-checks on whatever version
+    `uv` pins; the attribute is present at runtime."""
+    dependant = getattr(route, "dependant", None)
     for dep in getattr(dependant, "dependencies", []):
         if dep.call is get_current_user:
             return True
@@ -213,23 +205,23 @@ def _is_protected(context: RouteContext) -> bool:
 
 def _protected_routes(app: FastAPI) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
-    for context in _api_operations(app):
-        path = context.path
-        if path is None or not _is_protected(context):
+    for route in _api_operations(app):
+        if not _is_protected(route):
             continue
-        for method in context.methods or set():  # Starlette types `methods` as set[str] | None
+        for method in sorted(route.methods):
             if method == "HEAD":
                 continue
-            out.append((method, path))
+            out.append((method, route.path_format))
     return out
 
 async def test_the_walk_found_protected_routes_to_probe(real_app: FastAPI) -> None:
     """The net under the parametrized probe below, and the reason it is a test
-    of its own: an empty parameter set does not fail, it SKIPS — measured,
-    pytest reports `got empty parameter set` and the run stays green. So a walk
-    that discovers nothing takes this whole file out of the run in silence, and
-    the silence is indistinguishable from an app with no protected routes. This
-    net runs whatever the walk returns, and it tells the two apart."""
+    of its own: an empty parameter set does not fail, it SKIPS — pytest's
+    `empty_parameter_set_mark` defaults to `skip`, so it reports `got empty
+    parameter set` and the run stays green. A walk that discovers nothing
+    therefore takes this whole file out of the run in silence, and the silence
+    is indistinguishable from an app with no protected routes. This net runs
+    whatever the walk returns, and it tells the two apart."""
     assert _api_operations(real_app), "no API operation was discovered, so nothing was probed"
     assert _protected_routes(real_app), (
         "API operations were discovered but none of them is protected, in an app that "
