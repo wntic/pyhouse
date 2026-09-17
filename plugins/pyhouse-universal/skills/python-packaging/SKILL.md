@@ -66,7 +66,13 @@ class FooClient:
 
 ### When a module needs a class at all
 
-A module is already a namespace. A class earns its place when it **holds state its methods share and
+**A class that declares a type earns its place by being one.** A `Protocol`, an enum, an exception
+class, a frozen record — its job is to give a shape or a contract a name the type checker can see, and
+it needs no state and often no methods at all. Nothing in the rest of this section applies to it, and a
+`Protocol` with no `__init__` and nothing but `...` bodies is exactly right.
+
+Everything below is about **a class that holds behaviour**, where the question is real. A module is
+already a namespace, so such a class earns its place when it **holds state its methods share and
 callers should not manage** — a connection, a base address, a compiled ruleset, injected collaborators.
 That is the whole test, and it is about state, not about size or subject matter.
 
@@ -74,9 +80,10 @@ With no such state the module is the unit and its functions are its interface. A
 this payload, normalise this record, select these rows — is that shape, and wrapping it in a class
 produces an object callers construct only to discard.
 
-The tells that a class is the wrong shape: there is no `__init__`, or it takes nothing; every method
-could be a `@staticmethod`; no method reads an attribute the constructor set. The tells that it is the
-right one: two or more methods read the same constructor-set attributes; the object is injected
+The tells that a behaviour class is the wrong shape: there is no `__init__`, or it takes nothing;
+every method could be a `@staticmethod`; no method reads an attribute the constructor set. Read them
+only after deciding the class is not declaring a type — they describe a `Protocol` perfectly, and a
+`Protocol` is not the thing they are about. The tells that the shape is right: two or more methods read the same constructor-set attributes; the object is injected
 somewhere; it has a lifecycle to open and close.
 
 **A helper that does not need `self` is a module function, not a private method.** Putting it at module
@@ -321,8 +328,10 @@ hand-written imports land in the right block.
 - A new module file with two top-level classes → stop, split it. The only exceptions are the exception
   catalog and a per-resource wire-schema module.
 - A module filename that does not match its class in snake_case → stop, rename the file.
-- A class with no constructor state, whose methods never read an attribute its `__init__` set → stop,
-  the module is already the namespace; these are module-level functions.
+- A class carrying **behaviour** with no constructor state, whose methods never read an attribute its
+  `__init__` set → stop, the module is already the namespace; these are module-level functions. This
+  does not reach a class that declares a type — a `Protocol`, an enum, an exception class or a frozen
+  record is a name for a shape and needs no state to deserve one.
 - A private method that never touches `self` → stop, it is a module-level function, and moving it there
   is what tells the reader it holds no state.
 - A mutable module-level binding — a dict used as a cache, an accumulating list, a registry filled at
