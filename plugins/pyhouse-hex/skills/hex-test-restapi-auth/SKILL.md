@@ -56,6 +56,22 @@ pytest** — on either side of the unit/integration seam:
   substitution that makes a minted token verify against the real app, the discovered unauthenticated
   probe, and the authenticated endpoint forms.
 
+### Binding traps — bearer JWS
+
+The signing algorithm the suite and production must agree on, the `Authorization` header a request
+carries and the RFC-7235 challenge a rejection returns are **this scheme's own** — an opaque token, a
+session cookie and a gateway header have none of the three — so these stops sit with the template that
+names the stack, and they stop wherever this binding is in use.
+
+- Spec uses `HS256` in tests while production uses `RS256` (or vice versa) → stop, the algorithm matches
+  production.
+- Spec writes the bearer header by hand inside a test → stop, use `authed_client(...)` so role, tenant
+  and claim shape are uniform.
+- Spec hardcodes `Authorization: Bearer <literal-jwt>` for "expired token" or "invalid claim" tests →
+  stop, mint the test-specific token via `sign_token(...)` from the helper.
+- Spec freezes the `WWW-Authenticate` challenge to a specific realm (`Bearer realm="myapp"`) → stop, only
+  the scheme is load-bearing; the realm is app-specific.
+
 ## Other bindings
 
 - **Opaque token plus an introspection endpoint** (`hex-restapi-auth`'s first alternative). Rules 1–24
@@ -143,8 +159,8 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     enumerated tuple of parameter names silently stops covering the route that introduces a new one,
     and the probe then passes by not reaching the dependency at all — the exact failure this test
     exists to catch.
-17. **The probe discovers its inputs from the app**, never from a hand-written `_endpoints()` /
-    `_EXPECTED` / `RESOURCES` table. The cost of adding a new endpoint must be zero here.
+17. **The probe discovers its inputs from the app**, never from a hand-maintained route or expectation
+    table. The cost of adding a new endpoint must be zero here.
 18. **An empty discovery is a failure, not a skip.** The companion net test asserts the walk found
     operations *and* found protected ones, because an empty parametrization reports "got empty parameter
     set" and leaves the run green — silence indistinguishable from an app with no protected routes.
@@ -209,12 +225,6 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
   function-scoped because each test's transport must be closed at teardown; the cost is negligible.
 - Spec asks to mock the verifier → stop, the integration test signs a real token against the same
   keypair the verifier validates.
-- Spec uses `HS256` in tests while production uses `RS256` (or vice versa) → stop, the algorithm matches
-  production.
-- Spec writes the bearer header by hand inside a test → stop, use `authed_client(...)` so role, tenant
-  and claim shape are uniform.
-- Spec hardcodes `Authorization: Bearer <literal-jwt>` for "expired token" or "invalid claim" tests →
-  stop, mint the test-specific token via `sign_token(...)` from the helper.
 - Spec uses `AsyncClient(transport=ASGITransport(...))` directly for an authenticated request → stop,
   drive it through `authed_client(...)`.
 - Spec substitutes path placeholders from a fixed list of parameter names rather than by pattern → stop,
@@ -226,8 +236,6 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 - Spec asks to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
   returns 401 unauth") → stop, the parametrized probe already covers it via discovery; add the endpoint
   and it joins the suite automatically.
-- Spec freezes the `WWW-Authenticate` challenge to a specific realm (`Bearer realm="myapp"`) → stop, only
-  the scheme is load-bearing; the realm is app-specific.
 - Spec pins the rejection body code to a literal string (`"UNAUTHORIZED"`) → stop, assert against the
   domain exception's `.code` constant.
 - Spec adds an `authed_client` fixture to the root `tests/conftest.py` → stop, it belongs in

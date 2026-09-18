@@ -312,6 +312,17 @@ flat-test-<artifact>     flat-test-run-function, ...
 
 `flat-layered` keeps its name — it is the style anchor, not an artifact skill.
 
+12. **Run a template's imports before the skill ships.** A reader pastes a template, so every symbol it
+    names has to exist in the library version the template binds — import them and see the names
+    resolve. Nothing else catches this: the checks confirm a skill parses and that the skills it names
+    exist, never that the code inside it runs. A symbol that does not exist is not a typo, it is a
+    template nobody ran.
+13. **An empirical claim names what was measured, or it comes out.** "Measured", "in practice", "this
+    has been hit" are what make a rule credible, so a rule using them states the observation a reader
+    could repeat — what was run, against what, and what came back. Otherwise drop the evidence
+    language and let the rule stand as the obligation it is. A fabricated measurement is worse than no
+    evidence: it is what stops the next reader checking.
+
 ## Ownership — reference, never restate
 
 A rule lives in exactly one skill. Every other skill points at it.
@@ -464,6 +475,10 @@ own frontmatter.
   them first; that channel fails hard on unknown keys.
 - Templates use application-specific names (`Order`, `Material`, `Invoice`) → stop, replace with
   `Foo`/`Bar`.
+- A template imports a symbol nobody ran → stop, import it and confirm the name resolves in the version
+  the template binds; a name that does not exist ships as working code.
+- A rule leans on "measured", "in practice" or "this has been hit" without saying what was observed →
+  stop, state the observation so a reader can repeat it, or delete the evidence language.
 - A skill fails any of the five portability questions → stop, replace what the question flagged with a
   placeholder or delete it; a disclaimer above the example is not a fix.
 - Nothing survives question 5 once the project-bound material is stripped → stop, there is no skill
