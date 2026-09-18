@@ -5,7 +5,7 @@ description: Use when forbidding X in layer Y with a static grep firewall — an
 
 # Test — Architectural Firewall Rule
 
-Each function greps the source tree for a forbidden pattern and asserts the result is empty. Where the file sits follows the shape of the tree, not the architecture family: one distributable puts it at `tests/unit/test_architecture.py`; a repository holding several members puts it at `tests/test_architecture.py` beside them, because its subject is the repository rather than anything in it. The firewall must stay collectable when the tree is broken.
+Each function greps the source tree for a forbidden pattern and asserts the result is empty. What the file holds is wider than its name: every rule here is a property of the *source text* that no runtime test can reach, and most but not all of those are architectural — a ban on `print(` outside the entrypoint is a style rule enforced the same way. The name is the established one for this artifact and is worth keeping; read it as "the static source rules", not as a promise that every rule in the file is about layering. Where the file sits follows the shape of the tree, not the architecture family: one distributable puts it at `tests/unit/test_architecture.py`; a repository holding several members puts it at `tests/test_architecture.py` beside them, because its subject is the repository rather than anything in it. The firewall must stay collectable when the tree is broken.
 
 ## When to use vs. neighbours
 

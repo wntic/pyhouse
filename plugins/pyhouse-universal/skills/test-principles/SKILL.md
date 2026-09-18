@@ -245,6 +245,11 @@ Flat examples:
 - **Test file**: mirror the source file with a `test_` prefix. `application/foos/create_foo_handler.py` → `tests/unit/application/test_create_foo_handler.py`.
 - **Test function**: `test_<rule_being_pinned>` in snake_case. `test_assigns_uuid_and_stores`, `test_duplicate_name_raises_conflict`, `test_partial_update_leaves_unspecified_fields_untouched`. The name **is** the spec line — reading the file's `def test_*` list reads as a list of behaviors.
 - **Flat test files** mirror the source file inside their own member’s tree: `services/myapp/src/myapp/services/foo_client.py` → `services/myapp/tests/unit/test_foo_client.py`.
+- **A test file whose subject is the tree, not a module, is named for the property it pins**, because
+  there is no source file to mirror — `test_architecture.py` for the static source rules
+  (`test-architecture-rule`). Reach for this only when the file genuinely covers no single module; a
+  file named for a subject when it could have been named for its source is how a suite grows a
+  catch-all.
 - Builder, failure-injection subclass, and other identifier names → `naming`.
 
 ### The acceptance-criteria marker
