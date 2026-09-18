@@ -12,6 +12,11 @@ code groups by **technical role**, dependencies point wherever they need to, and
 introduced only when a second real implementation is about to exist — not in anticipation of one.
 This skill assumes the family is already chosen; `architecture-choice` chooses it.
 
+**The worked example throughout is a service that fetches from an upstream and lands rows in a store**,
+because it exercises every role at once. The roles are not that workload: a service that consumes a
+queue and calls an API, one that renders reports, one that only transforms what it is handed, fills the
+same four roles and leaves empty the ones it has no use for. A role with nothing in it is not a gap.
+
 **The subject is one distribution on its own** — its own package and its own datastore where it has one.
 A service that shares a repository with siblings is the same service under the same rules with a
 workspace root above it, and that root is a separate skill. Nothing below requires one.
@@ -68,7 +73,7 @@ names it for that role, and declares which kind it is when it creates it.
 | Role kind | Holds | May import | Imported by |
 |---|---|---|---|
 | **data access** | table definitions, the write path, and the mapping from stored rows back to this service's own types. **The only role that constructs a statement or opens a connection.** | payload packages, and the settings values handed to it | work units, the framework wrapper, process definitions |
-| **work unit** | one plain function per complete run — fetch and land, or pass over already-stored data. Takes every dependency as a parameter, imports no framework, returns an aggregate rather than rows. | client, payload and data-access packages | the framework wrapper, process definitions |
+| **work unit** | one plain function per complete run — whatever one invocation of the trigger is for. Takes every dependency as a parameter, imports no framework, returns an aggregate rather than its individual results. | client, payload and data-access packages | the framework wrapper, process definitions |
 | **framework wrapper** | the framework's own decorators, classes or handlers adapting a work unit to a trigger. **The only role that imports the framework, and it holds no logic of its own.** | work units, plus payload packages | process definitions |
 | **process definition** | calls every settings factory once, builds the dependencies, wires them, runs one process. | everything | nothing |
 

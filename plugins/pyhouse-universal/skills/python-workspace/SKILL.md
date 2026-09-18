@@ -259,9 +259,11 @@ repo root reads none of them.
 
 ## Hard stops
 
-- Only one distribution will ever exist, or the runnable members share no datastore → stop, this is a
-  single-distribution project and it needs no workspace root; its own architecture skills lay its
-  packages and its data access.
+- Only one distribution will ever exist → stop, this is a single-distribution project and it needs no
+  workspace root; its own architecture skills lay its packages and its data access. Sharing a datastore
+  is one reason members end up in one repository, not the test of whether they belong there — a
+  repository of libraries and CLIs that share no store needs every rule here except the ones about a
+  schema owner.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.

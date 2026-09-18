@@ -206,8 +206,11 @@ assertion — is in the sibling `DURABLE.md`.
    semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
    client's own request building and error translation out of the test, and substituting the datastore
    removes the only thing this level can prove.
-3. **Every run-function test file has an idempotence test.** Second run over the same batch, assert the
-   row counts are unchanged.
+3. **Where a run can repeat over the same input, its test file pins what the second run does.** A
+   scheduled pass over a feed that mostly repeats, and any run a trigger may retry after a partial
+   failure, both meet that condition — run twice, assert the observable state is unchanged. A run whose
+   input is consumed once, or that is by construction never repeated, has nothing to pin and the test
+   would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines, except in the
    failure-containment test whose subject *is* the log. A run that logged `"ok"` and wrote nothing must
    fail.

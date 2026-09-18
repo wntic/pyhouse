@@ -123,7 +123,7 @@ The honest estimator is the business domain, in DDD's terms:
 - **Core** — the part the business competes on and keeps reshaping on purpose (pricing, matching,
   ranking). Highest volatility; this is where boundary mistakes actually bite.
 - **Supporting** — needed, undifferentiated, no off-the-shelf answer: CRUD back-office, internal
-  ETL, glue. Low volatility; most workers in this house style are this.
+  ETL, glue. Low volatility, and most of what most codebases contain.
 - **Generic** — a solved problem with ready-made providers (auth, mail delivery, commodity APIs).
   The *function* is stable, but the *implementation* can turn over: providers get switched, run in
   parallel, replaced. Contract discipline here is proportional to how realistic the switch is — a
@@ -214,7 +214,12 @@ service's integration with the store from model coupling into contract coupling,
 distance is permanent. That one package is
 consequently the one place where the strictest discipline belongs — every service's changes
 cascade through it — while an individual worker, supporting and low-volatility, stays flat and
-takes its shortcuts. The whole house style is this one counterbalance applied at every level.
+takes its shortcuts.
+
+That is **one shape the rule takes, not the shape**. The same counterbalance decides a library's public
+surface against its internals, a CLI's command modules against the work they call, and two functions in
+one file. The monorepo is only where it is easiest to see, because there the distance is already paid
+and visible; everywhere else it is the same question with a smaller ruler.
 
 ## Rules
 
