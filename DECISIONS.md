@@ -474,3 +474,53 @@ vulnerabilities, none of which it looks for. That is carried by the `description
 and the subagent rather than by the name, and by a `## What this is not` section in the command, so a
 clean report is never read as "the code is correct".
 **Reverse by:** renaming the command file and the six references listed under D53.
+
+## Versioning
+
+### D58 — `python-versioning` is a new universal skill, not an edit to `python-packaging`
+An audit of all 57 files under `skills/` found four fragments touching versions, every one a *token*
+rather than a rule: `__version__` named as the sole permitted occupant of an application root
+(`python-packaging`, `hex-architecture`), two inert `version = "0.1.0"` lines in `python-workspace`
+templates, and one `semver` mention about `plugin.json`. Bump semantics, tags, release notes,
+single-sourcing and "what counts as a breaking change to a Python distribution" had **zero** coverage,
+so `meta-skill-author`'s duplication stop does not fire and neither does its description-overlap stop.
+
+Four rules it would have restated are referenced instead, each opened and confirmed present first:
+what the compatible surface *is* (`python-packaging`, "a distributable package's root *is* its public
+API"), retiring a published identifier (`naming`'s frozen-contract list), `code` stability
+(`exception-catalog` rule 3), and `__version__` in a root (`python-packaging` rule 6). What this skill
+adds in each case is the same missing half — *which bump that forces*.
+
+The catalogue already stated how to **read** someone else's version: `hex-project-setup` block A says a
+dependency floor names a known breaking boundary, never a recency guess. It said nothing about
+producing your own. That asymmetry is what the skill closes, and the consuming rule stays where it is —
+a universal skill may cite a family skill only as an example, so the routing edge names the plugin.
+**Reverse by:** deleting the skill directory and reverting one Index line, one README table row, one
+ownership-table row and the six counts.
+
+### D59 — Bound to canonical PEP 440, and the SemVer spellings deliberately left out
+The obligations are SemVer's clauses 1 and 4–8, which are ecosystem-neutral. The *spellings* are not:
+a hyphenated pre-release and a `+` build label are both invalid in a Python version field, and the
+failure mode is the dangerous one. Verified by executing builds rather than from recollection —
+`version = "1.0.0-alpha.1"` ships as `1.0.0a1` under both common backends with **zero** warnings, and
+`1.0.0-1`, a legal SemVer pre-release ordered *below* `1.0.0`, normalises to `1.0.0.post1`, which orders
+*above* it. The sort order inverts silently. Meanwhile `1.0.0-alpha.beta` and several of SemVer's own
+spec examples fail the build outright. So the skill states canonical form as an obligation (rule 3)
+rather than leaving it to the template, because a non-canonical string is either rewritten into
+something else or rejected, and which one you get depends on the string.
+
+**No sibling file was written for the PEP 440 tables**, though the research filled one. That is D50's
+lesson applied before the fact: a spec the model already knows, spelled out at length, would stand
+where the rules only this catalogue can supply have to be. Only the traps that change what a reader
+*does* survive, as rules 3, 4, 5, 12 and four hard stops. The skill is 199 lines.
+
+### D60 — The catalogue's four version fields are correct as they are
+Applying the new skill to this repository: `pyhouse-universal` 0.4.0 against `pyhouse-hex` and
+`pyhouse-flat` at 0.2.0 looks like drift and is not. Each plugin is installed independently, so rule 13
+applies — members version independently, and lockstep is right only where one artifact ships them all.
+D55 reached the same answer from the other direction, before the rule existed to name it.
+
+Tags are the exception: one artifact does ship all three, so the tag names the marketplace version
+rather than any plugin's. `## Releasing` in `CLAUDE.md` states this. **No tags were created** — the
+repository has none, and cutting the first one retroactively picks which commit gets to be `v0.4.0`,
+which is the maintainer's call and not reversible once pushed.
