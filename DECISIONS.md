@@ -524,3 +524,26 @@ Tags are the exception: one artifact does ship all three, so the tag names the m
 rather than any plugin's. `## Releasing` in `CLAUDE.md` states this. **No tags were created** — the
 repository has none, and cutting the first one retroactively picks which commit gets to be `v0.4.0`,
 which is the maintainer's call and not reversible once pushed.
+
+### D61 — Commits are Conventional Commits, because the type decides the release
+The repo's own commit rules were a verb table and a length limit — good prose discipline that carried
+no machine-readable claim about what a change *was*. `## Releasing` had just introduced three rows
+(major on a skill removed or a rule reversed, minor on a skill added, patch on a correction that
+changes no obligation) and nothing connected a commit to a row, so the next number was argued at
+release time from memory of what had landed.
+
+Conventional Commits closes that: `feat` is the minor row, `fix` is the patch row, and `BREAKING
+CHANGE` is the major row, so the version is read off the commits since the last tag. The type is
+therefore load-bearing, not decorative, and a mistyped commit proposes the wrong number.
+
+Two choices the specification leaves open were made deliberately. **Descriptions are lowercase** —
+the spec says casing is not case-sensitive except `BREAKING CHANGE` and advises only consistency, so
+this is a house choice and is written as one. **A skill plus the index entries it forces takes the
+skill's type**, `feat`, never `docs`; the atomic-commit rule already made them one commit, and
+splitting the type would be the same defect in another spelling.
+
+The verb table went. It existed to push `Update X` toward `Refactor X`, and the type now carries that
+distinction in a position a tool can read. What survived is the requirement underneath it — a
+description specific enough to understand without the diff.
+**Reverse by:** restoring step 4 from the commit that replaced it and cutting the paragraph added to
+`## Releasing`; nothing else reads the types yet.

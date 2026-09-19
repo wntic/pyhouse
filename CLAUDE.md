@@ -83,6 +83,11 @@ What moves a plugin's number:
 
 The marketplace's own number moves when what it offers changes, which a plugin's minor does.
 
+**The commit type already decided this.** Commits here are Conventional Commits 1.0.0, whose
+`feat` / `fix` / `BREAKING CHANGE` map onto the three rows above, so the next number is read off
+the commits since the last tag rather than argued about at release time. The type table and the
+scope vocabulary are in `.claude/commands/commit.md` step 4; they are not repeated here.
+
 **Tags are the repository's, not the plugin's.** One artifact ships all three plugins together, so the
 tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
 is immutable: a correction is the next number, never a moved tag.
