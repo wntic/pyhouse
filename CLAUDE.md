@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, three plugin manifests, and one
-maintainer script. The "code" is 41 `SKILL.md` files that tell an agent how to write Python services;
+maintainer script. The "code" is 42 `SKILL.md` files that tell an agent how to write Python services;
 the Python in them is template content, not executed as part of anything here.
 
 Most of the contracts below can only be checked by reading, and they are broken silently. One cannot:
@@ -65,13 +65,35 @@ the `pyhouse-reviewer` subagent, which decides which skills apply and applies th
 overlap — running the review command on this repository finds no architecture family and nothing to
 review, which is correct.
 
+## Releasing
+
+The catalogue is subject to `python-versioning` like anything else it ships, and the four version
+fields here are what that skill calls **members versioning independently**: each plugin is installed
+on its own, so each manifest carries its own number, and they are not expected to match. They are at
+`pyhouse-universal` 0.4.0, `pyhouse-hex` 0.2.0, `pyhouse-flat` 0.2.0, with the marketplace at 0.4.0.
+
+What moves a plugin's number:
+
+- **Major** — a skill removed or renamed, a rule reversed, or a plugin's prefix set changed. Anything
+  that breaks a project already carrying the catalogue.
+- **Minor** — a skill added, or an existing one's scope widened. The common case, and what a new skill
+  takes: it adds to the surface without changing what is there.
+- **Patch** — a correction inside a skill that changes no obligation: a typo, a dead reference, a
+  template whose imports did not resolve.
+
+The marketplace's own number moves when what it offers changes, which a plugin's minor does.
+
+**Tags are the repository's, not the plugin's.** One artifact ships all three plugins together, so the
+tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
+is immutable: a correction is the next number, never a moved tag.
+
 ## Layout
 
 ```
 .claude-plugin/marketplace.json          lists the three plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 tools/check_template_imports.py          resolves every import in every template (see above)
-plugins/pyhouse-universal/               10 skills (9 universal + meta-skill-author),
+plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills

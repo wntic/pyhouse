@@ -334,6 +334,7 @@ A rule lives in exactly one skill. Every other skill points at it.
 | The interpreter floor, and the three settings that name it | `python-style` |
 | One class per module, `__all__`, `__init__.py` re-exports, imports | `python-packaging` |
 | The error catalogue and boundary translation | `exception-catalog` |
+| What the version promises, and the change that moves it | `python-versioning` |
 | Where a boundary goes, split vs merge | `coupling` |
 | Testing constitution | `test-principles` |
 | Choosing between the hex and flat families | `architecture-choice` |

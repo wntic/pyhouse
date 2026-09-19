@@ -1,6 +1,6 @@
 # House-style skills
 
-41 project-neutral Python skills in seven families: Universal (9), Meta (1), Hex core (12),
+42 project-neutral Python skills in seven families: Universal (10), Meta (1), Hex core (12),
 Hex REST API (4), Hex tests (8), Flat core (3), and Flat tests (4).
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
@@ -14,7 +14,7 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 9 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 7 `flat-*` |
 
@@ -46,7 +46,7 @@ character cap: `description` has no documented maximum, `description` + `when_to
 **1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
 rewritten as complete sentences to fit, never truncated.
 
-## Universal (9) — always in play
+## Universal (10) — always in play
 
 These skills bind in **every** project in this style, whichever architecture it uses. They are
 unprefixed because they belong to neither architecture family. `architecture-choice` is the one read
@@ -60,6 +60,7 @@ once rather than throughout — before the family is known:
 | `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
 | `python-packaging` | Whether a module wants a class at all and the one-class cap, `__all__`, the `__init__.py` re-export contract, import rules |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
+| `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
 | `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
