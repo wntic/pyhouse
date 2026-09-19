@@ -152,7 +152,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
 | `flat-persistence` | One package owning a service's data access, relational: transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps; the obligations an engine adds are in its sibling binding |
+| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
 
 ## Flat tests (4)
 
@@ -161,7 +161,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `flat-test-integration-setup` | The container, the safety guard, and the isolation fixture each declared transaction owner needs |
 | `flat-test-persistence` | The storage package's contract against a real datastore |
 | `flat-test-service-client` | One client class's test |
-| `flat-test-run-function` | What a trigger runs — the body and the wrapper that invokes it; the orchestration level is in its sibling binding |
+| `flat-test-run-function` | What a trigger runs — the body, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 
 ## Conventions across both sets
 

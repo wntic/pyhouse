@@ -70,7 +70,7 @@ too. The counts in every heading are the number of directories on disk.
 - `flat-test-integration-setup` — Choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
 - `flat-test-persistence` — Pin the storage package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
-- `flat-test-run-function` — Test the body and the wrapper that invokes it; the orchestration level and its engine bindings are in the sibling file.
+- `flat-test-run-function` — Test the body and the wrapper that invokes it, and the orchestration level above them only where a durable-execution engine was earned.
 
 ## Packaging — which plugin a skill ships in
 

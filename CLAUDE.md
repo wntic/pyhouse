@@ -17,7 +17,7 @@ was verified. Run it before shipping a template:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy pydantic-settings \
-  structlog respx pytest 'testcontainers[postgres,minio]' alembic redis aioboto3 pyjwt temporalio \
+  structlog respx pytest 'testcontainers[postgres,minio]' alembic redis aioboto3 pyjwt \
   uuid6 httpx cryptography idna
 .venv/bin/python tools/check_template_imports.py
 ```
@@ -119,12 +119,15 @@ The test before adding anything sourced this way: **would this still be worth wr
 had used a different stack?** If the answer is no, the skill is documenting someone's dependency
 choice. If yes, but the shape changes, write the version that survives the swap.
 
-**One instance already unwound, and one still to go.** Two skills in the flat family existed only
-because the originating source used a particular durable-execution engine. They are gone: their
-obligations are now stack-independent rules in `flat-entrypoint` and `flat-test-run-function`, and
-that engine's spelling of them sits in `flat-entrypoint/DURABLE.md` as one binding named in its own
-headings. That is what unwinding a technology-shaped skill looks like — the rules stay, the vendor
-becomes a template. Do not re-set the precedent by adding another.
+**The one instance is fully unwound.** Two skills in the flat family existed only because the
+originating source used a particular durable-execution engine. They are gone, and so is the engine:
+their obligations are stack-independent rules in `flat-entrypoint` and `flat-test-run-function`, each
+in a subsection of `## Rules` that applies only once an engine has been earned, with a matching
+subsection of `## Hard stops`. The vendor's spelling of them survived for a while as a sibling binding
+file and no longer does — it was a vendor manual the model already knows, standing where the rules only
+this catalogue can supply have to be, and at 648 lines it was 22% of the plugin. That is what unwinding
+a technology-shaped skill looks like at the end — the rules stay and the vendor leaves entirely. Do not
+re-set the precedent by adding another.
 
 `python-style` was the other item and is done: the two bullets that named a DI library and a UUID
 package in prose are gone, and its validation-constraint rule is stated as an obligation with the

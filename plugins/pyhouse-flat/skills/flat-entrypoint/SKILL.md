@@ -1,6 +1,6 @@
 ---
 name: flat-entrypoint
-description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — a plain loop, a cron entry or a timer, a continuous stream process, or durable execution — and deciding whether a workflow engine is earned at all; the loop is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free run function every trigger wraps, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, and the containment that keeps one failed run from killing the process. The obligations that exist only once a durable-execution engine is in play live in the sibling `DURABLE.md`. Testing any of it is `flat-test-run-function`.
+description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — a plain loop, a cron entry or a timer, a continuous stream process, or durable execution — and deciding whether a workflow engine is earned at all; the loop is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free run function every trigger wraps, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, and the containment that keeps one failed run from killing the process. It also carries the obligations that exist only once a durable-execution engine is in play, which are inert under every other trigger. Testing any of it is `flat-test-run-function`.
 when_to_use: Also when asked for a polling loop, a `__main__` entrypoint, a nightly or periodic job, a queue or websocket consumer process, a durable workflow, a batch loop, a heartbeat, a schedule or a cron expression, an overlap or catch-up policy, or whether this service needs a workflow engine at all.
 ---
 
@@ -26,11 +26,11 @@ nothing here assumes a sibling distribution or a repository above it.
 - The tables, the write path and the storage class the run function calls → `flat-persistence`.
 - Several distributions sharing one repository — the member split, the container profiles, the root task
   runner → `python-workspace`. One distribution on its own needs none of it.
-- **Durable execution, once it is earned** — the obligations that exist only under a workflow engine, and
-  the worked code binding them → the sibling `DURABLE.md` in this skill's own directory. Read it only
-  once shape 2 below is earned; nothing in this file depends on it.
-- The scheduling needs are met by a loop, a cron entry or a timer — the default → nothing in `DURABLE.md`
-  applies; do not add orchestration modules "for later".
+- **Durable execution, once it is earned** — the obligations that exist only under a workflow engine →
+  still this skill, under `## Rules`, in the subsection that applies once rule 1 has earned an engine.
+  Nothing else in this file depends on them.
+- The scheduling needs are met by a loop, a cron entry or a timer — the default → none of those
+  obligations apply; do not add orchestration modules "for later".
 - The named exceptions a wrapper translates at the framework boundary → `exception-catalog` owns the
   catalogue and the error types; `flat-layered` rule 6 owns translating a library's exceptions into it.
 - Testing any of it — the run function, the loop's containment, the wrapper, the orchestration above them
@@ -41,7 +41,7 @@ nothing here assumes a sibling distribution or a repository above it.
 | The work is… | Shape | Lives in |
 |---|---|---|
 | Anything on a schedule, as the starting assumption — a poll, a periodic pass, a nightly job | **Self-scheduling loop, or an external scheduler running the process once** | one module in the process-definition package |
-| Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine, worked in `DURABLE.md` | a framework-wrapper package plus its worker process |
+| Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine | a framework-wrapper package plus its worker process |
 | A never-ending stream — a subprocess tailing an append-only upstream log, a queue consumer, a websocket feed | **Standalone stream process**, watched by an external liveness check | one module in the process-definition package |
 
 **The default for scheduled work is a plain loop, a cron entry or a timer.** A process that wakes up,
@@ -77,7 +77,6 @@ from myapp.services.foo_client import FooClient
 from myapp.storage.foo_storage import FooStorage
 
 logger = structlog.get_logger()
-
 
 async def run_once(client: FooClient, storage: FooStorage) -> IngestResult:
     payloads = await client.fetch_batch()
@@ -121,14 +120,12 @@ logger = structlog.get_logger()
 
 _POLL_INTERVAL_SECONDS = 30
 
-
 async def guarded(run: Callable[[], Awaitable[object]]) -> None:
     """One run, with failure contained. Extracted so it can be tested without the loop."""
     try:
         await run()
     except Exception:
         logger.exception("foo_ingest_run_failed")
-
 
 async def main() -> None:
     settings = get_settings()
@@ -138,7 +135,6 @@ async def main() -> None:
     while True:
         await guarded(lambda: run_once(client, storage))
         await asyncio.sleep(_POLL_INTERVAL_SECONDS)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -182,9 +178,8 @@ becomes the handler; under an in-process durable-function engine the three roles
 function plus its host.
 
 **An engine adds obligations of its own** — replay determinism, continuations, progress reporting,
-schedules as code — and those are not in this file, because a service on a loop can neither satisfy nor
-violate them. **Read the sibling `DURABLE.md` in this skill's directory once the engine is earned**: it
-states them and binds each to one worked engine under headings naming it.
+schedules as code. They are stated under `## Rules` below, in the subsection that applies only once rule
+1 has earned an engine; a service on a loop can neither satisfy nor violate them.
 
 ## Shape 3 — a continuous stream is not a workflow
 
@@ -216,8 +211,8 @@ stream that was meant to resume.
 - **A durable-execution engine in place of either.** Restate and DBOS take the durable-function shape
   in-process; Step Functions and Azure Durable Functions are the managed equivalents; Airflow, Dagster
   and Prefect solve the batch-DAG half. The wrapper package and the worker process appear, every rule
-  below holds unchanged, and the run function moves in none of them. What the engine *adds* is in
-  `DURABLE.md`.
+  below holds unchanged, and the run function moves in none of them. What the engine *adds* is the
+  durable obligations under `## Rules`, which hold in all of them.
 - **The plain loop is not one binding among several — it is the default the engine must be earned
   against.** Nothing above licenses shape 2 without durability, cross-restart retries or long-running
   orchestration to point at.
@@ -263,6 +258,63 @@ stream that was meant to resume.
    `while True` can only be reached by driving the loop — which needs an artificial escape that
    changes the thing under test.
 
+### Once a durable-execution engine is earned
+
+Rule 1 decides whether an engine is earned at all, and nothing below licenses one. These obligations
+exist **only once an engine is in play** — a service on a loop, a cron entry or a timer can neither
+satisfy nor violate them, and every rule above holds unchanged under an engine. They are numbered
+separately from the rules and cited elsewhere as *durable obligation N*.
+
+1. **Orchestration orchestrates; it does not compute.** The orchestration body is replayed from
+   history, so any parsing, filtering, I/O or datastore access in it produces a different answer on
+   replay and corrupts the run. It invokes units of work and does nothing else.
+2. **Inside replayed code the engine's clock is the only clock.** Reading the wall clock, drawing
+   randomness, or minting a random identifier makes replay diverge from the recorded history. Take the
+   value from the engine, or pass it in as an argument.
+3. **An orchestration module keeps its non-engine imports out of the engine's sandbox.** An engine
+   that re-imports modules per run is slow on anything heavy and fails outright on anything with
+   import-time state.
+4. **The wire name of a unit of work is declared explicitly, separately from the symbol implementing
+   it.** Schedules, execution history and test stubs all bind to the wire name, so renaming the method
+   must not be able to break a running schedule.
+5. **The service's exceptions are translated at the framework boundary**, carrying the message, the
+   identifying context and the original type across it. An untranslated exception reaches the history as
+   an opaque framework failure with the context stripped, and the operator reading that history is the
+   person who needed it.
+6. **A continuation carries every value the next run needs** — the cutoff *and* the running total. A
+   continuation starts a fresh run with fresh defaults, so a cutoff left behind means the next run
+   recomputes it and reprocesses part of the same window, and a total left behind means the final
+   result under-reports the logical run.
+7. **The batch loop ends on an empty batch and returns the summed aggregate.** The empty batch is its
+   termination condition, never a bound on the number of iterations: a run that takes a continuation
+   never reaches the statement after the loop, so a loop bounded by a count has its real termination
+   condition nowhere and dead code where it should be. The ceiling in obligation 8 decides when to
+   continue, not when to stop.
+8. **The batch ceiling is a named, public module constant** — no leading underscore — so the test that
+   asserts the continuation fires reads the same number the loop does instead of hardcoding it a second
+   time. An underscore-prefixed name says "do not read this" to the one reader that has to.
+9. **A unit of work that runs for minutes reports progress, and the gap the engine will tolerate is
+   declared at the call site.** Without progress reports a dead worker goes unnoticed until the whole
+   close timeout elapses, and the unit can never be cancelled — so cancelling the run and shutting a
+   worker down gracefully both have to cut it off mid-flight. The tolerated gap must exceed the longest
+   realistic interval between reports, the first one included.
+10. **Progress reporting goes through a guarded helper, never the framework call directly.** The same
+    body is called from a plain loop and from its own test, where the raw call raises because there is
+    no framework context — the guard is what lets the body keep one shape under every trigger. **The
+    helper is one named module at the root of the distribution's own package**, and it is the one module
+    outside the framework-wrapper package allowed to import the framework, which is why the architecture
+    firewall's allow-list names it (`flat-layered` rule 9, `test-architecture-rule`). Where several
+    distributions share one repository it is promoted to a library they both depend on, and the
+    exemption is the same one.
+11. **A healthcheck declares no retries.** Its whole job is to turn red the moment the thing it watches
+    is stale; a retry hides exactly the failure it exists to surface. Where the engine is already present
+    for other work, a short healthcheck run on a schedule is how a continuous stream's liveness check
+    (rule 7 above) gets the engine's retry and visibility machinery.
+12. **Schedules are code, held in one versioned, re-runnable definition** — never created by hand in a
+    console and never from inside the worker process. Each one states its catch-up window, its overlap
+    policy and its time zone explicitly: the engine's defaults will replay a year of missed runs after
+    an outage, stack overrunning runs, and shift the cadence twice a year with no code change.
+
 ## Hard stops
 
 - A workflow engine is being added for work that is merely *scheduled* — no run has to survive a
@@ -270,7 +322,7 @@ stream that was meant to resume.
   a cron entry or a timer is the default and the engine is not yet earned.
 - Durability, cross-restart retries or multi-step orchestration is being hand-rolled inside a loop — a
   state table, a lease, an attempt counter, an at-most-once guard → stop, that is a workflow engine
-  being reimplemented; adopt one, and read `DURABLE.md` for what it then obliges.
+  being reimplemented; adopt one, and read the durable obligations for what it then obliges.
 - A run function imports a framework → stop, the framework belongs in the framework-wrapper package
   (`flat-layered` rule 9); the body must stay callable from a loop and a test.
 - Retry logic is being hand-written inside a run function with sleeps and counters → stop, declare the
@@ -283,3 +335,29 @@ stream that was meant to resume.
   it one source both of them read.
 - Business logic is being written into the wrapper instead of the run function → stop, the wrapper holds
   the trigger; the work stays where a test can call it directly.
+
+### Under a durable-execution engine
+
+These fire only once rule 1 has earned an engine; under every other trigger there is nothing to break.
+
+- An orchestration body is about to call an HTTP client, a write helper, or any I/O directly → stop,
+  move that call into a unit of work and invoke it from the orchestration.
+- The wall clock, randomness or a random identifier is read inside replayed code → stop, take the value
+  from the engine's clock or pass it in; replay diverges from history and corrupts the run.
+- A continuation is taken without a value the next run needs — the cutoff, the running total → stop, the
+  next run recomputes the window or under-reports the logical run, and no other test notices.
+- The batch loop terminates on an iteration bound instead of on an empty batch → stop; a run that takes
+  a continuation never reaches the statement after the loop, so the real termination condition is
+  missing and what stands in its place is dead.
+- A unit of work that runs for minutes declares a close timeout and no progress reporting → stop, add
+  both; otherwise a dead worker goes unnoticed for the whole timeout and the unit can never be cancelled.
+- A run-function body calls the framework's progress function directly → stop, use the guarded helper;
+  the unguarded call raises the moment the body runs from a loop or a test.
+- A schedule is created by hand in a console, from inside the worker process, or without an explicit
+  catch-up window → stop; it belongs in the versioned definition, and the default catch-up window replays
+  a year of missed runs after an outage.
+- A healthcheck run declares retries → stop, the retry hides the staleness it exists to report.
+- A service exception escapes the framework boundary untranslated → stop, wrap it so the context and the
+  error type survive.
+- The engine's address or namespace is being given a default → stop, both are required settings; a
+  deployment that forgets one must fail at startup rather than reach the wrong cluster.

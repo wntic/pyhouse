@@ -95,7 +95,7 @@ enforces it (`test-architecture-rule`).
 
 **One other module holds that role: the framework-guarded helper.** A helper that wraps a framework call
 so the body keeps one shape whether or not the framework's context is present is the worked case
-(`flat-entrypoint`'s sibling `DURABLE.md`). It exists precisely so a work unit stays framework-free,
+(`flat-entrypoint`, durable obligation 10). It exists precisely so a work unit stays framework-free,
 which is the rule's purpose, and the grep's allow-list names it by path. **For one distribution it is one
 named module at the root of that distribution's own package**; where several share a repository it is
 promoted to a library they both depend on, and it is the same one exemption. Nothing else is exempt: a

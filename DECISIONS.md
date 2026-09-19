@@ -227,12 +227,11 @@ it**, and that is now true for the second time.
 
 ## Portability audit — phases 2 and 3
 
-### D35 — Engine test material went to a second `DURABLE.md`, not into the entrypoint one
-Folding `flat-test-run-function`'s engine-only test rules into `flat-entrypoint/DURABLE.md` would have
-put that file near 590 lines, past the split signal. So the plugin now has two files named
-`DURABLE.md`, one per owning skill. That is consistent with how sibling files work everywhere else —
-they belong to their skill, not to the plugin — but if one engine file per plugin is wanted, this is
-the merge to make.
+### D35 — Engine test material went to a second sibling file, not into the entrypoint one
+**Superseded by D50.** Folding `flat-test-run-function`'s engine-only test rules into
+`flat-entrypoint`'s engine sibling would have put that file near 590 lines, past the split signal, so
+the plugin carried two engine sibling files, one per owning skill. Both files are gone; the obligations
+they held sit in their owning skills' `## Rules`, and there is no engine file left to merge.
 
 ### D36 — `flat-monorepo` stays in the flat plugin for now
 All nine of its rules survive a move to a universal `python-workspace`, and nothing in it is
@@ -325,3 +324,28 @@ skills — the granularity defect the audit was complaining about, not a cure fo
 What was wrong was the name: only the OpenAPI walk discovers anything. Now `hex-test-app-invariants`,
 which passes `naming`'s identity-over-mechanism test — discovery is how one of the five gets its
 inputs, and would have to change if that walk were replaced; the property would not.
+
+## Removing the vendor SDK
+
+### D50 — The engine binding was deleted outright, not rewritten against another engine
+The two engine sibling files were 648 lines, 22% of the flat plugin, and the larger was bigger than the
+skill it bound. Everything in them below the obligations was one vendor's SDK spelled out — the API the
+model already knows — standing where the rules only this catalogue can supply have to be. The
+obligations and the engine-neutral hard stops moved up into `flat-entrypoint` and
+`flat-test-run-function` as subsections of `## Rules` and `## Hard stops` that state their precondition
+and point at `flat-entrypoint` rule 1 for the earning test; everything else went with the files. No
+replacement binding was written for a second engine, because a template that exists to show the shape
+of an obligation is the defect being removed, not the thing to re-supply. These skills are meant to
+drive code review, where a rule that only fires on one stack is noise.
+**Reverse by:** restoring the two files from the commit that removed them and cutting the two
+subsections back out; nothing else referenced them by then.
+
+### D51 — Durable obligation 7 kept its loop shape, stated as a consequence rather than a shape
+The obligation said the batch loop is "an unbounded loop with an explicit counter, never a bounded loop
+with a trailing `return`", which reads as one engine's control flow. The reason underneath it is not:
+where a run takes a continuation it never reaches the statement after the loop, so a loop bounded by a
+count has its termination condition nowhere and dead code where it belongs. That is true of every
+continuation-based engine, so the obligation now states the reason and lets the shape follow, and the
+matching hard stop was reworded the same way. The alternative considered was dropping the clause with
+the rest of the spellings — rejected because the mistake it catches is the one a reader who has never
+run a continuation actually makes.

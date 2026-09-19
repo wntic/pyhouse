@@ -1,6 +1,6 @@
 ---
 name: flat-test-run-function
-description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test every time, the loop's failure-containment contract, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, the orchestration level above those is in the sibling `DURABLE.md`. Not the client's own transport, which is `flat-test-service-client`, and not the storage package's write path, which is `flat-test-persistence`.
+description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test every time, the loop's failure-containment contract, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the storage package's write path, which is `flat-test-persistence`.
 when_to_use: Also when asked to test a `run_once` body, a polling loop's error handling, a wrapper class, a workflow's retry policy, a batch loop's termination, or what a continuation carries across runs.
 ---
 
@@ -24,9 +24,9 @@ Two forms are always in scope:
 run through whatever in-process harness that framework ships, proving reach and translation only.
 
 **A service that earned a durable-execution engine adds a fourth** — the orchestration above the
-wrapper, every step stubbed by its registered wire name, no datastore at all — plus the engine-specific
-obligations that come with it. Those are in the sibling `DURABLE.md` in this skill's own directory; read
-it only once the engine is earned, and skip it entirely otherwise.
+wrapper, every step stubbed by its registered wire name, no datastore at all — plus the obligations that
+come with it. Those are under `## Rules`, in the subsection that applies only once an engine has been
+earned (`flat-entrypoint` rule 1 owns that test); skip it entirely otherwise.
 
 ## When to use vs. neighbours
 
@@ -37,8 +37,8 @@ it only once the engine is earned, and skip it entirely otherwise.
   transactions, so it takes the whole-schema wipe.
 - Writing the run function, the `guarded` wrapper or the trigger, rather than testing it →
   `flat-entrypoint`.
-- Testing the orchestration level, the batch loop's continuation, or a declared retry policy → the
-  sibling `DURABLE.md`, and only once an engine has been earned.
+- Testing the orchestration level, the batch loop's continuation, or a declared retry policy → still
+  this skill, under `## Rules`, and only once an engine has been earned.
 - A pure filter or normalize function the body calls → a unit test with no fixtures; it does not belong
   here.
 - The static check that a schedule's routing name matches one a process actually serves →
@@ -65,10 +65,8 @@ from myapp.storage.foo_table import bar_table, foo_table
 
 _BASE_URL = "https://foo.test"
 
-
 def _client() -> FooClient:
     return FooClient(base_url=_BASE_URL, timeout_seconds=1.0)
-
 
 @respx.mock
 async def test_a_run_lands_its_foos_and_their_labels(
@@ -87,7 +85,6 @@ async def test_a_run_lands_its_foos_and_their_labels(
     assert reference == "alpha"
     assert labels == ["amber"]
 
-
 @respx.mock
 async def test_items_the_filter_rejects_are_not_stored(
     engine: AsyncEngine, conn: AsyncConnection
@@ -99,7 +96,6 @@ async def test_items_the_filter_rejects_are_not_stored(
     await run_once(_client(), FooStorage(engine))
 
     assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 0
-
 
 @respx.mock
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
@@ -114,7 +110,6 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
     assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
 
-
 @respx.mock
 async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> None:
     respx.get(f"{_BASE_URL}/foos").mock(
@@ -127,7 +122,6 @@ async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> No
     result = await run_once(_client(), FooStorage(engine))
 
     assert (result.fetched, result.kept) == (2, 1)
-
 
 @respx.mock
 async def test_an_upstream_failure_propagates_and_writes_nothing(
@@ -181,8 +175,8 @@ datastore; what they must not do is re-run the body's coverage. The translation 
 earns its place: an untranslated exception reaches the trigger's error surface with the context
 stripped, and nothing else in the suite notices.
 
-The worked harness — a durable-execution engine's activity environment, with its typed failure
-assertion — is in the sibling `DURABLE.md`.
+Under a durable-execution engine that harness is the one the engine ships for running a single unit of
+work in-process, and the typed-failure assertion is what its history makes necessary.
 
 ## Other bindings
 
@@ -195,6 +189,13 @@ assertion — is in the sibling `DURABLE.md`.
   still holds everywhere else, and the containment test stays the one place a log is the subject.
 - **No framework wrapper at all.** A service triggered by a loop, a cron entry or a timer writes the
   first two forms and stops; nothing is missing, because there is no wrapper to prove.
+- **An engine whose harness cannot skip time.** The retry test then asserts the *declared* policy on the
+  orchestration's own declaration rather than observing the attempts — a weaker test, and the honest one.
+  Waiting out a real backoff is still forbidden, and every obligation below is unchanged.
+- **A replay harness over recorded histories**, where the engine ships one. It pins determinism across a
+  code change, which none of the tests here do, and it cannot pin a *new* orchestration's behaviour
+  because there is no history yet. It is an addition to the orchestration test file, never a
+  replacement.
 
 ## Rules
 
@@ -221,6 +222,39 @@ assertion — is in the sibling `DURABLE.md`.
    A divergence means two triggers of the same work are drifting apart, and the tests must not paper
    over it.
 
+### Once a durable-execution engine is earned
+
+An engine is earned by `flat-entrypoint` rule 1 and by nothing else. These obligations cover the
+orchestration level that only an engine has; the rules above hold unchanged beneath them, and a service
+on a loop, a cron entry or a timer can neither satisfy nor violate them. The run-function tests do not
+change under any engine, because the body never imports one.
+
+1. **Time is never slept and never waited out.** Anything involving a timer, a backoff or a schedule
+   runs against the engine's time-skipping clock; a policy with a one-minute initial interval must still
+   assert in milliseconds. The general rule is `test-principles`'; what the engine adds is the clock that
+   makes obeying it possible.
+2. **An orchestration test asserts orchestration only** — that the step ran, that the retry policy is
+   what it claims, that the loop terminates and aggregates. No datastore, no transport stub, no
+   assertions about stored rows. That is what keeps this form from re-running the run function's
+   coverage.
+3. **A stub stands in under the registered wire name the orchestration resolves, not by function
+   identity.** The orchestration names its steps by string; a stub that is the right function under the
+   wrong name is never reached, and the test then exercises the real body against no datastore
+   (`flat-entrypoint`'s durable obligation 4 requires the wire name be declared separately from the
+   symbol).
+4. **Read loop constants from the orchestration module, and make them public there**, never retype the
+   number. A bound that decides how many batches one run performs is part of the contract; an underscore
+   on it is a lie the test has to reach past.
+5. **A run id is generated fresh per test**, so a re-run cannot collide with a retained execution from a
+   previous one.
+6. **A batch-loop orchestration gets all three loop tests** — termination on an empty batch, the carried
+   cutoff, the carried total. Each covers a continuation mistake the others miss, and none is visible
+   from the happy path.
+7. **Schedule creation is not tested here.** It is a one-off deploy-time definition, not application
+   code, and a test of it would assert only that the engine's SDK works. What *is* worth pinning
+   statically is that every schedule's routing name matches one some process actually serves —
+   `test-architecture-rule`.
+
 ## Hard stops
 
 - `run_once` reaches for a module-level engine instead of taking one → stop, add the parameter; this is a
@@ -235,5 +269,21 @@ assertion — is in the sibling `DURABLE.md`.
   logic.
 - A test of the run function substitutes the datastore → stop, that removes the only thing this level can
   prove; substitute the upstream transport and keep the real store.
-- An orchestration, a continuation or a declared retry policy is about to be tested from this file →
-  stop, that level is the sibling `DURABLE.md`, and it exists only once an engine has been earned.
+- An orchestration, a continuation or a declared retry policy is about to be tested with no engine in
+  the service → stop, that level exists only once an engine has been earned (`flat-entrypoint` rule 1).
+
+### Under a durable-execution engine
+
+- An orchestration test starts a datastore container → stop, the orchestration does no I/O by design; if
+  it does, that I/O belongs in a unit of work and the orchestration is wrong.
+- An orchestration test stubs the HTTP transport → stop, that means it is reaching the real step body;
+  register a stub under the wire name instead.
+- An orchestration test re-asserts what a step wrote → stop, that is the run-function file's job;
+  duplicating it makes both files change together for one reason.
+- A retry is asserted by waiting out the real backoff → stop, use the engine's time-skipping clock.
+- A batch-loop test hardcodes the maximum-batches number → stop, read the public constant from the
+  orchestration module.
+- A batch-loop orchestration ships with only the happy-path test → stop, write all three; a continuation
+  that drops the cutoff or the total is invisible from the happy path.
+- A schedule definition is being unit-tested → stop, it is deploy-time infrastructure; pin the routing
+  name statically instead (`test-architecture-rule`).
