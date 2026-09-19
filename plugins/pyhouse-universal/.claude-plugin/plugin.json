@@ -23,6 +23,5 @@
     "versioning"
   ],
   "skills": "./skills",
-  "commands": "./commands",
-  "agents": "./agents"
+  "commands": "./commands"
 }
