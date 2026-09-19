@@ -25,6 +25,29 @@ python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy pyda
 It exists because a template once imported two symbols that do not exist in the library it binds, and
 every other check in this repository passed over it.
 
+## What it is for
+
+Two uses, and every rule in it is shaped by serving both.
+
+**Writing.** The catalogue is carried into any Python project — greenfield or brownfield, any domain,
+any stack, any scale — and used immediately, without adaptation. A rule that holds only on the project
+it was extracted from is worthless here however useful it was there.
+
+**Reviewing.** The same rules are the criteria an agent checks code against. This is why the two-layer
+split is not stylistic: an **obligation** ("one declared transaction owner per callable", "translate the
+driver's error at the boundary") is checkable on any codebase, and a **spelling** ("pass
+`join_transaction_mode="create_savepoint"`") is checkable only where the stack happens to match, and is
+noise everywhere else. A reviewer carrying a vendor's manual reports that an SDK call is malformed,
+which is a review of that SDK and not of this style — and the vendor's own tooling does it better.
+
+Both uses give the same test, which is the one to apply before adding or keeping anything: **would this
+still be correct, and still be worth writing, if the project that inspired it had used a different
+stack, a different layout and a different domain?** If the honest answer is no, it documents a history
+rather than a style.
+
+The corollary for anything that reviews: the rules live in the skills, so a review artifact states
+none of its own. It decides which skills apply and applies them.
+
 ## Commands
 
 ```bash
