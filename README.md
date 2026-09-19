@@ -11,6 +11,7 @@ name. The skills are plain `SKILL.md` files, so Claude Code, opencode and Codex 
 ```bash
 claude plugin marketplace add wntic/pyhouse
 claude plugin install pyhouse-hex@pyhouse       # or pyhouse-flat
+claude plugin install pyhouse-git@pyhouse       # /commit, independent of the rest
 ```
 
 Either family brings `pyhouse-universal` with it. Install `pyhouse-universal` alone for just the
@@ -20,6 +21,7 @@ language-level rules, or before you have picked an architecture.
 |---|---|---|
 | `pyhouse-universal` | 11 | Naming, typing and logging, packaging and re-exports, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the architecture chooser, and the reviewer that applies all of it to code that already exists. |
 | `pyhouse-hex` | 24 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
+| `pyhouse-git` | — | A language-independent `/commit`: reviews what is about to be staged, then writes a Conventional Commits message whose type carries the release the change earns. Depends on nothing; install it on its own. |
 | `pyhouse-flat` | 7 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the package owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
 ## Which family?

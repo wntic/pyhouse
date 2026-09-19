@@ -547,3 +547,37 @@ distinction in a position a tool can read. What survived is the requirement unde
 description specific enough to understand without the diff.
 **Reverse by:** restoring step 4 from the commit that replaced it and cutting the paragraph added to
 `## Releasing`; nothing else reads the types yet.
+
+### D62 — `/commit` ships in a new `pyhouse-git` plugin, not in `pyhouse-universal`
+The repository already had a private `/commit` in `.claude/commands/`, whose step 2 checks the
+catalogue's own contract and is meaningless anywhere else. What was wanted was a *shipped* command
+anyone can install, which is a different artifact with a different subject.
+
+It does not belong in `pyhouse-universal`. That plugin is Python house style, and a commit convention
+is language-independent — it holds in a Go repository. More decisively, `pyhouse-universal` is a
+dependency of both family plugins, so shipping the command there would mean installing `pyhouse-hex`
+for Python skills and silently also changing how commit messages get written. `CONVENTIONS.md` already
+pointed at the answer: process belongs under a separate prefix if it is reintroduced.
+
+`pyhouse-git` therefore depends on nothing and is depended on by nothing, which is what lets it be
+installed alone and lets the catalogue be installed without it. It ships **no skills**, so the
+catalogue's counts and both indexes are untouched at 42.
+
+**Why a command and not a skill.** A skill would auto-fire on description match, which is the right
+mechanism for a rule an agent should follow unprompted — but this is a procedure with side effects on
+the repository, and a procedure that runs because a description matched is a procedure nobody asked
+for. The same reasoning that kept the code reviewer out of a skill in D53 applies here. A skill
+carrying the convention without the staging procedure is a reasonable future addition, and is the
+obvious candidate for "what else goes in this plugin".
+
+**Starting at 0.1.0, deliberately.** By `python-versioning` rule 9 that withholds the compatibility
+promise, which is honest for a plugin whose contents are expected to grow. It stops being honest once
+something depends on it.
+
+### D63 — The private command stopped restating the spec
+With the shipped command carrying the Conventional Commits template, scope rule, breaking-change form
+and description rules, the private one held a second copy — the exact drift failure this catalogue
+keeps finding in its own skills. Its step 4 now points at `plugins/pyhouse-git/commands/commit.md`,
+which is in this tree and so cannot dangle, and keeps only what is genuinely the repository's own: the
+mapping of types onto catalogue artifacts, where `feat` means a skill rather than "a capability".
+D61's table moved there rather than being deleted; the spec mechanics around it went.

@@ -95,13 +95,14 @@ is immutable: a correction is the next number, never a moved tag.
 ## Layout
 
 ```
-.claude-plugin/marketplace.json          lists the three plugins
+.claude-plugin/marketplace.json          lists the four plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 tools/check_template_imports.py          resolves every import in every template (see above)
 plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills
+plugins/pyhouse-git/                     /commit — no skills, no dependency, ships on its own
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and

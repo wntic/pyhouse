@@ -72,62 +72,38 @@ git add <resolved files>
 
 ### 4. Write the commit message
 
-Inspect the staged diff with `git diff --staged`, then compose a **Conventional Commits 1.0.0**
-message — https://www.conventionalcommits.org/en/v1.0.0/.
+**The message rules are shipped, not restated here.** Read
+`plugins/pyhouse-git/commands/commit.md` — the `/commit` this repository publishes — for the
+Conventional Commits template, the scope rule, the breaking-change form, and the description, body
+and footer rules. That file is the authority and it is in this tree, so it cannot dangle.
 
-```
-<type>[(scope)][!]: <description>
+What this repository adds is **which type its own artifacts take**, since "a capability that was not
+there before" needs saying in terms of a catalogue of Markdown:
 
-[body]
-
-[footers]
-```
-
-**Type** — the type states the kind of change, so the description does not have to. It also decides
-the next release under `## Releasing` in `CLAUDE.md`, which is why picking it is not cosmetic:
-
-| Type | Use for | Release |
+| Type | Here it means | Release |
 |---|---|---|
 | `feat` | a new skill, command or agent; an existing skill's scope widened | minor |
 | `fix` | a correction that changes no obligation — a dead cross-reference, a template whose imports do not resolve, a broken frontmatter parse | patch |
-| `docs` | `README.md`, `CLAUDE.md`, `DECISIONS.md`, or an index entry changed on its own | none |
-| `refactor` | a skill restructured without changing what it obliges — a split into sibling files, a section reordered | none |
-| `chore` | manifests, versions, tooling, repository housekeeping | none |
+| `docs` | `README.md`, `CLAUDE.md`, `DECISIONS.md` or an index entry changed on its own | none |
+| `refactor` | a skill restructured without changing what it obliges — a split into sibling files | none |
+| `chore` | manifests, versions, repository housekeeping | none |
 | `test` | `tools/` and anything that checks the catalogue | none |
 
-A skill and the index entries it forces are **one** commit, so it takes the skill's type — `feat`,
-not `docs`. `docs` is for a documentation change that stands alone.
+`BREAKING CHANGE` here means a skill removed or renamed, a rule reversed, or a plugin's prefix set
+changed — anything that breaks a project already carrying the catalogue.
 
-**Scope** — a noun naming the part of the catalogue affected. Prefer the skill's own name; fall back
-to the plugin, or `catalogue` for something genuinely cross-cutting.
+**Scope** is the skill's own name where one skill is the subject, else the plugin, else `catalogue`.
 
 ```
 feat(python-versioning):    fix(hex-wiring):    docs(catalogue):    chore(universal):
 ```
 
-**Breaking changes** — a skill removed or renamed, a rule reversed, a plugin's prefix set changed.
-Anything that breaks a project already carrying the catalogue. Mark it **both** ways when the
-description alone will not carry it: `!` before the colon, and a `BREAKING CHANGE:` footer saying what
-breaks and what to do instead. `BREAKING CHANGE` is the one token that must be uppercase.
+A skill and the index entries it forces are **one** commit and take the skill's type — `feat`, never
+`docs`. `docs` is for a documentation change that stands alone.
 
-**Description**
-- Lowercase, imperative, no trailing period — "This commit will…" completes the sentence
-- Specific enough to understand without reading the diff; the type already says what kind of change it is, so do not repeat it (`feat(x): add …`, never `feat(x): add a new feature that adds …`)
-- Whole subject line ≤72 characters including type and scope
-
-**Body** (include when the cause or decision is non-obvious)
-- Blank line after the description
-- 72-char wrap
-- Explain *why*, not what — context, the problem before, trade-offs
-- Plain prose, not bullet lists
-
-**Footers** — one blank line after the body. A token uses `-` for spaces:
-- `Closes #N`, `Fixes #N`, `Refs #N`
-- `BREAKING CHANGE: <description>`
-- `Co-Authored-By: <name> <email>`
-
-**Atomic commits**: one logical change per commit — if the description needs "and", split it. A skill
-and the index entries it forces are *one* change, not two.
+**No trailers.** This repository uses none: no `Co-Authored-By`, no generator lines, no
+`Signed-off-by`. The shipped command's rule is to match what the repository already does, and this is
+what it does.
 
 ### 5. Commit
 

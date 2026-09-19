@@ -76,13 +76,16 @@ too. The counts in every heading are the number of directories on disk.
 ## Packaging — which plugin a skill ships in
 
 The catalogue is distributed on the Claude Code marketplace as three plugins under the marketplace name
-`pyhouse`. Every new skill belongs to exactly one of them.
+`pyhouse`. Every new skill belongs to exactly one of them. A fourth plugin, `pyhouse-git`, ships beside
+them and holds no skills — it is repository workflow rather than Python house style, and nothing in
+the catalogue depends on it.
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
+| `pyhouse-git` | `plugins/pyhouse-git/` | the `/commit` command — no skills | — |
 
 **The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.
 
