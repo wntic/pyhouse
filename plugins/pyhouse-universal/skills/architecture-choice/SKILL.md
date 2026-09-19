@@ -165,10 +165,10 @@ family and do not supply a layout — there is none here to give, and a hexagona
 into a framework's tree fights the framework at every file.
 
 The universal skills still bind in full — `naming`, `python-style`, `python-packaging`,
-`exception-catalog`, `test-principles` — and they are not a consolation prize; they are the rules that
-were never architectural in the first place. The deciding question is still worth answering, because
-knowing whether the project owns invariants tells the reader what to protect. It just selects no
-family here.
+`python-versioning`, `exception-catalog`, `test-principles` — and they are not a consolation prize;
+they are the rules that were never architectural in the first place. The deciding question is still
+worth answering, because knowing whether the project owns invariants tells the reader what to
+protect. It just selects no family here.
 
 Run this skill again if a service is carved out of the project: a deployable with its own entrypoint
 and its own reason to exist is back in scope, and the choice is made for that service alone.
