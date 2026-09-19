@@ -4,13 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-`pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It contains no Python source,
-no build system, no test suite and no dependencies — only Markdown skills plus three plugin manifests.
-The "code" is 41 `SKILL.md` files that tell an agent how to write Python services; the Python in them
-is template content, never executed here.
+`pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
+test suite and no runtime dependencies — only Markdown skills, three plugin manifests, and one
+maintainer script. The "code" is 41 `SKILL.md` files that tell an agent how to write Python services;
+the Python in them is template content, not executed as part of anything here.
 
-Because there is nothing to build, verification is reading: the contracts below are the only things
-that can be broken, and they are broken silently.
+Most of the contracts below can only be checked by reading, and they are broken silently. One cannot:
+whether the symbols a template imports exist. `tools/check_template_imports.py` resolves every import
+in every fenced `python` block against an environment with the catalogue's stack installed, and
+reports three outcomes — resolved, **missing**, and *unchecked* where a package is absent so nothing
+was verified. Run it before shipping a template:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy pydantic-settings \
+  structlog respx pytest 'testcontainers[postgres,minio]' alembic redis aioboto3 pyjwt temporalio \
+  uuid6 httpx cryptography idna
+.venv/bin/python tools/check_template_imports.py
+```
+
+It exists because a template once imported two symbols that do not exist in the library it binds, and
+every other check in this repository passed over it.
 
 ## Commands
 
