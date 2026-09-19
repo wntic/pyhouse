@@ -151,7 +151,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | Skill | Owns |
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
-| `flat-persistence` | One package owning a service's data access, relational: transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
+| `flat-persistence` | One package owning a service's data access over a SQL store — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
 | `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
 
 ## Flat tests (4)

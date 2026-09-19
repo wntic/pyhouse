@@ -62,7 +62,7 @@ too. The counts in every heading are the number of directories on disk.
 ### Flat core (3)
 
 - `flat-layered` — Four role kinds carry the rules; the worked example's directory names are one project's and are replaceable, and one distribution on its own is the default.
-- `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; relational throughout.
+- `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
 - `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
 
 ### Flat tests (4)

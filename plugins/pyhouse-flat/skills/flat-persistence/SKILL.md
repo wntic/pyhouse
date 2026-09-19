@@ -1,6 +1,6 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a relational store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a storage library several distributions share is `python-workspace`.
+description: Use when a flat-layered service reads or writes a SQL store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a storage library several distributions share is `python-workspace`.
 when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a storage or repository class in a flat service, a constraint naming convention, a migration for a flat service, or where a service's SQL is allowed to live.
 ---
 
@@ -11,10 +11,25 @@ skill's import contract, whatever this service names the package. It holds the t
 write path, the mapping from stored rows back to the service's own types, and the migration history.
 **No other package in the service constructs a statement or opens a connection.**
 
-**Precondition — the store is relational and transactional.** Rules 3, 4, 6, 8, 9, 10, 11, 12 and 15
-presuppose it: transactions, constraint names, statements, bind parameters, conflict clauses and a
-migration history. A document store, a key-value store or a vendor-managed index satisfies none of them
-as written; rules 1, 2, 5, 7, 13 and 14 hold for any store and are what carries across.
+**Precondition — the store speaks SQL.** Which of the rules below bind you then depends on four
+properties of that store, not on its name. Answer these before reading the rules, because a rule whose
+property is absent has nothing to be true about:
+
+| Does the store have… | If no, these do not apply |
+|---|---|
+| multi-statement transactions | rules 3, 4 — nothing spans statements, so nothing declares an owner |
+| named unique constraints | rule 8 — there is no name for three artifacts to agree on |
+| a conflict clause on write | rule 12 — resolution moves into the table's own engine or a later pass |
+| a write readable immediately after it returns | rule 11 — a read-back can only be a separate, later read |
+
+**Rules 1, 2, 5, 6, 7, 9, 13, 14 and 15 hold for any store at all**, SQL or not, and are what carries
+across to a document store, a key-value store or a vendor-managed index. Rule 10 holds everywhere but
+inverts its reason: where a driver caps bind parameters the constant exists to stay under a ceiling,
+and on a columnar store that penalises small writes it exists to stay above a floor. The number is the
+store's; that it is named once and read by the test is not.
+
+A store answering *no* four times is not a poor fit for this skill — it is nine rules instead of
+fifteen, and the six that lapse lapse because their subject does not exist.
 
 The default subject is **one distribution with its own store**. Where several share one store, the same
 package becomes a library they all depend on and one rule below says what that changes.
@@ -73,11 +88,15 @@ layout. Only this file is loaded automatically, so open the one you need:
   is the SQL in the file, so a bulk write's cost is readable at the call site and lazy loading cannot
   appear behind an attribute access. Rule 9 is where this bites — an ORM project writes the bulk path as
   the session's own bulk-insert API, never as mapped objects saved in a loop.
-- **Another engine or driver.** Every rule holds; the conflict-resolution clause, the dialect-specific
-  column types, the bind-parameter cap the chunk size is computed against, the driver exception the
-  translator matches on and the read-back clause all change together. Conflict resolution is the one that
-  is not mechanical: a backend without `ON CONFLICT` carries rule 12 as a `MERGE` or as a lock-and-check,
-  and "nothing to update" must still become a no-op there rather than an error.
+- **Another engine or driver.** The dialect-specific column types, the bind-parameter cap the chunk size
+  is computed against, the driver exception the translator matches on and the read-back clause all change
+  together; which rules bind at all is the precondition's four questions, not this bullet's. Conflict
+  resolution is the one that is not mechanical. A backend with no conflict clause carries rule 12 as a
+  `MERGE` or as a lock-and-check where it has either — and where it has neither, resolution is not the
+  writer's to do: a columnar store that deduplicates at merge time takes the write as it comes and
+  settles it later, so the rule lapses and what replaces it is a table-engine choice made once in the
+  schema, not a clause chosen per call. "Nothing to update" must still be a no-op wherever the rule
+  applies at all.
 - **This package as a separate distribution, shared by several others.** The templates are unchanged,
   the settings class in `SETUP.md` included — it is already this component's own. What changes is where its
   prefix comes from: no longer one service's stem but the shared package's own (`MYSCHEMA_`), because

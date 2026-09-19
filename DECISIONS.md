@@ -349,3 +349,24 @@ continuation-based engine, so the obligation now states the reason and lets the 
 matching hard stop was reworded the same way. The alternative considered was dropping the clause with
 the rest of the spellings — rejected because the mistake it catches is the one a reader who has never
 run a continuation actually makes.
+
+### D52 — `flat-persistence` partitions by store property, not by store category
+Its precondition split "relational and transactional" from "a document store, a key-value store or a
+vendor-managed index", which left no slot for a SQL store that is not transactional — a columnar
+analytical store has tables and statements but no multi-statement transactions, no named unique
+constraints, no conflict clause, and no guarantee that a write is readable when it returns. The
+`## Other bindings` escape hatch missed it too: it offered `MERGE` or lock-and-check to a backend
+without a conflict clause, and such a store has neither.
+
+The category split was also wrong in detail — rules 6, 9 and 15 sat in the "presupposes relational"
+bucket and hold for any store at all.
+
+The precondition is now four questions about the store's properties, each naming the rules that lapse
+when the answer is no, with rule 10 called out as holding everywhere while inverting its reason: a bind
+-parameter cap is a ceiling, a columnar store's small-write penalty is a floor, and the constant is
+named once either way. Nine rules hold for any store, SQL or not.
+
+**Why properties rather than a profile table:** `hex-store-repository` uses profiles because its
+vendors differ in *client shape*, and one row captures that. Here the vendors differ in *guarantees*,
+and a reader needs to know which guarantee is missing to know which rule lapses — a profile name would
+hide exactly the fact the rules turn on.
