@@ -370,3 +370,107 @@ named once either way. Nine rules hold for any store, SQL or not.
 vendors differ in *client shape*, and one row captures that. Here the vendors differ in *guarantees*,
 and a reader needs to know which guarantee is missing to know which rule lapses — a profile name would
 hide exactly the fact the rules turn on.
+
+## The review half
+
+### D53 — The reviewer is a command over a subagent, and not a skill
+The catalogue states the rules and nothing applied them to existing code. Three mechanisms were
+available and the choice was argued from what each one does, not from taste.
+
+A **subagent** holds the procedure. A review reads a diff, a tree and several `SKILL.md` bodies —
+including ones loaded to settle scope and then discarded — and emits a handful of findings. In the
+calling session that is thousands of lines spent on a paragraph, and the discarded rules stay resident
+afterwards. Isolation is the argument, and it is about context rather than tidiness.
+
+A **command** is the entry point, thin, modelled on `/choose-architecture`: it resolves the target and
+renders what comes back, and holds no procedure of its own. Review has to be invoked deliberately
+because its natural triggers — persistence, endpoint, repository — are the authoring skills' triggers,
+so a description-matched reviewer would fire while someone was writing and compete for the same load.
+
+**A skill was rejected.** It would have to either restate rules, which is the drift failure this
+catalogue keeps finding, or carry procedure alone, which `CONVENTIONS.md` puts out of scope as
+process-only. It would auto-fire during authoring. And it loads into the caller's context, which is the
+cost the subagent exists to avoid. No skill was added, so the counts stay at 41 — universal 10, hex 24,
+flat 7 — and neither index gained a row.
+
+The ruleless property is kept by a mechanism rather than by discipline: a judgement the reviewer cannot
+attribute to a numbered rule or a hard stop is reported as a **gap in the catalogue**, addressed to the
+maintainer, never as a finding. The pressure to invent a rule has somewhere to go that is not the
+review.
+
+Three steps come straight from existing skills rather than from the reviewer. Scope is
+`architecture-choice`'s, including its "neither" answer and the shapes it names as uncovered.
+Applicability is `flat-persistence`'s pattern, D52's four store-property questions, generalised: read
+the skill's own precondition, and hold the code only to the rules that survive it. The obligation/
+spelling line is drawn by a section: the reviewer reads `## Hard stops`, `## Rules` and precondition
+prose, and never `## Template(s)` — which makes D50's reason enforceable, since a rule that only fires
+on one stack has no section left to be read out of.
+**Reverse by:** deleting `plugins/pyhouse-universal/agents/` and `commands/code-review.md`, dropping
+the `agents` key from that plugin's manifest, and reverting the paragraph in `CLAUDE.md`, the packaging
+row and note in `CONVENTIONS.md`, the table row in `skills/README.md` and the section in `README.md`.
+
+### D54 — `CLAUDE.md` described a `/commit` delegation that `.claude/commands/commit.md` never had
+It said `/commit` "delegates the family detection to a `/style-review` command that is not in this
+repo". No such call exists in that file, and family detection is meaningless here — this repository
+holds no Python and no service. The two were also aimed at different subjects: `/commit` checks the
+catalogue's own contract, while the review command checks a project that installs the catalogue. The
+paragraph now says what each one's subject is and that they do not overlap. `/commit` was left alone;
+wiring the new command into it would have pointed a Python reviewer at a tree of Markdown.
+
+### D55 — Only `pyhouse-universal` was bumped, to 0.3.0
+D21 bumped all three plugins together because all three changed. Here only one did. Bumping `hex` and
+`flat` for an unchanged payload makes the version say something untrue, and nothing pins the dependency
+by range. The marketplace's own metadata went to 0.3.0, since what it offers changed.
+
+### D56 — What the reviewer cannot check, recorded rather than hidden
+The limits below are properties of the catalogue or of review itself, not defects in the artifact.
+They are where a human still has to look.
+
+**Only six skills state a precondition the reviewer can answer.** `flat-persistence` (four store
+properties), `flat-entrypoint` and `flat-test-run-function` (the earned engine), `hex-project-setup`
+and `hex-test-integration-setup` (a relational store backing a repository), `hex-restapi-endpoint` (a
+size-cap middleware). For the other thirty-five, applicability is inferred from the skill's
+`description` and its `## When to use vs. neighbours` routing, which is weaker evidence, and that is
+where a false positive will come from. Each skill that grows an explicit precondition makes the filter
+sharper; none of them needs one written for the reviewer's sake alone.
+
+**Intent-based rules are not decidable.** `test-architecture-rule` already names the class — "no `Any`
+*unless* at a true external boundary" — and the limit is the same for a reader as for a grep. The
+reviewer can see the shape and not the justification, so a rule of this class is checkable only where
+the code makes its intent explicit.
+
+**"The rule two callers now share" is the migration signal `architecture-choice` names, and it is not
+visible in a diff.** Detecting it needs the second caller, which is usually outside the target. A flat
+service growing its first domain rule will read as compliant.
+
+**A rule stated once but obeyed in many places is reviewed only where the target touches it.** Nothing
+here audits a whole tree for a rule the diff did not go near; a tree review is a different, larger job
+the command asks before starting.
+
+**Silence has two causes and the header distinguishes them only partly.** "No findings" means the
+applied skills found nothing; it does not mean the remaining skills would have found nothing had they
+been judged applicable. The `Applied:` line is what a reader checks when the silence looks too quiet.
+
+**The reviewer cannot review the catalogue.** Its criteria come from the skills, so a wrong rule reads
+as compliance and a missing rule reads as silence. Gaps reported to the maintainer are the only channel
+by which either surfaces, and they depend on a reader noticing something the skills do not state.
+
+### D57 — The command is `code-review`, namespaced, not `style-review` (maintainer's call)
+It shipped first as `/style-review`, for two reasons that did not survive. The first was to fill a hole
+`CLAUDE.md` named — which D54 then established had never existed. The second was a collision with
+Claude Code's own `/code-review`, and a plugin command is namespaced: `pyhouse-universal:code-review`
+cannot be confused with the built-in.
+
+What decided it was that the short name misled a reader about scope in the direction that costs most.
+"Style" reads as formatting and lint — which is precisely the half this reviewer *delegates*, to the
+project's own checkers, on `test-architecture-rule`'s grounds. The half it keeps is structural: the
+architecture family, layer boundaries and dependency direction, transaction ownership, boundary
+translation, the error catalogue. Two of the forty skills it can apply are coding style in the narrow
+sense. A name that advertises those two and hides the other thirty-eight stops the reader running it
+before the commit that restructures a layer, which is the one commit it exists for.
+
+The cost of `code-review` is the opposite over-promise — the name suggests bugs, races and
+vulnerabilities, none of which it looks for. That is carried by the `description` on both the command
+and the subagent rather than by the name, and by a `## What this is not` section in the command, so a
+clean report is never read as "the code is correct".
+**Reverse by:** renaming the command file and the six references listed under D53.
