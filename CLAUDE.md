@@ -41,6 +41,8 @@ step degrades to a manual review if that command is absent.
 
 ```
 .claude-plugin/marketplace.json          lists the three plugins
+DECISIONS.md                             why things are the way they are, and how to reverse each
+tools/check_template_imports.py          resolves every import in every template (see above)
 plugins/pyhouse-universal/               10 skills (9 universal + meta-skill-author), /choose-architecture
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills
