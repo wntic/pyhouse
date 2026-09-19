@@ -18,7 +18,7 @@ language-level rules, or before you have picked an architecture.
 
 | Plugin | Skills | What it covers |
 |---|---|---|
-| `pyhouse-universal` | 10 | Naming, typing and logging, packaging and re-exports, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the architecture chooser. |
+| `pyhouse-universal` | 10 | Naming, typing and logging, packaging and re-exports, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the architecture chooser, and the reviewer that applies all of it to code that already exists. |
 | `pyhouse-hex` | 24 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-flat` | 7 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the package owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
@@ -33,6 +33,21 @@ project whose layout Django, Airflow or a package-by-feature convention already 
 Run `/choose-architecture` for the cases that are not clean: invariants *and* heavy integration work,
 a flat service growing its first rule, a monorepo holding both, and the shapes the catalogue does not
 cover.
+
+## Reviewing existing code
+
+The same rules are the review criteria. `/pyhouse-universal:code-review` reads a diff, a commit range or a path and
+reports where the code departs from them; it runs in a subagent, so reading the tree and the skills
+costs the calling session nothing but the report.
+
+It states no rules of its own. It works out which family the code is in — or that it is in neither,
+which is the answer for a Django tree, a library, a CLI or an ML repo, and means most of the
+catalogue does not bind — then checks each skill's own precondition before holding the code to its
+rules. Every finding names the skill and the rule or hard stop it came from; anything it cannot
+attribute is reported as a gap in the catalogue, not as a finding against you.
+
+It reports obligations, never a difference from a template: a finding you would have to change
+library to act on is a review of that library, which its own tooling does better.
 
 ## How a skill is written
 

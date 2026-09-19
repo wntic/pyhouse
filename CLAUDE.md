@@ -55,10 +55,15 @@ claude plugin marketplace add wntic/pyhouse        # or `add .` to test this che
 claude plugin install pyhouse-hex@pyhouse          # or pyhouse-flat / pyhouse-universal
 ```
 
-`/commit` (in `.claude/commands/`) is the repo's own commit flow: it runs a house-style review before
-staging and refuses to commit code that breaks a Hard stop. It delegates the family detection to a
-`/style-review` command that is **not** in this repo — it comes from the user's own config, so the
-step degrades to a manual review if that command is absent.
+`/commit` (in `.claude/commands/`) is the repo's own commit flow, and its subject is **this
+repository**: step 2 checks the catalogue contract — frontmatter, the placeholder vocabulary, the two
+layers, the index counts — because there is no Python here to lint. It calls nothing external.
+
+`/pyhouse-universal:code-review` (shipped in that plugin, not in `.claude/commands/`) is the other direction:
+its subject is a **Python project that installs the catalogue**. It resolves a target and hands it to
+the `pyhouse-reviewer` subagent, which decides which skills apply and applies them. The two never
+overlap — running the review command on this repository finds no architecture family and nothing to
+review, which is correct.
 
 ## Layout
 
@@ -66,7 +71,8 @@ step degrades to a manual review if that command is absent.
 .claude-plugin/marketplace.json          lists the three plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 tools/check_template_imports.py          resolves every import in every template (see above)
-plugins/pyhouse-universal/               10 skills (9 universal + meta-skill-author), /choose-architecture
+plugins/pyhouse-universal/               10 skills (9 universal + meta-skill-author),
+                                         /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills
 ```
