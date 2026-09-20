@@ -598,3 +598,43 @@ not, and tells the reader to detect rather than assume.
 
 This is `architecture-choice`'s posture applied to a different question — decline to prefer, refuse to
 let the choice go unmade and unstated.
+
+### D65 — The commit-msg hook is POSIX `sh`, and lives in `git-hooks/`, not `hooks/`
+`hooks/` is Claude Code's own plugin convention and means its hook system — PreToolUse and the rest —
+which is a different mechanism from a git hook entirely. A git hook placed there would be read by
+neither, or by the wrong one. `git-hooks/` says which kind it is and collides with nothing.
+
+POSIX `sh` rather than Python, because the plugin installs into repositories that are not Python
+projects and a hook that needs an interpreter the repository does not have is a hook that gets
+deleted. `grep -E` throughout for the same reason: basic `grep`'s alternation is a GNU extension that
+BSD does not carry reliably, which `test-architecture-rule` had already established for this
+catalogue.
+
+**What it deliberately does not enforce.** No type allowlist by default — specification rule 14 says
+types other than `feat` and `fix` may be used, so rejecting `perf` out of the box would reject a valid
+commit. The allowlist is opt-in through `pyhouse.commit.types`. What is enforced by default is
+structure, the blank line before a body, the uppercase `BREAKING CHANGE` token, and a 72-character
+subject; only the last is a house choice rather than the specification, and it is configurable.
+
+Merge, revert and `fixup!`/`squash!`/`amend!` subjects are skipped: git writes them itself or a later
+rebase consumes them, and a hook that rejects `Merge branch 'develop'` is a hook that teaches people
+`--no-verify`. The escape hatch is documented for the same reason — a hook that cannot be bypassed
+gets deleted rather than fixed.
+
+Verified against 27 cases before shipping, accept and reject, including the 72/73-character boundary.
+
+### D66 — Installing shared is recommended, with the catch stated rather than buried
+`.githooks/` plus `core.hooksPath` puts the hook under review and gives everyone the same one, which
+is why it is the recommendation. But `core.hooksPath` is per-clone configuration: every contributor
+runs one command, or the hook protects nobody. The command says that out loud and asks to be added to
+whatever setup script the repository already has, because the failure mode here is silent and looks
+exactly like success.
+
+The command also refuses to report success on a copy — it runs the installed hook against a message
+that must be rejected and one that must pass, and shows both. A hook installed without its executable
+bit, or shadowed by an existing `core.hooksPath`, exits 0 on everything and reads as working.
+
+**The gap it names rather than hides:** a local hook cannot see a squash merge, where the mainline
+message is the request title. That check belongs in CI or the forge's settings, and the command says
+so when it installs into a repository that squashes rather than leaving the impression the mainline is
+guarded.

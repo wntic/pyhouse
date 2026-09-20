@@ -1,8 +1,8 @@
 {
   "name": "pyhouse-git",
-  "displayName": "pyhouse — git",
-  "version": "0.1.0",
-  "description": "Repository workflow commands, independent of language and of any architecture. Ships /commit, which reviews what is about to be staged, then writes a Conventional Commits 1.0.0 message whose type carries the release the change earns — feat for a minor, fix for a patch, BREAKING CHANGE for a major — so a version can be read off the history instead of argued at release time. Depends on nothing and is installed on its own.",
+  "displayName": "pyhouse \u2014 git",
+  "version": "0.2.0",
+  "description": "Repository workflow commands, independent of language and of any architecture. Ships /commit, which reviews what is about to be staged, then writes a Conventional Commits 1.0.0 message whose type carries the release the change earns \u2014 feat for a minor, fix for a patch, BREAKING CHANGE for a major \u2014 so a version can be read off the history instead of argued at release time, and /install-commit-hook, which puts a commit-msg hook in the repository so a malformed message is refused at commit time. Depends on nothing and is installed on its own.",
   "author": {
     "name": "Yegor Vorobyev"
   },
@@ -10,9 +10,11 @@
   "repository": "https://github.com/wntic/pyhouse",
   "license": "MIT",
   "keywords": [
-    "git",
     "commit",
+    "commit-msg",
     "conventional-commits",
+    "git",
+    "git-hooks",
     "semver",
     "workflow"
   ],

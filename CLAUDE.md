@@ -102,7 +102,8 @@ plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-au
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills
-plugins/pyhouse-git/                     /commit — no skills, no dependency, ships on its own
+plugins/pyhouse-git/                     /commit, /install-commit-hook and the commit-msg hook
+                                         they install — no skills, no dependency
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and

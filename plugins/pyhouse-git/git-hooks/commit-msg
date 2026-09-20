@@ -1,0 +1,80 @@
+#!/bin/sh
+# Reject a commit message that is not Conventional Commits 1.0.0.
+# https://www.conventionalcommits.org/en/v1.0.0/
+#
+# Install: /pyhouse-git:install-commit-hook, or by hand —
+#   mkdir -p .githooks && cp this file .githooks/commit-msg && chmod +x .githooks/commit-msg
+#   git config core.hooksPath .githooks
+#
+# Configure (optional):
+#   git config pyhouse.commit.types "feat fix docs refactor perf test build ci style chore"
+#   git config pyhouse.commit.maxSubject 72
+#
+# Bypass for one commit: git commit --no-verify
+
+set -e
+
+MSG_FILE="$1"
+[ -r "$MSG_FILE" ] || exit 0
+
+# The message as git will store it: comments stripped, trailing blank lines gone.
+BODY_ALL=$(sed '/^#/d' "$MSG_FILE")
+SUBJECT=$(printf '%s\n' "$BODY_ALL" | sed '/^[[:space:]]*$/d' | head -n 1)
+
+# Nothing to check: an empty message aborts the commit on its own.
+[ -n "$SUBJECT" ] || exit 0
+
+# Git writes these itself, or they are consumed by a later rebase. Not ours to judge.
+case "$SUBJECT" in
+    "Merge "*|"Revert "*|"fixup!"*|"squash!"*|"amend!"*) exit 0 ;;
+esac
+
+MAX=$(git config --get pyhouse.commit.maxSubject || echo 72)
+TYPES=$(git config --get pyhouse.commit.types || echo "")
+
+fail() {
+    printf '\n  commit-msg: %s\n\n' "$1" >&2
+    printf '  subject: %s\n\n' "$SUBJECT" >&2
+    printf '  Expected: <type>[(scope)][!]: <description>\n' >&2
+    printf '    feat(parser): add array support\n' >&2
+    printf '    fix: handle an empty payload\n' >&2
+    printf '    feat(api)!: return a list where an object was returned\n\n' >&2
+    printf '  https://www.conventionalcommits.org/en/v1.0.0/\n' >&2
+    printf '  Bypass once with --no-verify.\n\n' >&2
+    exit 1
+}
+
+# Rule 1: type, optional scope, optional !, then a colon and a space.
+# Rule 4: a scope is parenthesised and non-empty. Rule 5: a description follows.
+if ! printf '%s' "$SUBJECT" | grep -qE '^[a-z]+(\([^()]+\))?!?: .+'; then
+    case "$SUBJECT" in
+        *": "*) fail "the part before the colon is not a valid type or scope" ;;
+        *":"*)  fail "a space must follow the colon (rule 1)" ;;
+        *)      fail "no type — a message begins '<type>: ' (rule 1)" ;;
+    esac
+fi
+
+TYPE=$(printf '%s' "$SUBJECT" | sed -E 's/^([a-z]+).*/\1/')
+
+if [ -n "$TYPES" ]; then
+    MATCHED=0
+    for t in $TYPES; do [ "$t" = "$TYPE" ] && MATCHED=1 && break; done
+    [ "$MATCHED" = 1 ] || fail "type '$TYPE' is not one of: $TYPES"
+fi
+
+LEN=$(printf '%s' "$SUBJECT" | wc -c | tr -d ' ')
+[ "$LEN" -le "$MAX" ] || fail "subject is $LEN characters, limit is $MAX"
+
+# Rule 6: a body begins one blank line after the description.
+SECOND=$(printf '%s\n' "$BODY_ALL" | sed -n '2p')
+if [ -n "$SECOND" ]; then
+    fail "a body must be separated from the subject by a blank line (rule 6)"
+fi
+
+# Rule 12/15: the footer token is uppercase. Catch the near-misses that parse as prose.
+if printf '%s\n' "$BODY_ALL" | grep -qiE '^breaking[ -]change:' \
+   && ! printf '%s\n' "$BODY_ALL" | grep -qE '^BREAKING[ -]CHANGE:'; then
+    fail "BREAKING CHANGE must be uppercase to be read as a footer (rule 15)"
+fi
+
+exit 0
