@@ -115,3 +115,29 @@ Then report the hash, the subject, and the files and line counts:
 ```
 
 Do not push, tag, or create a branch unless asked.
+
+## Merging — where the convention has to hold
+
+A commit written here survives to the mainline, or does not, depending on how the branch is merged.
+The convention has to hold wherever the surviving message is written, so establish which of the two
+this repository does before writing anything that lands on a branch.
+
+**Squash merge** — the branch's commits are discarded and the request's **title** becomes the commit
+message. That title is therefore the thing that must be conventional, and one request is one logical
+change, one type, one version implication. A branch carrying both a feature and an unrelated fix
+collapses into a single type and the fix vanishes from the history; split the request rather than
+picking whichever type feels larger. Keep the branch commits conventional anyway — they cost nothing
+and they survive a later change of strategy.
+
+**Merge commit** — every commit on the branch lands, so every one must be conventional. The merge
+commit itself is not, and is skipped by anything reading the history with `--no-merges`.
+
+**Either is fine; both together is not.** Neither strategy breaks version derivation — the strongest
+type in a range decides the bump the same way under both — but they put the check in different places,
+one on the request title and one on each commit. A repository that allows both needs both checks, or a
+branch eventually merges with a title nobody validated. Pick one, state it where contributors will
+read it, and enforce it there.
+
+**Detect it rather than assuming.** The platform's merge setting is the authority; failing that, a
+mainline with no merge commits is squashing. When it is genuinely unclear, ask — and say which way the
+answer sends the message being written.

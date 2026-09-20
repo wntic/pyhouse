@@ -581,3 +581,20 @@ keeps finding in its own skills. Its step 4 now points at `plugins/pyhouse-git/c
 which is in this tree and so cannot dangle, and keeps only what is genuinely the repository's own: the
 mapping of types onto catalogue artifacts, where `feat` means a skill rather than "a capability".
 D61's table moved there rather than being deleted; the spec mechanics around it went.
+
+### D64 — The shipped `/commit` is neutral on merge strategy but refuses to be neutral on choosing one
+A commit written by the command survives to the mainline under a merge commit and is discarded under a
+squash, where the request's title becomes the message instead. The command covered neither, so a team
+that squashes would have got a conventional history up to the moment the first request title was
+written by someone who thought the commits were what counted.
+
+Neutrality is right on *which* strategy — merge policy belongs to the repository, and the command
+ships to repositories it will never see. It is wrong on whether to pick one. Mixing does not break
+version derivation, which was the worry worth checking: the strongest type in a range decides the bump
+identically under both. What it breaks is the enforcement point, which sits on the request title under
+one strategy and on each commit under the other, so a repository allowing both needs both checks and
+usually has one. The section therefore states both, states that either is fine and both together is
+not, and tells the reader to detect rather than assume.
+
+This is `architecture-choice`'s posture applied to a different question — decline to prefer, refuse to
+let the choice go unmade and unstated.
