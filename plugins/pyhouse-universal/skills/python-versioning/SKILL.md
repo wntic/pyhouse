@@ -55,7 +55,9 @@ depending on it.
 
 ## Template — static declaration, canonical PEP 440
 
-The version is a literal in `pyproject.toml`, changed in the commit that earns it.
+The version is a literal in `pyproject.toml`, changed only in the commit that cuts a release — once
+per release, however many changes since the last tag earned it. A commit that is not a release leaves
+it alone; bumping as each change lands carries the number past anything that was released.
 
 ```toml
 [project]
