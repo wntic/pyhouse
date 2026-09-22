@@ -1,7 +1,8 @@
 # House-style skills
 
-42 project-neutral Python skills in seven families: Universal (10), Meta (1), Hex core (12),
-Hex REST API (4), Hex tests (8), Flat core (3), and Flat tests (4).
+43 skills: 42 project-neutral Python skills in seven families — Universal (10), Meta (1), Hex core
+(12), Hex REST API (4), Hex tests (8), Flat core (3), Flat tests (4) — and one language-independent
+Git skill.
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -17,6 +18,7 @@ repository:
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 7 `flat-*` |
+| `pyhouse-git` | `plugins/pyhouse-git/` | the 1 `git-*`, the `/commit` and `/install-commit-hook` commands |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
@@ -35,7 +37,9 @@ catalogue does not cover. It is itself universal, because it is what you consult
 which family you are in, and the `/choose-architecture` command walks it one question at a time.
 
 **The catalogue ships as three plugins** on the Claude Code marketplace: `pyhouse-universal` (the
-unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat`. Both family
+unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat`. A fourth,
+`pyhouse-git`, ships beside them for repository workflow rather than Python house style; it depends on
+nothing, nothing depends on it, and it holds in a repository of any language. Both family
 plugins depend on `pyhouse-universal`, which Claude Code enables transitively, so installing one family
 always brings the universal skills with it. `pyhouse-universal` is installable alone: a universal skill
 may *name* a family skill as an example but never require one.
@@ -163,6 +167,14 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `flat-test-persistence` | The storage package's contract against a real datastore |
 | `flat-test-service-client` | One client class's test |
 | `flat-test-run-function` | What a trigger runs — the body, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
+
+## Git (1)
+
+In `pyhouse-git`, which depends on nothing and holds in a repository of any language.
+
+| Skill | Owns |
+|---|---|
+| `git-commit-message` | The commit message — its shape, the type as the record of which release a change earns, the break marker, and where the convention has to hold under a squash or a merge |
 
 ## Conventions across both sets
 

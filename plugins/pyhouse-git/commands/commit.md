@@ -38,68 +38,20 @@ git add <resolved files>
 
 ## 4. Compose the message
 
-```
-<type>[(scope)][!]: <description>
+Write the message by the **`git-commit-message`** skill. It ships in this plugin and owns the
+convention — the message shape, the type and the release it records, scope, breaking changes, the
+description, body, footers and trailers, and where the convention has to hold under each merge
+strategy. Load it if it is not already in context. This command does not restate it, so that there is
+one copy to keep right.
 
-[body]
+The skill defers two things to the repository, and this command finds both out before writing:
 
-[footers]
-```
-
-**Type** — what kind of change this is, and what release it earns. This is the load-bearing field: a
-tool reading the history derives the next version from it.
-
-| Type | For | Release |
-|---|---|---|
-| `feat` | a capability that was not there before | minor |
-| `fix` | a defect corrected | patch |
-| `docs` | documentation only | |
-| `refactor` | behaviour unchanged, structure changed | |
-| `perf` | faster, behaviour unchanged | |
-| `test` | tests only | |
-| `build` | build system, dependencies, packaging | |
-| `ci` | pipeline configuration | |
-| `style` | formatting only, no code change | |
-| `chore` | housekeeping that fits nowhere above | |
-
-`feat` and `fix` are the two the specification mandates; the rest are conventional and a project may
-use others. Pick by **what the change is**, never by how large it was.
-
-**Scope** — optional, a noun naming the part of the codebase affected, in parentheses:
-`fix(parser):`. Use what this repository already uses; where it uses none, omit it rather than
-inventing a vocabulary in one commit.
-
-**Breaking changes** — anything that makes a caller who followed the documented surface stop working.
-Mark with `!` before the colon, and add a `BREAKING CHANGE:` footer naming what breaks and what to do
-instead. `!` alone is enough only when the description itself says what broke. `BREAKING CHANGE` is
-the one token that must be uppercase.
-
-```
-feat(api)!: return a list where a single object was returned
-
-BREAKING CHANGE: `get_items` now returns a list. Callers reading `.id` directly
-should read `[0].id`, or use `get_item` for the single-object form.
-```
-
-**Description** — imperative, no trailing period, specific enough to be understood without the diff.
-The type already says what kind of change it is, so do not repeat it. Keep the whole subject line
-within 72 characters, type and scope included. Match the repository's existing casing; where there is
-none, lowercase.
-
-**Body** — include it when *why* is not obvious from the diff. Blank line after the description,
-wrapped at 72, plain prose rather than a bullet list, explaining the problem before and the trade-off
-taken. Skip it entirely for a change that speaks for itself.
-
-**Footers** — one blank line after the body. A token uses `-` in place of spaces:
-`Closes #N`, `Refs #N`, `BREAKING CHANGE: …`, `Reviewed-by: …`.
-
-**Add no trailer of your own.** `Co-Authored-By`, a generator or tool advertisement, `Signed-off-by` —
-none of these go in unless this repository already uses them or the author asked for them in this
-commit. Check `git log` rather than assuming: a trailer added by habit is noise in every future
-`git log`, and one asserting authorship or sign-off makes a claim the author did not make.
-
-**One logical change per commit.** If the description needs "and", it is two commits — unless the
-parts cannot compile or pass apart, in which case they are genuinely one.
+- **Its existing practice.** Read `git log --oneline -20` for the scopes and casing in use, and
+  `git log -5` for whether bodies and trailers appear. The skill follows what is there.
+- **Its merge strategy**, when this commit will land on a branch. The platform's merge setting is the
+  authority; failing that, a mainline with no merge commits is squashing. When it is genuinely unclear,
+  ask — the skill puts the convention on the request title under one strategy and on every commit
+  under the other, so the answer changes what is being written.
 
 ## 5. Commit
 
@@ -115,29 +67,3 @@ Then report the hash, the subject, and the files and line counts:
 ```
 
 Do not push, tag, or create a branch unless asked.
-
-## Merging — where the convention has to hold
-
-A commit written here survives to the mainline, or does not, depending on how the branch is merged.
-The convention has to hold wherever the surviving message is written, so establish which of the two
-this repository does before writing anything that lands on a branch.
-
-**Squash merge** — the branch's commits are discarded and the request's **title** becomes the commit
-message. That title is therefore the thing that must be conventional, and one request is one logical
-change, one type, one version implication. A branch carrying both a feature and an unrelated fix
-collapses into a single type and the fix vanishes from the history; split the request rather than
-picking whichever type feels larger. Keep the branch commits conventional anyway — they cost nothing
-and they survive a later change of strategy.
-
-**Merge commit** — every commit on the branch lands, so every one must be conventional. The merge
-commit itself is not, and is skipped by anything reading the history with `--no-merges`.
-
-**Either is fine; both together is not.** Neither strategy breaks version derivation — the strongest
-type in a range decides the bump the same way under both — but they put the check in different places,
-one on the request title and one on each commit. A repository that allows both needs both checks, or a
-branch eventually merges with a title nobody validated. Pick one, state it where contributors will
-read it, and enforce it there.
-
-**Detect it rather than assuming.** The platform's merge setting is the authority; failing that, a
-mainline with no merge commits is squashing. When it is genuinely unclear, ask — and say which way the
-answer sends the message being written.

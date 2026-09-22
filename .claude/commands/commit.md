@@ -73,9 +73,9 @@ git add <resolved files>
 ### 4. Write the commit message
 
 **The message rules are shipped, not restated here.** Read
-`plugins/pyhouse-git/commands/commit.md` — the `/commit` this repository publishes — for the
-Conventional Commits template, the scope rule, the breaking-change form, and the description, body
-and footer rules. That file is the authority and it is in this tree, so it cannot dangle.
+`plugins/pyhouse-git/skills/git-commit-message/SKILL.md` — the skill this repository publishes — for
+the Conventional Commits template, the scope rule, the breaking-change form, and the description, body,
+footer and trailer rules. That file is the authority and it is in this tree, so it cannot dangle.
 
 What this repository adds is **which type its own artifacts take**, since "a capability that was not
 there before" needs saying in terms of a catalogue of Markdown:

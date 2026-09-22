@@ -663,3 +663,33 @@ version would be the same defect again.
 longer restates them; it says to read the manifests, and it now states the one-bump-per-release rule
 explicitly, since the rule was implicit enough to be missed three times in one range.
 **Reverse by:** not possible for the tag — a pushed tag is immutable, and a correction is the next number.
+
+### D68 — The convention moved out of `/commit` into a `git-commit-message` skill
+D62 named it as the obvious next addition: a skill carrying the convention without the staging
+procedure, because a skill is how an agent follows a rule unprompted and a command is how it runs a
+procedure someone asked for. An agent writing a commit message by hand, or through any command but
+`/commit`, had no convention in context at all.
+
+The skill **takes** the convention rather than copying it. It lived in `/commit`'s step 4 and its
+merging section, and leaving it there beside a new skill would have been two copies — the drift D63
+fixed once already, one level up. So the rules moved and the command kept only procedure: stage, read
+the diff, find out the repository's practice and merge strategy, compose by the skill, commit. It went
+from 143 lines to 69. The merging section split along the same line — *that* the convention holds
+wherever the surviving message is written is a rule and went to the skill; *how to find out* which
+strategy a repository uses is procedure and stayed.
+
+**The prefix is `git-*`**, mapping to `pyhouse-git`, and the name is `git-commit-message` rather than
+`git-conventional-commits`: `naming`'s identity-over-mechanism test — the skill's subject is the
+message, and Conventional Commits is its binding, with a changelog-fragment workflow named as another.
+
+**One rule is deliberately stated twice.** That a commit which is not a release does not touch the
+version is `git-commit-message` rule 2 and is also in `python-versioning`. Neither plugin can depend on
+the other — `pyhouse-git` is installed in repositories with no Python in it — so neither can point at
+the other as the owner. They are worded from different sides, the commit's and the number's, and
+`CLAUDE.md` says in so many words that this is not a duplicate to delete.
+
+**No version was bumped.** Adding a skill is a `feat`, so at the next release `pyhouse-git` goes
+0.1.0 → 0.2.0 and the marketplace follows — in the release commit, once, per D67.
+
+The skill's worked example was run through the `commit-msg` hook it describes before shipping, and
+passes. A skill whose own example its own enforcement rejects would have been worse than none.

@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repository is
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
-test suite and no runtime dependencies — only Markdown skills, three plugin manifests, and one
-maintainer script. The "code" is 42 `SKILL.md` files that tell an agent how to write Python services;
-the Python in them is template content, not executed as part of anything here.
+test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
+maintainer script. The "code" is 43 `SKILL.md` files — 42 that tell an agent how to write Python
+services, and one that tells it how to write a commit message. The Python in them is template content,
+not executed as part of anything here.
 
 Most of the contracts below can only be checked by reading, and they are broken silently. One cannot:
 whether the symbols a template imports exist. `tools/check_template_imports.py` resolves every import
@@ -94,7 +95,7 @@ The marketplace's own number moves when what it offers changes, which a plugin's
 the commits since the last tag rather than argued about at release time. The type table and the
 scope vocabulary are in `.claude/commands/commit.md` step 4; they are not repeated here.
 
-**Tags are the repository's, not the plugin's.** One artifact ships all three plugins together, so the
+**Tags are the repository's, not the plugin's.** One artifact ships all four plugins together, so the
 tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
 is immutable: a correction is the next number, never a moved tag.
 
@@ -108,8 +109,8 @@ plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-au
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills
-plugins/pyhouse-git/                     /commit, /install-commit-hook and the commit-msg hook
-                                         they install — no skills, no dependency
+plugins/pyhouse-git/                     the git-commit-message skill, /commit, /install-commit-hook
+                                         and the commit-msg hook they install — no dependency
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and
@@ -127,13 +128,20 @@ below exists to tell you what you would break, not to replace them.
 
 ## The invariants that are easy to break
 
-**Three plugins, one-way dependency.** The prefix decides the plugin: unprefixed and `meta-*` →
+**Four plugins, one-way dependency.** The prefix decides the plugin: unprefixed and `meta-*` →
 `pyhouse-universal`; `hex-*` → `pyhouse-hex`; `flat-*` → `pyhouse-flat`. Family plugins depend on
 `pyhouse-universal`, so a `hex-*`/`flat-*` skill may reference a universal skill freely. A universal
 skill may name a family skill only as an *example* and must still read correctly with that plugin
 absent — `pyhouse-universal` has to be installable alone. Hex↔flat references are expected to dangle
 (the families are mutually exclusive) and must therefore name the plugin: "`flat-layered`, in the
 `pyhouse-flat` plugin". A cross-family reference that carries a rule the referrer *needs* is a defect.
+
+`git-*` → `pyhouse-git`, which stands outside that graph: it depends on nothing and nothing depends on
+it, because it is installed in repositories of any language. A `git-*` skill may name a catalogue skill
+only as an example and must read correctly with it absent. Since neither side can require the other, a
+rule both need is stated in both, worded to agree — the one instance is that a commit which is not a
+release does not touch the version, stated by `git-commit-message` from the commit's side and by
+`python-versioning` from the number's. That is not a duplicate to delete.
 
 **Principle and binding stay separate.** `## Rules` states obligations that survive swapping the
 library ("translate the driver's integrity error at the repository boundary"), never mechanisms

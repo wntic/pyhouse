@@ -4,7 +4,7 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 42 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 43 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -73,19 +73,24 @@ too. The counts in every heading are the number of directories on disk.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
 - `flat-test-run-function` — Test the body and the wrapper that invokes it, and the orchestration level above them only where a durable-execution engine was earned.
 
+### Git (1)
+
+- `git-commit-message` — The type records which release a change earns and is picked by what the change is, never its size; a commit that is not a release never touches the version.
+
 ## Packaging — which plugin a skill ships in
 
 The catalogue is distributed on the Claude Code marketplace as three plugins under the marketplace name
-`pyhouse`. Every new skill belongs to exactly one of them. A fourth plugin, `pyhouse-git`, ships beside
-them and holds no skills — it is repository workflow rather than Python house style, and nothing in
-the catalogue depends on it.
+`pyhouse`. Every new Python skill belongs to exactly one of them. A fourth plugin, `pyhouse-git`, ships
+beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
+depends on nothing and nothing in the catalogue depends on it, so a `git-*` skill may name a catalogue
+skill only as an example and must read correctly in a repository with no Python in it.
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
-| `pyhouse-git` | `plugins/pyhouse-git/` | `/commit`, `/install-commit-hook`, the `commit-msg` hook — no skills | — |
+| `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (1), `/commit`, `/install-commit-hook`, the `commit-msg` hook | — |
 
 **The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.
 
@@ -105,7 +110,8 @@ broken install waiting to happen; one that says "the hexagonal family applies th
 `hex-persistence`, in the `pyhouse-hex` plugin" is not.
 
 The prefix decides the plugin: unprefixed and `meta-*` → `pyhouse-universal`; `hex-*` (including
-`hex-restapi-*` and `hex-test-*`) → `pyhouse-hex`; `flat-*` (including `flat-test-*`) → `pyhouse-flat`.
+`hex-restapi-*` and `hex-test-*`) → `pyhouse-hex`; `flat-*` (including `flat-test-*`) → `pyhouse-flat`;
+`git-*` → `pyhouse-git`.
 A skill that would need to sit in two plugins is two skills.
 
 **The two family plugins may route to each other, and that reference is expected to dangle.** The
