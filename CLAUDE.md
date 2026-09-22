@@ -67,10 +67,16 @@ review, which is correct.
 
 ## Releasing
 
-The catalogue is subject to `python-versioning` like anything else it ships, and the four version
-fields here are what that skill calls **members versioning independently**: each plugin is installed
-on its own, so each manifest carries its own number, and they are not expected to match. They are at
-`pyhouse-universal` 0.4.0, `pyhouse-hex` 0.2.0, `pyhouse-flat` 0.2.0, with the marketplace at 0.4.0.
+The catalogue is subject to `python-versioning` like anything else it ships, and its five version
+fields — one per plugin, plus the marketplace — are what that skill calls **members versioning
+independently**: each plugin is installed on its own, so each manifest carries its own number, and
+they are not expected to match. Read the current numbers from the manifests themselves; this file
+does not restate them, because a restated number is the first thing to go stale.
+
+**One bump per plugin per release, never per commit.** A plugin's next number is the strongest change
+to it among the commits since the last tag — three `feat` commits in one release are one minor bump,
+not three. Bumping as each commit lands inflates the number past what was ever released, and leaves
+versions that no tag ever carried.
 
 What moves a plugin's number:
 

@@ -638,3 +638,28 @@ bit, or shadowed by an existing `core.hooksPath`, exits 0 on everything and read
 message is the request title. That check belongs in CI or the forge's settings, and the command says
 so when it installs into a repository that squashes rather than leaving the impression the mainline is
 guarded.
+
+### D67 — Versions corrected to one bump per plugin per release, and `v0.5.0` cut
+`## Releasing` says a plugin's next number is read off the commits since the last tag, and the
+commits since `v0.4.0` had instead bumped versions as they landed, and inconsistently: one `feat`
+moved the marketplace to 0.5.0 and created `pyhouse-git` at 0.1.0, a second `feat` bumped nothing,
+and a third moved them to 0.6.0 and 0.2.0. The marketplace reached a number no release had earned, and
+0.5.0 existed only in a manifest that no tag ever carried.
+
+Applied as the rule states, per plugin, strongest change since `v0.4.0`:
+
+- **marketplace 0.5.0** — it now offers a fourth plugin, which is a minor change to what it offers.
+- **`pyhouse-universal` 0.4.1** — under-bumped, not over. It had four touching commits and was still
+  at 0.4.0. All four are corrections that change no obligation — a manifest field the schema rejected,
+  a list completed with `python-versioning`, two index lines — so the strongest is a patch.
+- **`pyhouse-git` 0.1.0** — never released, so this is its first release, whatever its manifest said.
+- **`pyhouse-hex`, `pyhouse-flat` 0.2.0** — nothing touched them.
+
+The correction took `chore`, which triggers no bump of its own; a version fix that proposed a further
+version would be the same defect again.
+
+`## Releasing` also restated the current numbers, which is how it came to say the marketplace was at
+0.4.0 while its manifest said 0.6.0, and to count four version fields when there were five. It no
+longer restates them; it says to read the manifests, and it now states the one-bump-per-release rule
+explicitly, since the rule was implicit enough to be missed three times in one range.
+**Reverse by:** not possible for the tag — a pushed tag is immutable, and a correction is the next number.
