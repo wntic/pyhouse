@@ -88,6 +88,10 @@ What moves a plugin's number:
 - **Patch** — a correction inside a skill that changes no obligation: a typo, a dead reference, a
   template whose imports did not resolve.
 
+**While a number is below 1.0.0, a major change bumps its minor.** `python-versioning` rule 9: `0.y.z`
+withholds the compatibility promise, and reaching 1.0.0 is the act of making it — a decision for the
+maintainer, never a consequence of one breaking commit.
+
 The marketplace's own number moves whenever a plugin's does — by a minor when any plugin moved by a
 minor or more, by a patch when every plugin that moved only patched — because the tag names it and a
 tag is never reused.

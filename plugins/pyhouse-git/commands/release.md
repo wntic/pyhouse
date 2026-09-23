@@ -24,6 +24,8 @@ you fell back on a default below.
 - **Uncommitted changes** → stop. The release commit must contain the release and nothing else.
 - **Not on the branch releases are cut from** → stop and ask which one.
 - **Behind the remote** after `git fetch` → stop. A release cut from a stale branch omits what landed.
+- **`git fetch` fails** → stop and say so. An unreachable remote is not an up-to-date one; go on only if
+  the person says to, and say in the proposal that the remote was not checked.
 - **The tag the proposal would create already exists** → stop. A tag is immutable; the correction is
   the next number, never a moved tag.
 
