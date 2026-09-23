@@ -693,3 +693,35 @@ the other as the owner. They are worded from different sides, the commit's and t
 
 The skill's worked example was run through the `commit-msg` hook it describes before shipping, and
 passes. A skill whose own example its own enforcement rejects would have been worse than none.
+
+### D69 — The reviewer reads commit messages, and only for what can still change
+A commit range carries messages as well as code, and `git-commit-message` makes each message's type the
+record a release is computed from, so a mistyped message is a wrong version waiting to be cut. The
+reviewer now checks messages against that skill, as a second axis independent of the architecture
+family, and only where `pyhouse-git` is installed — a convention held from memory is no better than a
+family held from memory.
+
+**The hook checks shape; the reviewer checks meaning.** The `commit-msg` hook cannot see the diff, so it
+can never say whether `feat` is true. The reviewer can, and that is all it adds: the type against the
+diff, a version edit outside a release, an unmarked break, two changes in one commit, and a scope,
+casing or trailer the practice does not use.
+
+A trial run over `v0.4.0..v0.5.0` shaped three clauses the first draft lacked:
+
+- **Practice is the one in force when the commit was written.** Conventional Commits was adopted
+  *inside* that range, and "take the practice from before the range" flagged every commit after the
+  adoption for following it. A commit that changes the convention and records it where contributors
+  read now sets the practice for what follows, and a commit written before a convention is not held
+  to it.
+- **A published message is reported only for what a release will misread** — a wrong type, an unmarked
+  break, a version edit nothing undid. A pushed message cannot be reworded, so a finding about its
+  scope or casing is a finding nobody can act on.
+- **A hard stop is its rule's trigger, not a stricter rule.** `git-commit-message`'s "the description
+  needs 'and' → stop" would have flagged a hook shipped with its own installer, which rule 6's
+  exception allows. This holds for every skill, so it went into step 3, not the commit section.
+
+The trial also reported one gap, which is left open on purpose: nothing owns versioning an artifact
+that is not a Python distribution. That is outside what this catalogue is for, and `git-commit-message`
+rule 2 already stops the version edit in any language.
+**Reverse by:** removing `## Commit messages` and the `Commits:` header line from the reviewer, and the
+range clause from `/code-review`.
