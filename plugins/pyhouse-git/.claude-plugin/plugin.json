@@ -2,7 +2,7 @@
   "name": "pyhouse-git",
   "displayName": "pyhouse — git",
   "version": "0.1.0",
-  "description": "Repository workflow, independent of language and of any architecture. Ships the git-commit-message skill, which carries the Conventional Commits 1.0.0 convention an agent follows whenever it writes a commit message — a type that records the release the change earns, feat for a minor, fix for a patch, BREAKING CHANGE for a major, so a version is read off the history instead of argued at release time. Also /commit, which reviews what is about to be staged and commits by that skill, and /install-commit-hook, which puts a commit-msg hook in the repository so a malformed message is refused at commit time. Depends on nothing and is installed on its own.",
+  "description": "Repository workflow, independent of language and of any architecture. Ships the git-commit-message skill, which carries the Conventional Commits 1.0.0 convention an agent follows whenever it writes a commit message — a type that records the release the change earns, feat for a minor, fix for a patch, BREAKING CHANGE for a major, so a version is read off the history instead of argued at release time. Also /commit, which reviews what is about to be staged and commits by that skill, and /install-commit-hook, which puts a commit-msg hook in the repository so a malformed message is refused at commit time, and /release, which proposes the next version from the commit types since the last tag and cuts it only on an explicit yes. Depends on nothing and is installed on its own.",
   "author": {
     "name": "Yegor Vorobyev"
   },

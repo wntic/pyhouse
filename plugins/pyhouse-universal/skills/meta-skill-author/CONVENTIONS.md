@@ -90,7 +90,7 @@ skill only as an example and must read correctly in a repository with no Python 
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
-| `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (1), `/commit`, `/install-commit-hook`, the `commit-msg` hook | — |
+| `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (1), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |
 
 **The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.
 

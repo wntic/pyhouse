@@ -88,12 +88,16 @@ What moves a plugin's number:
 - **Patch** — a correction inside a skill that changes no obligation: a typo, a dead reference, a
   template whose imports did not resolve.
 
-The marketplace's own number moves when what it offers changes, which a plugin's minor does.
+The marketplace's own number moves whenever a plugin's does — by a minor when any plugin moved by a
+minor or more, by a patch when every plugin that moved only patched — because the tag names it and a
+tag is never reused.
 
 **The commit type already decided this.** Commits here are Conventional Commits 1.0.0, whose
 `feat` / `fix` / `BREAKING CHANGE` map onto the three rows above, so the next number is read off
-the commits since the last tag rather than argued about at release time. The type table and the
-scope vocabulary are in `.claude/commands/commit.md` step 4; they are not repeated here.
+the commits since the last tag rather than argued about at release time. `/release` (in
+`pyhouse-git`) does that arithmetic and proposes the numbers; cutting one is still the maintainer's
+call. The type table and the scope vocabulary are in `.claude/commands/commit.md` step 4; they are
+not repeated here.
 
 **Tags are the repository's, not the plugin's.** One artifact ships all four plugins together, so the
 tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
@@ -109,8 +113,9 @@ plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-au
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    7 flat-* skills
-plugins/pyhouse-git/                     the git-commit-message skill, /commit, /install-commit-hook
-                                         and the commit-msg hook they install — no dependency
+plugins/pyhouse-git/                     the git-commit-message skill, /commit, /release,
+                                         /install-commit-hook and the commit-msg hook it
+                                         installs — no dependency
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and

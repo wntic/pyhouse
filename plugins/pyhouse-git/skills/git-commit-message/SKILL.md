@@ -1,6 +1,6 @@
 ---
 name: git-commit-message
-description: Use when writing a commit message, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`.
+description: Use when writing a commit message, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`.
 when_to_use: Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a squash-merge request title should say, or whether a feature commit should bump the version.
 ---
 
@@ -23,6 +23,8 @@ binding below; every rule above it holds under another.
   `/install-commit-hook`, which installs a `commit-msg` hook that checks the parts of this skill a
   machine can check: the shape, the blank line before a body, the uppercase break token and the subject
   length.
+- Working out the next version from the types since the last tag, and cutting the one release commit
+  that rule 2 lets touch it → `/release`, which proposes and cuts only on an explicit yes.
 - What a version number promises, and what counts as breaking for a Python distribution →
   `python-versioning`, in the `pyhouse-universal` plugin. This skill records which release a change
   earns; that one decides what the number means.

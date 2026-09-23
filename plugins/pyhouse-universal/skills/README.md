@@ -18,7 +18,7 @@ repository:
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 7 `flat-*` |
-| `pyhouse-git` | `plugins/pyhouse-git/` | the 1 `git-*`, the `/commit` and `/install-commit-hook` commands |
+| `pyhouse-git` | `plugins/pyhouse-git/` | the 1 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`

@@ -725,3 +725,33 @@ that is not a Python distribution. That is outside what this catalogue is for, a
 rule 2 already stops the version edit in any language.
 **Reverse by:** removing `## Commit messages` and the `Commits:` header line from the reviewer, and the
 range clause from `/code-review`.
+
+### D70 — `/release` computes the number and cuts nothing unasked
+With every commit's type a record of the release it earns (D68), the next version is arithmetic on the
+history, and arithmetic is what a command should do rather than a person at release time. `/release`
+takes each commit since the last tag, classifies it by `git-commit-message`'s table, attributes it to
+the members whose directories it touches, applies the strongest classification once per member, and
+moves the aggregate after them. That is the whole of D67's correction done mechanically, so it cannot
+be done per commit again.
+
+**Whether to release is not in the history**, so the command proposes and stops. It cuts — one
+`chore(release)` commit editing only the named version fields, and an annotated tag — only on an
+explicit yes, and pushes only when asked in so many words. An agent may suggest a release and never
+cut one: a pushed tag is irreversible, and "the task looks finished" is not a release decision.
+
+Three defaults, each overridden by a rule the repository states for itself:
+
+- **Below 1.0.0 a break bumps the minor, and 1.0.0 is never proposed.** `python-versioning` rule 9
+  makes reaching 1.0.0 the act of making a promise, which no commit type can decide.
+- **A commit it cannot classify is listed and asked about, never guessed.** An under-counted break
+  ships as a compatible release, which is the one error the whole scheme exists to prevent.
+- **It writes no release note.** `python-versioning` stops a note generated from the commit log; the
+  tag annotation names the bumps and is not a note.
+
+It lives in `pyhouse-git`, not `pyhouse-universal`, because nothing in it is Python — a manifest may be
+`package.json` or `Cargo.toml` — and `pyhouse-git` depends on nothing.
+
+`CLAUDE.md`'s marketplace rule said the aggregate moves "when a plugin's minor does", which left a
+patch-only release with no number for its tag. It now moves by a patch then.
+**Reverse by:** deleting `plugins/pyhouse-git/commands/release.md` and its mentions in the indexes,
+the manifest, `git-commit-message`'s neighbours and `CLAUDE.md`.
