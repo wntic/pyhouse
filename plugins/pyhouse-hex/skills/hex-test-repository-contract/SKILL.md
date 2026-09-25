@@ -458,15 +458,15 @@ fixture uses `AsyncIterator[T]` / `Iterator[T]`.
 ## Hard stops
 
 - Nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding) → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
-- Spec asks for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.
-- Spec asks the test to `dispose_engine` / start its own connection / instantiate `async_sessionmaker(bind=engine)` directly → stop, that bypasses rollback; use `sf`.
-- Spec asks to assert on `len(items) == N + 1` or use `any(...)` defensively → stop, use `test-principles`.
-- Spec asks to assert on `ConflictError` without checking `context["constraint"]` → stop, the constraint-name map is the load-bearing contract this test exists to pin.
-- Spec adds raw INSERT for seed data on the table under test, **in a test of that repository** → stop, drive setup through `repo.create`; seeding behind the subject proves nothing about it.
-- Spec includes FastAPI / `httpx` / DI container references → stop, use `hex-test-restapi-endpoint`.
-- Spec asks to run Alembic from this test → stop, that's a migration regression test in a separate flat file.
-- Spec uses `uuid4().hex[:8]` suffixes "to avoid duplicate-key flakes" → stop, use `test-principles`; rollback removes the need.
-- Spec asks to use `sf` / transaction rollback for a client store → stop, there is no nested transaction; isolate by per-test namespace + teardown.
-- Spec asks to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.
-- Spec asserts on `ConflictError` + `context["constraint"]` → stop, that is the relational `IntegrityError` contract; a client store asserts the domain exceptions its adapter translates SDK errors into (`UpstreamError` / `NotFoundError`) instead.
-- Spec asserts on store contents outside the test's own namespace → stop, assert only within the per-test collection/prefix.
+- Asked for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.
+- A test disposes the engine, starts its own connection / instantiate `async_sessionmaker(bind=engine)` directly → stop, that bypasses rollback; use `sf`.
+- Asked to assert on `len(items) == N + 1` or use `any(...)` defensively → stop, use `test-principles`.
+- Asked to assert on `ConflictError` without checking `context["constraint"]` → stop, the constraint-name map is the load-bearing contract this test exists to pin.
+- A test seeds with a raw INSERT on the table under test, **in a test of that repository** → stop, drive setup through `repo.create`; seeding behind the subject proves nothing about it.
+- A test references FastAPI, `httpx` or the DI container → stop, use `hex-test-restapi-endpoint`.
+- Asked to run Alembic from this test → stop, that's a migration regression test in a separate flat file.
+- A test uses `uuid4().hex[:8]` suffixes "to avoid duplicate-key flakes" → stop, use `test-principles`; rollback removes the need.
+- Asked to use `sf` / transaction rollback for a client store → stop, there is no nested transaction; isolate by per-test namespace + teardown.
+- Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.
+- A client-store test asserts on `ConflictError` + `context["constraint"]` → stop, that is the relational `IntegrityError` contract; a client store asserts the domain exceptions its adapter translates SDK errors into (`UpstreamError` / `NotFoundError`) instead.
+- A test asserts on store contents outside the test's own namespace → stop, assert only within the per-test collection/prefix.
