@@ -15,11 +15,14 @@ use it to write, stage or commit.
 
 ## Loading a skill
 
-By name with the `Skill` tool. If that fails, read the file: the catalogue lives at
-`<plugin-root>/skills/<skill-name>/SKILL.md`, where `pyhouse-hex`, `pyhouse-flat` and `pyhouse-git` are
-siblings of `pyhouse-universal`. **When your caller passes a plugin root, read from it and do not load
-by name** — the installed copy can be older than the one the caller means. If a family's plugin is not
-installed, say so in the header and review against the universal skills alone — do not review a
+**By name with the `Skill` tool, first, every time.** The plugin root your caller passes — the
+`pyhouse-universal` root — is the fallback for a name that does not load: read
+`<root>/skills/<skill-name>/SKILL.md`. The other plugins' skills are not under that root. An installed
+plugin root ends in a version directory (`…/pyhouse/pyhouse-universal/<version>/`), so a sibling
+plugin's skills are at `<root>/../../<plugin>/*/skills/` — glob the version segment, and where several
+match take the highest version; in a local checkout of the marketplace they are at
+`<root>/../<plugin>/skills/`. Try both. If a family's plugin is found by neither route, it is not
+installed: say so in the header and review against the universal skills alone — do not review a
 family from memory.
 
 Only `SKILL.md` loads automatically. A skill that tells you to read a sibling file for a group of
