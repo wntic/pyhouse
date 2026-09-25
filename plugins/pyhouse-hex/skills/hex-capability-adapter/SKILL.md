@@ -252,9 +252,12 @@ type rather than a raw string.
    error crosses into `application/` or an entrypoint — the application layer catches only `DomainError`.
 10. **The fallback, the most specific class, the identifying `context` and the no-secret ban are
     `exception-catalog`'s rules**, applied here without change. What they come to in an adapter: the
-    fallback is `UpstreamError` for a network or third-party failure (5xx, unknown codes) and
-    `UnauthorizedError` for a rejected credential; `NotFoundError` when the object or subject does not
-    exist; `ValidationError` only when the upstream rejected the inputs as malformed; `context` carries
+    fallback is `UpstreamError` for a network or third-party failure (5xx, unknown codes), and that
+    includes the upstream rejecting the adapter's **own** configured credential (`InvalidAccessKeyId`,
+    `SignatureDoesNotMatch`, an upstream 401 or 403) — the caller's request was sound, and a 401 would
+    challenge the caller to re-authenticate over a fault only the service's operator can fix;
+    `UnauthorizedError` only where the adapter verifies a credential the caller presented (a token
+    verifier, `hex-restapi-auth`); `NotFoundError` when the object or subject does not exist; `ValidationError` only when the upstream rejected the inputs as malformed; `context` carries
     the key, subject or id plus the upstream's own code or status, and never the token or key. An adapter
     never swallows a failure, and never stops one either — a failed undo during compensation is stopped
     in the calling handler (`hex-patterns`), which logs it; an adapter cannot.
@@ -303,6 +306,7 @@ For package wiring, see `python-packaging`; for infrastructure placement, see `h
   into the error response and logged verbatim.
 - The change does not say which external errors a fallible method raises → stop, derive the mapping from
   the library's documented exception family and apply the mandatory fallback: `UpstreamError` for a
-  network or third-party failure, `UnauthorizedError` for a rejected credential. The specific cases are
+  network or third-party failure, the upstream rejecting the adapter's own credential included, and
+  `UnauthorizedError` only for a caller's credential the adapter verifies (rule 10). The specific cases are
   judgement; the broad catch-and-translate fallback is not — never leave a method able to raise an
   untranslated external exception.
