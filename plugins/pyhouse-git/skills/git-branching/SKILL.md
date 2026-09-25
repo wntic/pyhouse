@@ -108,9 +108,9 @@ git pull --ff-only
    person or process has fetched, are never rebased, amended or force-pushed. A branch only its author
    has used may be, until it lands — with a force that refuses to overwrite commits the author has not
    seen.
-6. **A branch is deleted once it has landed, and only by whoever created it.** A branch whose commits
-   are not on the mainline is someone's unfinished work; deleting it destroys that work with no record
-   it existed.
+6. **A branch is deleted once it has landed; until then, only by whoever created it.** A branch whose
+   commits are not on the mainline is someone's unfinished work; deleting it destroys that work with no
+   record it existed. Once it has landed nothing is lost, so the forge deleting it on merge is right.
 7. **The mainline is the only long-lived branch until another one earns its place.** A second
    integration line, a release-stabilisation branch or a per-environment branch each doubles where a
    change has to land. One earns its place only by a need rule 1 cannot meet — a release stabilising
@@ -134,8 +134,8 @@ git pull --ff-only
 - A `fix` commit corrects a commit on the same unlanded branch → stop, make it a fixup of that commit
   and fold it before landing.
 - A `fixup!` or `squash!` commit is about to land on the mainline → stop, fold it first.
-- A branch is about to be deleted whose commits are not on the mainline, or that you did not create →
-  stop, ask its owner.
+- A branch whose commits are not on the mainline, and that you did not create, is about to be deleted
+  → stop, ask its owner.
 - A long-lived branch is being added beside the mainline with no release to stabilise and no old line
   to maintain → stop; that is GitFlow's cost without the need that pays for it.
 - Asked what a commit message or its type should be → stop, use `git-commit-message`.
