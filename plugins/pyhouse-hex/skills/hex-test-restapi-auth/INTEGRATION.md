@@ -73,6 +73,7 @@ from myapp.domain.auth import Role
 from myapp.infrastructure.jwt import JwtSettings
 from tests.helpers.jwt import RsaKeypair, generate_rsa_keypair, sign_token
 
+
 @pytest.fixture(scope="session")
 def rsa_keypair() -> RsaKeypair:
     return generate_rsa_keypair()
@@ -178,6 +179,7 @@ from httpx import ASGITransport, AsyncClient
 
 from myapp.domain.exceptions import UnauthorizedError
 from myapp.restapi.dependencies import get_current_user
+
 
 def _api_operations(app: FastAPI) -> list[RouteContext]:
     """Every API operation the app serves, one resolved route context each.
@@ -287,6 +289,7 @@ from httpx import AsyncClient
 from myapp.domain.auth import Role
 from myapp.restapi.schemas import FooResponse
 
+
 async def test_create_foo_happy_path(
     authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID
 ) -> None:
@@ -321,6 +324,7 @@ from httpx import AsyncClient
 
 from myapp.domain.auth import Role
 from myapp.restapi.schemas import FooResponse
+
 
 async def test_get_foo_returns_payload(
     authed_client: Callable[..., AsyncClient], foo_id: uuid.UUID, tenant_id: uuid.UUID

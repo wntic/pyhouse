@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import (
 from myapp.infrastructure.postgres import DbSettings, create_engine
 from myapp.infrastructure.s3 import S3Settings
 
+
 class _PgConn(TypedDict):
     host: str
     port: int
@@ -307,6 +308,7 @@ from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from qdrant_client import AsyncQdrantClient
+
 
 @pytest.fixture(scope="session")
 def qdrant_url() -> Iterator[str]:

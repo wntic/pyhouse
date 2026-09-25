@@ -68,6 +68,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from myapp.infrastructure.postgres.tables.bars import bars_table
 
+
 @pytest.fixture
 async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
     new_id = uuid.uuid4()
@@ -233,6 +234,7 @@ out of order (`c`, `a`, `b`) and asserted in order, on a missing `ORDER BY` as w
 import subprocess
 from collections.abc import Callable
 
+
 def test_migrations_round_trip(
     run_alembic: Callable[..., subprocess.CompletedProcess[str]],
 ) -> None:
@@ -342,6 +344,7 @@ from myapp.domain.exceptions import UpstreamError
 from myapp.domain.foos import Foo
 from myapp.infrastructure.qdrant import QdrantSettings
 from myapp.infrastructure.qdrant.repositories import FooRepository
+
 
 def _foo(name: str = "alpha", *, bar_id: uuid.UUID | None = None) -> Foo:
     return Foo(id=uuid.uuid4(), name=name, bar_id=bar_id or uuid.uuid4())

@@ -242,6 +242,7 @@ async def test_oversize_payload_returns_413(real_app: FastAPI) -> None:
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+
 async def test_info_endpoint_is_public_and_returns_200(real_app: FastAPI) -> None:
     async with AsyncClient(
         transport=ASGITransport(app=real_app),

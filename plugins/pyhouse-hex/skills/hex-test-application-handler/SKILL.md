@@ -441,6 +441,7 @@ import uuid
 from myapp.domain.foos import Foo
 from tests.unit.fakes import FakeFooRepository
 
+
 async def test_a_mutated_entity_does_not_reach_the_store() -> None:
     foo = Foo(id=uuid.uuid4(), name="alpha", bar_id=uuid.uuid4())
     repo = FakeFooRepository(items=[foo])

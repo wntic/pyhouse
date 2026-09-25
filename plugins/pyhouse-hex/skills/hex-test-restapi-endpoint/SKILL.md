@@ -105,6 +105,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+
 @pytest.fixture
 async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
     bid = uuid.uuid4()
