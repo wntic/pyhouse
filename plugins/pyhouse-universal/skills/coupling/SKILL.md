@@ -75,7 +75,7 @@ less likely a change in one forces a change in the other. Four levels, strongest
 |---|---|---|
 | **intrusive** | the other side's internals — its tables, private objects, undocumented behaviour | one service querying another's database; reaching into a module's `_private` helpers |
 | **functional** | the other side's requirements — a rule both sides know, so both change when the rule does | a flag one component passes to steer another's branch; the same validation written in a client and again in a job over its output |
-| **model** | the other side's domain model — entities and vocabulary, but not its rules | two services both importing the shared schema package's tables |
+| **model** | the other side's domain model — entities and vocabulary, but not its rules | two components both importing one set of entity or table definitions |
 | **contract** | an explicit interface only — what it does, never how | a repository method signature, a queue message schema, an HTTP endpoint |
 
 Two properties of the ladder matter more than the labels. **Explicitness rises as strength falls**:
@@ -171,10 +171,11 @@ contract) or lower the distance (co-locate), and choose by which kind of change 
 
 ### Contract or shared knowledge?
 
-What crosses a high-distance boundary crosses as a contract — explicit, named, owned. In this set's
-terms: services integrate through the shared schema package's repository methods and through
-message schemas, never through each other's internals; a client class translates its SDK's world
-into the service's own schemas at the boundary, and `exception-catalog` does the same for errors.
+What crosses a high-distance boundary crosses as a contract — explicit, named, owned. Where several
+deployables share a store, they integrate through the owning library's methods; otherwise through
+whatever contract the boundary publishes — an endpoint, a message schema, a function signature — and
+never through each other's internals. A client class translates its SDK's world into the service's
+own types at the boundary, and `exception-catalog` does the same for errors.
 A contract is worth exactly the distance it serves — an interface in front of a same-module call is
 ceremony, and ceremony is how this rule gets a bad name.
 
