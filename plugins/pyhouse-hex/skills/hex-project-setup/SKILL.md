@@ -247,9 +247,9 @@ async def _run_online() -> None:
 asyncio.run(_run_online())
 ```
 
-`migrations/script.py.mako` is the tool's standard revision template (`${message}` / `${up_revision}` /
-`${down_revision}` / `upgrade()` / `downgrade()`); write it verbatim so `alembic revision` can author
-later deltas.
+`migrations/script.py.mako` is `alembic init`'s generic template (`${message}` / `${up_revision}` /
+`${down_revision}` / `upgrade()` / `downgrade()`), taken as `alembic init` writes it, so `alembic
+revision` can author later deltas.
 
 The **baseline revision** is **write-once** — create `migrations/versions/0001_baseline.py` only when
 `migrations/versions/` carries no `*.py` yet. Never clobber a chain that already has deltas:
