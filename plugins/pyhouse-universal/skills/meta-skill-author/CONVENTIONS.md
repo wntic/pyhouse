@@ -4,7 +4,7 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 43 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 44 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -73,9 +73,10 @@ too. The counts in every heading are the number of directories on disk.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
 - `flat-test-run-function` — Test the body and the wrapper that invokes it, and the orchestration level above them only where a durable-execution engine was earned.
 
-### Git (1)
+### Git (2)
 
 - `git-commit-message` — The type records which release a change earns and is picked by what the change is, never its size; a commit that is not a release never touches the version.
+- `git-branching` — One mainline, one merge method recorded per repository, short-lived one-change branches; a fix to unlanded work is folded, and history someone else built on is never rewritten.
 
 ## Packaging — which plugin a skill ships in
 
@@ -90,7 +91,7 @@ skill only as an example and must read correctly in a repository with no Python 
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
-| `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (1), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |
+| `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |
 
 **The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.
 

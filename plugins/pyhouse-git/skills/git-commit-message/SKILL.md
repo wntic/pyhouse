@@ -23,6 +23,8 @@ binding below; every rule above it holds under another.
   `/install-commit-hook`, which installs a `commit-msg` hook that checks the parts of this skill a
   machine can check: the shape, the blank line before a body, the uppercase break token and the subject
   length.
+- Which merge method a repository uses, how a branch's history is cleaned before it lands, and what
+  may never be rewritten → `git-branching`. Rule 9 below is what that choice obliges each message to be.
 - Working out the next version from the types since the last tag, and cutting the one release commit
   that rule 2 lets touch it → `/release`, which proposes and cuts only on an explicit yes.
 - What a version number promises, and what counts as breaking for a Python distribution →
@@ -99,7 +101,7 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    request's title replaces every commit on the branch, so the title is what must be conventional, and
    one request is one logical change. Under a merge commit every branch commit lands, so each must be.
    Either is fine and both at once is not: the check then has to sit in two places, and usually sits in
-   one. Pick one, state it where contributors read, and enforce it there.
+   one. Pick one, state it where contributors read, and enforce it there — `git-branching` rule 2.
 
 ## Hard stops
 

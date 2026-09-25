@@ -26,6 +26,10 @@ for, both of which a commit makes expensive to undo:
 - **An unrelated change riding along** — a stray debug line, a reformatted file nobody asked for →
   name it and ask whether it belongs in this commit or a separate one.
 
+**Check the branch.** On the mainline, in a repository whose changes land through requests → say so
+and offer to branch first; a commit made there bypasses the checks every other change passes
+(`git-branching`).
+
 **Check the existing convention.** Run `git log --oneline -15`. If that history is *not* in
 Conventional Commits form, say so and ask before introducing it — a repository with one convention is
 better than a repository with two, and this is the commit that would split it.

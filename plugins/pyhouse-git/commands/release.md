@@ -22,7 +22,8 @@ you fell back on a default below.
 ## 2. Stop on any of these
 
 - **Uncommitted changes** → stop. The release commit must contain the release and nothing else.
-- **Not on the branch releases are cut from** → stop and ask which one.
+- **Not on the branch releases are cut from** → stop. It is the mainline the repository records
+  (`git-branching` rule 2); where nothing records it, ask.
 - **Behind the remote** after `git fetch` → stop. A release cut from a stale branch omits what landed.
 - **`git fetch` fails** → stop and say so. An unreachable remote is not an up-to-date one; go on only if
   the person says to, and say in the proposal that the remote was not checked.
@@ -96,7 +97,9 @@ which is the case the types exist to prevent and cannot always catch.
 1. Edit exactly the version fields the proposal named. Nothing else goes into this commit.
 2. Commit it as `chore(release): <tag>`. `chore`, because a release commit records no change of its own
    and must not propose another version — it is the one commit `git-commit-message` rule 2 lets touch
-   the version.
+   the version. **Where the mainline takes changes only through a request**, the release commit is no
+   exception: commit it on a branch, open the request, and tag in step 3 only once it has landed — on
+   the release commit under a keep-every-commit merge method, on the squashed commit under squash.
 3. Tag that commit, annotated, spelled the way the repository's existing tags are: `git tag -a <tag>`.
    The annotation names the version and each member's bump.
 4. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so

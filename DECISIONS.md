@@ -755,3 +755,40 @@ It lives in `pyhouse-git`, not `pyhouse-universal`, because nothing in it is Pyt
 patch-only release with no number for its tag. It now moves by a patch then.
 **Reverse by:** deleting `plugins/pyhouse-git/commands/release.md` and its mentions in the indexes,
 the manifest, `git-commit-message`'s neighbours and `CLAUDE.md`.
+
+### D71 — `git-branching` states what holds under every strategy, and binds the lightest
+The git plugin covered what a commit says and how a release is cut, and nothing covered how a change
+travels between them — yet an agent branches, rebases, force-pushes and deletes branches constantly,
+and each of those is where work is lost. `/release` already stopped on "not on the branch releases are
+cut from" with nothing to tell it which branch that was, and `git-commit-message` rule 9 said to pick a
+merge method without saying how.
+
+**No strategy is named as correct.** GitHub Flow, trunk-based development and GitFlow are all legitimate,
+and a skill that picked one would fail the portability test and be a manual the model already knows.
+The rules are what holds under all three — one releasable mainline, the method recorded once, the
+short-lived branch, history made true before landing and never rewritten after it, deletion only of
+what landed. The template binds the lightest, short-lived branches with every commit kept, and the
+other two are `## Other bindings`. GitFlow's extra branches are rule 7's exception, earned by a release
+that must stabilise while work continues or by an old line still maintained.
+
+**Rule 5 is "history someone else may have built on", not "pushed history".** The stricter form forbids
+cleaning your own request branch after pushing it for CI, which is the ordinary case; the lease is
+what keeps the looser form safe.
+
+**Rule 4 is the reason keep-every-commit works.** Under it every branch commit lands, so a `fix` to a
+`feat` on the same branch would record a defect no release carried. Folding it with `--fixup` is the
+curation a squash would do, done by whoever still knows what each commit was. The template spells the
+fold `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`: run against git 2.39.5, `--autosquash` without
+`-i` exited successfully and left the `fixup!` commit in place — it takes effect without `-i` only from
+git 2.44. The `commit-msg` hook was run against `fixup!`, `squash!` and `amend!` subjects and accepts all
+three, so fixups remain usable wherever it is installed.
+
+**Rule 8 carries a precondition, as `python-versioning` does.** A maintenance branch is earned only
+where something runs a version other than the latest; for a service deployed from its newest tag
+that never happens, and every fix ships as the next number.
+
+`/release` now takes the mainline from the repository's record, and routes its release commit through a
+request where the mainline takes changes no other way. `/commit` offers a branch before committing
+onto such a mainline.
+**Reverse by:** deleting `plugins/pyhouse-git/skills/git-branching/`, its index rows and counts, and the
+pointers in `git-commit-message`, `/release` and `/commit`.
