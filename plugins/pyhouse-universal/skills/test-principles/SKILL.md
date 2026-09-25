@@ -387,10 +387,11 @@ fixture, and passes it in.
    next: the datastore and the object store are started and thrown away by the suite itself —
    testcontainers in this binding. Pointing the suite at an **already-provisioned throwaway**
    datastore is the one sanctioned alternative, and it is guarded on both sides: opt in through a
-   dedicated variable, never an ambient one, and refuse to run unless the database name exactly matches
-   one the project declared throwaway — never inferring disposability from the host, the port or any
-   other part of the DSN (`hex-test-integration-setup` and `flat-test-integration-setup` each carry
-   both guards). An *unguarded* "developer's local Postgres" mode → stop; the suite TRUNCATEs every
+   dedicated variable, never an ambient one, and refuse to run unless something explicitly declared
+   the database disposable — an exact match against a declared throwaway name, or a marker set by
+   whatever provisioned it — never inferring disposability from the host, the port or any part of
+   the DSN. `flat-test-integration-setup` carries the declared-name form and
+   `hex-test-integration-setup` the provisioner's-marker form. An *unguarded* "developer's local Postgres" mode → stop; the suite TRUNCATEs every
    table it can see, and the variable that would divert it is exported by tools that know nothing
    about this suite.
 2. **Every test starts from state it established itself, never from a predecessor's leftovers**, and
@@ -449,7 +450,8 @@ fixture, and passes it in.
   workspace; make it an explicit dependency, or make it autouse one level down, in a member's
   integration conftest.
 - A workspace's shared datastore fixtures are put in a root `conftest.py` → stop, they belong in the
-  shared pytest plugin module (`flat-test-integration-setup`). A root conftest would share correctly,
+  shared pytest plugin module, which the family's integration-setup skill describes
+  (`flat-test-integration-setup`, `hex-test-integration-setup`). A root conftest would share correctly,
   but it puts test infrastructure at the workspace root and reaches members only from above. One
   service on its own has no such problem — its fixtures are an ordinary `tests/integration/conftest.py`.
 - A settings test lets the settings loader read ambient config files → stop, disable file sources in
