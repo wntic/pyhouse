@@ -14,7 +14,7 @@ Produces one integration-test file per endpoint. Self-contained: every test in t
 - A new or modified endpoint added by `hex-restapi-endpoint` → this skill.
 - A new resource introduces several endpoints (create + list + get + update + delete) → invoke this skill once per endpoint file; sibling files share a per-resource `conftest.py`.
 - The `tests/integration/conftest.py` itself (rollback, container fixtures, `real_app`) → `hex-test-integration-setup` (one-shot).
-- The `authed_client` factory and the signing-key fixtures behind it → `hex-test-restapi-auth` (auth apps only; the factory moved out of the integration conftest).
+- The `authed_client` factory and the signing-key fixtures behind it → `hex-test-restapi-auth` (auth apps only).
 - Driving a route as an authenticated caller, asserting a role rejection or a cross-tenant 404 → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
 - The token verifier's own unit test — no HTTP, real keys, one case per translation arm → `hex-test-restapi-auth`, not this skill and not `hex-test-capability-adapter`.
 - The route-side auth dependency, the role gate and the 401/403 codes a route advertises because of them → `hex-restapi-auth`.
@@ -106,16 +106,29 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 @pytest.fixture
-def make_foo(sf: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
+async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
+    bid = uuid.uuid4()
+    async with sf() as session:
+        await session.execute(
+            text("INSERT INTO bars(id, name) VALUES(:id, :name)"),
+            {"id": str(bid), "name": "bar"},
+        )
+        await session.commit()
+    return bid
+
+@pytest.fixture
+def make_foo(
+    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
+) -> Callable[..., Awaitable[uuid.UUID]]:
     async def _make(*, name: str | None = None) -> uuid.UUID:
         fid = uuid.uuid4()
         async with sf() as session:
             await session.execute(
                 text(
-                    "INSERT INTO foos(id, name, created_at, updated_at)"
-                    " VALUES(:id, :name, now(), now())"
+                    "INSERT INTO foos(id, name, bar_id, created_at, updated_at)"
+                    " VALUES(:id, :name, :bar_id, now(), now())"
                 ),
-                {"id": str(fid), "name": name or "foo"},
+                {"id": str(fid), "name": name or "foo", "bar_id": str(bar_id)},
             )
             await session.commit()
         return fid
@@ -200,19 +213,19 @@ Consult `test-principles` for the testing constitution.
 2. **Every success body is validated through the route's own declared response schema — the whole body, not picked fields.** `FooResponse.model_validate(response.json())` reds on a field the route dropped, renamed or retyped; a handful of `body["name"] == ...` assertions pass through all three, which is the drift this layer exists to catch. Schema imports follow `python-packaging` (`from myapp.restapi.schemas import FooResponse`).
 3. **No cross-cutting registries.** Adding a new endpoint touches exactly one new test file. The discovered global checks — "every route declares its error codes in OpenAPI", and in an auth app "every protected route rejects an anonymous caller" — are owned by `hex-test-app-invariants` and `hex-test-restapi-auth`, and derive their inputs from `app.routes` / `app.openapi()`; there is no hand-maintained endpoint table to extend.
 4. **Endpoint state.** Follow `test-principles` for test isolation. Each test builds its own state via per-resource factory fixtures (`make_foo`) or by POSTing through the API. Since the rollback contract guarantees an empty DB at test start, fixed natural keys (`name="alpha"`) are safe — no `uuid4().hex[:8]` suffix required.
-5. **Response assertions.** Follow `test-principles` for assertion strength. `assert len(items) == N`, `assert items[0].id == ...`, `assert response.json()["total"] == 3` — the empty-DB-at-start contract makes these reliable. Defensive `any(...)` filters belong to the pre-rollback world; remove them.
+5. **Response assertions.** Follow `test-principles` for assertion strength. `assert len(items) == N`, `assert items[0].id == ...`, `assert response.json()["total"] == 3` — the empty-DB-at-start contract makes these reliable, so a defensive `any(...)` filter only weakens the assertion.
 6. **The client matches the route's auth dependency, and it is always entered as a context manager.** A route with no auth dependency is driven by a plain client over `real_app`, as above; a route that attaches one is driven by the authenticated client `hex-test-restapi-auth` owns. Bare-assigning the client instead of entering it leaks the transport either way, and the leak surfaces as an unrelated test failing later in the session.
 7. **A caller-scoped assertion belongs with the caller.** Role rejections and cross-tenant reads only exist when a route has a caller — their rules and templates are `hex-test-restapi-auth`'s.
 8. **Per-resource fixtures live in the sibling `conftest.py`.** Factory fixtures (`make_foo`) return one fresh row per call. Single-row fixtures (`foo_id`) wrap a factory call. Both are function-scoped; no session-scoped row fixtures, ever.
 9. **Error responses are asserted by `code`, not by message.** `assert response.json()["code"] == ConflictError.code` — message text drifts, the `code` constant is the contract. The actual HTTP status is asserted separately.
 10. Test collection and async marker rules → `test-principles`.
-11. **Mocking.** Follow `test-principles` for the mocking prohibition. If a test needs to mock, it isn't an integration test; move it to a domain unit test or to `hex-patterns` coverage at the repository-contract level.
-12. **A blob-writing test passes its per-test prefix through to the route and asserts only under it.** The prefix fixture (`s3_prefix`) reaches the route however that route takes it — header, query parameter or payload field. Asserting on the bucket as a whole makes the test depend on what every other test left behind, because a blob store has no rollback.
+11. **Mocking.** Follow `test-principles` for the mocking prohibition. If a test needs to mock, it isn't an integration test; move it to a domain unit test (`hex-test-domain`) or to a handler test over fakes (`hex-test-application-handler`), which is also where a compensating handler's undo is pinned.
+12. **A blob-writing test asserts only inside its own namespace, and the namespace reaches the route through the test's infrastructure bindings, never through the route.** `real_app` binds the per-test `S3Settings` (`hex-test-integration-setup`), so a route writes into the test's own bucket with no change to its signature; the test reads that bucket back through the same settings. A route that accepts a prefix, header or parameter only so a test can steer where it writes has grown a test-only input into production.
 
 ## Inlined typing / import rules
 
 - `pytest`, `httpx`, `fastapi`, `myapp.restapi.schemas`, `myapp.domain.exceptions`. No `myapp.application.*` or `myapp.infrastructure.*` imports — the test drives over HTTP, not by reaching in.
-- Full annotations on every signature, tests included — `-> None` on every test, every fixture parameter typed. `python-style` owns annotation policy and admits no test carve-out; the other `hex-test-*` skills already comply.
+- Full annotations on every signature, tests included — `-> None` on every test, every fixture parameter typed. `python-style` owns annotation policy and admits no test carve-out.
 - No `from __future__ import annotations`.
 
 ## Hard stops
