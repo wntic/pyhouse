@@ -32,13 +32,19 @@ Inside this skill, by what is under test:
   With neither, **write no file at all**: Python's data model already guarantees frozen-dataclass
   equality, and a test for it is maintenance with no defect-detection value.
 - A `StrEnum` / `Enum` member set → **Enum**.
-- A domain service, with injected protocols or without → **Domain service**.
+- A domain service with injected protocols, or the module-level function a pure transformation takes
+  instead of a class (`hex-domain-service`) → **Domain service**.
 
 File placement mirrors the source file (`test-principles`): the test for
 `domain/<subdomain>/<module>.py` is `tests/unit/domain/<subdomain>/test_<module>.py`, whatever kind of
 object the module holds — `foo.py` → `test_foo.py`, `foo_status.py` → `test_foo_status.py`,
 `foo_uniqueness_service.py` → `test_foo_uniqueness_service.py`. The file name adds no suffix the
 module name does not already carry.
+
+The subjects below are `hex-domain-model`'s shapes filled in: `FooKey` is the normalized-plus-raw value
+object with an invariant that `canonical` is non-empty, `Money` the standard value object over `amount`
+(non-negative) and `currency` (three letters), `FooStatus` a `StrEnum` of `ALPHA` and `BETA`, and
+`FooPriority` the rank-ordered `StrEnum` of `LOW`, `NORMAL` and `HIGH` with `satisfies`.
 
 ### Entity — standard
 
@@ -126,8 +132,8 @@ def test_rejects_empty() -> None:
 ```python
 import pytest
 
-from myapp.domain.exceptions import ValidationError
 from myapp.domain.amounts import Money
+from myapp.domain.exceptions import ValidationError
 
 def test_amount_must_be_non_negative() -> None:
     with pytest.raises(ValidationError) as exc:
@@ -207,36 +213,36 @@ async def test_assert_name_available_passes_when_free() -> None:
     await service.assert_name_available("alpha")  # does not raise
 ```
 
-### Domain service — pure logic
+### Domain function — pure logic
+
+`tests/unit/domain/foos/test_canonical_url.py`, for `hex-domain-service`'s `canonicalize_url`:
 
 ```python
 import pytest
 
 from myapp.domain.exceptions import ValidationError
-from myapp.domain.foos import UrlCanonicalizer
-
-c = UrlCanonicalizer()
+from myapp.domain.foos import canonicalize_url
 
 def test_strips_trailing_slash() -> None:
-    assert c.canonicalize("https://example.com/path/") == "https://example.com/path"
+    assert canonicalize_url("https://example.com/path/") == "https://example.com/path"
 
 def test_drops_default_port() -> None:
-    assert c.canonicalize("https://example.com:443/path") == "https://example.com/path"
+    assert canonicalize_url("https://example.com:443/path") == "https://example.com/path"
 
 @pytest.mark.parametrize(
     "raw", ["https://example.com/", "https://example.com/path/?b=2&a=1"]
 )
 def test_idempotent(raw: str) -> None:
-    once = c.canonicalize(raw)
-    assert c.canonicalize(once) == once
+    once = canonicalize_url(raw)
+    assert canonicalize_url(once) == once
 
 def test_rejects_non_http() -> None:
     with pytest.raises(ValidationError) as exc:
-        c.canonicalize("ftp://example.com")
+        canonicalize_url("ftp://example.com")
     assert exc.value.context["field"] == "scheme"
 ```
 
-The canonicalizer here is a domain service because it is pure logic over the standard library. One
+The canonicalizer here is a domain function because it is pure logic over the standard library. One
 that delegates to an external library (an IDNA or URL-parsing package) sits behind a capability port
 instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 
@@ -309,8 +315,7 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
     from each test body.
 19. **One `test_*` per behaviour of each method**, named so the test name *is* the behaviour's one-line statement —
     `test_assert_name_available_raises_when_taken`, `test_assert_name_available_passes_when_free`.
-20. **A pure-logic service constructs one instance at module scope.** It is stateless; per-test
-    construction is ceremony.
+20. **A domain function is called directly.** It has no instance to construct, share or fake.
 21. **A canonicalizer always has `test_idempotent`** — parametrized over a few representative inputs,
     one reported case each, asserting `f(f(x)) == f(x)`. Idempotence is part of the canonicalization
     contract; a loop inside one test stops at the first failing input and hides the rest.

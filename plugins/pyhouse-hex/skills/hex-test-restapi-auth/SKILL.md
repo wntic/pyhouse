@@ -48,7 +48,8 @@ tests/
 ```
 
 Two topic files carry the worked binding — **PyJWT, `cryptography`, httpx over ASGI, FastAPI and
-pytest** — on either side of the unit/integration seam:
+pytest** — on either side of the unit/integration seam. **Read the one for the half you are writing
+before writing it** — only this file is loaded automatically:
 
 - **`UNIT.md`** — the verifier adapter's own test: module-scope keypair, real signatures, one case per
   translation arm.

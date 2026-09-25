@@ -72,6 +72,22 @@ async def test_duplicate_name_raises_conflict() -> None:
 ### `update` handler — PATCH `None`-means-don't-touch
 
 ```python
+import uuid
+
+import pytest
+
+from myapp.application.foos import (
+    CreateFooCommand,
+    CreateFooHandler,
+    UpdateFooCommand,
+    UpdateFooHandler,
+)
+from myapp.domain.exceptions import NotFoundError
+from tests.unit.fakes import FakeFooRepository
+
+_CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
+
 async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     repo = FakeFooRepository()
     create_handler = CreateFooHandler(repo=repo)
@@ -100,6 +116,18 @@ async def test_update_unknown_id_raises_not_found() -> None:
 ### `delete` handler with one-off `InUseError`
 
 ```python
+import uuid
+
+import pytest
+
+from myapp.application.foos import DeleteFooCommand, DeleteFooHandler
+from myapp.domain.exceptions import InUseError
+from myapp.domain.foos import Foo
+from tests.unit.fakes import FakeFooRepository
+
+_CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
+
 class _RaiseInUseFooRepo(FakeFooRepository):
     async def delete(self, id: uuid.UUID) -> None:
         raise InUseError(
@@ -123,6 +151,14 @@ async def test_delete_propagates_in_use_error() -> None:
 ### `list` query handler — sort + pagination
 
 ```python
+import uuid
+
+from myapp.application.foos import ListFoosHandler, ListFoosQuery
+from myapp.domain.foos import Foo, FooListFilter, FooSort
+from tests.unit.fakes import FakeFooRepository
+
+_BAR_ID = uuid.uuid4()
+
 async def test_sorted_by_name() -> None:
     repo = FakeFooRepository(items=[
         Foo(id=uuid.uuid4(), name="b", bar_id=_BAR_ID),
@@ -163,7 +199,22 @@ bound and one that returns `len(items)` as `total`. 3 and 2 are the smallest pai
 
 ### `compensating-tx` handler — upload, then DB fails, assert undo
 
+The handler under test is `hex-patterns`' compensating `CreateFooHandler`, whose command carries the
+uploaded bytes.
+
 ```python
+import uuid
+
+import pytest
+
+from myapp.application.foos import CreateFooCommand, CreateFooHandler
+from myapp.domain.exceptions import UpstreamError
+from myapp.domain.foos import Foo
+from tests.unit.fakes import FakeFooRepository, FakeFooStorage
+
+_CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
+
 class _RaiseAfterUploadRepo(FakeFooRepository):
     async def create(self, foo: Foo) -> None:
         raise RuntimeError("simulated DB failure after blob upload")
@@ -211,7 +262,11 @@ tests/unit/fakes/
 └── fake_<aggregate_snake>_repository.py        # class FakeFooRepository
 ```
 
-For capabilities: `fake_<capability_snake>.py` → `Fake<Capability>` (e.g. `fake_foo_storage.py` → `FakeFooStorage` for `ICanStoreFoos`).
+For capabilities the fake takes the name the real adapter takes after its technology prefix
+(`hex-conventions`): the capability's role noun when it has one — `FakeFooStorage` for `ICanStoreFoos`,
+beside `S3FooStorage` — and otherwise the protocol name minus `ICan` — `FakeExportFoosXlsx` for
+`ICanExportFoosXlsx`. The module is the class name snaked: `fake_foo_storage.py`,
+`fake_export_foos_xlsx.py`.
 
 `tests/unit/fakes/` is a package like any other: each fake module declares `__all__`, the package
 `__init__.py` re-exports them under `python-packaging`'s contract, and handler tests import from the
@@ -238,7 +293,7 @@ __all__ = ["FakeFooRepository"]
 
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
-        # Store DETACHED copies; never alias the caller's instances (see Rule 9).
+        # Store DETACHED copies; never alias the caller's instances (Fakes rule 9).
         self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
         self.updated: list[UUID] = []  # call record — ids passed to update(), in order
 
@@ -300,7 +355,19 @@ class FakeFooRepository:
 
 ### Aggregate with cascading sub-collection
 
+For an aggregate that owns children — here `FooAttachment`, an entity (`id: UUID`, `foo_id: UUID`,
+`mime: str`) in `domain/foos/` whose table cascades from `foos` (`hex-persistence`'s owned-children
+table). The CRUD methods above stay; the cascade adds these:
+
 ```python
+from dataclasses import replace
+from uuid import UUID
+
+from myapp.domain.exceptions import NotFoundError
+from myapp.domain.foos import Foo, FooAttachment
+
+__all__ = ["FakeFooRepository"]
+
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
         self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
@@ -324,7 +391,11 @@ class FakeFooRepository:
 ### Behavioral capability (`ICanDoX`) — single async method
 
 ```python
+from collections.abc import Sequence
+
 from myapp.domain.foos import FooExportRow
+
+__all__ = ["FakeExportFoosXlsx"]
 
 class FakeExportFoosXlsx:
     def __init__(self, payload: bytes = b"fake-xlsx") -> None:

@@ -28,8 +28,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from myapp.infrastructure.postgres.engine import create_engine
-from myapp.infrastructure.postgres.settings import DbSettings
+from myapp.infrastructure.postgres import DbSettings, create_engine
 from myapp.infrastructure.s3 import S3Settings
 
 class _PgConn(TypedDict):
@@ -337,7 +336,25 @@ Leave empty:
 ```python
 ```
 
-`pytest-asyncio` mode and plugin declarations belong in `pyproject.toml` under `[tool.pytest.ini_options]`, not here. That block **must** carry `asyncio_mode = "auto"` **and** a **session** loop scope — `asyncio_default_fixture_loop_scope = "session"` + `asyncio_default_test_loop_scope = "session"`. The engine fixture above is session-scoped, so every test and fixture must share ONE event loop: under the default function loop scope the session engine's `asyncpg` connections outlive the loop they were opened on, and any integration test that runs a real statement which errors (a constraint violation through a repository, the canonical repo-contract case) crashes at teardown with `RuntimeError: Event loop is closed` (asyncpg cannot cancel the aborted command on a closed loop). The cheap api-discovery tests hide this — their routes (CORS / OpenAPI / an unauthenticated probe) short-circuit before touching Postgres, so no real command runs — which is why it only surfaces once a repository contract test exercises the DB.
+The runner's configuration belongs in the root `pyproject.toml`, not here — the whole block:
+
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "--import-mode=importlib"
+pythonpath = ["."]
+filterwarnings = ["error"]
+```
+
+`--import-mode=importlib` lets two test modules share a basename in different directories
+(`tests/integration/postgres/test_foo_repository.py` and `tests/integration/qdrant/test_foo_repository.py`)
+without an `__init__.py` in every test directory; because that mode puts nothing on `sys.path`,
+`pythonpath = ["."]` is what lets a test import `tests.unit.fakes` or `tests.helpers.jwt`.
+`filterwarnings = ["error"]` makes every warning a failure, so a deprecation or an unclosed resource reds
+the run instead of scrolling past (`test-principles`). The loop scopes are **session**, and both keys
+are required. The engine fixture above is session-scoped, so every test and fixture must share ONE event loop: under the default function loop scope the session engine's `asyncpg` connections outlive the loop they were opened on, and any integration test that runs a real statement which errors (a constraint violation through a repository, the canonical repo-contract case) crashes at teardown with `RuntimeError: Event loop is closed` (asyncpg cannot cancel the aborted command on a closed loop). The cheap api-discovery tests hide this — their routes (CORS / OpenAPI / an unauthenticated probe) short-circuit before touching Postgres, so no real command runs — which is why it only surfaces once a repository contract test exercises the DB.
 
 **The root `tests/conftest.py` must NOT import `create_app` / `myapp.restapi.main` (nor define a `real_app` / `client` fixture).** pytest applies the root conftest to the WHOLE suite, so a *module-level* `from myapp.restapi.main import create_app` there makes every `tests/unit/**` collection pay the entire infrastructure import chain — and a domain-VO red→green is then blocked by an unfilled sibling (e.g. a column-less table) the unit test never touches. The app-construction fixture (`real_app`) lives in `tests/integration/conftest.py` and imports `create_app` **inside the fixture body** (deferred, as the template above does), so only the integration suite — which legitimately constructs the app — pays that import. Keep app construction out of any conftest a unit test inherits.
 

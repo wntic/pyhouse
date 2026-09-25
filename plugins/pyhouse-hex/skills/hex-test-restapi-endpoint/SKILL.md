@@ -185,14 +185,13 @@ async def test_download_attachment_streams_bytes(
         response = await client.get(f"/foos/{foo_id}/attachments/{attachment_id}")
 
     assert response.status_code == 200
-    # The media type and disposition are THIS resource's contract — match the
-    # route's declared media_type and disposition mode (attachment vs inline) per
-    # hex-restapi-endpoint. The `image/png` + `attachment` shown is this example
-    # resource's choice, not a universal download shape.
     assert response.headers["content-type"] == "image/png"
     assert response.headers["content-disposition"].startswith("attachment; filename=")
     assert len(response.content) > 0
 ```
+
+The media type and the disposition mode asserted are the route's own declared ones
+(`hex-restapi-endpoint`) — the values the route under test sets, not a fixed download shape.
 
 ## Other bindings
 
