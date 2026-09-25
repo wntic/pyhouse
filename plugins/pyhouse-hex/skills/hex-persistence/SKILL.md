@@ -44,7 +44,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 src/myapp/infrastructure/postgres/
 ├── metadata.py                    # the shared MetaData with naming_convention
 ├── tables/
-│   ├── __init__.py                # import the new module (no wildcard)
+│   ├── __init__.py                # import the new module and name it in __all__ (no wildcard)
 │   └── foos.py                    # the Table
 └── repositories/
     ├── __init__.py                # re-export the new module
@@ -54,11 +54,12 @@ migrations/versions/
 └── 0042_create_foos.py            # authored via `alembic revision`, hand-edited to the rules below
 ```
 
-The full file templates live in three topic files, one per artifact in that layout:
+The full file templates live in three topic files, one per artifact in that layout. **Read the topic
+file for the artifact before writing or changing it** — only this file is loaded automatically:
 
 - **`TABLE.md`** — the naming convention, the table template, and the column, foreign-key, index,
   constraint, child-table and default rules.
-- **`REPOSITORY.md`** — the two constructor forms with full templates, the session, read, mutation,
+- **`REPOSITORY.md`** — the two constructor forms, the session, read, mutation,
   translation and mapping rules, and the shared-mapper extraction threshold.
 - **`REVISION.md`** — the revision template, the drift check and the downgrade rule.
 
@@ -158,8 +159,9 @@ Both:
 
 ## Package wiring
 
-`tables/__init__.py` must import the new table module — `from . import foos` — otherwise migration
-autogenerate cannot see the table. A table module's public name is a bare object, not a class, so it is
+`tables/__init__.py` must import the new table module and name it in `__all__` —
+`from . import foos` beside `__all__ = ["foos"]` — otherwise migration autogenerate cannot see the table,
+and the linter reads the bare import as unused and removes it. A table module's public name is a bare object, not a class, so it is
 not wildcarded into the package (`python-packaging` carve-out 3); the repository imports it from its own
 module (`from ..tables.foos import foos_table`). `repositories/__init__.py` re-exports the new adapter
 class with the usual `from . import foo_repository` + wildcard. Mechanics: `python-packaging`.

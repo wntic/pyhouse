@@ -12,6 +12,11 @@ first.
 Defined once in `infrastructure/postgres/metadata.py`:
 
 ```python
+# src/myapp/infrastructure/postgres/metadata.py
+from sqlalchemy import MetaData
+
+__all__ = ["metadata"]
+
 metadata = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",

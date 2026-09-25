@@ -54,7 +54,8 @@ Elsewhere:
 
 ## Template — compensation, a single side effect
 
-The command is `hex-application`'s `CreateFooCommand` plus the bytes this handler uploads:
+The command is `hex-application`'s `CreateFooCommand` with the uploaded bytes added — one class, whose
+file this replaces, never a second `CreateFooCommand` beside it:
 
 ```python
 from dataclasses import dataclass
@@ -187,7 +188,7 @@ subdomain package (`hex-architecture` rule 5), never at the domain root.
 
 Repository members are typed by their **domain protocols**, never by concrete adapters, and are
 **read-only properties**: a settable protocol attribute is invariant, so an implementation exposing a
-concrete `FooRepository` would not satisfy `foos: IFooRepository`; a read-only one is covariant and does.
+concrete `FooSessionRepository` would not satisfy `foos: IFooRepository`; a read-only one is covariant and does.
 
 ## Template — unit of work, the implementation (SQLAlchemy async session)
 
@@ -198,7 +199,7 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .repositories import AuditRepository, FooRepository
+from .repositories import AuditRepository, FooSessionRepository
 
 __all__ = ["SqlAlchemyUnitOfWork"]
 
@@ -206,11 +207,11 @@ __all__ = ["SqlAlchemyUnitOfWork"]
 class SqlAlchemyUnitOfWork:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session = session_factory()
-        self._foos = FooRepository(self._session)
+        self._foos = FooSessionRepository(self._session)
         self._audit = AuditRepository(self._session)
 
     @property
-    def foos(self) -> FooRepository:
+    def foos(self) -> FooSessionRepository:
         return self._foos
 
     @property
@@ -312,10 +313,12 @@ except Exception:
 ## Template — session-injected repository, SQLAlchemy (required when joining a unit of work)
 
 A repository joining the unit of work takes a live `session: AsyncSession`, not a factory. One class
-cannot be both unit-of-work-managed and standalone — pick one form.
+cannot be both unit-of-work-managed and standalone, so the joining adapter is a class of its own —
+`FooSessionRepository` beside the standalone `FooRepository` when an aggregate needs both, each in its
+own module. Its full form is `hex-persistence`'s (`REPOSITORY.md`, the unit-of-work-managed form).
 
 ```python
-class FooRepository:
+class FooSessionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -328,6 +331,32 @@ class FooRepository:
 
 Methods use `self._session.execute(...)` directly, and **never `commit()` or `rollback()`** — the unit of
 work owns those. Committing inside a repository breaks atomicity.
+
+The audit repository only ever joins a unit of work, so it has the joining form alone. `AuditEvent` and
+`IAuditRepository` are `hex-domain-model`'s and `hex-domain-ports`'; `audit_events_table` is a `Table`
+in `hex-persistence`'s form with a store-generated key, so an append has no constraint of its own to
+violate:
+
+```python
+# src/myapp/infrastructure/postgres/repositories/audit_repository.py
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from myapp.domain.audit import AuditEvent
+
+from ..tables.audit_events import audit_events_table
+
+__all__ = ["AuditRepository"]
+
+
+class AuditRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def append(self, event: AuditEvent) -> None:
+        await self._session.execute(
+            audit_events_table.insert().values(subject_id=event.subject_id, action=event.action)
+        )
+```
 
 ## Template — run function
 
