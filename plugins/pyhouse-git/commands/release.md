@@ -53,8 +53,16 @@ git log --format='%h %s' --grep='^chore(release): ' <last tag>..HEAD
 With no tag yet, search `HEAD` alone. A match whose tag does not exist is that release, landed and
 waiting: offer to tag it (step 7, item 3) and propose nothing new until it is tagged.
 
-`git log --no-merges --format='%h %s' <tag>..HEAD` is the range; git writes merge commits itself and
-the convention skips them. An empty range → nothing to release; say so and stop.
+The range itself, with bodies, because a break may be stated only in a footer (step 4):
+
+```
+git log --no-merges --format='%h %s%n%b%n--' <tag>..HEAD
+git log --no-merges -E --grep='^BREAKING[ -]CHANGE:' --format='%h %s' <tag>..HEAD
+```
+
+The second is the cross-check: every commit it lists is a break, whatever its subject says. Git
+writes merge commits itself and the convention skips them. An empty range → nothing to release; say so
+and stop.
 
 ## 4. Classify every commit
 
