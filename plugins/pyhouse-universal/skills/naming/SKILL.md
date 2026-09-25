@@ -76,7 +76,7 @@ Do not retrieve a name from memory of similar code. Derive it from this thing, h
    that is not the domain service the architecture defines (**Role suffixes the architecture
    defines**, below).
 
-Worked, on the case that motivates this skill — a `CheckResult` inherited from a ported module:
+Worked, on a `CheckResult` inherited from a ported module:
 
 | Step | |
 |---|---|
@@ -320,8 +320,8 @@ retire the old one deliberately, with a migration.
   not the word.
 - A module named `utils.py`, `helpers.py`, `common.py`, `misc.py`, `base.py` with no subject, or a
   bare `worker.py`/`service.py`/`data.py` → stop, name it for its responsibility.
-- A function whose verb is `process`, `handle`, `do`, or a `check_` that returns something other than
-  a bool → stop, use the real verb.
+- A function whose verb is `process`, `handle`, `do` or `check` → stop, use the real verb; a `check_`
+  says neither what it checks nor what happens on failure, whatever it returns.
 - An unqualified `get_` on a function or method (`get_foo()`) → stop, the caller cannot tell whether it
   crosses the wire; use `fetch_`, `build_`, or a `get_by_<field>` that names its lookup key.
 - A method that raises on a broken rule but is named as a predicate, or one named `assert_*` that returns
