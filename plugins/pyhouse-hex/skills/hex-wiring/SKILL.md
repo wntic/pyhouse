@@ -1,13 +1,14 @@
 ---
 name: hex-wiring
 description: Use when adding a binding in `containers.py` or an env-backed settings class — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and the settings class owning one integration's env namespace, its secret fields and its derived values. Bound here to dishka and pydantic-settings, with other DI and settings libraries mapped under `## Other bindings`. The class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate and toolchain are `hex-project-setup`, not runtime wiring.
-paths: ["**/containers.py", "**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
+paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
 # Hex — Wiring
 
 Two halves of one job: getting values in from the environment, and handing objects to whoever needs
-them. The two meet at one rule: a settings class is instantiated **only** by the composition root.
+them. The two meet at one rule: a settings class is instantiated **only** at a composition root
+(settings rule 13).
 
 ## When to use vs. neighbours
 
@@ -26,84 +27,10 @@ them. The two meet at one rule: a settings class is instantiated **only** by the
 
 ## Settings
 
-### Template — pydantic-settings, relational database
-
-A **relational-engine** example. Its connection-pool fields (`port`, `pool_size`,
-`max_overflow`, `pool_pre_ping`, `echo`) and the `dsn` are **relational-only** — they mean nothing for an
-API key, a blob store, a vector store or an observability backend. Never copy them into a non-engine
-settings class.
-
-```python
-from pydantic import SecretStr, computed_field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["DbSettings"]
-
-class DbSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="MYAPP_DB_",
-        env_file=".env",
-        extra="ignore",
-    )
-
-    host: str
-    port: int = 5432
-    user: str
-    password: SecretStr
-    name: str
-
-    pool_size: int = 10
-    max_overflow: int = 5
-    pool_pre_ping: bool = True
-    echo: bool = False
-
-    @computed_field
-    @property
-    def dsn(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}"
-            f"@{self.host}:{self.port}/{self.name}"
-        )
-```
-
-**The pool numbers above are this example's, and pool sizing is a deployment decision.** `pool_size=10`
-and `max_overflow=5` are a plausible single-process web app; a worker running one long job wants far
-fewer, and a fleet of processes has to multiply its pool by its replica count against the server's
-connection ceiling. `port` defaults to the driver's own well-known port; `pool_pre_ping=True` and
-`echo=False` are the two that are **not** taste — pre-ping costs one cheap round trip and buys immunity
-to connections the server closed underneath the pool, and `echo=True` in production writes every
-statement, parameters included, into the log. Set the sizes from the deployment; keep the last two.
-
-### Template — pydantic-settings, generic integration (API key, blob store, vector store, observability)
-
-Most integrations need a credential plus an endpoint or model name and maybe a knob or two — no pool, no
-port, no DSN. This is the shape for everything that is not a relational engine:
-
-```python
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["FooApiSettings"]
-
-class FooApiSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="MYAPP_FOO_",
-        env_file=".env",
-        extra="ignore",
-    )
-
-    api_key: SecretStr
-    base_url: str = "https://api.foo.example"
-    timeout_seconds: int = 30   # this example's number — see below
-```
-
-**A timeout is a per-integration decision and `30` is only this example's.** It is set from the
-integration's own observed latency plus headroom, and bounded above by what the caller can wait for — a
-request-path adapter whose timeout exceeds the app's own request timeout can never fire usefully. What
-the template does fix is that the timeout is a **settings field**, read once by the composition root and
-injected — never a constant hardcoded inside the adapter. Whether it carries a default at all is rule 1
-and rule 2's question: default it only if one value is safe for every deployment, and make it required
-otherwise.
+**Read `SETTINGS.md`** in this skill's directory before writing or extending a settings class. It
+carries the pydantic-settings templates — the relational database, a generic integration, the
+S3-compatible blob store and the other classes the adapter templates read — with their notes on pool
+sizing and timeouts; only `SKILL.md` is loaded automatically.
 
 ### How this binding spells the settings obligations
 
@@ -112,12 +39,13 @@ Three `model_config` keys are mandatory **under pydantic-settings**, and each is
 project's dotenv file, so local development reads it while production injects real environment and the
 file simply is not there; and `extra="ignore"` keeps the namespace non-strict, without which a
 neighbouring variable in it crashes startup. `SecretStr` is this binding's non-printing secret type and
-`.get_secret_value()` its unwrap; `@computed_field @property` is where a derived value is computed on
+`.get_secret_value()` its unwrap; a plain `@property` is where a derived value is computed on
 the object; `@field_validator` is where normalization and rejection are written.
 
 ### Explicit settings values for tests
 
-Settings test construction → `test-principles`.
+Settings test construction → `test-principles`. The test infrastructure provider and its fixtures are
+one of the three composition roots rule 13 names, so they construct settings with explicit values:
 
 `DbSettings(host="localhost", user="t", password=SecretStr("t"), name="t")`.
 
@@ -125,121 +53,12 @@ Settings test construction → `test-principles`.
 
 `src/myapp/containers.py` is the only file this half touches. Bindings are grouped into provider classes
 by layer and by subdomain; `create_container` assembles them. **Every dependency is resolved by type** —
-no binding is reached by its attribute name, so renaming a class cannot silently break a call site.
+no binding is reached by its attribute name, so renaming a class cannot silently break a call site. The
+template binds every adapter the catalogue's templates define for one app; an app binds the ones it has.
 
-```python
-from collections.abc import AsyncIterator
-
-from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-
-# ...imports for the classes being wired...
-
-__all__ = ["create_container"]
-
-
-class SettingsProvider(Provider):
-    """1. Settings — process lifetime; everything else may depend on them."""
-
-    scope = Scope.APP
-
-    @provide
-    def db_settings(self) -> DbSettings:
-        return DbSettings()
-
-    @provide
-    def storage_settings(self) -> StorageSettings:
-        return StorageSettings()
-
-
-class InfrastructureProvider(Provider):
-    """2. Long-lived handles, and 3. cross-cutting helpers.
-
-    A factory that opens a resource is a generator: what is yielded is the dependency,
-    what follows the yield is its release, run when the composition root is closed.
-    The engine + session_factory pair exists ONLY when a relational store backs a
-    repository. A client-style store (qdrant / redis / ...) has no engine — it yields
-    the client its `create_<store>_client(settings)` factory builds and closes that
-    instead. Bind the long-lived handles the app's datastores actually need, not a
-    fixed relational pair.
-    """
-
-    scope = Scope.APP
-
-    @provide
-    async def engine(self, settings: DbSettings) -> AsyncIterator[AsyncEngine]:
-        engine = create_engine(settings=settings)
-        yield engine
-        await engine.dispose()
-
-    @provide
-    def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-        return create_session_factory(engine=engine)
-
-    @provide
-    def url_canonicalizer(self) -> UrlCanonicalizer:
-        return UrlCanonicalizer()
-
-
-class FoosProvider(Provider):
-    """4. One provider class per subdomain: repository, then the services that use it,
-    then the handlers that use them. `provides=` is what binds the adapter to the port;
-    every constructor argument is resolved from its annotation, so nothing is passed here.
-    """
-
-    scope = Scope.REQUEST
-
-    foo_repository = provide(FooRepository, provides=IFooRepository)
-    foo_uniqueness_service = provide(FooUniquenessService)
-
-    create_foo_handler = provide(CreateFooHandler)
-    list_foos_handler = provide(ListFoosHandler)
-
-    # 5. A tunable value object is process-lifetime and takes single settings fields.
-    @provide(scope=Scope.APP)
-    def foo_export_tunable(self, settings: ExportSettings) -> FooExportTunable:
-        return FooExportTunable(max_rows=settings.max_rows)
-
-
-def create_container(*overrides: Provider) -> AsyncContainer:
-    """The composition root. `overrides` is the test seam and nothing else appends to it
-    (`hex-test-integration-setup`)."""
-    return make_async_container(
-        SettingsProvider(),
-        InfrastructureProvider(),
-        FoosProvider(),
-        *overrides,
-    )
-```
-
-Add `FastapiProvider()` to that list **only** when a factory takes `fastapi.Request` or
-`fastapi.WebSocket` as a parameter; the default composition root above takes neither and stays free of
-transport imports.
-
-### The unit-of-work factory
-
-A handler that uses a unit of work receives `Callable[[], IUnitOfWork]` and opens a fresh one per
-`execute` (`hex-patterns`). **Bind the callable, not the unit of work.** Per-operation lifetime would
-hand the handler one shared instance for the whole request, which is a different contract.
-
-```python
-from collections.abc import Callable
-from functools import partial
-
-
-class FoosProvider(Provider):
-    @provide(scope=Scope.APP)
-    def uow_factory(
-        self, session_factory: async_sessionmaker[AsyncSession]
-    ) -> Callable[[], IUnitOfWork]:
-        return partial(SqlAlchemyUnitOfWork, session_factory=session_factory)
-```
-
-The closure is stateless, so it is process-lifetime. The unit of work it builds is owned by the
-handler's `async with`, which commits or rolls it back — not by the composition root, which never sees
-it. There is for the same reason **no per-request session binding**: a session's lifetime belongs either
-to the repository call that opened it or to the unit of work, never to the composition root
-(`hex-persistence`).
+**Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
+carries the composition root — the provider classes in declaration order and `create_container` — and
+the unit-of-work factory binding; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
 
@@ -252,8 +71,8 @@ What changes between libraries is only where each obligation is written.
   own prefix argument, a secret field becomes its secret wrapper — or a `str` behind a `__repr__` that
   refuses to print it — a derived value becomes an ordinary read-only property on the settings class, and
   a validator becomes that library's converter or validator hook. Unchanged: one class per integration,
-  one prefix per class, a required field with no default, no default on a secret, construction only in
-  the composition root, and no environment read anywhere else.
+  one prefix per class, a required field with no default, no default on a secret, construction only at
+  a composition root, and no environment read anywhere else.
 - **A hand-rolled settings module.** A frozen dataclass with a `from_env()` classmethod that reads each
   variable, raises on a missing required one, wraps each secret, and exposes derived values as
   properties. The obligations are identical; what the library was doing for free — the missing-value
@@ -264,8 +83,8 @@ What changes between libraries is only where each obligation is written.
 ### Dependency injection
 
 Both libraries below are actively maintained; this is a fit decision, not a liveness one. The honest
-counterweights to the primary binding: `dependency-injector` is far more widely known, and `dishka`
-requires Python 3.10 or newer — which the union type syntax used throughout this catalogue already does.
+counterweight to the primary binding is that `dependency-injector` is far more widely known; `dishka`'s
+own interpreter requirement sits below the house floor `python-style` sets, so it never raises it.
 
 - **`dependency-injector`.** The obligations are identical; what changes is the spelling and one extra
   rule. A `containers.DeclarativeContainer` subclass replaces the provider classes, `providers.*`
@@ -324,7 +143,7 @@ salient name; resist it and stem on the deployable.
 ### Rules — settings
 
 **A settings class owns one env namespace, and that namespace is non-strict.** Every field it reads is
-prefixed with the deployable's stem plus this integration's name — `MYAPP_DB_` in the template above —
+prefixed with the deployable's stem plus this integration's name — `MYAPP_DB_` in the template in `SETTINGS.md` —
 and a variable inside the namespace that the class does not declare must **not** fail startup: the
 process environment is shared with the deployment's own variables and with every other settings class,
 so strictness there turns an unrelated variable into an outage. Where the project also keeps a local
@@ -337,15 +156,19 @@ not, so one class serves both without a branch.
 3. Field typing → `python-style`.
 4. **Engine-pool fields are relational-only, and their sizes are the deployment's.** `port`,
    `pool_size`, `max_overflow`, `pool_pre_ping`, `echo` and a computed connection string belong to the
-   relational template, with the numbers set from the deployment rather than copied. A non-engine
+   relational template in `SETTINGS.md`, with the numbers set from the deployment rather than copied. A non-engine
    integration omits them entirely; carrying them is dead config copied from a database class.
 5. **A value that must not appear in a log, a repr or a traceback carries a type that keeps it out of
    them** — passwords, API keys, signing secrets, JWT keys. A bare `str` is printed by every default
    repr in the program, so the type is what makes disclosure impossible rather than merely discouraged.
-6. **Never default a secret.** A missing secret env var must crash the process at startup.
+6. **Never default a secret the integration requires.** A missing secret env var must crash the process
+   at startup. A credential that is genuinely optional — a store that may run unauthenticated — is
+   `None` when absent, never a placeholder value.
 7. **A secret is unwrapped only at the point of use** — inside the derived value that assembles a
-   connection string, or when constructing an SDK client. Never into a local, a log field or an
-   intermediate string. Follow `python-style` for logging and output.
+   connection string, when constructing an SDK client, or in the constructor of the adapter that sends
+   it, which holds it privately for its lifetime (`hex-capability-adapter`). Never into a log field, an
+   exception's context, or an intermediate string built for anything else. Follow `python-style` for
+   logging and output.
 8. **A value assembled from other fields is computed on the settings object, never reassembled by its
     consumers** — connection strings, composite URLs, normalized strings. Every consumer reads the
     computed value, so one place decides how the parts go together and a change to that recipe is one
@@ -359,8 +182,10 @@ not, so one class serves both without a branch.
 11. **One settings class per infrastructure subpackage.** Bundling unrelated config under one prefix is
     forbidden.
 12. **Settings live next to the adapter they configure.** There is no top-level central settings module.
-13. **Settings are instantiated only in `containers.py`.** Never call `DbSettings()` from a handler, an
-    entrypoint, a test fixture or another settings class.
+13. **Settings are constructed only at a composition root, and there are exactly three:** the DI
+    container module (`containers.py`), the migration environment (`migrations/env.py`), and the test
+    infrastructure provider and its fixtures. Nowhere else — never `DbSettings()` in a handler, an
+    adapter, an entrypoint module or another settings class.
 14. **Adapters depend on the settings type**, never on `os.environ` or `os.getenv`. No `os.getenv`
     anywhere outside a settings class.
 15. Settings test construction → `test-principles`.
@@ -369,7 +194,7 @@ not, so one class serves both without a branch.
 
 | Lifetime | Use for | Examples |
 |---|---|---|
-| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a URL canonicalizer, **tunable value objects**, a stateless factory callable. |
+| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a library-backed canonicalizer adapter, **tunable value objects**, a stateless factory callable. |
 | **Per operation** | Instances meant to be fresh for each request or each job, cheap to construct. | Every `*Handler`, every `*Repository`, **domain services** that compose them, a stateful adapter bound to per-request state. |
 
 **Default to per-operation for application and domain artifacts. Reserve process lifetime for objects
@@ -424,7 +249,7 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ## Inlined typing / import rules
 
-- **Under the pydantic-settings binding:** `from pydantic import SecretStr, computed_field`, adding
+- **Under the pydantic-settings binding:** `from pydantic import SecretStr`, adding
   `field_validator` to that line **only when the class defines one** (settings rule 10) — an unused
   import is an F401 — plus `from pydantic_settings import BaseSettings, SettingsConfigDict`. Another
   settings library imports its own names; what carries over is that each is imported only where used.
@@ -454,24 +279,26 @@ adding a binding, find the right section and insert it after the latest declarat
 
 Settings re-exports → `python-packaging`; composition-root location → `hex-architecture`.
 
-`containers.py` needs no package wiring at all: it is a top-level module at the project root, not a
-package member. For the classes it imports, follow `python-packaging`.
+`containers.py` needs no package wiring at all: it is `src/myapp/containers.py`, a module of the
+distribution's root package, and the root `__init__.py` does not re-export it — that file stays empty
+(`python-packaging`'s carve-out for an application's root). For the classes it imports, follow
+`python-packaging`.
 
 ## Hard stops
 
-- Spec asks for an env read outside a settings class → stop, route it through a settings field.
-- Spec wants two unrelated integrations under one prefix → stop, split into two classes.
-- Spec asks an adapter to take individual fields instead of the settings object → stop, pass the
+- Asked for an env read outside a settings class → stop, route it through a settings field.
+- Two unrelated integrations share one prefix → stop, split into two classes.
+- An adapter is asked to take individual fields instead of the settings object → stop, pass the
   whole object. A single field is extracted only by the factory of a tunable value object.
-- Spec asks to add a binding whose dependency is not yet declared → stop, that dependency's own skill
+- Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill
   runs first.
-- Spec asks to bind a repository at process lifetime → stop, repositories are per-operation.
-- Spec asks for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
+- Asked to bind a repository at process lifetime → stop, repositories are per-operation.
+- Asked for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
   problem.
-- Spec asks to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
-- Spec asks the composition root to hand out a unit of work → stop, it hands out the factory callable;
+- Asked to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
+- The composition root is asked to hand out a unit of work → stop, it hands out the factory callable;
   the unit of work's lifetime is the handler's `async with` (`hex-patterns`).
-- Spec asks the composition root to bind a store connection or transaction handle per operation, so a
+- The composition root is asked to bind a store connection or transaction handle per operation, so a
   repository can be injected with one outside a unit of work → stop, nothing would then own the commit;
   use the standalone repository form, which opens and owns its own (`hex-persistence` for a relational
   store, `hex-store-repository` for a client-style one), or a unit of work (`hex-patterns`). A store

@@ -26,7 +26,8 @@ is not a statement that the code is correct.
    is a different, much larger job, and worth confirming before it starts.
 
 Pass the subagent the resolved target, the repository root, and the plugin root
-(`${CLAUDE_PLUGIN_ROOT}`) so it can reach the catalogue if a skill fails to load by name.
+(`${CLAUDE_PLUGIN_ROOT}`). The subagent loads skills by name; the root is its fallback for a name that
+does not load, and the place it resolves the sibling plugins from.
 
 ## Rendering
 

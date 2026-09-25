@@ -51,10 +51,10 @@ __all__ = ["Foo"]
 @dataclass
 class Foo:
     id: UUID
-    # required fields first; `field: T | None = None` after
+    name: str
+    bar_id: UUID
 
     def __post_init__(self) -> None:
-        # one block per invariant; omit method entirely if no invariants
         if not self.name:
             raise ValidationError("name must be non-empty", {"field": "name"})
 
@@ -133,8 +133,8 @@ class FooExportTunable:
 
 Distinguishing characteristics:
 
-- Sourced from a settings class at the DI layer — the provider wires
-  `FooExportTunable(max_rows=export_settings.provided.max_rows)`. See `hex-wiring`.
+- Sourced from a settings class at the composition root — a provider of its own reads each field off
+  the settings object and passes it: `FooExportTunable(max_rows=settings.max_rows)`. See `hex-wiring`.
 - Injected into domain services and application handlers, never into entities. Entities do not read
   tunables; services do.
 - Every value-object rule still applies: frozen, no methods, primitive or VO fields only. Which
@@ -144,6 +144,66 @@ Distinguishing characteristics:
 Use this variant only when the value carries no domain meaning beyond "this is a knob to turn". If it
 participates in the ubiquitous language — a `FooTotal`, a `RetentionWindow` with behaviour — it is an
 ordinary value object.
+
+### Value object — the instances the port templates name
+
+The port signatures in `hex-domain-ports` name four value objects. Each is the standard form above,
+filled in, in the subdomain package whose port names it:
+
+```python
+# src/myapp/domain/bars/canonical_bar_url.py
+from dataclasses import dataclass
+
+__all__ = ["CanonicalBarUrl"]
+
+@dataclass(frozen=True)
+class CanonicalBarUrl:
+    value: str
+```
+
+```python
+# src/myapp/domain/bars/bar_token.py
+from dataclasses import dataclass
+from datetime import datetime
+
+__all__ = ["BarToken"]
+
+@dataclass(frozen=True)
+class BarToken:
+    value: str
+    expires_at: datetime
+```
+
+```python
+# src/myapp/domain/foos/foo_export_row.py
+from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
+
+__all__ = ["FooExportRow"]
+
+@dataclass(frozen=True)
+class FooExportRow:
+    id: UUID
+    name: str
+    created_at: datetime
+```
+
+```python
+# src/myapp/domain/audit/audit_event.py
+from dataclasses import dataclass
+from uuid import UUID
+
+__all__ = ["AuditEvent"]
+
+@dataclass(frozen=True)
+class AuditEvent:
+    subject_id: UUID
+    action: str
+```
+
+`FooExportRow` is a read-model rather than a value object — it carries `created_at`, which no entity
+does (Entity rule 6) — and takes the same frozen form (`hex-application`, read models).
 
 ### Enum — `StrEnum` (the default, for string-valued sets)
 
@@ -206,6 +266,23 @@ class Foo(Enum):
     C = 3
 ```
 
+### Filter sort enum
+
+`domain/foos/foo_sort.py`, beside the filter that imports it (`hex-conventions`). One member per ordering
+the list read offers, each naming a column and a direction; the repository maps every member to its
+ordered column (`hex-persistence`).
+
+```python
+from enum import StrEnum
+
+__all__ = ["FooSort"]
+
+class FooSort(StrEnum):
+    CREATED_AT_DESC = "created_at_desc"
+    CREATED_AT_ASC = "created_at_asc"
+    NAME_ASC = "name_asc"
+```
+
 ### Filter record
 
 ```python
@@ -219,11 +296,11 @@ __all__ = ["FooListFilter"]
 
 @dataclass(frozen=True)
 class FooListFilter:
-    parent_ids: frozenset[UUID] = field(default_factory=frozenset)
+    bar_ids: frozenset[UUID] = field(default_factory=frozenset)
     created_from: date | None = None
     created_to: date | None = None
     sort: FooSort = FooSort.CREATED_AT_DESC
-    limit: int = 50  # this example's page size; the project picks its own
+    limit: int = 50
     offset: int = 0
 ```
 
@@ -326,8 +403,8 @@ One case is neither a shape here nor a neighbour's:
 4. **Sort is an enum reference**, never a bare string. See `python-packaging` for its module.
 5. **One pagination shape, explicitly.** Either `limit: int` + `offset: int`, both defaulted, or
    `cursor: str | None`. Never both. If it is not stated which, ask. **The default page size is the
-   project's decision, not the catalogue's** — the template's `50` is that example's number; pick one
-   bound, state it once, and keep every filter in the service on it.
+   project's decision, not the catalogue's** — pick one bound, state it once, and keep every filter in
+   the service on it.
 6. **No methods.** A filter record is a passive data bag. Anything computed — translating a sort key to
    a SQL column, say — belongs in the repository adapter.
 7. **No business invariants.** A repository receives whatever the caller passed; range and authorization
@@ -355,13 +432,13 @@ and imports, including the module-level predicate function above.
 
 ## Hard stops
 
-- Spec asks for a frozen object defined by its content, with no identity → stop, model it as a value object; `id: UUID` plus mutation over time → stop, model it as an entity.
-- Spec puts a constraint, a unit or a format rule on a bare `str`, `int` or `Decimal` field and checks it at the call site → stop, model the value as a value object and check the invariant in its `__post_init__`.
-- Spec asks for behaviour that needs another aggregate's state → stop, use `hex-domain-service`.
-- Spec asks for repository methods or persistence on any of these → stop, use `hex-domain-ports` for the interface and `hex-persistence` for the adapter.
-- Spec asks for runtime-extensible "enum" values loaded from config or a database → stop, model it as a value object plus a lookup repository.
-- Spec asks for a filter-record method that translates the filter to SQL → stop, use `hex-persistence`.
-- Spec asks a filter record to validate cross-aggregate state, or to range-check its own fields → stop, use `hex-application`.
-- Spec needs both `limit`/`offset` and `cursor` on one filter → stop, pick one with the user.
-- Spec puts `created_at` / `updated_at` on an entity → stop, project the DB-managed audit timestamps into a read-model DTO instead.
-- Spec asks for enum values persisted to a SQL column → stop, use `hex-persistence` for the column type and its mapping; the enum still belongs here.
+- Asked for a frozen object defined by its content, with no identity → stop, model it as a value object; `id: UUID` plus mutation over time → stop, model it as an entity.
+- A constraint, a unit or a format rule sits on a bare `str`, `int` or `Decimal` field and is checked at the call site → stop, model the value as a value object and check the invariant in its `__post_init__`.
+- Asked for behaviour that needs another aggregate's state → stop, use `hex-domain-service`.
+- Asked for repository methods or persistence on any of these → stop, use `hex-domain-ports` for the interface and `hex-persistence` for the adapter.
+- Asked for runtime-extensible "enum" values loaded from config or a database → stop, model it as a value object plus a lookup repository.
+- Asked for a filter-record method that translates the filter to SQL → stop, use `hex-persistence`.
+- A filter record is asked to validate cross-aggregate state, or to range-check its own fields → stop, use `hex-application`.
+- One filter needs both `limit`/`offset` and `cursor` → stop, pick one with the user.
+- `created_at` / `updated_at` are put on an entity → stop, project the DB-managed audit timestamps into a read-model DTO instead.
+- Asked for enum values persisted to a SQL column → stop, use `hex-persistence` for the column type and its mapping; the enum still belongs here.

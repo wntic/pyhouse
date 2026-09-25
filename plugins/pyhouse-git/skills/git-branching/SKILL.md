@@ -24,8 +24,8 @@ One depends on the answer:
   method → `git-commit-message`. This skill picks the merge method; that one says what the choice
   obliges each message to be.
 - Working out the next version from the history and cutting the release commit and tag → `/release`.
-- What a version number promises, and the tag's own form → `python-versioning`, in the
-  `pyhouse-universal` plugin.
+- What a version number promises, and the tag's own form → the ecosystem's versioning rules; for a
+  Python distribution, for example, `python-versioning`, in the `pyhouse-universal` plugin.
 - Refusing a malformed message at commit time → `/install-commit-hook`. It checks a message's shape,
   not which branch it lands on.
 
@@ -108,9 +108,9 @@ git pull --ff-only
    person or process has fetched, are never rebased, amended or force-pushed. A branch only its author
    has used may be, until it lands — with a force that refuses to overwrite commits the author has not
    seen.
-6. **A branch is deleted once it has landed, and only by whoever created it.** A branch whose commits
-   are not on the mainline is someone's unfinished work; deleting it destroys that work with no record
-   it existed.
+6. **A branch is deleted once it has landed; until then, only by whoever created it.** A branch whose
+   commits are not on the mainline is someone's unfinished work; deleting it destroys that work with no
+   record it existed. Once it has landed nothing is lost, so the forge deleting it on merge is right.
 7. **The mainline is the only long-lived branch until another one earns its place.** A second
    integration line, a release-stabilisation branch or a per-environment branch each doubles where a
    change has to land. One earns its place only by a need rule 1 cannot meet — a release stabilising
@@ -123,7 +123,8 @@ git pull --ff-only
 ## Hard stops
 
 - A commit is going straight onto the mainline in a repository whose changes land through requests →
-  stop, branch from the mainline and open a request.
+  stop, branch from the mainline and open a request. A repository's first commit is the exception: it
+  creates the mainline, and there is nothing yet to branch from.
 - The mainline, or a branch someone else has fetched, is about to be rebased, amended or force-pushed →
   stop; its history is someone else's base. Correct it with a new commit.
 - A force-push of your own branch that would overwrite what you have not seen → stop, use a lease
@@ -133,8 +134,8 @@ git pull --ff-only
 - A `fix` commit corrects a commit on the same unlanded branch → stop, make it a fixup of that commit
   and fold it before landing.
 - A `fixup!` or `squash!` commit is about to land on the mainline → stop, fold it first.
-- A branch is about to be deleted whose commits are not on the mainline, or that you did not create →
-  stop, ask its owner.
+- A branch whose commits are not on the mainline, and that you did not create, is about to be deleted
+  → stop, ask its owner.
 - A long-lived branch is being added beside the mainline with no release to stabilise and no old line
   to maintain → stop; that is GitFlow's cost without the need that pays for it.
 - Asked what a commit message or its type should be → stop, use `git-commit-message`.

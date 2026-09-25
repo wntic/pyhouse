@@ -12,6 +12,11 @@ first.
 Defined once in `infrastructure/postgres/metadata.py`:
 
 ```python
+# src/myapp/infrastructure/postgres/metadata.py
+from sqlalchemy import MetaData
+
+__all__ = ["metadata"]
+
 metadata = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -36,9 +41,7 @@ stable, descriptive suffix.
 
 ```python
 # src/myapp/infrastructure/postgres/tables/foos.py
-from sqlalchemy import (
-    CheckConstraint, Column, DateTime, ForeignKey, Index, Table, Text,
-)
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Table, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -56,14 +59,47 @@ foos_table: Table = Table(
         UUID(as_uuid=True),
         ForeignKey("bars.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
     ),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    ),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("char_length(name) > 0", name="name_non_empty"),
-    Index("ix_foos_bar_id", "bar_id"),
-    Index("ix_foos_created_at", "created_at"),
 )
 ```
+
+`index=True` on a column is the single-column index with no `name=`: the convention names it
+`ix_foos_bar_id` and `ix_foos_created_at`, exactly what the revision writes out.
+
+## Template — append-only table with a store-generated key
+
+A record nothing addresses by an application-minted id — an audit trail, an event log — takes a key the
+store generates, and the repository inserts without one (`hex-patterns`' audit repository):
+
+```python
+# src/myapp/infrastructure/postgres/tables/audit_events.py
+from sqlalchemy import BigInteger, Column, DateTime, Identity, Table, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import func
+
+from ..metadata import metadata
+
+__all__ = ["audit_events_table"]
+
+audit_events_table: Table = Table(
+    "audit_events",
+    metadata,
+    Column("id", BigInteger, Identity(), primary_key=True),
+    Column("subject_id", UUID(as_uuid=True), nullable=False, index=True),
+    Column("action", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+```
+
+The convention names its key `pk_audit_events` and its index `ix_audit_events_subject_id`. Its revision
+is an ordinary one (`REVISION.md`), writing the key as `sa.Column("id", sa.BigInteger, sa.Identity(),
+primary_key=True)` and creating the index by that name.
 
 ## Rules — column types
 

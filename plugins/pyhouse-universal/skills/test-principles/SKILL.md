@@ -10,7 +10,7 @@ Every test skill consults this one. The rules here are the **catalog-level testi
 The obligations below are runner-neutral. Every *spelling* of them is **pytest** — the fixture and
 marker decorators, parametrization, path-based collection, and the `[tool.pytest.ini_options]` block
 that declares the run. That is this catalogue's binding, not part of the constitution; what moves
-under another runner, and what does not, is in `## Other bindings`.
+under another runner, and what does not, is in `## Other runners`.
 
 ## When to use vs. neighbours
 
@@ -25,13 +25,15 @@ none of them is a dependency.
 - **Where a fixture lives is this skill's rule; the fixture file is not.** One hexagonal package's
   `tests/integration/conftest.py`, with its containers and isolation fixtures →
   `hex-test-integration-setup`. A uv workspace's shared `myschema_testing.py` pytest plugin — "where
-  do my shared fixtures live in the workspace" → `flat-test-integration-setup`.
+  do my shared fixtures live in the workspace" → the member's family integration-setup skill, for example
+  `flat-test-integration-setup` for a flat member, or `hex-test-integration-setup` (under its
+  `## Other bindings`) for a hexagonal one.
 - A static "no X in Y" invariant → `test-architecture-rule`.
 - A skill that owns a test file contradicts something here → fix that skill; this constitution is the
   source of truth.
 - Naming a builder, fixture or test function → `naming`.
 
-## Other bindings
+## Other runners
 
 - **A different runner** — `unittest` with a plugin set, or any collector of its own. What changes is
   spelling: how a fixture declares its setup, teardown and scope; how one body is run over a set of
@@ -45,10 +47,6 @@ none of them is a dependency.
   per test function. Whatever declares it, it is one declaration.
 
 ## Rules
-
-### Moving a rule that a defect paid for
-
-A rule distilled from a real defect travels **verbatim** when it is moved, merged or reworded across these skills — copy the sentence rather than restate it. What carries such a rule is one distinctive phrase or code pattern, the part a plausibly-wrong rewrite would never reproduce by accident; a paraphrase keeps the topic and drops exactly that, so the rule survives as a heading and stops changing anyone's behaviour. If the wording around it has to change, keep that phrase intact inside the new wording.
 
 ### The testing pyramid
 
@@ -116,10 +114,12 @@ tests/
     │                                            #   - postgres_container (session) — relational apps
     │                                            #   - db_settings (session) — relational apps
     │                                            #   - _migrated_db, _guard_against_real_db, _engine (session) — relational apps
+    │                                            #   - run_alembic (session) — relational apps
     │                                            #   - _outer_connection, sf (function) — relational apps
     │                                            #   - real_app (function) — consumes jwt_settings from down-tree WHEN the app has auth
-    │                                            #   - minio_container, storage_settings (session) — blob-store apps only
-    │                                            #   - s3_prefix (function), _cleanup_bucket_at_session_end — blob-store apps only
+    │                                            #   - minio_container, s3_session (session) — blob-store apps only
+    │                                            #   - s3_settings (function) — per-test bucket, bound into real_app — blob-store apps only
+    │                                            #   - qdrant_url, qdrant_client (session) — client-store apps
     ├── postgres/                                # repository contract tests; uses `sf` only
     │   └── test_foo_repository.py
     └── api/
@@ -145,7 +145,7 @@ The coupling point is deliberate and load-bearing:
 
 Fake modules and imports follow `python-packaging`.
 
-**No autouse fixtures except**: the session-scoped DB guard, the session-scoped migration runner, and the session-end bucket cleanup. Each autouse is documented; no one ever adds a "convenience" autouse.
+**No autouse fixtures except**: the session-scoped DB guard and the session-scoped migration runner. Each autouse is documented; no one ever adds a "convenience" autouse.
 
 ### Flat — tests tree and conftest hierarchy (pytest, uv workspace)
 
@@ -175,8 +175,10 @@ the tests of the package that owns the schema — `packages/myschema/tests/mysch
 `pyproject.toml`. A plugin, not a conftest, because a plugin is registered **once per session**: every
 member shares one container, where a conftest copied into each member's `tests/` starts one container
 per member. Beside the tests, not inside `src/`: it is test-support code and has no business shipping in
-the wheel. Nothing in the plugin is autouse. `flat-test-integration-setup` owns both forms of the
-artifact — one service's own conftest by default, this plugin module once there are members to share it.
+the wheel. Nothing in the plugin is autouse. Each family's integration-setup skill owns both forms of the
+artifact — one service's own conftest by default, this plugin module once there are members to share it —
+for example `flat-test-integration-setup` for a flat member, or `hex-test-integration-setup` (under its
+`## Other bindings`) for a hexagonal one.
 
 ```
 tests/
@@ -220,7 +222,7 @@ but made autouse one level down, in the integration conftest of each package tha
 |--|------------------------------|------------------------------|
 | Use for | Constructing one domain object with sensible defaults | Shared infrastructure or mutable factories that touch real state |
 | Lives in | The same test module that uses it, or a per-resource conftest | A conftest at the appropriate level of the hierarchy |
-| Examples | `_make_foo(**overrides) -> Foo`, `_foo(name="alpha") -> Foo`, `_policy(existing_keys=...)` | `sf`, `real_app`, `authed_client`, `make_foo` (per-resource factory that hits the real DB) |
+| Examples | `_make_foo(*, name: str = "alpha") -> Foo`, `_policy(existing_keys=...)` | `sf`, `real_app`, `authed_client`, `make_foo` (per-resource factory that hits the real DB) |
 | Why | Builders are pure-Python; calling them in a fixture adds ceremony without value. Fixtures live in conftests; importing a builder across files duplicates plumbing. | Fixtures handle setup/teardown lifecycle (sessions, transactions, ASGI transports) — that's what they're for. |
 
 **Rule:** if the thing you're constructing has no setup or teardown beyond its `__init__`, write a module-level `def`, not a fixture. The producer skills (`hex-test-domain`, `hex-test-application-handler`) follow this rule.
@@ -229,14 +231,14 @@ Flat examples:
 
 | | Builder (module-level `def`) | Fixture (`@pytest.fixture`) |
 |--|------------------------------|------------------------------|
-| Use for | One row dict, one schema instance, one client with defaults | Anything with a lifecycle: engines, connections, containers, transports |
+| Use for | One record, one schema instance, one client with defaults | Anything with a lifecycle: engines, connections, containers, transports |
 | Lives in | The test module that uses it | A conftest at the right level |
-| Examples | `_row(identity="a") -> dict`, `_make_payload(**overrides)` | `engine`, `conn`, `db_dsn` |
+| Examples | `_foo(reference="a") -> Foo`, `_make_payload(*, foo_id: str = "a") -> FooPayload` | `engine`, `conn`, `db_dsn` |
 
 ### Fixture scope rules
 
 - **Session-scoped fixtures** — the expensive, stateless-across-tests ones the app's features require: the postgres container + engine + connection settings (`db_settings` / `db_dsn`) + test-DB guard + migration runner (relational apps), the minio container (blob-store apps), the signing keypair + verifier settings (auth apps only — `hex-test-restapi-auth`). Anything expensive to construct and stateless across tests; a feature the app doesn't have contributes none of these.
-- **Function-scoped fixtures** — everything else. `sf`, `real_app`, `authed_client` (auth apps only), all row factories (`make_foo`, `make_bar`, …), `s3_prefix`, `conn`. Per-test rows are non-negotiable: rollback isolation or `truncate_all` requires them.
+- **Function-scoped fixtures** — everything else. `sf`, `real_app`, `authed_client` (auth apps only), all row factories (`make_foo`, `make_bar`, …), `s3_settings`, `conn`. Per-test rows are non-negotiable: rollback isolation or `truncate_all` requires them.
 - **No `module`-scoped or `class`-scoped fixtures.** Two scopes are enough — one for what is expensive and stateless across tests, one for everything else — and every scope beyond them is state shared with tests that never asked for it, in a grouping (the file, the class) that exists for readability rather than for lifecycle. A test that passes alone and fails beside its neighbours is the cost.
 - **Autouse placement is per family** — see the explicitly labelled conftest hierarchies above. In flat projects the guard and migration runner are explicit dependencies, and only `truncate_all` is made autouse, in member integration conftests.
 
@@ -251,35 +253,6 @@ Flat examples:
   file named for a subject when it could have been named for its source is how a suite grows a
   catch-all.
 - Builder, failure-injection subclass, and other identifier names → `naming`.
-
-### The acceptance-criteria marker
-
-A test that pins an observable acceptance criterion carries a machine-selectable tag naming that
-criterion, so a reader can go from a criterion to its proof and back without grepping prose. Under
-this binding that tag is `@pytest.mark.ac("<criterion-slug>")`, where the slug is the criterion's own
-identifier — lowercase, hyphen-separated, naming the behaviour
-the criterion states rather than the code that implements it:
-
-```python
-@pytest.mark.ac("duplicate-name-rejected")
-async def test_duplicate_name_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
-    ...
-```
-
-Rules for it:
-
-- **One marker per criterion, on the test that proves it.** A criterion proven by two tests carries the
-  marker on both; a test that pins no criterion carries none.
-- **The marker is not a category.** It does not replace the file's placement or its name — it records
-  *which stated criterion this test is the evidence for*, so a reader can go from a criterion to its proof
-  and back.
-- **Register it** in `pyproject.toml` under `[tool.pytest.ini_options] markers` — an unregistered marker
-  is a `PytestUnknownMarkWarning`, and warnings are errors here (`-W error` — a warning is a failure,
-  Reliability rules), so it fails the run.
-- **`pytest -m ac` selects every criterion-pinning test**, which is what makes the marker worth carrying.
-  The selection spans the whole suite, tests written long ago included, and that is the intended reach:
-  every value is a phrase that says what it stands for, so a particular criterion is looked up by its
-  own slug and the answer does not depend on which tests happen to be selected alongside it.
 
 ### When to parametrize — and when not to
 
@@ -317,13 +290,13 @@ async def test_assigns_uuid_and_stores() -> None:
 Flat example:
 
 ```python
-async def test_records_a_bar_for_a_new_foo(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    repo = FooRepository(engine)
+async def test_records_a_new_foo(engine: AsyncEngine, conn: AsyncConnection) -> None:
+    storage = FooStorage(engine)
 
-    await repo.record_batch([_row(name="alpha")])
+    await storage.record_batch([_foo(reference="alpha")])
 
-    names = (await conn.execute(select(bars_table.c.name))).scalars().all()
-    assert names == ["alpha"]
+    references = (await conn.execute(select(foo_table.c.reference))).scalars().all()
+    assert references == ["alpha"]
 ```
 
 Rules:
@@ -390,7 +363,7 @@ realism, so take the highest rung that can reach the case.
 |------|---------------------|------|
 | 1 | **Nothing — the real dependency**, started and disposed by the suite | Any schema or run-function test. Always the default. Here: Postgres through testcontainers. |
 | 2 | **The transport underneath the dependency**, leaving the dependency's own code running | Any service-client test. Only the socket is replaced, so the client's request building, response parsing and error translation all still execute. Here: `respx` under a real `httpx` client. |
-| 3 | **One method of the concrete class**, through a subclass overriding exactly the method that must fail | One-off failure injection, at test-module scope and underscore-prefixed: `class _RaiseFooClient(FooClient): async def fetch_batch(self): raise FooClientError("boom")`. |
+| 3 | **One method of the concrete class**, through a subclass overriding exactly the method that must fail | One-off failure injection, at test-module scope and underscore-prefixed: `class _RaiseFooClient(FooClient): async def fetch_batch(self) -> list[FooPayload]: raise FooClientError("boom")`. |
 | 4 | **An attribute on the concrete class the caller constructs internally**, patched for the test | Last resort, and only where the caller builds its own dependency with no parameter to pass. Here: `monkeypatch.setattr`. |
 | — | **A `Protocol` extracted so something becomes mockable** | **Never** — that is the anticipatory abstraction the flat-layered style exists to avoid. |
 
@@ -409,21 +382,9 @@ is a hint that the caller wants a constructor parameter.
 ### Settings and shared resources (flat)
 
 Settings classes and engines are built behind `get_*` factories, not as module-level instances
-(`flat-layered`, `flat-persistence`). That is what makes them testable: a test never mutates
+(`python-packaging` rule 8). That is what makes them testable: a test never mutates
 a singleton and never reassigns a module attribute. It constructs what it needs, or takes the `engine`
 fixture, and passes it in.
-
-Where a placeholder value is needed so an import can succeed at all, set it once in the root
-`pyproject.toml` with pytest-env's `D:` prefix, which sets a **default** rather than an override:
-
-```toml
-[tool.pytest.ini_options]
-env = ["D:MYSCHEMA_DSN=postgresql+asyncpg://test:test@localhost:1/placeholder"]
-```
-
-Without the `D:` prefix the value **overrides** a real exported one, so any opt-in path that points the
-suite at an external database would never see the real value. The placeholder only has to parse;
-integration tests reach the container through the `engine` fixture.
 
 ### Reliability rules (local-vs-CI parity)
 
@@ -432,10 +393,13 @@ integration tests reach the container through the `engine` fixture.
    next: the datastore and the object store are started and thrown away by the suite itself —
    testcontainers in this binding. Pointing the suite at an **already-provisioned throwaway**
    datastore is the one sanctioned alternative, and it is guarded on both sides: opt in through a
-   dedicated variable, never an ambient one, and refuse any database whose name is not on a declared
-   throwaway list (`flat-test-integration-setup` carries both guards). An *unguarded* "developer's
-   local Postgres" mode → stop; the suite TRUNCATEs every table it can see, and the variable that
-   would divert it is exported by tools that know nothing about this suite.
+   dedicated variable, never an ambient one, and refuse to run unless something explicitly declared
+   the database disposable — an exact match against a declared throwaway name, or a marker set by
+   whatever provisioned it — never inferring it from the host, the port or a pattern over the DSN;
+   an exact match against a declared name is a declaration. `flat-test-integration-setup` carries the declared-name form and
+   `hex-test-integration-setup` the provisioner's-marker form. An *unguarded* "developer's local Postgres" mode → stop; the suite TRUNCATEs every
+   table it can see, and the variable that would divert it is exported by tools that know nothing
+   about this suite.
 2. **Every test starts from state it established itself, never from a predecessor's leftovers**, and
    the isolation that guarantees it is part of the suite rather than something a test remembers to do.
    Where the subject has a datastore that means an empty database at the start of every test — either
@@ -449,13 +413,16 @@ integration tests reach the container through the `engine` fixture.
    randomization and `-p no:randomly` the fixed order.
 4. **A test never waits out real time.** A test that looks like it needs a wait needs the right
    `await` on the event it is actually waiting for; a test that needs the clock to move forward
-   advances the clock its runtime exposes rather than letting one pass — a workflow runtime's
-   time-skipping test environment is the worked case (`flat-test-run-function`). Sleeping makes
-   the suite slower than the behaviour it pins and hides the race that will surface in CI, and
+   advances a clock the code under test accepts as a parameter rather than letting one pass. Sleeping
+   makes the suite slower than the behaviour it pins and hides the race that will surface in CI, and
    patching a sleep so a loop exits is the same defect wearing a different hat. A runtime that
    exposes no clock control is a reason to pin the policy — the delays computed, the attempts made —
    rather than to sit through it.
-5. **Datetimes asserted with `>=`, not `==`.** Postgres `now()` can return identical timestamps within a transaction; clock-based equality flakes.
+5. **A timestamp the system assigns is asserted against a bound taken around the act, never by
+   equality.** Read the clock before and after the act and assert the value falls between them
+   (`>=`, `<=`). A store's clock is not the test's — Postgres `now()`, for one, returns the
+   transaction's start time for every row written in it — so equality with a value the test computed
+   passes or flakes by coincidence.
 6. **UUIDs used in assertions are constructed inside the test**, not pulled from `uuid.uuid4()` at module scope (except `_CALLER` which is conventional and irrelevant to assertion shape).
 7. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The container fixture handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`.
 8. **Where a test sits is what decides which layer it belongs to — not a tag on it, and not a tag on
@@ -464,7 +431,7 @@ integration tests reach the container through the `engine` fixture.
    the tree; one tree cannot disagree with itself. Under this binding that means no
    `@pytest.mark.integration` and no `@pytest.mark.asyncio`, with `pytest-asyncio` in auto mode
    declared once in `pyproject.toml`.
-9. **A warning is a failure, not a line in the tail of the output.** `[tool.pytest.ini_options]` carries `filterwarnings` with `"error"` as its first entry — the same table that already holds `asyncio_mode` and `markers` — so a warning raised anywhere in the run turns the suite red. This is part of what "green" means: no extra command, no second run, nothing anyone has to remember to read.
+9. **A warning is a failure, not a line in the tail of the output.** `[tool.pytest.ini_options]` carries `filterwarnings` with `"error"` as its first entry — the same table that already holds `asyncio_mode` — so a warning raised anywhere in the run turns the suite red. This is part of what "green" means: no extra command, no second run, nothing anyone has to remember to read.
    The price is that a deprecation from a library the project cannot fix reddens the suite too, so an exception is written as one narrow entry after `"error"` — `"ignore:<message>:<Category>:<module>"`, scoped as tightly as the warning allows — and it carries its reason beside it in a comment: whose warning it is, why the project cannot remove it at the source, and what will retire the entry. An exception without a reason is the rule switched off. A warning raised from the project's own `src/` never goes on that list; it gets fixed. Suppression conventions → `python-style`.
 
 ## Hard stops
@@ -489,11 +456,10 @@ integration tests reach the container through the `engine` fixture.
   workspace; make it an explicit dependency, or make it autouse one level down, in a member's
   integration conftest.
 - A workspace's shared datastore fixtures are put in a root `conftest.py` → stop, they belong in the
-  shared pytest plugin module (`flat-test-integration-setup`). A root conftest would share correctly,
+  shared pytest plugin module, which the family's integration-setup skill describes
+  (`flat-test-integration-setup`, `hex-test-integration-setup`). A root conftest would share correctly,
   but it puts test infrastructure at the workspace root and reaches members only from above. One
   service on its own has no such problem — its fixtures are an ordinary `tests/integration/conftest.py`.
-- A settings test constructs its settings class without disabling dotenv loading → stop,
-  pydantic-settings resolves the dotenv path against the process working directory, so the test passes
-  or fails depending on which directory pytest was started from.
-- A placeholder env value is declared without pytest-env's `D:` prefix → stop, it will override real
-  exported values rather than defaulting.
+- A settings test lets the settings loader read ambient config files → stop, disable file sources in
+  the test; a loader that resolves a dotenv or config path against the working directory makes the test
+  pass or fail depending on which directory the runner was started from.

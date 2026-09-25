@@ -38,7 +38,7 @@ grep -h '^description:' <resolved SKILL.md files> | grep ': .*: '   # bare ": " 
 `name` must equal the directory name, `description` must open `Use when …` and contain no bare
 colon-plus-space, and a `paths:` glob must be prefixed `**/` and absent on universal skills.
 
-**If a skill was added, renamed or rescoped**, confirm all four are in step — the counts go stale first:
+**If a skill was added, renamed or rescoped**, confirm all of these are in step — the counts go stale first:
 
 ```
 for p in plugins/*/; do echo "$p $(ls $p/skills | grep -v README | wc -l)"; done
@@ -46,7 +46,8 @@ for p in plugins/*/; do echo "$p $(ls $p/skills | grep -v README | wc -l)"; done
 
 - `plugins/pyhouse-universal/skills/README.md` — entry and the count in its heading
 - `plugins/pyhouse-universal/skills/meta-skill-author/CONVENTIONS.md` — `## Index` line, heading count, packaging table
-- top-level `README.md` — the plugin table
+- top-level `README.md` — the plugin table and the prose total
+- `CLAUDE.md` — the skill counts in its opening paragraph and its layout block
 - the skill's own `description`, which both indexes must agree with
 
 **Read the diff for contract breaks** — no tool catches these:
@@ -102,13 +103,20 @@ A skill and the index entries it forces are **one** commit and take the skill's 
 `docs`. `docs` is for a documentation change that stands alone.
 
 **No trailers.** This repository uses none: no `Co-Authored-By`, no generator lines, no
-`Signed-off-by`. The shipped command's rule is to match what the repository already does, and this is
-what it does.
+`Signed-off-by`. The shipped skill's rule 8 adds a trailer only where the repository already carries
+one or the author asked for it, and this repository carries none.
 
 ### 5. Commit
 
+Pass the message through a quoted heredoc, never `-m "<message>"`: inside double quotes the shell
+expands the backticks and `$` a body here routinely carries:
+
 ```
-git commit -m "<message>"
+git commit -F - <<'EOF'
+<type>(<scope>): <description>
+
+<body>
+EOF
 ```
 
 Output the commit hash to the user after committing:

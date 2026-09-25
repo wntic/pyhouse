@@ -19,7 +19,7 @@ here, into the classes `exception-catalog` owns.
 - The settings class (`<Tech>Settings`) the adapter consumes → `hex-wiring`.
 - The binding that constructs this adapter (almost always process-lifetime) → `hex-wiring`.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
-- The `*_best_effort` undo method a compensating handler calls on this adapter → its contract is `hex-patterns`', declared on a port by `hex-domain-ports`.
+- The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-patterns`'.
 - An in-memory test stand-in for this capability (the `Fake<Capability>` flavor) → `hex-test-application-handler`.
 - Testing the real adapter — containerized backend, `respx`-intercepted HTTP, or pure CPU → `hex-test-capability-adapter`.
 - A token verifier — its port, its adapter and the dependency that resolves it → `hex-restapi-auth`; the form is this skill's sync pure-CPU one, bound there.
@@ -47,12 +47,12 @@ import aioboto3
 from botocore.exceptions import ClientError
 
 from myapp.domain.exceptions import (
-    NotFoundError, UpstreamError, ValidationError,
+    NotFoundError,
+    UpstreamError,
+    ValidationError,
 )
-# No import of the protocol the adapter satisfies (ICanStoreFoos) — structural subtyping
-# at the DI site is the contract (Rule 2); importing it leaves a dead F401.
 
-from .settings import StorageSettings
+from .settings import S3Settings
 
 __all__ = ["S3FooStorage"]
 
@@ -75,10 +75,10 @@ def _map_client_error(exc: ClientError, *, key: str) -> Exception:
     )
 
 class S3FooStorage:
-    def __init__(self, session: aioboto3.Session, settings: StorageSettings) -> None:
+    def __init__(self, session: aioboto3.Session, settings: S3Settings) -> None:
         self._session = session
         self._bucket = settings.bucket
-        self._endpoint_url = str(settings.endpoint_url)
+        self._endpoint_url = settings.endpoint_url
 
     async def upload(self, key: str, body: bytes) -> None:
         try:
@@ -104,13 +104,22 @@ class S3FooStorage:
             raise _map_client_error(exc, key=key) from exc
 ```
 
+The adapter satisfies **two** capability ports over one technology — `ICanStoreFoos` (`upload` plus
+`delete`, one reversible action) and `ICanFetchFoos` (`download`) — because a port holds at most two
+methods (`hex-domain-ports`) while nothing limits how many ports one adapter satisfies.
+
 ### Template — async HTTP gateway (httpx)
 
+In `infrastructure/http/http_bar_gateway.py`: the directory names the technology the adapter speaks —
+HTTP — not the `Bar` concern it serves (rule 4), and its settings class sits beside it.
+
 ```python
+from datetime import datetime
+
 import httpx
 
-from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
 from myapp.domain.bars import BarToken  # the protocol (ICanFetchBarToken) is NOT imported — Rule 2
+from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
 
 from .settings import BarGatewaySettings
 
@@ -137,8 +146,17 @@ class HttpBarGateway:
                 "bar gateway unreachable",
                 {"subject": subject, "reason": exc.__class__.__name__},
             ) from exc
-        payload = response.json()
-        return BarToken(value=payload["token"], expires_at=payload["expires_at"])
+        try:
+            payload = response.json()
+            return BarToken(
+                value=payload["token"],
+                expires_at=datetime.fromisoformat(payload["expires_at"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise UpstreamError(
+                "bar gateway returned a malformed body",
+                {"subject": subject, "reason": exc.__class__.__name__},
+            ) from exc
 
 def _map_status(exc: httpx.HTTPStatusError, *, subject: str) -> Exception:
     status = exc.response.status_code
@@ -152,10 +170,15 @@ def _map_status(exc: httpx.HTTPStatusError, *, subject: str) -> Exception:
     )
 ```
 
+A `200` is not a result until its body has been read: a body that is not JSON, or that lacks a field
+the domain type needs, raises from the parse, and the parse sits inside a translated scope of its own so
+that failure arrives as `UpstreamError` like any other upstream fault (rule 9).
+
 ### Template — sync pure CPU (stdlib plus a parsing library)
 
-For canonicalizers / renderers / verifiers with no IO. For translation of the library's parse errors, see
-`exception-catalog`.
+For canonicalizers / renderers / verifiers with no IO that need a third-party library — work the
+standard library can do is domain logic, not an adapter (`hex-domain-ports`). For translation of the
+library's parse errors, see `exception-catalog`.
 
 ```python
 from urllib.parse import urlsplit, urlunsplit
@@ -165,12 +188,12 @@ import idna
 from myapp.domain.bars import CanonicalBarUrl  # the protocol (ICanCanonicalizeBarUrl) is NOT imported — Rule 2
 from myapp.domain.exceptions import ValidationError
 
-from .settings import CanonicalizerSettings
+from .settings import IdnaSettings
 
 __all__ = ["IdnaBarUrlCanonicalizer"]
 
 class IdnaBarUrlCanonicalizer:
-    def __init__(self, settings: CanonicalizerSettings) -> None:
+    def __init__(self, settings: IdnaSettings) -> None:
         self._allowed_schemes = settings.allowed_schemes
 
     def canonicalize(self, raw: str) -> CanonicalBarUrl:
@@ -235,9 +258,11 @@ type rather than a raw string.
 6. **Stash the fields the methods use, not the settings object** — unless several methods read several
    fields. The constructor signature is then an honest statement of what the adapter actually depends
    on, and a test can build it without assembling a settings object.
-7. **A secret is unwrapped once, in the constructor** (`settings.api_key.get_secret_value()` under a
-   settings library with a secret type), never on each call. A secret never reaches a log line
-   (`python-style`) and never reaches an exception's `context` (rule 13).
+7. **A secret is unwrapped once, in the constructor of the adapter that sends it**
+   (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
+   private attribute and never unwrapped again per call — the point of use `hex-wiring` settings rule 7
+   names. A secret never reaches a log line (`python-style`) and never reaches an exception's `context`
+   (rule 10).
 
 ### Exception translation
 
@@ -246,39 +271,35 @@ type rather than a raw string.
    `exception-catalog`'s.
 9. **The library's exception type never escapes the adapter.** No SDK error, HTTP status error or parse
    error crosses into `application/` or an entrypoint — the application layer catches only `DomainError`.
-10. **The fallback is mandatory.** When no specific case matches, the translator still raises a catalogue
-    exception: `UpstreamError` for a third-party or network failure, `UnauthorizedError` when a verifier
-    or credential was rejected, `ValidationError` only when the input was demonstrably malformed. Never
-    return the raw exception, and never swallow it with `pass` — an untranslated leak turns a 502 into a
-    500 and a rejected credential into a crash.
-11. **Raise the most specific class the condition supports.** `NotFoundError` when the object or subject
-    does not exist; `ValidationError` when the upstream rejected the inputs as malformed;
-    `UnauthorizedError` for token or credential rejection; `UpstreamError` for everything else — network
-    failures, 5xx, unknown codes.
-12. **Every raised exception carries stable identifying context** — the inputs that identify the call
-    (the key, the subject, the id) plus the upstream's own code or status. The adapter's tests assert on
-    these keys and the central error handler logs them, so renaming one is a contract change.
-13. **No secret in `context`.** A token, key, password or connection string placed there reaches the
-    error response body and the log line by construction, because the handler renders and logs `context`
-    verbatim.
+10. **The fallback, the most specific class, the identifying `context` and the no-secret ban are
+    `exception-catalog`'s rules**, applied here without change. What they come to in an adapter: the
+    fallback is `UpstreamError` for a network or third-party failure (5xx, unknown codes), and that
+    includes the upstream rejecting the adapter's **own** configured credential (`InvalidAccessKeyId`,
+    `SignatureDoesNotMatch`, an upstream 401 or 403) — the caller's request was sound, and a 401 would
+    challenge the caller to re-authenticate over a fault only the service's operator can fix;
+    `UnauthorizedError` only where the adapter verifies a credential the caller presented (a token
+    verifier, `hex-restapi-auth`); `NotFoundError` when the object or subject does not exist; `ValidationError` only when the upstream rejected the inputs as malformed; `context` carries
+    the key, subject or id plus the upstream's own code or status, and never the token or key. An adapter
+    never swallows a failure, and never stops one either — a failed undo during compensation is stopped
+    in the calling handler (`hex-patterns`), which logs it; an adapter cannot.
 
 ### No business logic, no logging
 
-14. **Adapters are thin.** No retries, no caching, no batching, no domain reasoning. Retry and backoff
+11. **Adapters are thin.** No retries, no caching, no batching, no domain reasoning. Retry and backoff
     belong to the client's own policy (configured where the client is built) or to a dedicated wrapper
     class, so that the adapter stays one call wide and its failure modes stay readable.
-15. **An adapter never logs.** Not the call, not the failure: the central error handler owns failure logs
+12. **An adapter never logs.** Not the call, not the failure: the central error handler owns failure logs
     and the calling handler owns success logs, so a line here is a second entry for one event.
-16. **No instance state across calls** beyond constructor-injected handles. An adapter is then safe to
+13. **No instance state across calls** beyond constructor-injected handles. An adapter is then safe to
     bind at process lifetime and share across concurrent requests.
 
 ### Compensating-transaction contract
 
-17. **Mutating capabilities expose both the forward operation and the undo.** A storage adapter has `upload` *and* `delete`; a publisher that supports retraction has `publish` *and* `retract`. The catch-and-undo logic lives in the application handler (see `hex-patterns`), not in the adapter. The adapter's job is to make the undo callable.
+14. **Mutating capabilities expose both the forward operation and the undo.** A storage adapter has `upload` *and* `delete`; a publisher that supports retraction has `publish` *and* `retract`. The catch-and-undo logic lives in the application handler (see `hex-patterns`), not in the adapter. The adapter's job is to make the undo callable; like every other method it raises a catalogue exception when it fails, and the handler decides whether that failure may be tolerated.
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.bars import BarToken` — the entities/VOs the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanFetchBarToken`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .settings import BlobsSettings`).
+- Domain imports absolute (`from myapp.domain.bars import BarToken` — the entities/VOs the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanFetchBarToken`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .settings import S3Settings`).
 - No `from __future__ import annotations`. Full annotations on every method.
 - `X | None` over `Optional`. `Mapping[K, V]` / `Sequence[T]` (from `collections.abc`) for read-only views.
 - **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (`response["Body"].read()`, an untyped client method) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way a route dependency casts a container-resolved value (`hex-restapi-auth`). An inline `# type: ignore[...]` on the adapter body is never sanctioned: it hides the next genuine type error in that expression too.
@@ -291,21 +312,22 @@ For package wiring, see `python-packaging`; for infrastructure placement, see `h
 
 ## Hard stops
 
-- Spec asks the adapter to carry relational aggregate CRUD — a table, the statements against it and the
+- The adapter is asked to carry relational aggregate CRUD — a table, the statements against it and the
   migration that ships it → stop, that is a repository and not a capability; use `hex-persistence`.
-- Spec asks the adapter to inherit from `ICanX` explicitly → stop, structural subtyping is the contract.
-- Spec asks the adapter to log → stop, adapters do not log; the central error handler owns failure logs.
-- Spec asks the adapter to retry, cache, or batch internally → stop, configure that on the client where
+- The adapter is asked to inherit from `ICanX` explicitly → stop, structural subtyping is the contract.
+- The adapter is asked to log → stop, adapters do not log; the central error handler owns failure logs.
+- The adapter is asked to retry, cache, or batch internally → stop, configure that on the client where
   the client is built, or extract a separate wrapper class.
-- Spec asks the adapter to construct its own SDK client (`boto3.client(...)`, `httpx.AsyncClient()`) →
+- The adapter is asked to construct its own SDK client (`boto3.client(...)`, `httpx.AsyncClient()`) →
   stop, both the client and the settings are injected by the composition root.
-- Spec asks the adapter to raise an SDK exception type or bare `Exception` → stop, every external
+- The adapter is asked to raise an SDK exception type or bare `Exception` → stop, every external
   exception is translated into a catalogue exception at the boundary (`exception-catalog` owns the
   catalogue).
 - A secret is about to be placed in an exception's `context` or a log field → stop, `context` is rendered
   into the error response and logged verbatim.
 - The change does not say which external errors a fallible method raises → stop, derive the mapping from
   the library's documented exception family and apply the mandatory fallback: `UpstreamError` for a
-  network or third-party failure, `UnauthorizedError` for a rejected credential. The specific cases are
+  network or third-party failure, the upstream rejecting the adapter's own credential included, and
+  `UnauthorizedError` only for a caller's credential the adapter verifies (rule 10). The specific cases are
   judgement; the broad catch-and-translate fallback is not — never leave a method able to raise an
   untranslated external exception.

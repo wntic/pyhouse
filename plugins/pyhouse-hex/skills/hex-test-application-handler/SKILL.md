@@ -41,16 +41,17 @@ import uuid
 import pytest
 
 from myapp.application.foos import CreateFooCommand, CreateFooHandler
-from myapp.domain.exceptions import ConflictError
-from tests.unit.fakes.fake_foo_repository import FakeFooRepository
+from myapp.domain.exceptions import FooConflictError
+from tests.unit.fakes import FakeFooRepository
 
 _CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
 
 async def test_assigns_uuid_and_stores() -> None:
     repo = FakeFooRepository()
     handler = CreateFooHandler(repo=repo)
 
-    foo_id = await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha"))
+    foo_id = await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID))
 
     assert foo_id is not None
     stored = await repo.get_by_id(foo_id)
@@ -60,41 +61,48 @@ async def test_assigns_uuid_and_stores() -> None:
 async def test_duplicate_name_raises_conflict() -> None:
     repo = FakeFooRepository()
     handler = CreateFooHandler(repo=repo)
-    await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha"))
+    await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID))
 
-    with pytest.raises(ConflictError) as exc:
-        await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha"))
+    with pytest.raises(FooConflictError) as exc:
+        await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID))
 
     assert exc.value.context["constraint"] == "uq_foos_name"
-
-async def test_name_is_stripped_on_create() -> None:
-    repo = FakeFooRepository()
-    handler = CreateFooHandler(repo=repo)
-
-    foo_id = await handler.execute(CreateFooCommand(caller_id=_CALLER, name="  alpha  "))
-
-    stored = await repo.get_by_id(foo_id)
-    assert stored.name == "alpha"
 ```
 
-### `update` handler — PATCH `None`-means-don't-touch (the most common bug catch)
+### `update` handler — PATCH `None`-means-don't-touch
 
 ```python
+import uuid
+
+import pytest
+
+from myapp.application.foos import (
+    CreateFooCommand,
+    CreateFooHandler,
+    UpdateFooCommand,
+    UpdateFooHandler,
+)
+from myapp.domain.exceptions import NotFoundError
+from tests.unit.fakes import FakeFooRepository
+
+_CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
+
 async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     repo = FakeFooRepository()
     create_handler = CreateFooHandler(repo=repo)
     update_handler = UpdateFooHandler(repo=repo)
     foo_id = await create_handler.execute(
-        CreateFooCommand(caller_id=_CALLER, name="alpha", sort_order=5),
+        CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID),
     )
 
     await update_handler.execute(
-        UpdateFooCommand(caller_id=_CALLER, id=foo_id, name="beta", sort_order=None),
+        UpdateFooCommand(caller_id=_CALLER, id=foo_id, name="beta", bar_id=None),
     )
 
     stored = await repo.get_by_id(foo_id)
     assert stored.name == "beta"
-    assert stored.sort_order == 5  # None on the command means "don't touch"
+    assert stored.bar_id == _BAR_ID  # None on the command means "don't touch"
 
 async def test_update_unknown_id_raises_not_found() -> None:
     handler = UpdateFooHandler(repo=FakeFooRepository())
@@ -108,6 +116,18 @@ async def test_update_unknown_id_raises_not_found() -> None:
 ### `delete` handler with one-off `InUseError`
 
 ```python
+import uuid
+
+import pytest
+
+from myapp.application.foos import DeleteFooCommand, DeleteFooHandler
+from myapp.domain.exceptions import InUseError
+from myapp.domain.foos import Foo
+from tests.unit.fakes import FakeFooRepository
+
+_CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
+
 class _RaiseInUseFooRepo(FakeFooRepository):
     async def delete(self, id: uuid.UUID) -> None:
         raise InUseError(
@@ -118,7 +138,7 @@ class _RaiseInUseFooRepo(FakeFooRepository):
 async def test_delete_propagates_in_use_error() -> None:
     target_id = uuid.uuid4()
     handler = DeleteFooHandler(repo=_RaiseInUseFooRepo(items=[
-        Foo(id=target_id, name="alpha"),
+        Foo(id=target_id, name="alpha", bar_id=_BAR_ID),
     ]))
 
     with pytest.raises(InUseError) as exc:
@@ -131,21 +151,47 @@ async def test_delete_propagates_in_use_error() -> None:
 ### `list` query handler — sort + pagination
 
 ```python
-async def test_sorted_by_sort_order_then_name() -> None:
+import uuid
+
+from myapp.application.foos import ListFoosHandler, ListFoosQuery
+from myapp.domain.foos import Foo, FooListFilter, FooSort
+from tests.unit.fakes import FakeFooRepository
+
+_BAR_ID = uuid.uuid4()
+
+async def test_sorted_by_name() -> None:
     repo = FakeFooRepository(items=[
-        Foo(id=uuid.uuid4(), name="b", sort_order=1),
-        Foo(id=uuid.uuid4(), name="a", sort_order=1),
-        Foo(id=uuid.uuid4(), name="c", sort_order=0),
+        Foo(id=uuid.uuid4(), name="b", bar_id=_BAR_ID),
+        Foo(id=uuid.uuid4(), name="c", bar_id=_BAR_ID),
+        Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
     ])
     handler = ListFoosHandler(repo=repo)
 
-    # Three rows seeded, page size 2 — the page must be smaller than the seeded
-    # set or the test proves nothing about paging (Rule 4).
-    result = await handler.execute(ListFoosQuery(filter=FooListFilter(limit=2)))
+    result = await handler.execute(
+        ListFoosQuery(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2)),
+    )
 
-    assert [f.name for f in result.items] == ["c", "a"]
+    assert [f.name for f in result.items] == ["a", "b"]
     assert result.total == 3
+
+async def test_list_returns_only_the_requested_bars_foos() -> None:
+    other_bar = uuid.uuid4()
+    repo = FakeFooRepository(items=[
+        Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
+        Foo(id=uuid.uuid4(), name="b", bar_id=other_bar),
+    ])
+    handler = ListFoosHandler(repo=repo)
+
+    result = await handler.execute(
+        ListFoosQuery(filter=FooListFilter(bar_ids=frozenset({_BAR_ID}))),
+    )
+
+    assert [f.name for f in result.items] == ["a"]
+    assert result.total == 1
 ```
+
+The second test is also what proves the fake honours the filter (Fakes rule 5): against a fake that
+ignores `bar_ids`, both rows come back.
 
 **Seed 3, page 2 — the page size is smaller than the seeded set on purpose.** At `limit=10` over
 three rows the page holds every match, so the same asserts pass a handler that never applies the
@@ -153,28 +199,56 @@ bound and one that returns `len(items)` as `total`. 3 and 2 are the smallest pai
 
 ### `compensating-tx` handler — upload, then DB fails, assert undo
 
+The handler under test is `hex-patterns`' compensating `CreateFooHandler`, whose command carries the
+uploaded bytes.
+
 ```python
+import uuid
+
+import pytest
+
+from myapp.application.foos import CreateFooCommand, CreateFooHandler
+from myapp.domain.exceptions import UpstreamError
+from myapp.domain.foos import Foo
+from tests.unit.fakes import FakeFooRepository, FakeFooStorage
+
+_CALLER = uuid.uuid4()
+_BAR_ID = uuid.uuid4()
+
 class _RaiseAfterUploadRepo(FakeFooRepository):
     async def create(self, foo: Foo) -> None:
         raise RuntimeError("simulated DB failure after blob upload")
 
+class _RaiseOnDeleteStorage(FakeFooStorage):
+    async def delete(self, key: str) -> None:
+        await super().delete(key)
+        raise UpstreamError("simulated undo failure", {"key": key})
+
 async def test_db_failure_after_upload_deletes_blob() -> None:
-    repo = _RaiseAfterUploadRepo()
-    storage = FakeBlobStorage()
-    handler = UpsertFooHandler(repo=repo, storage=storage)
+    storage = FakeFooStorage()
+    handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
 
     with pytest.raises(RuntimeError):
         await handler.execute(
-            UpsertFooCommand(caller_id=_CALLER, data=b"payload", ...),
+            CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID, data=b"payload"),
         )
 
-    # Compensation contract: the blob written before the failed DB step
-    # must have been deleted via the best-effort cleanup capability.
-    assert len(storage.puts) == 1
-    assert storage.deletes == [storage.puts[0][0]]  # exactly the uploaded key
+    assert len(storage.uploads) == 1
+    assert storage.deletes == [storage.uploads[0][0]]
+
+async def test_failed_undo_still_raises_the_original_failure() -> None:
+    storage = _RaiseOnDeleteStorage()
+    handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
+
+    with pytest.raises(RuntimeError, match="simulated DB failure"):
+        await handler.execute(
+            CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID, data=b"payload"),
+        )
+
+    assert storage.deletes == [storage.uploads[0][0]]
 ```
 
-The simulated exception type is incidental — `RuntimeError` here, or any uncaught exception. The contract is: **the put landed, then something failed, then the same key was deleted.** That's the compensation assertion.
+The simulated exception type is incidental — `RuntimeError` here, or any uncaught exception. The contract is: **the upload landed, then something failed, then the same key was deleted, and the caller sees the failure that started it.** The undo raises like any other call (`hex-patterns`); the second test pins that the handler swallows the *undo's* failure and re-raises the original — an `UpstreamError` escaping instead fails `pytest.raises(RuntimeError)`.
 
 ## Fake repository and capability templates
 
@@ -184,138 +258,31 @@ Produces one in-memory stand-in class for a domain protocol. Handler unit tests 
 
 ```
 tests/unit/fakes/
+├── __init__.py                                 # re-exports every fake (python-packaging)
 └── fake_<aggregate_snake>_repository.py        # class FakeFooRepository
 ```
 
-For capabilities: `fake_<capability_snake>.py` → `Fake<Capability>` (e.g. `fake_blob_storage.py` → `FakeBlobStorage`).
+For capabilities the fake takes the name the real adapter takes after its technology prefix
+(`hex-conventions`): the capability's role noun when it has one — `FakeFooStorage` for `ICanStoreFoos`,
+beside `S3FooStorage` — and otherwise the protocol name minus `ICan` — `FakeExportFoosXlsx` for
+`ICanExportFoosXlsx`. The module is the class name snaked: `fake_foo_storage.py`,
+`fake_export_foos_xlsx.py`.
 
-Follow `python-packaging` and the fake-specific inlined import rules below. Handler tests import directly:
-
-```python
-from tests.unit.fakes.fake_foo_repository import FakeFooRepository
-```
-
-This is deliberate: keeps fakes out of production import graphs.
-
-### CRUD repository fake
+`tests/unit/fakes/` is a package like any other: each fake module declares `__all__`, the package
+`__init__.py` re-exports them under `python-packaging`'s contract, and handler tests import from the
+package:
 
 ```python
-from collections.abc import Sequence
-from dataclasses import replace
-from uuid import UUID
-
-from myapp.domain.exceptions import ConflictError, NotFoundError
-from myapp.domain.foos import Foo, FooListFilter
-
-class FakeFooRepository:
-    def __init__(self, items: list[Foo] | None = None) -> None:
-        # Store DETACHED copies; never alias the caller's instances (see Rule 9).
-        self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
-        self.updated: list[UUID] = []  # call record — ids passed to update(), in order
-
-    async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
-        ordered = sorted(
-            self._store.values(),
-            key=lambda f: (f.sort_order, f.name),
-        )
-        return [replace(f) for f in ordered[filter.offset : filter.offset + filter.limit]]
-
-    async def count(self, *, filter: FooListFilter) -> int:
-        return len(self._store)
-
-    async def get_by_id(self, id: UUID) -> Foo:
-        if id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(id)})
-        return replace(self._store[id])  # a copy — a caller mutation must not leak into the store
-
-    async def get_by_name(self, name: str) -> Foo | None:
-        match = next((f for f in self._store.values() if f.name == name), None)
-        return replace(match) if match is not None else None
-
-    async def create(self, foo: Foo) -> None:
-        if any(f.name == foo.name for f in self._store.values()):
-            raise ConflictError(
-                "foo name already exists",
-                {"constraint": "uq_foos_name"},
-            )
-        self._store[foo.id] = replace(foo)
-
-    async def update(self, foo: Foo) -> None:
-        if foo.id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(foo.id)})
-        if any(f.name == foo.name and f.id != foo.id for f in self._store.values()):
-            raise ConflictError(
-                "foo name already exists",
-                {"constraint": "uq_foos_name"},
-            )
-        self._store[foo.id] = replace(foo)
-        self.updated.append(foo.id)  # so a "mutate-but-never-persist" handler is observably caught
-
-    async def delete(self, id: UUID) -> None:
-        if id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(id)})
-        del self._store[id]
+from tests.unit.fakes import FakeFooRepository
 ```
 
-### Aggregate with cascading sub-collection
+Living under `tests/` is what keeps fakes out of production import graphs; the re-export only spares
+each test from knowing the file layout.
 
-```python
-class FakeFooRepository:
-    def __init__(self, foos: list[Foo] | None = None) -> None:
-        self._store: dict[UUID, Foo] = {f.id: f for f in (foos or [])}
-        self._attachments: dict[UUID, FooAttachment] = {}
-
-    async def add_attachment(self, foo_id: UUID, attachment: FooAttachment) -> None:
-        if foo_id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(foo_id)})
-        self._attachments[attachment.id] = attachment
-
-    async def delete(self, id: UUID) -> None:
-        if id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(id)})
-        # Replay the schema's ON DELETE CASCADE
-        cascaded = [a_id for a_id, a in self._attachments.items() if a.foo_id == id]
-        for a_id in cascaded:
-            del self._attachments[a_id]
-        del self._store[id]
-```
-
-### Behavioral capability (`ICanDoX`) — single async method
-
-```python
-from myapp.domain.foos import FooExportRow
-
-class FakeExportFoosXlsx:
-    def __init__(self, payload: bytes = b"fake-xlsx") -> None:
-        self._payload = payload
-        self.exported: list[Sequence[FooExportRow]] = []
-
-    async def export(self, rows: Sequence[FooExportRow]) -> bytes:
-        self.exported.append(tuple(rows))
-        return self._payload
-```
-
-Behavioral fakes expose a call-record list (`self.exported`) so handler tests can assert what was invoked. Prefer asserting on resulting domain state when possible; reach for call records only when call shape is the thing under test.
-
-### Storage gateway with a call-record observation surface
-
-A storage fake records what it was asked to do (puts / deletes) so compensating-transaction tests can assert the `*_best_effort` cleanup ran — no failure-injection flags, just observable call records:
-
-```python
-class FakeBlobStorage:
-    def __init__(self) -> None:
-        self.puts: list[tuple[str, bytes]] = []
-        self.deletes: list[str] = []
-
-    async def put(self, key: str, data: bytes) -> None:
-        self.puts.append((key, data))
-
-    async def delete_many_best_effort(self, keys: list[str]) -> None:
-        # Swallows internal errors; mirrors the real best-effort contract.
-        self.deletes.extend(keys)
-```
-
-The `puts` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaisingFooRepo(FakeFooRepository)` at the test scope, not a flag on the storage fake.
+**Read `FAKES.md`** in this skill's directory before writing or extending a fake under
+`tests/unit/fakes/`. It carries the CRUD repository fake, the aggregate with a cascading
+sub-collection, the behavioral capability, the storage gateway with its call record, and the test that
+pins the fake's copy contract; only `SKILL.md` is loaded automatically.
 
 ## Rules
 
@@ -330,7 +297,7 @@ Consult `test-principles` for the testing constitution, `naming` for names, `pyt
 5. **Read state back via fake's domain methods** (`await repo.get_by_id(...)`), not via attribute peeking on `repo._store`.
 6. **Drive setup through the handler path that production uses** when possible. An update-handler test calls `CreateFooHandler` first to set up an "existing" foo, rather than `repo.create(...)`. This keeps tests robust to repository-contract changes.
 7. **A failure case pins the exception's machine-readable context, not just its class.** Capture the raised catalogue exception (`pytest.raises(<DomainExceptionType>) as exc`) and assert the `context` entries that are the contract — above all the constraint name on a conflict, which is what proves the adapter's integrity-error map is wired even though the test runs against a fake, because the fake's exception is copied from the real adapter's. Asserting the class alone passes against a fake that raises the right type with the wrong payload.
-8. **Compensation tests assert call-record state**, not implementation details. For a storage capability, `storage.puts` and `storage.deletes` are the observation surface. Assert the right key was undone, in the right order, for the right reason — but never assert that a specific Python call site invoked them.
+8. **Compensation tests assert call-record state**, not implementation details. For a storage capability, `storage.uploads` and `storage.deletes` are the observation surface. Assert the right key was undone, in the right order, for the right reason — but never assert that a specific Python call site invoked them.
 9. **One-off failure injection uses an inline `_RaiseXxxRepo(FakeFooRepository)` subclass at module scope.** Subclass naming follows `naming`. Override exactly the method under test — never re-stub the whole protocol.
 10. **A handler dependency typed as a CONCRETE domain service (not a Protocol) cannot be faked structurally — subclass it.** Repositories/capabilities are injected as `Protocol`s, so a structural fake satisfies them. A domain *service* is often injected as its concrete class (`def __init__(self, limit_policy: FooLimitPolicy)`), and mypy rejects a structural `FakeFooLimitPolicy` there — a stand-in must be a true subtype. Two sanctioned shapes: (a) **subclass the service** — `class _StubFooLimitPolicy(FooLimitPolicy)` overriding the method under test and bypassing the real `__init__` (`def __init__(self) -> None: pass`, since the test doesn't need its injected deps); or (b) **inject via a Protocol** — give the service a `hex-domain-ports`-style interface and type the handler ctor to it, so a structural fake works like any other. Prefer (b) when the service is itself injected widely; (a) is the lighter test-only path. Do NOT reach for `# type: ignore` on the ctor or a mock — silencing the type checker hides that the handler's dependency surface is the thing that needs fixing.
 
@@ -346,14 +313,14 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 #### `create` handler
 
 - `test_assigns_uuid_and_stores` — handler returns a `UUID`; `get_by_id` returns the entity with expected fields and that same id.
-- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repo, assert `ConflictError` on the second attempt with `exc.value.context["constraint"] == "<full_constraint_name>"`.
+- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repo, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc.value.context["constraint"] == "<full_constraint_name>"`.
 - Field normalization (when applicable): assert the stored entity has the normalized form (`strip`, `upper`, canonicalized URL), not the raw input.
 
 #### `update` handler
 
-- `test_partial_update_leaves_unspecified_fields_untouched` — set one field with a real value and another with `None`; assert the `None` field is **unchanged** and the real field is updated. This is the PATCH contract and the single most common bug-catching test.
+- `test_partial_update_leaves_unspecified_fields_untouched` — set one field with a real value and another with `None`; assert the `None` field is **unchanged** and the real field is updated. This is the PATCH contract.
 - `test_update_unknown_id_raises_not_found`.
-- `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `ConflictError`.
+- `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `FooConflictError`.
 
 #### `delete` handler
 
@@ -373,8 +340,9 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 #### `compensating-tx` handler
 
-- `test_db_failure_after_upload_deletes_blob` — fake repo's mutation step raises; assert `storage.deletes` contains the keys `storage.puts` recorded immediately before the failure.
-- `test_db_failure_after_multi_step_upload_deletes_all_uploaded_so_far` — when the upload step accumulates multiple keys before the DB write, simulate failure mid-loop or after the loop; assert every key that was uploaded got passed to `delete_many_best_effort`.
+- `test_db_failure_after_upload_deletes_blob` — fake repo's mutation step raises; assert `storage.deletes` contains the keys `storage.uploads` recorded immediately before the failure.
+- `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted.
+- `test_db_failure_after_multi_step_upload_deletes_all_uploaded_so_far` — when the upload step accumulates multiple keys before the DB write, simulate failure mid-loop or after the loop; assert every key that was uploaded got passed to `delete`.
 - `test_successful_upsert_cleans_up_previous_blob` — for upsert handlers that return a `previous_key`, the success-path cleanup deletes the *old* key (not the new one); use the regular happy-path setup and assert `storage.deletes` contains the previous key after the second call.
 
 ### Hard prohibitions (across all handler-unit tests)
@@ -393,8 +361,8 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 3. **Constructor takes `items: list[<Entity>] | None = None`** with `or []` fallback so the empty-fake call site is terse: `FakeFooRepository()`.
 4. **Every method is `async def`**, even when there's nothing to await — the protocol says async; the fake matches.
 5. **`list(*, filter: <FilterRecord>)` is keyword-only** and applies a deterministic sort matching the real repository's `ORDER BY`. Handler tests assert exact order — sort, don't return insertion order.
-   - **A fake method MUST honour every filtering / scoping parameter it declares — never ignore one.** If the method takes a `since` / `tenant_id` / status-set / parent-id, the fake actually filters its `_store` by it (`v for v in self._store.values() if v.created_at >= since and v.tenant_id == tenant_id`). A fake that accepts `count_created_since(since)` but returns the all-time count makes the "monthly vs all-time" contract **uncatchable** — the assert for it can never be strong (this has been hit in practice). The fake's filtering need not be efficient, just correct: a wrong body that ignores the same parameter must produce a different result against the fake.
-6. **The exception contract is copied verbatim from the real adapter.** Same class, same message, same `context` keys — exactly what `_map_integrity_error` populates and no more. The relational adapter raises `ConflictError("foo name already exists", {"constraint": "uq_foos_name"})` — context carries **only** `constraint`, so the fake matches it exactly. Adding a key the real adapter never sets (e.g. `"name"`) is the silent drift this rule exists to prevent: a handler test asserting that key passes against the fake and fails against the real adapter.
+   - **A fake method MUST honour every filtering / scoping parameter it declares — never ignore one.** If the method takes a `since` / `tenant_id` / status-set / parent-id, the fake actually filters its `_store` by it (`v for v in self._store.values() if v.created_at >= since and v.tenant_id == tenant_id`). A fake that accepts `count_created_since(since)` but returns the all-time count makes the "monthly vs all-time" contract **uncatchable** — the assert for it can never be strong. The fake's filtering need not be efficient, just correct: a wrong body that ignores the same parameter must produce a different result against the fake.
+6. **The exception contract is copied verbatim from the real adapter.** Same class, same message, same `context` keys — exactly what `_map_integrity_error` populates and no more. The relational adapter raises `FooConflictError("foo name already exists", {"field": "name", "constraint": "uq_foos_name"})` — context carries `field` and `constraint` and nothing else, so the fake matches it exactly. Adding a key the real adapter never sets (e.g. `"value"`) is the silent drift this rule exists to prevent: a handler test asserting that key passes against the fake and fails against the real adapter.
 7. **Cascades match the schema.** When the real schema has `ON DELETE CASCADE`, the fake removes the dependent rows. Skipping the cascade in the fake produces a green unit test that a failing integration test then catches — defeats the point.
 8. **Default-happy-path only.** No `fail_next_create=True` flags or `_should_raise` knobs. Tests needing one-off failures declare a private subclass at the **handler test module scope**, which is this skill's pattern:
 
@@ -404,7 +372,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
            raise InUseError("foo is used", {"reference_type": "foo", "id": str(id)})
    ```
 
-   The storage-gateway `puts` / `deletes` call records are the only sanctioned per-call observation surface — and they observe, they do not inject failure. A test that needs an injected failure uses the inline-subclass pattern above, not a flag or a hook on the fake.
+   The storage fake's `uploads` / `deletes` call records are the only sanctioned per-call observation surface — and they observe, they do not inject failure. A test that needs an injected failure uses the inline-subclass pattern above, not a flag or a hook on the fake.
 
 9. **Never hand back the object the caller passed in — copy on write and on read, and record every `update()`.** The real repository round-trips through the database: a mutation is persisted **only** by an explicit `update()`, and a later read returns the persisted row, not the caller's object. A fake that stores and returns the same instance aliases it, so a handler that mutates the entity **in place and never calls `update()`** still sees its change on the next read — the mutate-but-never-persist bug passes green and no persistence assertion can pin it. So copy on write (`self._store[id] = replace(foo)`) and on read (`return replace(self._store[id])`) — a shallow copy via `dataclasses.replace`, deep only when a field is itself mutable and the test mutates through it — and keep an `updated: list[UUID]` call record. Handler tests then pin persistence twice, that `update` was called and that the new state reads back, and a body that forgets it reds both.
 
@@ -427,27 +395,24 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 ### Fakes
 
-- Stdlib (`collections.abc`, `uuid`), `myapp.domain.*` only. **No `__all__`, no `__init__.py` re-export.** Direct import only.
+- Stdlib (`collections.abc`, `uuid`), `myapp.domain.*` only. Each fake module declares `__all__` and the `tests/unit/fakes/__init__.py` re-exports it (`python-packaging`); tests import from the package.
 - `X | None`, full annotations on `__init__` and every method.
 - No `from __future__ import annotations`.
 
 ## Hard stops
 
-- Spec asks for `MagicMock` to stub the repo or storage → stop, use a fake or an inline `_RaiseXxxRepo` subclass.
-- Spec needs the test to hit a real database or HTTP endpoint → stop, use `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
-- Spec asks for log assertions on the handler's success event → stop, those are side effects; tests assert on returned state.
-- Required fake does not exist in `tests/unit/fakes/` → stop, produce it first using the fake templates in this skill.
-- Spec asks to add `fail_next_create=True`-style flags to the fake → stop, use the inline subclass at the test module scope instead.
-- Spec asks the test to construct the FastAPI app or import `myapp.restapi.*` → stop, use `hex-test-restapi-endpoint` for the HTTP surface.
-- Spec asks to fake a handler's **concrete domain-service** dependency (e.g. `FooLimitPolicy`, injected as the class, not a Protocol) → stop, a structural fake won't type-check there; **subclass the service** (override the method under test, bypass `__init__`) or have the handler **inject via a Protocol**. Repository and capability fakes are structural because their dependencies are `Protocol`s; a concrete service is not, which is rule 10 above.
-- Spec asks to register the fake with `@runtime_checkable` / `isinstance` → stop, type checking is enough.
-- Spec asks to add failure-injection flags to a repository fake → stop, use the inline-subclass pattern at the handler test module scope instead.
-- Spec asks to model `InUseError` in the default repository fake → stop, that's an inline subclass case at the test site (cross-aggregate references aren't modeled in-memory).
+- Asked for `MagicMock` / `AsyncMock` to stub the repo or storage, or to "implement" a fake → stop, hand-write the fake, or use an inline `_RaiseXxxRepo` subclass for a one-off failure.
+- A handler test needs a real database or HTTP endpoint → stop, use `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
+- Asked for log assertions on the handler's success event → stop, those are side effects; tests assert on returned state.
+- Asked to add `fail_next_create=True`-style failure-injection flags to a fake → stop, use the inline subclass at the handler test module scope instead.
+- A handler test constructs the FastAPI app or imports `myapp.restapi.*` → stop, use `hex-test-restapi-endpoint` for the HTTP surface.
+- Asked to fake a handler's **concrete domain-service** dependency (e.g. `FooLimitPolicy`, injected as the class, not a Protocol) → stop, a structural fake won't type-check there; **subclass the service** (override the method under test, bypass `__init__`) or have the handler **inject via a Protocol**. Repository and capability fakes are structural because their dependencies are `Protocol`s; a concrete service is not, which is rule 10 above.
+- Asked to register the fake with `@runtime_checkable` / `isinstance` → stop, type checking is enough.
+- Asked to model `InUseError` in the default repository fake → stop, that's an inline subclass case at the test site (cross-aggregate references aren't modeled in-memory).
 - Real adapter's exception contract cannot be located → stop, the fake's contract is copied, not invented.
 - A handler test needs a fake that does not exist under `tests/unit/fakes/` → stop, write it with
   this skill. Do not improvise a stand-in at the test site, do not reach for a mock, and do not
   weaken the assertion to avoid needing it. A missing fake is a stop, not an invitation to improvise —
   the whole point of the fake is that its exception contract matches the real adapter's, and an
   improvised stub silently does not.
-- Spec uses `MagicMock` / `AsyncMock` to "implement" the fake → stop, hand-write the class.
-- Spec adds `__all__` or an `__init__.py` re-export → stop, use `python-packaging` and the fake-specific inlined import rules above.
+- A test imports a fake from its inner module (`tests.unit.fakes.fake_foo_repository`) → stop, import it from `tests.unit.fakes` (`python-packaging`).

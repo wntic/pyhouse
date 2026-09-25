@@ -11,26 +11,6 @@ Which layer a thing belongs to, and what it is allowed to reach. This skill owns
 mechanics of packaging a module and spelling an import are `python-packaging`, and they are the same here
 as in any other project. What goes *inside* a module belongs to whichever skill owns that artifact.
 
-## Is this the right style at all?
-
-This layout costs indirection, and it buys the ability to change a database, a queue or a framework
-without touching business rules. That trade is only worth making when there are business rules to
-protect; a service with none pays the whole price and gets nothing back, and `flat-layered` is the
-sibling style for exactly that case.
-
-**The decision itself is `architecture-choice`'s** — the question that settles it, the confirming
-evidence, what each family costs, and the cases this section does not cover: a service with rules
-*and* heavy integration work, a flat service growing its first rule, a workspace whose members differ,
-and the services that need neither family. Read it before writing anything if the trade above is not
-already obvious for this service. What follows here assumes hexagonal has been chosen.
-
-How much that protection is worth buying is a volatility question, and `coupling` owns the judgment:
-the indirection pays off in proportion to how much the business will keep changing the protected
-rules. Around a core subdomain — the part the business reshapes on purpose — ports and layers earn
-their keep; around a stable supporting workflow the same structure is cost without a buyer, which is
-the flat-layered case. "Not all of a large system will be well designed" is real permission, and
-volatility is how you decide where it applies.
-
 ## When to use vs. neighbours
 
 - Whether this style is the right one at all, or the service belongs in the flat-layered family →
@@ -56,9 +36,29 @@ volatility is how you decide where it applies.
 - A table, a relational repository, a migration → `hex-persistence`.
 - Compensation or a unit of work → `hex-patterns`.
 - What the composition root actually binds — providers, lifetimes, settings, teardown, declaration
-  order → `hex-wiring`. This skill owns only that the root exists in an entrypoint package and that
-  nothing else imports a concrete adapter.
+  order → `hex-wiring`. This skill owns only that the root exists — one module, `src/myapp/containers.py`
+  — and that nothing else imports a concrete adapter.
 - Turning the import rules below into an automated test → `test-architecture-rule`.
+
+## Is this the right style at all?
+
+This layout costs indirection, and it buys the ability to change a database, a queue or a framework
+without touching business rules. That trade is only worth making when there are business rules to
+protect; a service with none pays the whole price and gets nothing back, and `flat-layered`, in the
+`pyhouse-flat` plugin, is the sibling style for exactly that case.
+
+**The decision itself is `architecture-choice`'s** — the question that settles it, the confirming
+evidence, what each family costs, and the cases this section does not cover: a service with rules
+*and* heavy integration work, a flat service growing its first rule, a workspace whose members differ,
+and the services that need neither family. Read it before writing anything if the trade above is not
+already obvious for this service. What follows here assumes hexagonal has been chosen.
+
+How much that protection is worth buying is a volatility question, and `coupling` owns the judgment:
+the indirection pays off in proportion to how much the business will keep changing the protected
+rules. Around a core subdomain — the part the business reshapes on purpose — ports and layers earn
+their keep; around a stable supporting workflow the same structure is cost without a buyer, which is
+the flat-layered case. "Not all of a large system will be well designed" is real permission, and
+volatility is how you decide where it applies.
 
 ## The four layers
 
@@ -69,8 +69,8 @@ independent of databases, HTTP frameworks and SDKs, and so the dependency graph 
 ```
                     ┌──────────────────┐
                     │  entrypoints     │   restapi/, cli/, worker/
-                    │  (composition    │   wires containers, translates
-                    │   root)          │   transport ↔ application
+                    │                  │   build containers.py, translate
+                    │                  │   transport ↔ application
                     └────────┬─────────┘
                              │ may import all three core layers
                              ▼
@@ -131,7 +131,8 @@ adding a transport moves one directory. The catalogue spells the HTTP one `resta
 `http/` are equally good words and nothing depends on which, but two transports sharing a package is a
 defect. Siblings are `cli/` and `worker/`.
 
-- Allowed: everything. This is the composition root.
+- Allowed: everything. An entrypoint builds the composition root, `src/myapp/containers.py`, at startup
+  and closes it at shutdown; the root itself is that one module, not the entrypoint package.
 - Defines: HTTP routes, CLI commands or queue consumers; request and response wire schemas; the central
   error handler; the dependency wiring.
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
@@ -160,8 +161,8 @@ absolute imports, the collapsed same-package form and import ordering are **arch
 live in `python-packaging`. They apply here unchanged; this skill adds only what the layer split imposes
 on top of them:
 
-- **The distribution root's `__init__.py` carries `__version__` only** — the general "root stays minimal"
-  carve-out, with a layered reason: aggregating the layer subpackages to the root would make
+- **The distribution root's `__init__.py` stays empty** — `python-packaging`'s carve-out for an
+  application's root, with a layered reason: aggregating the layer subpackages to the root would make
   `import <package>` transitively pull infrastructure and entrypoint third-party dependencies on every
   use, and would destroy the dependency-free `domain` / `application` import path.
 - **A layer package re-exports its subdomain subpackages**, not only its direct modules:
@@ -174,7 +175,8 @@ on top of them:
   `from .main import *`, because importing `main.py` builds the application object; and the router
   package stays empty, because route modules each export a colliding `router`. A middleware package is
   **not** exempt — its class names are distinct, so it re-exports normally.
-- **The multi-class carve-outs `python-packaging` allows are, here, two, and they are not one rule.**
+- **The declaration sets `python-packaging`'s one-class test lets share a module are, here, two, and
+  they are not one rule.**
   The exception catalogue is a single file by principle — `exception-catalog` owns it, and it survives
   any framework. Grouping one resource group's wire schemas into a single module is a REST binding and
   belongs to `hex-restapi-schema`; a project with no HTTP surface has only the first.
@@ -188,8 +190,8 @@ The checkable form. Each one is decidable by reading a single import, signature 
 subsections beneath give the reasoning and the judgement calls.
 
 1. **Check every import in `domain/` resolves to `domain/` or the standard library.** Nothing else — no
-   third-party package beyond the logger, no other layer.
-2. **Check `application/` imports only `domain/` and stdlib**, and **`infrastructure/` only `domain/`,
+   third-party package, not even a logger, and no other layer.
+2. **Check `application/` imports only `domain/`, stdlib and the logging library**, and **`infrastructure/` only `domain/`,
    stdlib and third-party libraries** — that last allowance is the layer's whole purpose, and the table
    above grants it. Neither imports the other, and neither imports an entrypoint. Only entrypoint
    packages may import all three.
@@ -204,15 +206,16 @@ subsections beneath give the reasoning and the judgement calls.
 7. **Check no adapter inherits from the protocol it satisfies.** Satisfaction is structural and is
    checked at the injection site.
 8. **Check the composition root is the only module importing concrete adapters** from
-   `infrastructure/` — one module at the package root, `containers.py` in this catalogue — and that it
-   binds them at startup, not at import time.
+   `infrastructure/` — one module, `src/myapp/containers.py` — and that it binds them at startup, not at
+   import time.
 9. **Check no module-level singleton holds a stateful resource** — a connection, an engine, a client.
    Inject it.
 10. **Check every cross-layer import is absolute** and every within-layer import is relative.
 
 ### Direction
 
-- `application/` may import from `domain/` only. Never `infrastructure/`, never an entrypoint.
+- `application/` may import from `domain/` only, beside stdlib and the logging library. Never
+  `infrastructure/`, never an entrypoint.
 - `infrastructure/` may import from `domain/` only. Never `application/`, never an entrypoint.
 - `domain/` may not import anything outside `domain/` and stdlib.
 - Entrypoints may import all three core layers.
@@ -232,7 +235,7 @@ from `infrastructure`, you have an adapter that knows a use case — move the or
 
 ### Composition root
 
-- Wiring lives in `containers.py` at the package root. It is the only place that imports concrete
+- Wiring lives in `src/myapp/containers.py`, a module of the distribution's root package. It is the only place that imports concrete
   adapters from `infrastructure/` and binds them to the domain protocol types `application/` handlers
   consume.
 - Wire dependencies at startup, not at import time. Never a module-level singleton for a stateful object

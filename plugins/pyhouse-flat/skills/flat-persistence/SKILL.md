@@ -23,13 +23,14 @@ property is absent has nothing to be true about:
 | a write readable immediately after it returns | rule 11 — a read-back can only be a separate, later read |
 
 **Rules 1, 2, 5, 6, 7, 9, 13, 14 and 15 hold for any store at all**, SQL or not, and are what carries
-across to a document store, a key-value store or a vendor-managed index. Rule 10 holds everywhere but
+across to a document store, a key-value store or a vendor-managed index; rule 16 holds wherever the
+schema is versioned by migrations at all. Rule 10 holds everywhere but
 inverts its reason: where a driver caps bind parameters the constant exists to stay under a ceiling,
 and on a columnar store that penalises small writes it exists to stay above a floor. The number is the
 store's; that it is named once and read by the test is not.
 
-A store answering *no* four times is not a poor fit for this skill — it is nine rules instead of
-fifteen, and the six that lapse lapse because their subject does not exist.
+A store answering *no* four times is not a poor fit for this skill — it is ten rules instead of
+sixteen, and the six that lapse lapse because their subject does not exist.
 
 The default subject is **one distribution with its own store**. Where several share one store, the same
 package becomes a library they all depend on and one rule below says what that changes.
@@ -46,6 +47,8 @@ package becomes a library they all depend on and one rule below says what that c
 - Testing these tables, helpers and the storage class against the real datastore →
   `flat-test-persistence`.
 - The container, migration and isolation fixtures those tests run on → `flat-test-integration-setup`.
+- The project's `pyproject.toml`, toolchain and the migration environment laid once, before the first
+  revision → `flat-project-setup`.
 - The exception classes the translator produces, and what context they carry → `exception-catalog`.
 - Module layout, `__all__`, and the `__init__.py` re-exports every table module needs →
   `python-packaging`.
@@ -58,23 +61,24 @@ package becomes a library they all depend on and one rule below says what that c
 ## Template(s) — SQLAlchemy Core, asyncpg, Alembic
 
 ```
-myapp/storage/
-├── __init__.py        # re-exports every table module and the metadata
+src/myapp/storage/
+├── __init__.py        # re-exports the storage class, the settings and the engine helpers
 ├── metadata.py        # the one MetaData, carrying the naming convention
 ├── settings.py        # this package's own settings class and its factory
 ├── engine.py          # the engine factory and the chunked bulk write helpers
 ├── foo_table.py       # the Table definitions
 └── foo_storage.py     # the class that owns a multi-statement write
 
-myapp/alembic/
-└── env.py             # points target_metadata at that one MetaData
+migrations/
+├── env.py             # laid once — `flat-project-setup`
+└── versions/          # one revision per schema change
 ```
 
 The full file templates live in three topic files beside this one, one per group of artifacts in that
 layout. Only this file is loaded automatically, so open the one you need:
 
 - **Read `SETUP.md`** before writing the metadata module, the settings class, the engine factory, a bulk
-  write helper or the migration environment — it binds rules 8, 9, 10, 11, 12, 14 and 15.
+  write helper or a migration revision — it binds rules 8, 9, 10, 11, 12, 14, 15 and 16.
 - **Read `TABLE.md`** before defining a table, a column or a key — it binds rules 8 and 13.
 - **Read `STORAGE.md`** before writing the class that owns a write, its error translator or its row
   mapper — it binds rules 2, 3, 4, 5, 6 and 7.
@@ -121,13 +125,14 @@ layout. Only this file is loaded automatically, so open the one you need:
 4. **A write spanning more than one statement is one transaction, owned by the callable that spans
    them.** Splitting it across two connection blocks reopens the partial-write race the owning callable
    exists to close, and makes the write untestable inside a rolled-back transaction.
-5. **Every driver error is translated before it escapes this package, and the fallback is mandatory.**
-   The translator ends by returning a catalogue exception when no case matched; it never returns or
-   re-raises the driver's own type. Letting one leak means every caller's `except` clause is written
-   against a library it was supposed never to import. The catalogue and its shape are `exception-catalog`'s.
-6. **Pick the most specific catalogue exception and give it identifying context** — the offending field
-   and the full constraint name. The caller and the tests both assert on them, and a generic failure
-   turns a recoverable conflict into an outage.
+5. **This package's edge is the boundary where a driver error is translated.** Translation with the
+   cause chained, and the mandatory fallback when no case matched, are `exception-catalog`'s rules; what
+   this skill adds is where they bind — nothing above this package ever sees the driver's type, and
+   that covers every public method: a read, and the opening of the connection and the transaction, fail
+   with the driver's errors as surely as a write does.
+6. **The identifying context of a storage error is the offending field and the full constraint name.**
+   Which class to pick and what `context` carries are `exception-catalog`'s; here the constraint name is
+   the key rule 8 makes predictable, so the caller and the tests can assert on it.
 7. **Rows cross this package's boundary as the service's own declared types, and the mapping is a pure
    function this package owns.** No IO, no logging. It normalizes what the driver hands back, including
    giving a naive timestamp its offset, and it is where a natural key is normalized once so one unit test
@@ -145,9 +150,10 @@ layout. Only this file is loaded automatically, so open the one you need:
     table's column count and the driver's cap, and written where the helpers read it — never sprinkled as
     a literal at each call site.
 11. **Exactly one helper reads back the rows it wrote, and it does so as one multi-row statement per
-    chunk.** A driver's batched-parameter path discards returned rows, so a read-back written any other
-    way silently hands back nothing for most of the batch. Every other write returns nothing, and its
-    caller does not ask.
+    chunk.** Whether a driver's batched-parameter (`executemany`) path returns rows at all differs by
+    driver and by library, so a read-back built on it can hand back nothing for most of the batch; one
+    multi-row statement per chunk returns every row under any of them. Every other write returns nothing,
+    and its caller does not ask.
 12. **A conflicting row is resolved explicitly, the key matched on is never among the columns updated,
     and an empty update set resolves to *do nothing*.** The caller names the conflict columns and the
     update columns; writing back the key you matched on is a no-op at best and a statement failure on a
@@ -169,6 +175,12 @@ layout. Only this file is loaded automatically, so open the one you need:
     history, and every other one depends on it.** Two packages defining tables in one
     database means two migration histories over one schema, and the second one to run decides what the
     first one's tables look like.
+16. **Migrations run as a deploy step, before the new code starts, and every schema change is
+    compatible with the code still running.** During a deploy the old code keeps serving against the new
+    schema, so a change lands in two releases — expand first (add the column, the table, the nullable
+    field), contract in a later release once nothing reads what is being removed. Each change is one
+    revision whose `downgrade()` reverses its `upgrade()`; the migration round trip the integration suite
+    replays is what proves that it does (`flat-test-integration-setup`).
 
 ## Hard stops
 
@@ -180,6 +192,8 @@ layout. Only this file is loaded automatically, so open the one you need:
   partial-write race; keep it inside one.
 - A driver exception is allowed to escape this package, or the translator ends by re-raising it → stop,
   the fallback is mandatory: return a catalogue exception when no case matched.
+- A read, or the opening of a connection or a transaction, sits outside the translated scope → stop,
+  wrap the whole engine block; a refused connection escapes as the driver's type otherwise.
 - A row leaves this package as a bare mapping → stop, map it to the service's declared type here; the
   mapping is this package's, and nothing above it should learn column names.
 - A single-row insert path is being written for a batch known to exceed a few hundred rows → stop, use
@@ -193,6 +207,12 @@ layout. Only this file is loaded automatically, so open the one you need:
 - A module-level `engine = create_async_engine(...)` is being added → stop, use the factory; the bare
   object makes importing the module fail wherever the environment is incomplete, and it is the object
   every test skill forbids importing.
+- One revision drops or renames something the running release still reads → stop, split it: expand in
+  this release, contract in a later one.
+- A revision ships without a `downgrade()`, or with one that does not reverse its `upgrade()` → stop,
+  write it; the migration round trip fails on it, and that test is the reason it exists.
+- The migration environment or the baseline revision is being laid → stop, use `flat-project-setup`;
+  this skill owns the revisions that follow it.
 - The service has business invariants that must outlive a change of datastore → stop, this family is the
   wrong one; `architecture-choice` decides, and the repository goes behind a port (`hex-persistence`, in
   the `pyhouse-hex` plugin).

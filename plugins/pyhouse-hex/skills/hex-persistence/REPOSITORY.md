@@ -20,39 +20,35 @@ adapters.
 
 ```python
 from collections.abc import Sequence
-from typing import cast
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import CursorResult, RowMapping, func, select
+from sqlalchemy import CursorResult, RowMapping, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-# Import only the domain exceptions THIS repository actually raises — not the whole
-# catalog. (Here all four are raised: unique → ConflictError, FK-on-delete → InUseError,
-# missing row → NotFoundError, check violation → ValidationError.)
 from myapp.domain.exceptions import (
-    ConflictError, InUseError, NotFoundError, ValidationError,
+    ConflictError,
+    FooConflictError,
+    InUseError,
+    NotFoundError,
+    ValidationError,
 )
-# Never import IFooRepository — the adapter does NOT inherit the protocol (structural
-# subtyping at the injection site is the contract). Importing it leaves a dead unused import.
 from myapp.domain.foos import Foo, FooListFilter, FooSort
 
 from ..tables.foos import foos_table
 
 __all__ = ["FooRepository"]
 
-# Translate the filter's sort key (a domain enum) to an ordered column — the
-# "sort-key → column" translation the filter record delegates here. One entry per
-# FooSort member; the member encodes both column and direction.
+# One entry per FooSort member; the member encodes column and direction.
 _SORT_COLUMNS = {
     FooSort.CREATED_AT_DESC: foos_table.c.created_at.desc(),
     FooSort.CREATED_AT_ASC: foos_table.c.created_at.asc(),
     FooSort.NAME_ASC: foos_table.c.name.asc(),
 }
 
-# _FK_FIELD_MAP + the FK branch in _map_integrity_error exist ONLY because Foo carries a
-# foreign key. An aggregate with NO foreign keys omits BOTH the map and the
-# `pgcode == "23503"` branch — never carry an empty `_FK_FIELD_MAP = {}`.
+# Only an aggregate with a foreign key carries this map and the 23503 branch.
 _FK_FIELD_MAP = {
     "fk_foos_bar_id_bars": "bar_id",
 }
@@ -64,14 +60,13 @@ def _map_integrity_error(exc: IntegrityError) -> Exception:
     pgcode = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
 
     if constraint == "uq_foos_name":
-        return ConflictError("foo name already exists", {"constraint": constraint})
+        return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
     if pgcode == "23503" and constraint:
         field = _FK_FIELD_MAP.get(constraint, constraint)
         return NotFoundError(f"Referenced {field} not found", {"field": field, "constraint": constraint})
     if pgcode == "23514" and constraint and "name_non_empty" in constraint:
         return ValidationError("name cannot be empty", {"field": "name", "constraint": constraint})
 
-    # Mandatory fallback: never let IntegrityError escape unmapped.
     return ConflictError(
         "integrity violation",
         {"constraint": constraint or "unknown", "pgcode": pgcode or "unknown"},
@@ -83,10 +78,7 @@ class FooRepository:
         self._sf = session_factory
 
     def _row_to_entity(self, row: RowMapping) -> Foo:
-        # Rows come from `.mappings()` → RowMapping; access columns by KEY. `row["id"]` is
-        # Any, but it is consumed as a constructor argument (not returned), so Foo(...) is a
-        # concrete return — type-clean with NO ignore comment.
-        return Foo(id=row["id"], name=row["name"])
+        return Foo(id=row["id"], name=row["name"], bar_id=row["bar_id"])
 
     async def get_by_id(self, id: UUID) -> Foo:
         async with self._sf() as session:
@@ -121,7 +113,7 @@ class FooRepository:
         try:
             async with self._sf() as session:
                 await session.execute(
-                    foos_table.insert().values(id=foo.id, name=foo.name)
+                    foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id)
                 )
                 await session.commit()
         except IntegrityError as exc:
@@ -130,15 +122,12 @@ class FooRepository:
     async def update(self, foo: Foo) -> None:
         try:
             async with self._sf() as session:
-                # cast to CursorResult so `.rowcount` type-checks — execute() is typed
-                # Result[Any], which has no `rowcount`. This is the one canonical form;
-                # do not mix in an ignore comment.
-                result = cast(
+                result = cast(  # execute() is typed Result[Any], which has no rowcount
                     CursorResult[object],
                     await session.execute(
                         foos_table.update()
                         .where(foos_table.c.id == foo.id)
-                        .values(name=foo.name, updated_at=func.now())
+                        .values(name=foo.name, bar_id=foo.bar_id, updated_at=func.now())
                     ),
                 )
                 if result.rowcount == 0:
@@ -160,30 +149,44 @@ class FooRepository:
                     raise NotFoundError("Foo not found", {"id": str(id)})
                 await session.commit()
         except IntegrityError as exc:
-            # FK on delete → InUseError instead of generic ConflictError
             raise InUseError("Foo is referenced", {"id": str(id)}) from exc
 
 
-def _apply_filter(stmt: object, filter: FooListFilter) -> object:
+def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:
     if filter.bar_ids:
         stmt = stmt.where(foos_table.c.bar_id.in_(filter.bar_ids))
+    if filter.created_from is not None:
+        stmt = stmt.where(foos_table.c.created_at >= _start_of(filter.created_from))
+    if filter.created_to is not None:
+        stmt = stmt.where(foos_table.c.created_at < _start_of(filter.created_to + timedelta(days=1)))
     return stmt
+
+
+def _start_of(day: date) -> datetime:
+    return datetime.combine(day, time.min, tzinfo=UTC)
 ```
+
+Both date bounds are inclusive and read as UTC days: `created_to` admits every instant of that day, so
+the upper bound is the start of the next one.
 
 ## Template — unit-of-work-managed form
 
-Only the constructor and the method bodies differ: methods use `self._session.execute(...)` directly and
-**never call `commit()`** — the unit of work owns the transaction.
+A class of its own, `FooSessionRepository` in `foo_session_repository.py`, when the aggregate needs the
+standalone form too. Only the constructor and the method bodies differ: methods use
+`self._session.execute(...)` directly and **never call `commit()`** — the unit of work owns the
+transaction. The module-level helpers (`_SORT_COLUMNS`, `_FK_FIELD_MAP`, `_map_integrity_error`,
+`_apply_filter`) are shared, not copied: once both forms exist they move to one module both adapters
+import, so the constraint-name map stays single.
 
 ```python
-class FooRepository:
+class FooSessionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def create(self, foo: Foo) -> None:
         try:
             await self._session.execute(
-                foos_table.insert().values(id=foo.id, name=foo.name)
+                foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id)
             )
         except IntegrityError as exc:
             raise _map_integrity_error(exc) from exc
@@ -213,7 +216,8 @@ class FooRepository:
    module-level `_SORT_COLUMNS` map from each sort-enum member to its ordered column. Never hardcode one
    default order that ignores the caller's chosen sort.
 10. `count(*, filter)` returns `int` from `select(func.count()).select_from(table)`.
-11. Multi-field filter logic extracts to a module-level `_apply_filter(stmt, filter)`.
+11. Multi-field filter logic extracts to a module-level `_apply_filter(stmt, filter)`, generic over the
+    statement type so the list query and the count query each keep their own `Select` type.
 
 ## Rules — mutations
 

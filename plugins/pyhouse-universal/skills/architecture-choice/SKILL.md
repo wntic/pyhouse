@@ -28,7 +28,8 @@ needed to reach a recommendation and state its reason is here; the family skills
   judgement the cost question below runs on.
 - Whether one particular dependency earns a `Protocol` → the chosen family's own rule decides; this
   skill chooses the family, not the port.
-- Which trigger a flat service runs on — loop, schedule, stream, durable execution → `flat-entrypoint`,
+- Which trigger a flat service runs on — loop, schedule, stream, a thin HTTP wrapper, durable
+  execution → `flat-entrypoint`,
   in the `pyhouse-flat` plugin.
 - A workspace holding several services → `python-workspace` owns the workspace root; the
   family is still chosen once per service, here.
@@ -57,10 +58,12 @@ and moves on has enforced nothing of its own; it has checked that someone else k
 - **Yes — the rules about what is valid live in this codebase and are its reason for existing.**
   Hexagonal. The layer split exists to keep those rules testable and changeable without touching a
   database, a queue or a framework.
-- **No — the service orchestrates external systems, and its correctness is whether the data moved.**
-  Flat-layered — what the literature calls package by layer, after Simon Brown, with what Fowler calls
-  transaction scripts above it. There is nothing to protect, so the protection would be cost with no
-  buyer, and choosing flat is not a compromise.
+- **No — the service orchestrates external systems, and its correctness is whether the data moved;
+  or it serves requests over data it stores without rules of its own.** Flat-layered — what the
+  literature calls package by layer, after Simon Brown, with what Fowler calls transaction scripts
+  above it. There is nothing to protect, so the protection would be cost with no buyer, and choosing
+  flat is not a compromise. A service of the second kind answers HTTP through `flat-entrypoint`'s
+  HTTP shape, in the `pyhouse-flat` plugin.
 
 Answer this first. It settles most services on its own. Everything below either confirms that answer
 or flips a genuinely borderline one; nothing below outweighs it.
@@ -75,7 +78,9 @@ invariants".
 and mutates over a lifetime while it stays the same thing. Yes → hexagonal; that noun is an aggregate,
 and identity, lifecycle and construction-time rules all attach to it. A service that reads records
 from one system, transforms them, writes them to another and owns no noun at all is the flat case in
-its purest form.
+its purest form. A noun that is only stored and served — records created, read and updated over
+HTTP with nothing about them the service refuses — does not flip a "no" to the deciding question; it
+stays flat.
 
 **Will more than one entrypoint drive the same rules?** — REST plus a queue consumer plus a CLI, all
 reaching the same logic. Yes → hexagonal, and strongly: a shared core with two callers is exactly what
@@ -96,8 +101,9 @@ and the budget it turns into.
 
 **Who calls it?** — the weakest signal, and never decisive on its own. A synchronous caller expecting
 a response and an error contract correlates with hexagonal; a schedule, a queue or a stream correlates
-with flat. Both correlations break easily: a flat service may expose a small HTTP surface, and a
-hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
+with flat. Both correlations break easily: a flat service may expose a small HTTP surface — a thin
+wrapper around its run functions, which is `flat-entrypoint`'s HTTP trigger shape in `pyhouse-flat` —
+and a hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
 execution either — for flat services the default for scheduled work is a plain loop, a cron entry or a
 timer, and a workflow engine is earned separately (`flat-entrypoint`, in `pyhouse-flat`).
 
@@ -131,7 +137,8 @@ this.** Write the script.
 
 The universal skills still bind, and they are the whole of what applies — `naming` for what things are
 called, `python-style` for typing and logging, `python-packaging` for module and import rules,
-`exception-catalog` for errors, `test-principles` for tests. Reaching for either family here produces
+`exception-catalog` for errors, `test-principles` for tests — and `python-versioning` the day it is
+distributed to anyone, which most scripts never are. Reaching for either family here produces
 packages with nothing in them and a reviewer who assumes work lives there.
 
 Run this skill again when the script stops being one: a second trigger, a second reader of the same
@@ -166,7 +173,9 @@ into a framework's tree fights the framework at every file.
 
 The universal skills still bind in full — `naming`, `python-style`, `python-packaging`,
 `python-versioning`, `exception-catalog`, `test-principles` — and they are not a consolation prize;
-they are the rules that were never architectural in the first place. The deciding question is still
+they are the rules that were never architectural in the first place. Where the framework dictates a
+module's name and contents — Django's `models.py` and `admin.py` — the framework's convention wins,
+and `python-packaging` says so itself. The deciding question is still
 worth answering, because knowing whether the project owns invariants tells the reader what to
 protect. It just selects no family here.
 
@@ -197,8 +206,8 @@ which is exactly what makes waiting cheap.
 
 **The choice is per service, never per repository.** `python-workspace` lays a workspace
 root that hosts several members; nothing about a shared root, a shared schema package or a shared toolchain requires
-the members to share an internal layout. One member enforcing pricing rules can be hexagonal while its
-three sibling crawlers stay flat, and the workspace is not inconsistent for it. Run this skill once per
+the members to share an internal layout. One member that owns `Foo` and enforces its invariants can
+be hexagonal while the flat workers beside it stay flat, and the workspace is not inconsistent for it. Run this skill once per
 member, at the point that member is created.
 
 ### The earlier choice was wrong

@@ -142,13 +142,15 @@ class PyJwtTokenVerifier:
 
     def verify(self, token: str) -> CurrentUser:
         try:
-            payload = jwt.decode(
+            claims = jwt.decode(
                 token,
                 self._public_key,
                 algorithms=[self._algorithm],
                 issuer=self._issuer,
                 audience=self._audience,
+                options={"require": ["sub", "role"]},
             )
+            return CurrentUser(id=UUID(claims["sub"]), role=Role(claims["role"]))
         except jwt.ExpiredSignatureError as exc:
             raise UnauthorizedError("token expired", {"reason": "expired"}) from exc
         except jwt.InvalidTokenError as exc:
@@ -156,12 +158,22 @@ class PyJwtTokenVerifier:
                 "invalid token",
                 {"reason": exc.__class__.__name__},
             ) from exc
-        return CurrentUser(id=UUID(payload["sub"]), role=Role(payload["role"]))
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise UnauthorizedError("invalid token claims", {"reason": "invalid_claims"}) from exc
 ```
 
 `algorithms=[...]` is a **list of one**, read from settings — never the token's own `alg` header. A
 verifier that trusts the header accepts `none` and accepts a symmetric algorithm signed with the public
 key it published; the settings-side allowlist validator below is what keeps that list honest.
+
+**The identity is built inside the translated scope.** A token can carry a valid signature and still
+not describe a caller — a claim missing, a subject that is not an identifier, a role the app does not
+declare. Each of those is an unverifiable credential and answers 401 like a bad signature, never a
+500. Here `require` turns an absent claim into the library's own `InvalidTokenError`, and the last arm
+catches what building the identity raises on a claim of the wrong shape — `ValueError` from a string
+`UUID(...)` or `Role(...)` cannot parse, `AttributeError` or `TypeError` from `UUID(...)` handed a
+non-string. PyJWT 2.10 and later reject a non-string `sub` themselves; the arm keeps the verifier
+correct without depending on that.
 
 ### `infrastructure/jwt/settings.py`
 
@@ -215,15 +227,15 @@ attaches are **this scheme's own** — an opaque token, a session cookie and a g
 the three — so these stops sit with the template that names the stack, and they stop wherever this
 binding is in use.
 
-- Spec takes the algorithm from the token's `alg` header, or widens the allowlist to include `none` or a
+- The algorithm is taken from the token's `alg` header, or the allowlist is widened to include `none` or a
   symmetric algorithm against a published public key → stop, the accepted set is configuration and is
   validated at startup.
-- Spec asks a route to read the `Authorization` header directly → stop, that is what the bearer scheme
+- A route is asked to read the `Authorization` header directly → stop, that is what the bearer scheme
   is for.
-- Spec asks to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
+- Asked to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
   manual header parsing.
-- Spec asks for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
-- Spec freezes a literal realm (`Bearer realm="myapp"`) as the contract → stop, only the scheme is
+- Asked for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
+- A literal realm (`Bearer realm="myapp"`) is frozen as the contract → stop, only the scheme is
   load-bearing; the realm is app-specific and comes from settings, or is omitted.
 
 ## The route dependencies
@@ -241,9 +253,8 @@ from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from myapp.domain.auth import CurrentUser, Role
+from myapp.domain.auth import CurrentUser, ICanVerifyToken, Role
 from myapp.domain.exceptions import ForbiddenError, UnauthorizedError
-from myapp.domain.ports import ICanVerifyToken
 
 __all__ = ["get_current_user", "require_role"]
 
@@ -260,9 +271,8 @@ async def get_current_user(
 
 class _RoleDependency:
     """A role-gated route dependency. A callable CLASS, not a closure, so the gated role is a
-    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute —
-    hex-test-restapi-auth detects a role-gated route by reading `required_role` off the
-    dependency. FastAPI inspects `__call__` like any callable."""
+    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute.
+    FastAPI inspects `__call__` like any callable."""
 
     def __init__(self, required: Role) -> None:
         self.required_role = required
@@ -294,16 +304,13 @@ one `isinstance` branch, attaching the RFC-7235 challenge. Nothing else in the f
 `hex-restapi-app` rule 3 caps it at **at most one** branch.
 
 ```python
-from myapp.domain.exceptions import DomainError, UnauthorizedError
+from myapp.domain.exceptions import DomainError, UnauthorizedError, ValidationError
 ```
 
 ```python
         headers: dict[str, str] = {}
         if isinstance(exc, UnauthorizedError):
-            # The `Bearer` scheme is the load-bearing part (RFC 7235); the realm is
-            # app-specific — drive it from settings/env or omit it, never freeze a
-            # literal realm (see hex-test-restapi-auth, which asserts only the scheme).
-            headers["WWW-Authenticate"] = 'Bearer realm="myapp"'
+            headers["WWW-Authenticate"] = "Bearer"
         return JSONResponse(
             status_code=exc.http_status,
             content=ErrorResponse(
@@ -315,6 +322,10 @@ from myapp.domain.exceptions import DomainError, UnauthorizedError
         )
 ```
 
+The challenge carries the `Bearer` scheme alone, which is the load-bearing part (RFC 7235) and what
+`hex-test-restapi-auth` asserts. A realm is optional and app-specific: an app that wants one reads it
+from its settings — never a literal frozen into the template (rule 9).
+
 `401` says *who are you* — the credential was missing, malformed, expired or unverifiable, so the client
 may retry with a better one, and RFC 7235 obliges the response to say how. `403` says *I know who you
 are and you may not* — retrying with the same credential is pointless, and there is no challenge to
@@ -322,8 +333,9 @@ issue. Those are two different answers, not two spellings of one; `exception-cat
 
 ## The route's auth dependency and codes
 
-**`ROUTES.md`** — the half consulted every time a route is written: the decision table for which
-dependency an operation takes, the `_`-vs-`user` binding rule and the stamp-from-the-identity rule,
+**Read `ROUTES.md` before writing or changing any route in an app that declares auth** — only this
+file is loaded automatically. It is the half consulted every time a route is written: the decision
+table for which dependency an operation takes, the `_`-vs-`user` binding rule and the stamp-from-the-identity rule,
 the four things that derive an authenticated route from an auth-free one, and the coordinated
 advertisement rule joining the chosen dependency to the codes the route declares.
 
@@ -359,7 +371,8 @@ ordering and the settings lifecycle follow `hex-wiring`.
   capability method becomes `async` (`hex-domain-ports`' async capability shape) and the provider is
   built on an HTTP client rather than a key; the adapter form is `hex-capability-adapter`'s async
   HTTP-gateway one. A network call per request also makes a cache a real question — which the adapter
-  may not answer itself (`hex-capability-adapter` rule 9); it is a separate wrapper.
+  may not answer itself — `hex-capability-adapter`'s adapters-are-thin rule (no retries, no caching); it
+  is a separate wrapper.
 - **Session cookie.** `HTTPBearer` is replaced by reading a signed cookie, and the RFC-7235 branch goes
   away — a cookie scheme has no `WWW-Authenticate` challenge, so a 401 carries no header. Everything
   else — the port, the identity, the role gate, the two dependencies, the code sets — is unchanged.
@@ -391,7 +404,7 @@ ordering and the settings lifecycle follow `hex-wiring`.
 5. **The required rank is visible at the call site.** `require_role(Role.X)` is called inline at each
    route; do not memoize it at module level (`_gate = require_role(Role.HIGHER)`) — the role is the most
    important detail in a route review.
-6. **The auth dependency is the last parameter.** Path, body, `request` and query parameters come first;
+6. **The auth dependency is the last parameter.** Path, body, injected handlers and query parameters come first;
    identity last.
 7. **Two dependencies, and they are exhaustive**: authenticate-only, and authenticate-plus-rank. Do not
    combine the authenticate-only form with a role check — use the rank form.
@@ -423,19 +436,20 @@ ordering and the settings lifecycle follow `hex-wiring`.
   is a real annotation the checker follows, so `get_current_user` honours its `-> CurrentUser` contract
   with no `cast` and no `# type: ignore`. A cast here means something is being reached through an
   untyped attribute — fix the injection instead.
-- `Depends`, `Request` from `fastapi`; `HTTPAuthorizationCredentials`, `HTTPBearer` from
+- `Depends` from `fastapi`; `HTTPAuthorizationCredentials`, `HTTPBearer` from
   `fastapi.security`.
 - Domain imports absolute (`from myapp.domain.auth import CurrentUser, Role`). The verifier adapter
   **never** imports the protocol it satisfies — structural subtyping at the DI site is the contract
-  (`hex-capability-adapter` rule 2).
+  (`hex-capability-adapter`'s rule that an adapter neither inherits nor imports its protocol).
 - Full annotations on every dependency, the callable class's `__call__`, and the verifier's methods. No
   `from __future__ import annotations` (`python-style`).
 
 ## Package wiring
 
-`domain/auth/` is a subdomain package and `infrastructure/jwt/` an infrastructure one; both follow
-`python-packaging`, with the layer placement in `hex-architecture`. `restapi/dependencies.py` sits in
-the entrypoint package `hex-restapi-app` creates, under that package's entrypoint carve-out.
+`domain/auth/` is a subdomain package — its `__init__.py` re-exports `CurrentUser`, `Role` and
+`ICanVerifyToken`, which every `from myapp.domain.auth import ...` above resolves against — and
+`infrastructure/jwt/` an infrastructure one; both follow `python-packaging`, with the layer placement
+in `hex-architecture`. `restapi/dependencies.py` sits in the entrypoint package `hex-restapi-app` creates, under that package's entrypoint carve-out.
 
 ## Hard stops
 
@@ -444,22 +458,22 @@ the entrypoint package `hex-restapi-app` creates, under that package's entrypoin
   auth-free by construction.
 - `domain/exceptions.py` has no `UnauthorizedError` / `ForbiddenError` → stop, use `exception-catalog`
   first; both classes are its to define.
-- Spec proposes a **third** auth dependency type → stop, the two above are exhaustive; express a
+- A **third** auth dependency type is proposed → stop, the two above are exhaustive; express a
   finer-grained rule in the handler instead.
 - A role-gated route advertises `401` but not `403` → stop, the advertised codes must match the chosen
   dependency.
-- Spec asks a route to inline a role check after `get_current_user` → stop, use `require_role(...)`.
-- Spec asks for a custom verifier per route → stop, the verifier is bound in `containers.py`; routes use
+- A route is asked to inline a role check after `get_current_user` → stop, use `require_role(...)`.
+- Asked for a custom verifier per route → stop, the verifier is bound in `containers.py`; routes use
   the standard dependency.
-- Spec mints a second exception class for the credential case under any name → stop, use
+- A second exception class is minted for the credential case under any name → stop, use
   `exception-catalog`'s single unauthorized class; the challenge branch keys on it.
-- Spec asks the translator to branch on more than the unauthorized class → stop, encode new behaviour
+- The translator is asked to branch on more than the unauthorized class → stop, encode new behaviour
   via subclass `code` / `http_status` (`hex-restapi-app` rule 3 caps it at one branch).
-- Spec asks the verifier to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
-- Spec asks to omit auth on a non-public route of an app that **does** have auth → stop, authenticated is
-  the default and only health or info endpoints are public.
-- Spec asks for authorization finer than a single role rank — per-row ownership, a policy matrix → stop,
+- The verifier is asked to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
+- Asked to omit auth on a non-public route of an app that **does** have auth → stop, authenticated is
+  the default and only routes the app declares public skip it.
+- Asked for authorization finer than a single role rank — per-row ownership, a policy matrix → stop,
   use `hex-application`; the handler raises `ForbiddenError`.
-- Spec puts the tenant id in the path, query or body → stop, stamp it from the resolved identity.
+- The tenant id is put in the path, query or body → stop, stamp it from the resolved identity.
 - The composition root binds no verifier → stop, use `hex-wiring` to declare it before the dependency
   asks for it.

@@ -88,9 +88,12 @@ _SRC_DIRS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src")]
 
 # `myschema` is the shared library the other members import, under whatever name this repository
 # gave it; here it is the member that owns the database schema, and it is also where the framework
-# guard below sits. A repository with no shared library drops these three constants.
+# guard below sits. A repository with no shared library drops these four constants.
 _SCHEMA = str(_ROOT / "packages" / "myschema")
 _SCHEMA_SRC = str(_ROOT / "packages" / "myschema" / "src")
+# The package inside it that owns the data access, under the name this repository gave it. The
+# trailing "/" keeps a prefix match from also exempting a sibling such as storage_utils.py.
+_SCHEMA_DATA_ACCESS = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "storage") + "/"
 _SRC_OUTSIDE_SCHEMA = [p for p in _SRC_DIRS if p != _SCHEMA_SRC]
 
 # Tests live beside the member they cover, so a repo-wide test rule sweeps every member's tests/
@@ -136,7 +139,7 @@ Concrete, in the standalone form:
 
 ```python
 def test_domain_has_no_sqlalchemy() -> None:
-    hits = _grep(r"import sqlalchemy|from sqlalchemy", _DOMAIN)
+    hits = _grep(r"^[[:space:]]*(import|from) sqlalchemy\b", _DOMAIN)
     assert hits == [], "sqlalchemy import in domain:\n" + "\n".join(hits)
 ```
 
@@ -152,18 +155,17 @@ def test_no_service_defines_a_table() -> None:
 ### Rule with an in-test allow-list
 
 The invariant this one pins, stated here so the rule is writable on its own: **where one member
-owns the shared database schema, only that member's repository modules may name a table object;
-every other member reaches the data through a repository method.** (The flat family states it as a
-rule in `flat-persistence`, in the `pyhouse-flat` plugin; the firewall does not need that skill
-installed.)
+owns the shared database schema, only that member's data-access package may name a table object;
+every other member reaches the data through a method of the class that owns the data access.** (The
+flat family states it as a rule in `flat-persistence`, in the `pyhouse-flat` plugin; the firewall
+does not need that skill installed.)
 
 ```python
 def test_no_service_reaches_the_shared_tables_directly() -> None:
-    _repo = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "repositories")
     all_hits = _grep(r"\bfoos_table\b|\bbars_table\b", *_SRC_OUTSIDE_SCHEMA, _SCHEMA_SRC)
-    forbidden = [h for h in all_hits if not h.startswith(_repo)]
+    forbidden = [h for h in all_hits if not h.startswith(_SCHEMA_DATA_ACCESS)]
     assert forbidden == [], (
-        "a shared table object reached directly — go through FooRepository:\n"
+        "a shared table object reached directly — go through the data-access class:\n"
         + "\n".join(forbidden)
     )
 ```
@@ -190,14 +192,17 @@ Widening the sweep over the member that holds the shared helper and allow-listin
 looked at it, and adding the sweep without the allow-list entry turns the firewall red on its own
 sanctioned exception.
 
-Standalone example:
+Standalone example — the two allow-listed paths are constants at the top of the file, beside the
+others (rule 4):
 
 ```python
+_MAIN_PY = str(_ROOT / "src" / "myapp" / "restapi" / "main.py")
+_CLI = str(_ROOT / "src" / "myapp" / "cli") + "/"
+
+
 def test_no_print_calls_outside_allowed() -> None:
-    _main_py = str(_ROOT / "src" / "myapp" / "restapi" / "main.py")
-    _cli = str(_ROOT / "src" / "myapp" / "cli")
-    all_hits = _grep(r"print\(", _SRC)
-    forbidden = [h for h in all_hits if not h.startswith(_main_py) and not h.startswith(_cli)]
+    all_hits = _grep(r"\bprint\(", _SRC)
+    forbidden = [h for h in all_hits if not h.startswith(_MAIN_PY) and not h.startswith(_CLI)]
     assert forbidden == [], "print() calls found outside allowed locations:\n" + "\n".join(forbidden)
 ```
 
@@ -263,8 +268,7 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
 7. **A rule never imports what it forbids, or anything from the tree it polices.** Importing it
    defeats the firewall, and the file must stay collectable when the tree is broken — a broken import
    turns "the rule failed" into "the rule could not be collected", which reads as green in some
-   reports. The schedule/task-queue rule below is the one documented exception, and it is not a
-   pattern rule.
+   reports.
 8. **A pattern matches the whole token it names and nothing that merely contains it.** Under
    `grep -E` that is raw strings wherever a backslash appears, `\b` at both ends of a bare word, and
    plain `|` for alternation. A pattern that also catches a longer identifier, a comment or a
@@ -300,16 +304,8 @@ writable with neither family plugin installed. Both templates above are complete
 - No tables or statements constructed outside the package that owns the data access — `flat-persistence`.
 - No sibling-service imports, and no framework import outside the package whose declared role is
   framework wrapper (plus the shared framework-guarded helper the allow-list names) — `flat-layered`.
-- No module-level engine construction — `flat-persistence`.
+- No module-level engine construction — `python-packaging` rule 8.
 - No engines in unit tests, mocks, or sleeps in tests — `test-principles`.
-
-### A rule that is not a grep
-
-"Every schedule's task queue is served by some worker" is worth pinning and cannot be grepped
-meaningfully. Write it as an ordinary test that imports the schedule script's declarations and the
-services' task-queue constants and compares the two sets. It lives in the same file, breaks rule 7's
-"no imports" for a documented reason, and is the exception that proves it — if a second such rule
-appears, move both into a `tests/test_schedules.py` of their own.
 
 ## Inlined typing / import rules
 
@@ -338,4 +334,4 @@ appears, move both into a `tests/test_schedules.py` of their own.
   repository that named that package something else, and it is checking nothing.
 - A sweep is widened over a directory holding a sanctioned exception, without the allow-list entry
   landing in the same change → stop, the firewall goes red on its own exception; land both together.
-- Spec inlines a literal path inside a test → stop, use the `_<NAME>` constants at module top; add a new constant if a new scope is needed.
+- A literal path is inlined inside a test → stop, use the `_<NAME>` constants at module top; add a new constant if a new scope is needed.

@@ -1,7 +1,7 @@
 # House-style skills
 
-44 skills: 42 project-neutral Python skills in seven families — Universal (10), Meta (1), Hex core
-(12), Hex REST API (4), Hex tests (8), Flat core (3), Flat tests (4) — and two language-independent
+45 skills: 43 project-neutral Python skills in seven families — Universal (10), Meta (1), Hex core
+(12), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
@@ -17,8 +17,8 @@ repository:
 |---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
-| `pyhouse-flat` | `plugins/pyhouse-flat/` | the 7 `flat-*` |
-| `pyhouse-git` | `plugins/pyhouse-git/` | the 1 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
+| `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
+| `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
@@ -36,9 +36,9 @@ service — and says when neither of them applies — a project too small to nee
 catalogue does not cover. It is itself universal, because it is what you consult before you know
 which family you are in, and the `/choose-architecture` command walks it one question at a time.
 
-**The catalogue ships as three plugins** on the Claude Code marketplace: `pyhouse-universal` (the
-unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat`. A fourth,
-`pyhouse-git`, ships beside them for repository workflow rather than Python house style; it depends on
+**The catalogue ships as four plugins** on the Claude Code marketplace: `pyhouse-universal` (the
+unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat` for Python
+house style, and `pyhouse-git`, which ships beside them for repository workflow rather than Python house style; it depends on
 nothing, nothing depends on it, and it holds in a repository of any language. Both family
 plugins depend on `pyhouse-universal`, which Claude Code enables transitively, so installing one family
 always brings the universal skills with it. `pyhouse-universal` is installable alone: a universal skill
@@ -59,13 +59,13 @@ once rather than throughout — before the family is known:
 | Skill | Owns |
 |---|---|
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
-| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families, renaming |
+| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families and the role suffixes an architecture defines, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
-| `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
-| `python-packaging` | Whether a module wants a class at all and the one-class cap, `__all__`, the `__init__.py` re-export contract, import rules |
+| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
+| `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
-| `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
+| `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, and best-effort compensation |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
@@ -94,7 +94,7 @@ this set, because nothing ever fails to make you fix it.
 | **Layers** | `domain/` → `application/` ← `infrastructure/`, entrypoints on top — canonical names | One package per technical role, named for the role; no fixed vocabulary |
 | **Interfaces** | A `Protocol` port for every outward dependency | None until a second real implementation exists |
 | **Wiring** | A container at the composition root | Direct construction in the entrypoint |
-| **Persistence** | Repository adapters behind domain protocols | A shared schema package every service imports |
+| **Persistence** | Repository adapters behind domain protocols | One package owning the service's data access |
 
 The table is the summary, not the decision. **`architecture-choice` owns the decision** — it is
 universal, so it is present whichever family plugins are installed, and it covers the cases this table
@@ -109,7 +109,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 
 | Skill | Owns |
 |---|---|
-| `hex-architecture` | Layer boundaries, dependency direction, the composition root, ports vs adapters |
+| `hex-architecture` | Once the family is hexagonal — layer boundaries, dependency direction, the composition root, ports vs adapters |
 | `hex-conventions` | Identifier → file path and class name; store profiles; multi-context resolution |
 | `hex-project-setup` | Library substrate, toolchain configuration, the write-once migration bootstrap |
 | `hex-patterns` | Compensating transactions, units of work and their nesting order, framework-free run functions |
@@ -120,7 +120,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-application` | CQRS commands, queries, handlers, and read-result forms |
 | `hex-wiring` | Integration settings, DI providers, lifetimes, and container declaration order |
 | `hex-capability-adapter` | Concrete capability implementations using SDKs, HTTP, or CPU work |
-| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings |
+| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis and Qdrant |
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
 rules the layer split imposes on top of `python-packaging`; `python-style` carries the per-layer
@@ -135,7 +135,7 @@ logging allocation (domain never logs, application logs successes only).
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
 | `hex-restapi-auth` | Caller identity, the token-verifier port and adapter, route dependencies, the role gate, and the auth codes a route advertises |
 
-**The first four are complete on their own.** `hex-restapi-auth` is optional: a service behind an
+**The first three are complete on their own.** `hex-restapi-auth` is optional: a service behind an
 authenticating gateway, an mTLS-fronted API or a public one declares no auth and never loads it.
 
 ## Hex tests (8)
@@ -151,13 +151,14 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI, CORS, and request-size invariants |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
-## Flat core (3)
+## Flat core (4)
 
 | Skill | Owns |
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
 | `flat-persistence` | One package owning a service's data access over a SQL store — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
+| `flat-entrypoint` | Trigger choice — loop, schedule, stream, a thin HTTP wrapper or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
+| `flat-project-setup` | The one-time project setup — `pyproject.toml`, toolchain configuration, dependency floors, and the migration bootstrap; per-change revisions are `flat-persistence`'s |
 
 ## Flat tests (4)
 
@@ -245,7 +246,7 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
   `flat-test-service-client` carries the test. Split it out only if the client family grows past one
   template.
 
-Two entries that stood here are closed. `hex-persistence` is no longer oversized — it is 175 lines with
+Two entries that stood here are closed. `hex-persistence` is no longer oversized — its templates sit in
 `TABLE.md`, `REPOSITORY.md` and `REVISION.md` beside it. Flat-side exception translation is genuinely
 covered: `exception-catalog` carries a flat-layered catalog template, the translation section and the
 mandatory-fallback rule, and `flat-layered` routes to it.

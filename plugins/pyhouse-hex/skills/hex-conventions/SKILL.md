@@ -21,7 +21,7 @@ whole point of the infrastructure rule is that the folder is named after the rea
 - Turning a bare identifier into a file path or class name → this skill.
 - Deciding which repository form a datastore gets, or writing its connection factory → block B.
 - Resolving a `<subdomain>:<Name>` reference, or deciding what is shared across contexts → block C.
-- Layer boundaries, `__all__`, the re-export contract, import forms → `hex-architecture`.
+- Layer boundaries → `hex-architecture`; `__all__`, the re-export contract and import forms → `python-packaging`.
 - What goes *inside* the artifact whose name you just derived → the skill that owns it
   (`hex-persistence`, `exception-catalog`, `hex-patterns`). This skill is consulted **alongside**
   them, never instead of them — it produces no file of its own.
@@ -36,7 +36,7 @@ whole point of the infrastructure rule is that the folder is named after the rea
 
 **`snake_case`** — PascalCase → snake by inserting `_` before each interior capital, then lowercasing:
 `IFooRepository` → `i_foo_repository`, `S3ObjectStorage` → `s3_object_storage`. Acronym runs are **not**
-special-cased; revisit if an identifier ever needs `o_t_p` avoided.
+special-cased.
 
 **`pluralize`** (table names) — `y` after a consonant → `ies`; trailing `s`/`x`/`z`/`ch`/`sh` → `+es`;
 else `+s`. So `Category` → `categories`, `Box` → `boxes`, `Foo` → `foos`. Table name =
@@ -84,12 +84,12 @@ it is the **tunable variant** — the config-knob view of an environment thresho
 constructed field-by-field from a settings class, not from an inline literal. The stem pairing
 `<Stem>Tunable` ← `<Stem>Settings` is an **advisory default, not load-bearing** — the real binding is the
 wiring, which sources the tunable from whichever settings fields match. A stem mismatch is fine:
-`FooLimitTunable(max_attempts=foo_settings.provided.max_attempts, …)` from a single `FooSettings` is
-correct. Name them to match when a dedicated settings class exists; reuse a broader one (and let the
-stems differ) when the knobs naturally live there. The field-by-field construction
-`<tunable>(field=<settings>.provided.field, …)` is the invariant. This is how an environment-tunable
-domain threshold — rate limits, quotas, retention — reaches a domain service without the domain importing
-a settings library.
+`FooLimitTunable(max_attempts=settings.max_attempts, …)` from a single `FooSettings` is correct. Name
+them to match when a dedicated settings class exists; reuse a broader one (and let the stems differ)
+when the knobs naturally live there. The invariant is the obligation, not a spelling: a factory of the
+tunable's own reads each single field off the settings object and passes it (`hex-wiring`). This is how
+an environment-tunable domain threshold — rate limits, quotas, retention — reaches a domain service
+without the domain importing a settings library.
 
 **Infrastructure groups by external TECH, never by a domain subdomain and never under a catch-all
 `db/`.** The tech token is:
@@ -134,8 +134,8 @@ client-repository form covering every vector / cache / document backend. A new c
 **Imports and package mechanics are not restated here.** A referenced type resolves to its owning module:
 same-subdomain domain types use a relative `.module` import, cross-subdomain a relative `..subdomain`,
 cross-layer an absolute `myapp.domain.<subdomain>` import, stdlib its canonical import, builtins none.
-`hex-architecture` owns the rules, `__all__`, and the `from .module import *` re-export contract the
-collapsed import form depends on.
+`python-packaging` owns the import rules, `__all__`, and the `from .module import *` re-export contract
+the collapsed import form depends on; `hex-architecture` owns only which layer may import which.
 
 ## B. Store profiles
 
@@ -185,13 +185,27 @@ changes the DSN string and the factory's return type; the shape, the name and th
 unchanged:
 
 ```python
-# infrastructure/postgres/engine.py  (the relational engine + session factory — complete)
+# src/myapp/infrastructure/postgres/engine.py  (the relational engine + session factory — complete)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from .settings import DbSettings
+
+__all__ = ["create_engine", "create_session_factory"]
+
+
 def create_engine(settings: DbSettings) -> AsyncEngine:
-    dsn = (
-        f"postgresql+asyncpg://{settings.user}:{settings.password.get_secret_value()}"
-        f"@{settings.host}:{settings.port}/{settings.name}"
+    return create_async_engine(
+        settings.dsn,
+        pool_size=settings.pool_size,
+        max_overflow=settings.max_overflow,
+        pool_pre_ping=settings.pool_pre_ping,
+        echo=settings.echo,
     )
-    return create_async_engine(dsn)
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -199,15 +213,25 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 ```
 
 ```python
-# infrastructure/<kind>/connection.py  (a client-store connection factory — complete)
-# <kind> is the vendor token, AsyncStoreClient the SDK's own async client class.
-# Every client-style store has this shape; only the constructor kwargs differ.
-def create_vectors_client(settings: StoreSettings) -> AsyncStoreClient:
-    return AsyncStoreClient(
+# src/myapp/infrastructure/qdrant/connection.py  (a client-store connection factory — complete, Qdrant binding)
+from qdrant_client import AsyncQdrantClient
+
+from .settings import QdrantSettings
+
+__all__ = ["create_vectors_client"]
+
+
+def create_vectors_client(settings: QdrantSettings) -> AsyncQdrantClient:
+    return AsyncQdrantClient(
         url=settings.url,
-        api_key=settings.api_key.get_secret_value() if settings.api_key else None,
+        api_key=settings.api_key.get_secret_value() if settings.api_key is not None else None,
     )
 ```
+
+The engine factory reads the connection string the settings object derives rather than reassembling it
+from parts (`hex-wiring` settings rule 8), and passes every pool option the settings class declares.
+Every client-style store has the second shape; another vendor changes the client class, its import and
+the constructor keywords, never the name or the completeness rule.
 
 The factory name is `create_<datastore-name>_client` — the datastore's *name*, not its kind, so
 `create_vectors_client` for a datastore named `vectors`. The resource type and import come from the
@@ -294,11 +318,3 @@ same name, different shape — is never silently merged. Stop and surface it.
 - A store kind is being added by changing a tool or a type map → stop, it is one row in block B.
 - Two contexts declare the same name with different shapes → stop, do not silently merge; surface the
   conflict.
-
-## See also
-
-- `hex-architecture` — layer boundaries, relative vs absolute reach, the same-package collapse, one class
-  per module, `__all__` placement, and the `from .module import *` re-export contract.
-- `hex-project-setup` — which libraries the project carries, the toolchain configuration, and the
-  migration bootstrap.
-- `hex-persistence` — what goes inside a relational table, repository and revision.

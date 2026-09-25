@@ -43,7 +43,8 @@ depending on it.
 - Choosing a version floor or a pin for a dependency this project **consumes** → the inverse concern,
   and not here. A floor states a known breaking boundary in someone else's history; this skill is
   about producing your own. The hexagonal family states the consuming rule under `hex-project-setup`,
-  in the `pyhouse-hex` plugin.
+  in the `pyhouse-hex` plugin, and the flat family under `flat-project-setup`, in the `pyhouse-flat`
+  plugin.
 - A repository holding several distributions — the member split, in-repo dependency edges, tooling
   settled once → `python-workspace`. It governs members; which number each member carries is here.
 - Database schema evolution and the migration chain → the family's persistence skill. A migration is
@@ -63,7 +64,7 @@ it alone; bumping as each change lands carries the number past anything that was
 [project]
 name = "myapp"
 version = "1.4.0"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 ```
 
 Three integer components, no `v`, no hyphen, no plus sign. The pre-release ladder, when one is cut,
@@ -80,12 +81,18 @@ git tag -a v1.4.0 -m "myapp 1.4.0"
 git push origin v1.4.0
 ```
 
-Runtime access reads the installed distribution's metadata rather than a second literal:
+Runtime access reads the installed distribution's metadata rather than a second literal, and reads it
+when asked, not at import — `python-packaging` rule 8 builds nothing at import time, and a metadata
+lookup is a filesystem read. The function lives in a module of its own, or where the version is
+reported; what the package root holds is `python-packaging`'s:
 
 ```python
+# src/myapp/version.py
 from importlib.metadata import version
 
-__version__ = version("myapp")
+
+def get_version() -> str:
+    return version("myapp")
 ```
 
 That call takes the **distribution** name, which need not equal the import package's name.
@@ -130,11 +137,11 @@ That call takes the **distribution** name, which need not equal the import packa
 5. **The `v` belongs on the tag and nowhere else.** In a version field it is ignored and stripped, so
    it is a character that survives review and not the build.
 
-6. **A change that can break a consumer who used only the declared surface is a major.** That includes
-   removing or renaming a name in it, changing what a call returns, reordering or retyping its
-   parameters, changing a default that a call omitting it depends on, and changing which exception a
-   documented failure raises. Whether the consumer *deserved* to depend on it is not the test; whether
-   the surface declared it is.
+6. **A change that can break a consumer who used only the declared surface is a major** — from
+   `1.0.0` on; below it, rule 9 says what it bumps. That includes removing or renaming a name in it,
+   changing what a call returns, reordering or retyping its parameters, changing a default that a call
+   omitting it depends on, and changing which exception a documented failure raises. Whether the
+   consumer *deserved* to depend on it is not the test; whether the surface declared it is.
 
 7. **Adding to the surface without changing what is there is a minor, and so is deprecating.** A
    deprecation is a release event of its own: it ships in a minor, at least one release before the
@@ -144,10 +151,12 @@ That call takes the **distribution** name, which need not equal the import packa
    not a patch however small the diff, and a security fix that must break the surface is the deliberate
    exception — take it, and say so in the note rather than pretending the bump was compatible.
 
-9. **`0.y.z` withholds the promise, deliberately.** Below `1.0.0` anything may change at any time, and
-   that is a legitimate state to ship in while nothing depends on you. It stops being legitimate the
-   moment something does. Reaching `1.0.0` is the act of making the promise, not a milestone earned by
-   maturity.
+9. **`0.y.z` withholds the promise, deliberately, so below `1.0.0` a break bumps the minor.** Anything
+   may change at any time there, and that is a legitimate state to ship in while nothing depends on
+   you. It stops being legitimate the moment something does. A break moves `0.4.2` to `0.5.0`, as an
+   addition does, and a fix moves the patch; no break carries the number to `1.0.0`. Reaching `1.0.0`
+   is the act of making the promise — a decision for whoever makes it, never the consequence of one
+   breaking change, and not a milestone earned by maturity.
 
 10. **A released version is immutable.** A correction is the next number. Where an index refuses to let
     a filename be reused even after deletion, this stops being a convention and becomes the only
@@ -175,7 +184,8 @@ That call takes the **distribution** name, which need not equal the import packa
 - A version is being bumped because time passed, or because the release feels substantial → stop, the
   segment states what changed to the declared surface, not how much work it was.
 - A breaking change is being shipped as a minor because a major looks alarming → stop, the major is
-  the signal; suppressing it moves the breakage to a consumer who had no reason to test for it.
+  the signal; suppressing it moves the breakage to a consumer who had no reason to test for it. Below
+  `1.0.0` the minor is the right number (rule 9), and this stop does not apply.
 - A hyphen or a plus sign is being written into a version field → stop, that is not this ecosystem's
   spelling; a plus sign in particular marks a locally patched rebuild, changes ordering, and is
   refused by public indexes.

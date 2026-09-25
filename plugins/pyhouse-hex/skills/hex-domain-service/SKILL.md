@@ -24,35 +24,63 @@ Produces one domain service: a stateless class that orchestrates a domain rule u
 
 ```python
 from ..exceptions import FooConflictError
-from .i_can_canonicalize_key import ICanCanonicalizeKey
 from .i_foo_repository import IFooRepository
 
 __all__ = ["FooUniquenessService"]
 
 class FooUniquenessService:
-    def __init__(
-        self,
-        repo: IFooRepository,
-        canonicalizer: ICanCanonicalizeKey,
-    ) -> None:
+    def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
-        self._canonicalizer = canonicalizer
 
-    def canonicalize(self, raw_key: str) -> str:
-        return self._canonicalizer.canonicalize(raw_key)
+    async def assert_name_available(self, name: str) -> None:
+        if await self._repo.get_by_name(name) is not None:
+            raise FooConflictError("foo name already exists", {"field": "name"})
 
-    async def assert_available(self, canonical_key: str) -> None:
-        if await self._repo.exists_by_canonical_key(canonical_key):
-            raise FooConflictError("key already exists")
-
-    async def is_taken(self, canonical_key: str) -> bool:
-        return await self._repo.exists_by_canonical_key(canonical_key)
+    async def is_name_taken(self, name: str) -> bool:
+        return await self._repo.get_by_name(name) is not None
 ```
 
-**Two forms.** An *orchestrator* service has collaborators: injected protocols on `__init__`, async
-methods that touch them (the form above). A *pure* service has none: no `__init__` parameters, only
-sync transformation methods (`canonicalize`, `derive_*`). The form follows directly from whether the
-service has collaborators to inject.
+**A service exists because it has collaborators.** Injected protocols on `__init__`, async methods
+that touch them — the form above. A pure transformation with nothing to inject (`canonicalize`,
+`derive_*`) is not a class at all: a class whose constructor holds no state is a module function
+(`python-packaging`), so it is a module-level function in the aggregate's package, or a value object's
+own construction (`hex-domain-model`).
+
+**Canonicalization is pure domain logic when the standard library can do it** — trimming, case-folding,
+a stdlib URL normalization — and then it is that module function, never a port. It becomes a sync
+capability port only when a third-party library does the work (IDNA encoding, a URL-parsing library),
+because the domain cannot import that library (`hex-domain-ports`); an orchestrator that needs it then
+injects the port like any other collaborator.
+
+### Pure transformation — a module function, stdlib only
+
+```python
+# src/myapp/domain/foos/canonical_url.py
+from urllib.parse import urlsplit, urlunsplit
+
+from ..exceptions import ValidationError
+
+__all__ = ["canonicalize_url"]
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+def canonicalize_url(raw: str) -> str:
+    parts = urlsplit(raw.strip())
+    scheme = parts.scheme.lower()
+    if scheme not in _DEFAULT_PORTS:
+        raise ValidationError("url scheme must be http or https", {"field": "scheme"})
+    host = (parts.hostname or "").lower()
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValidationError("url port must be a number in range", {"field": "port"}) from exc
+    netloc = host if port in (None, _DEFAULT_PORTS[scheme]) else f"{host}:{port}"
+    return urlunsplit((scheme, netloc, parts.path.rstrip("/"), parts.query, ""))
+```
+
+It is called from inside the domain — an entity's `__post_init__` or a value object's construction —
+never by a handler, which passes input through unchanged (`hex-application`), and it is never bound
+in the composition root, because there is nothing to construct.
 
 ## Rules
 
@@ -70,7 +98,7 @@ Path: `src/myapp/domain/foos/<class_snake>.py`. Follow `naming` for file and cla
 4. **A method name states what happens on failure** — `assert_*` raises, `is_*`/`has_*`/`can_*` returns
    a boolean, a bare verb computes. The three are not interchangeable and `naming` owns the rule and its
    reason; it applies here because a policy's whole public surface is these methods.
-5. **Async if and only if the method reaches IO through an injected protocol.** A pure transformation
+5. **Async if and only if the method reaches IO through an injected protocol.** A pure helper method
    stays sync, so a sync signature is a standing claim that the call performs no IO.
 6. **Failures raise a catalogue exception** — `exception-catalog`.
 7. **No state beyond the constructor collaborators.** No cache, no counter, no mutable attribute: one
@@ -80,10 +108,13 @@ Path: `src/myapp/domain/foos/<class_snake>.py`. Follow `naming` for file and cla
    is what lets the service run against hand-written stubs with no infrastructure present.
 9. **A uniqueness rule this service asserts is not a guarantee.** A check that reads and then writes
    admits the second concurrent writer — nothing between the read and the write stops it. So the
-   `assert_*` method goes in paired with a constraint in the store, which is what actually holds the
-   rule (`hex-persistence`); follow `exception-catalog` for the store's rejection mapping to the same
-   domain exception this service raises, so the caller sees one error whichever side refused. What the
-   service contributes is the earlier refusal with a legible message, not the guarantee.
+   `assert_*` method goes in paired with a unique constraint on the same key in the store — the
+   template's `name`, held by `uq_foos_name` — which is what actually holds the rule
+   (`hex-persistence`). The repository translates that constraint's rejection
+   into **the same catalogue class this service raises** — `FooConflictError` here, not the generic
+   `ConflictError` — so the caller sees one error, one `code`, whichever side refused (`exception-catalog`
+   owns the class). What the service contributes is the earlier refusal with a legible message, not the
+   guarantee.
 
 ### What a domain service is not
 
@@ -106,6 +137,6 @@ Follow `python-packaging` for module registration and `hex-architecture` for pla
 
 ## Hard stops
 
-- The service accumulates methods for rules that do not share a subject — past about four or five, in practice → stop, use `coupling`; one service holds one cohesive rule set, and the count is the symptom, not the rule.
+- The service accumulates methods for rules that do not share a subject — past about four or five → stop, use `coupling`; one service holds one cohesive rule set, and the count is the symptom, not the rule.
 - The class needs to reach a database session, driver or vendor client directly — a SQLAlchemy session, say → stop, add the access as a method on the existing domain protocol and depend on the protocol.
 - The class needs to read settings → stop, wrap the relevant settings in a tunable value object (see `hex-domain-model`) and inject that.

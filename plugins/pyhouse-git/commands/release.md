@@ -22,8 +22,8 @@ you fell back on a default below.
 ## 2. Stop on any of these
 
 - **Uncommitted changes** → stop. The release commit must contain the release and nothing else.
-- **Not on the branch releases are cut from** → stop. It is the mainline the repository records
-  (`git-branching` rule 2); where nothing records it, ask.
+- **Not on the branch releases are cut from** → stop. It is the mainline (`git-branching` rule 1), as
+  the repository records it; where nothing records it, ask.
 - **Behind the remote** after `git fetch` → stop. A release cut from a stale branch omits what landed.
 - **`git fetch` fails** → stop and say so. An unreachable remote is not an up-to-date one; go on only if
   the person says to, and say in the proposal that the remote was not checked.
@@ -32,12 +32,39 @@ you fell back on a default below.
 
 ## 3. Find the range
 
-`git describe --tags --abbrev=0` names the last release. **No tag at all is a first release**: propose
-nothing and ask what it should be — below 1.0.0 while nothing depends on this, 1.0.0 only if a
-compatibility promise is being made from the start.
+**The tags' spelling comes first**, because it decides which tag is the last release. Follow the
+repository's existing tags. Where it has none, the default is the one this command takes and says it
+took: one `v<version>` tag where one artifact ships every member — a single distribution, or a
+repository like a plugin marketplace whose aggregate version the tag names — and one
+`<member>-v<version>` tag per member where members are released separately.
 
-`git log --no-merges --format='%h %s' <tag>..HEAD` is the range; git writes merge commits itself and
-the convention skips them. An empty range → nothing to release; say so and stop.
+`git describe --tags --abbrev=0` names the last release — with `--match '<member>-v*'`, once per
+member, under per-member tags. **No tag at all is a first release**: propose nothing and ask what it
+should be — below 1.0.0 while nothing depends on this, 1.0.0 only if a compatibility promise is being
+made from the start.
+
+**A release already cut and not yet tagged.** Where the mainline takes changes only through a request,
+the release commit lands after this command last ran (step 7). Look for it first:
+
+```
+git log --format='%h %s' --grep='^chore(release): ' <last tag>..HEAD
+```
+
+With no tag yet, search `HEAD` alone. Read the tag name from the subject with any trailing request
+suffix stripped — a squash merge often lands it as `chore(release): v0.7.0 (#34)`, whose tag is
+`v0.7.0`. A match whose tag does not exist is that release, landed and
+waiting: offer to tag it (step 7, item 3) and propose nothing new until it is tagged.
+
+The range itself, with bodies, because a break may be stated only in a footer (step 4):
+
+```
+git log --no-merges --format='%h %s%n%b%n--' <tag>..HEAD
+git log --no-merges -E --grep='^BREAKING[ -]CHANGE:' --format='%h %s' <tag>..HEAD
+```
+
+The second is the cross-check: every commit it lists is a break, whatever its subject says. Merge
+commits are left out because `git-commit-message` rule 9 exempts the ones git writes. An empty range →
+nothing to release; say so and stop.
 
 ## 4. Classify every commit
 
@@ -85,7 +112,7 @@ Last release:  <tag>   <N> commits since, <M> unclassified
 <member>       <current>              unchanged
 <aggregate>    <current> -> <next>    follows <member>'s minor
 
-Tag:           <next tag>
+Tag:           <next tag, or one per member under per-member tags>
 ```
 
 Under each bump, list the commits that justify it and nothing else. **Then ask for confirmation.**
@@ -94,14 +121,26 @@ which is the case the types exist to prevent and cannot always catch.
 
 ## 7. Cut it — only after an explicit yes
 
-1. Edit exactly the version fields the proposal named. Nothing else goes into this commit.
+1. Edit exactly the version fields the proposal named. Where the ecosystem's lockfile also records the
+   project's own version — `package-lock.json`, `Cargo.lock`, `uv.lock` — regenerate it with the
+   ecosystem's own lock command, or update that one entry, in the same commit: a lockfile left at the
+   old number fails the next locked install or check. Nothing else goes into this commit.
 2. Commit it as `chore(release): <tag>`. `chore`, because a release commit records no change of its own
    and must not propose another version — it is the one commit `git-commit-message` rule 2 lets touch
    the version. **Where the mainline takes changes only through a request**, the release commit is no
-   exception: commit it on a branch, open the request, and tag in step 3 only once it has landed — on
+   exception: commit it on a branch, open the request, and tag in item 3 only once it has landed — on
    the release commit under a keep-every-commit merge method, on the squashed commit under squash.
-3. Tag that commit, annotated, spelled the way the repository's existing tags are: `git tag -a <tag>`.
-   The annotation names the version and each member's bump.
+   Running this command again after it lands finds that commit and offers the tag (step 3).
+3. Tag that commit, annotated, spelled as step 3 settled — once per member under per-member tags. Pass
+   the annotation on standard input, so no editor opens; it names the version and each member's bump:
+
+   ```
+   git tag -a -F - <tag> <release commit> <<'EOF'
+   <tag>
+
+   <member> <current> -> <next>
+   EOF
+   ```
 4. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so
    many words: once the tag leaves this machine it cannot be taken back.
 

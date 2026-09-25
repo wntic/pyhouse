@@ -1,6 +1,6 @@
 ---
 name: naming
-description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on protocols, the error-class and repository-class identifier forms, and the vague-noun replacements. The mechanics around a name are `python-packaging`.
+description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on protocols, the error-class and repository-class identifier forms, the vague-noun replacements, and the role suffixes (`Handler`, `Result`, `Payload`, `Service`) an architecture defines that are exempt from them. The mechanics around a name are `python-packaging`.
 when_to_use: Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repo already spells two ways.
 ---
 
@@ -32,9 +32,9 @@ never its layout.
   `hex-architecture` (in `pyhouse-hex`), whichever style the project uses.
 - Where the boundary between two components goes at all → `coupling`. A name cannot rescue a wrong
   boundary; if a thing resists naming, suspect the split before the vocabulary.
-- Log event names, exception `code` values, task/workflow registration strings, database constraint
-  names → those are *frozen external contracts*, owned by `python-style`, `exception-catalog` and
-  whichever skill owns that artifact. See **Renaming** below.
+- Log event names, exception `code` values, job or task names registered by string, database
+  constraint names → those are *frozen external contracts*, owned by `python-style`,
+  `exception-catalog` and whichever skill owns that artifact. See **Renaming** below.
 - A test builder, fixture or failure-injection subclass needs a name → this skill for the name;
   `test-principles` for whether it should be a fixture at all.
 - A test *function* or test *file* name → `test-principles`, which owns the `test_` file mirror and the
@@ -72,9 +72,11 @@ Do not retrieve a name from memory of similar code. Derive it from this thing, h
 3. **Add the qualifiers that separate it from its siblings**, in the order *subject → aspect*.
    Usually the subject (what it is about) and the answer it carries (what it asserts).
 4. **Delete every word that would still be true of half the project.** A word the enclosing package
-   already supplies is noise: `Db` inside a `db` package, `Foo` inside `foos/`, `Service` anywhere.
+   already supplies is noise: `Db` inside a `db` package, `Foo` inside `foos/`, `Service` on anything
+   that is not the domain service the architecture defines (**Role suffixes the architecture
+   defines**, below).
 
-Worked, on the case that motivates this skill — a `CheckResult` inherited from a ported module:
+Worked, on a `CheckResult` inherited from a ported module:
 
 | Step | |
 |---|---|
@@ -86,7 +88,7 @@ Worked, on the case that motivates this skill — a `CheckResult` inherited from
 
 Not `CheckResult`, and not `UpstreamCheckResultData` either — step 4 removes `Data`, and step 2
 rejects `Result` as a head, because "result" names the fact that something returned rather than what
-it says.
+it says. This record is no handler's or run's return value, so the role suffix below does not reach it.
 
 ## The six tests
 
@@ -197,7 +199,8 @@ for what it actually is.
 
 ## Vague-noun families — the fix is always the same
 
-Each of these names a category. The fix is to name the *subject* and the *assertion*.
+Each of these names a category. The fix is to name the *subject* and the *assertion* — unless the
+suffix names a role the architecture defines, which the next section exempts.
 
 | Suffix / prefix | Why it fails | Replace with |
 |---|---|---|
@@ -211,12 +214,39 @@ Each of these names a category. The fix is to name the *subject* and the *assert
 | `check_…`, `process_…`, `do_…`, `handle_…` | the verb is a placeholder | the real verb: `score_`, `resolve_`, `upsert_`, `fetch_` |
 | `…2`, `…New`, `…V2`, `…Impl`, `…Base` with no subject | marks that the first one was never named | name both for what distinguishes them |
 
-Two honest exceptions. A category word is right when **a framework or library defines it and the
-thing genuinely is that** (a `worker` that is the framework's own term for a queue-serving process; a
-`handler` in a framework whose contract calls it one), and when **the project has deliberately
-established the term with a written meaning** (a `shared` package defined in that repo's layout
-skill or README). Outside those two, reaching for one of these words is the signal to spend another
-ten seconds.
+### Role suffixes the architecture defines
+
+**A suffix that names a role the architecture defines is not a vague noun.** Where the project's
+architecture gives a word one written meaning, the suffix says which role the class plays and the
+subject in front of it says which one, so the name passes the six tests. The roles, and only these:
+
+| Suffix | The role it names |
+|---|---|
+| `Handler` | a use case's handler |
+| `Command`, `Query` | a handler's input |
+| `Result` | the record a handler or a run returns |
+| `Payload` | an external system's wire record |
+| `Request`, `Response` | a transport's inbound and outbound models |
+| `Service` | a domain service |
+| `Repository` | an aggregate's data access |
+| `Settings` | a component's settings class |
+| `Error` | an exception class (`exception-catalog`) |
+
+`CreateFooHandler`, `FooPayload`, `IngestResult`, `FooUniquenessService` and `FooRepository` pass as
+written. Two conditions keep the carve-out from swallowing the rule: **the subject is still there** —
+`Handler`, `Result`, `Payload` or `Service` alone names nothing — and **the class actually plays that
+role** in this architecture. A `FooResult` that no handler or run returns, a `FooService` that is a
+client, a `FooHandler` that is not a use case's handler is the vague noun it looks like, and the table
+above applies to it.
+
+### Other exceptions
+
+Two more. A category word is right when **a framework or library defines it and the thing genuinely is
+that** (a `worker` that is the framework's own term for a queue-serving process; a `handler` in a
+framework whose contract calls it one), and when **the project has deliberately established the term
+with a written meaning** (a `shared` package defined in that repo's layout skill or README). Outside
+these and the role suffixes, reaching for one of these words is the signal to spend another ten
+seconds.
 
 ## Length, abbreviations, consistency
 
@@ -244,8 +274,8 @@ Renaming is cheap, mechanical and reviewable; a stale name is none of those. **D
 commit** so it cannot hide a behaviour change.
 
 The exception is a name that has escaped the codebase and become an external contract. Those are
-frozen and are **not** renamed in place: log event names, exception `code` values, workflow, activity
-and task names registered by string, queue and topic names, database table/column and constraint
+frozen and are **not** renamed in place: log event names, exception `code` values, job or
+task names registered by string, queue and topic names, database table/column and constraint
 names, Alembic revision identifiers, serialization aliases and published API fields,
 environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new name alongside it and
 retire the old one deliberately, with a migration.
@@ -257,7 +287,8 @@ retire the old one deliberately, with a migration.
 2. Require the candidate to pass all six tests before using it.
 3. Re-derive copied and generated identifiers against the destination's concepts and existing vocabulary.
 4. Check names against both the kind-by-kind table and the vague-noun table, retaining category words
-   only under the two documented exceptions.
+   only as a role suffix the architecture defines — with a subject in front, on a class that plays
+   that role — or under the two other documented exceptions.
 5. **Name a call for which side its value comes from.** An unqualified `get_` leaves the caller unable to
    tell whether the line crosses the wire; a name that states the key it looks up, or the word `fetch` or
    `build`, does not.
@@ -281,12 +312,16 @@ retire the old one deliberately, with a migration.
 - A ported identifier introduces a second word for a concept the repo already names → stop, use the
   existing word.
 - The same word now names two different concepts in the project → stop, it identifies neither.
-- A class named `…Result`, `…Data`, `…Info`, `…Payload`, `…Manager`, `…Processor`, `…Handler` or a
-  bare `…Service` → stop, name the subject and what it asserts.
+- A class named `…Data`, `…Info`, `…Details`, `…Manager` or `…Processor` → stop, name the subject and
+  what it asserts, unless a framework defines the word and the class is that (**Other exceptions**).
+- A class carrying a role suffix (`…Result`, `…Payload`, `…Handler`, `…Service`, `…Request`,
+  `…Response`) with no subject in front, or on a class that does not play the role the architecture
+  defines for that word → stop, name the subject and what it asserts; the carve-out covers the role,
+  not the word.
 - A module named `utils.py`, `helpers.py`, `common.py`, `misc.py`, `base.py` with no subject, or a
   bare `worker.py`/`service.py`/`data.py` → stop, name it for its responsibility.
-- A function whose verb is `process`, `handle`, `do`, or a `check_` that returns something other than
-  a bool → stop, use the real verb.
+- A function whose verb is `process`, `handle`, `do` or `check` → stop, use the real verb; a `check_`
+  says neither what it checks nor what happens on failure, whatever it returns.
 - An unqualified `get_` on a function or method (`get_foo()`) → stop, the caller cannot tell whether it
   crosses the wire; use `fetch_`, `build_`, or a `get_by_<field>` that names its lookup key.
 - A method that raises on a broken rule but is named as a predicate, or one named `assert_*` that returns
@@ -309,8 +344,8 @@ retire the old one deliberately, with a migration.
   `StripeClient.fetch_stripe_charge`) → stop, delete the repeated word.
 - A module has outgrown its name and is being extended anyway → stop, rename it first, in its own
   commit.
-- A log event name, exception `code`, registered workflow/activity/task name, queue name, database
-  constraint name, serialization alias or env-var name is being renamed in place → stop, those are
-  external contracts; add the new one and retire the old deliberately.
+- A log event name, exception `code`, job or task name registered by string, queue name,
+  database constraint name, serialization alias or env-var name is being renamed in place → stop,
+  those are external contracts; add the new one and retire the old deliberately.
 - A thing resists every candidate name because no sentence describes it without "and" → stop, this is
   a boundary problem, not a vocabulary problem; load `coupling`.

@@ -2,7 +2,7 @@
 
 House-style rules for writing Python services, as Claude Code skills.
 
-Forty-two skills covering naming, packaging, versioning, errors and tests — plus two mutually exclusive service
+Forty-three skills covering naming, packaging, versioning, errors and tests — plus two mutually exclusive service
 architectures. They are project-neutral: worked examples use `myapp` and `Foo`, never a real service
 name. The skills are plain `SKILL.md` files, so Claude Code, opencode and Codex all read them.
 
@@ -22,7 +22,7 @@ language-level rules, or before you have picked an architecture.
 | `pyhouse-universal` | 11 | Naming, typing and logging, packaging and re-exports, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the architecture chooser, and the reviewer that applies all of it to code that already exists. |
 | `pyhouse-hex` | 24 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: reviews what is about to be staged, then writes a Conventional Commits message whose type carries the release the change earns. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. Depends on nothing; install it on its own. |
-| `pyhouse-flat` | 7 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the package owning a service's data access, trigger choice from loop to durable execution, four test families. |
+| `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the one-time project setup, the package owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
 ## Which family?
 

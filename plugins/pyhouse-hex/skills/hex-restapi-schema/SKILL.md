@@ -29,7 +29,7 @@ src/myapp/restapi/schemas/foos.py        # the resource's schemas
 src/myapp/restapi/schemas/__init__.py        # update to re-export
 ```
 
-Sub-resource schemas live **in the same file as the parent** when they are only used through the parent router (e.g. `BarResponse` in `foos.py` if `bars` are nested under `/foos/{id}/bars`).
+The module holds several classes on purpose: one resource's request and response models are a closed set of declarations that change together, the case `python-packaging` lets share a module named for the set. Sub-resource schemas live **in the same file as the parent** when they are only used through the parent router (e.g. `BarResponse` in `foos.py` if `bars` are nested under `/foos/{id}/bars`).
 
 ### Schema module
 
@@ -50,13 +50,9 @@ __all__ = [
 class FooResponse(BaseModel):
     id: UUID
     name: str
-    sort_order: int
-    usage_count: int = 0
+    bar_id: UUID
 
-# This shows the OFFSET pagination shape. A resource whose `hex-domain-model`
-# filter record chose cursor paging instead carries `items`, `next_cursor:
-# str | None`, `limit` — `hex-domain-model`'s one-pagination-shape rule picks
-# exactly one; match whichever shape the filter declared (Rule 7).
+# Offset paging; a filter that pages by cursor makes this `items`, `next_cursor`, `limit` (Rule 7).
 class FooListResponse(BaseModel):
     items: Sequence[FooResponse]
     total: int
@@ -64,17 +60,12 @@ class FooListResponse(BaseModel):
     offset: int
 
 class FooCreateRequest(BaseModel):
-    # Both bounds restate a constraint the DOMAIN already states — `min_length=1`
-    # mirrors `Foo`'s non-empty-name invariant, `max_length` the maximum that
-    # invariant (or the width the name is persisted at) declares. 120 is this
-    # example's number; take the real one from the domain, and where the domain
-    # states no maximum, state none here.
-    name: Annotated[str, Field(min_length=1, max_length=120)]
-    sort_order: int = 0
+    name: Annotated[str, Field(min_length=1)]  # mirrors Foo's non-empty-name invariant
+    bar_id: UUID
 
 class FooUpdateRequest(BaseModel):
-    name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
-    sort_order: int | None = None
+    name: Annotated[str | None, Field(min_length=1)] = None
+    bar_id: UUID | None = None
 ```
 
 ## Other bindings
@@ -121,7 +112,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 ### PATCH semantics
 
 5. **Every field on `*UpdateRequest` is `T | None = None`.** The handler interprets `None` as "leave unchanged"; an explicit value as "set to this". Non-negotiable — the command DTO encodes the same partial-update contract.
-6. **`*CreateRequest` lists required fields without `None`** and uses defaults (`sort_order: int = 0`) for genuinely optional inputs.
+6. **`*CreateRequest` lists required fields without `None`**, and gives a default only to an input that is genuinely optional.
 
 ### `*ListResponse`
 
@@ -136,7 +127,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 
 ### What never goes in a schema file
 
-- **No domain types beyond enums.** `FooResponse` does not import the `Foo` entity.
+- **No domain types beyond enums.** `FooResponse` does not import the `Foo` entity, and a value object crosses as its primitive fields, mapped in the route.
 - **No business logic, computed properties, or `@validator`s that encode rules.** Use Pydantic's built-in `Field` constraints for shape; domain rules go elsewhere.
 - **No persistence concerns.** Nothing that builds a schema straight from a stored row or mapped object — no ORM mode, no from-row constructor, no storage library's column types. A schema that can construct itself from the database has tied the wire format to the table, and the two then have to move together.
 - **No shared base class beyond the model library's own** (rule 1).
@@ -150,8 +141,8 @@ A cross-cutting request schema that **already exists** elsewhere (e.g. an auth l
 
 See `python-style` and `python-packaging` for the shared typing and import rules.
 
-- **Allowed:** `pydantic`, stdlib (`uuid`, `collections.abc`, `datetime`, `decimal`, `typing`), and **domain enums or value-object types only** (`FooCategory`, `Role`).
-- **Forbidden:** domain entities, dataclasses, repositories, application handlers, infrastructure types. Routers map field-by-field; the schema must not know about `Foo` the entity.
+- **Allowed:** `pydantic`, stdlib (`uuid`, `collections.abc`, `datetime`, `decimal`, `typing`), and **domain enums only** (`FooCategory`, `Role`).
+- **Forbidden:** domain entities, value objects and other dataclasses, repositories, application handlers, infrastructure types. Routers map field-by-field; the schema must not know about `Foo` the entity.
 - **No `from __future__ import annotations`** (`python-style` — the model library reads annotations at runtime).
 - **No `Optional[...]`** — `T | None` (`python-style`).
 
@@ -160,20 +151,20 @@ See `python-style` and `python-packaging` for the shared typing and import rules
 After writing the module, update `restapi/schemas/__init__.py`:
 
 ```python
-from . import foos  # alphabetized with siblings
+from . import errors, foos
+from .errors import *
 from .foos import *
 
-__all__ = (
-    foos.__all__
-    # + sibling.__all__ ...
-)
+__all__ = errors.__all__ + foos.__all__
 ```
+
+`errors` is `hex-restapi-app`'s and stays; each resource module joins it in alphabetical order.
 
 See `python-packaging` for package re-exports and `__all__` composition.
 
 ## Hard stops
 
-- Spec asks `*Response` to validate input → stop, responses don't validate. The data already passed domain invariants.
-- Spec asks `*CreateRequest` to allow all fields as `None` → stop, that's a `*UpdateRequest`.
-- Spec asks for a shared base class to deduplicate fields across resources → stop, schemas are wire contracts; repetition is intentional.
-- Spec asks to import a domain entity into the schema file → stop, mapping happens in the route.
+- `*Response` is asked to validate input → stop, responses don't validate. The data already passed domain invariants.
+- `*CreateRequest` is asked to allow all fields as `None` → stop, that's a `*UpdateRequest`.
+- Asked for a shared base class to deduplicate fields across resources → stop, schemas are wire contracts; repetition is intentional.
+- Asked to import a domain entity into the schema file → stop, mapping happens in the route.
