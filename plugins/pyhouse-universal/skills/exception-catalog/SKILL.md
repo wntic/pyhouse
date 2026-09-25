@@ -1,6 +1,6 @@
 ---
 name: exception-catalog
-description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, and translation with `from exc`. Where the error is logged is `python-style`.
+description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, and best-effort compensation as the one failure that may be swallowed. Where the error is logged is `python-style`.
 ---
 
 # Exception Catalog
@@ -57,6 +57,9 @@ or, far more often, needs nothing and leaves `code` to do the work.
 - Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
   `pyhouse-hex` plugin, which references the new `code`.
 - Where the error is logged and by whom → `python-style`.
+- Whether an undo step's own failure may be swallowed while another failure propagates → this skill,
+  **Best-effort compensation**; the handler shape that runs the undo is the architecture family's
+  (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
 - Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin; this skill owns the class, its `code` and its status, not the rendering.
@@ -263,6 +266,40 @@ than the original error: a third-party type crossing a layer defeats every `exce
 against the catalogue, so a recognisable conflict is rendered as an unexplained crash and a swallowed
 one becomes a silent wrong answer.
 
+### Best-effort compensation — the one failure that may be swallowed
+
+A scope that has already caused an externally visible effect — an object uploaded, a message
+published, a reservation taken — and then fails on a later step undoes the effect before letting the
+failure go. The undo runs **while that failure is already propagating**, and it can fail too. Letting
+the undo's error escape would replace the fault that actually happened with a report about the cleanup,
+so this one case is exempt from "never swallow": **an undo step's own failure may be swallowed, on three
+conditions, all required.**
+
+1. **It is swallowed only by the scope that caught the original failure and will re-raise it** — the
+   only scope that knows a failure is propagating. The undo it calls raises like any other call; a
+   method that swallows its own failure in case some caller is compensating hides it from every caller
+   that is not.
+2. **That scope logs one `warning` event naming the failed undo**, with the undo's identifying inputs as
+   fields and the undo's error attached. It is the only record that an effect outlived the operation
+   that made it; `python-style`'s `LOGGING.md` places the call.
+3. **The original failure is re-raised unchanged**, and only the undo call sits inside the swallow —
+   never the original operation, and never a bare `except: pass`.
+
+```python
+try:
+    await self._foos.add(foo)
+except Exception:
+    try:
+        await self._blobs.delete(blob_key)
+    except Exception as undo_exc:
+        log.warning("foo_blob_undo_failed", blob_key=blob_key, exc_info=undo_exc)
+    raise
+```
+
+The bare `raise` re-raises the original: the inner handler has finished, so the failure being handled
+is the outer one again. Nothing else is swallowed anywhere — a translation's unmatched branch, a
+cleanup on the success path, a failure no other failure is propagating over all raise.
+
 ## Rules
 
 1. **Never define an exception outside the catalog file.** Not beside the code that raises it, not in a
@@ -320,6 +357,12 @@ one becomes a silent wrong answer.
     has `UpstreamUnavailableError`, a refinement of the *client* class for one upstream — and in the
     worker case that family usually serves, no `http_status`, because nothing renders it. They are not two spellings of one class and neither
     renames to the other; a project has one root and therefore only ever meets one of them.
+16. **A failure is never swallowed, with one named exception: best-effort compensation.** While a
+    failure is already propagating, an undo step's own failure may be swallowed by the scope that
+    caught the original — that scope logs one `warning` event naming the failed undo and its
+    identifying inputs, then re-raises the original failure unchanged. The undo's error must not
+    replace the fault that happened, and the warning is the only trace that an effect was left behind.
+    Nowhere else, and never as a bare `except: pass`.
 
 ## Inlined typing / import rules
 
@@ -340,6 +383,14 @@ one becomes a silent wrong answer.
 - A library or SDK exception type escapes the module that called the library → stop, translate it.
 - A translation's unmatched branch returns the raw exception, re-raises it unchanged, or swallows it with
   `pass` → stop, the fallback raises a catalogue class; a partial translation still leaks.
+- An exception swallowed with `pass`, or swallowed anywhere but around an undo step while the original
+  failure propagates → stop; the only sanctioned swallow is best-effort compensation, and it logs one
+  `warning` naming the failed undo and re-raises the original.
+- A method swallows its own failure because a caller might be compensating (a `*_best_effort` variant
+  that catches internally) → stop, let it raise; the swallow belongs to the scope that caught the
+  original failure, the only one that knows a failure is propagating.
+- An undo's failure is raised in place of the original, or the original is lost behind it → stop,
+  swallow the undo's failure under best-effort compensation and re-raise the original.
 - A `context` key invented at the raise site that no test asserts on, or a key renamed on a shipped
   class → stop, the key set is a contract between the raise site, its test and the log line.
 - A password, token, API key or connection string being put in `context` → stop, it is rendered verbatim
