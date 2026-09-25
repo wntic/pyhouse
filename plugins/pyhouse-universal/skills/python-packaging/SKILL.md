@@ -160,6 +160,10 @@ def get_settings() -> Settings:
     return Settings()
 ```
 
+Reading the installed distribution's own metadata is a filesystem read like any other, so it gets no
+exemption: a `__version__` computed at module level is a build, and the version a program reports is
+read behind a function the caller calls (`python-versioning` owns the number and where it is declared).
+
 Cache the factory only once a second caller genuinely exists — a framework resolving it per request,
 say. Where the entrypoint reads settings once and hands concrete values down, nothing calls it twice
 and the cache buys nothing; needing one is usually a sign something below the entrypoint is reading
@@ -225,8 +229,8 @@ package's own `__all__`. Miss one and the collapsed form breaks at the first cal
 anything outside the distribution imports it, and there are two cases.
 
 - **An application's root is not an API.** Nothing outside imports it, so the top-level
-  `<package>/__init__.py` carries only `__version__`. Aggregating to it would make `import <package>`
-  transitively pull every third-party dependency the project has on every use, and destroy any
+  `<package>/__init__.py` re-exports nothing and stays empty. Aggregating to it would make
+  `import <package>` transitively pull every third-party dependency the project has on every use, and destroy any
   dependency-free import path the architecture was maintaining, in exchange for an import path nobody
   outside uses. Re-export stops below the root; it does not climb to it.
 - **A distributable package's root *is* its public API.** A library or SDK is imported by code that
@@ -343,7 +347,7 @@ hand-written imports land in the right block.
 4. Check each re-exporting `__init__.py` against all four parts of the re-export contract.
 5. When adding a public module, complete all four package edits listed under that contract.
 6. Apply each re-export carve-out at its documented scope: the distribution root by what that root is —
-   an application's carries `__version__`, a library's carries the names it publishes and no others —
+   an application's stays empty, a library's carries the names it publishes and no others —
    side effects or colliding exports, and bare-object modules.
 7. Select relative or absolute reach using **Relative vs absolute**, without routing a sibling import
    through its parent. A layer boundary is a package boundary and takes the absolute form.
@@ -382,15 +386,15 @@ hand-written imports land in the right block.
   the explicit submodule import; the wildcard alone does not bind the name for the type checker.
 - A package with children and an empty `__init__.py` → stop, re-export them.
 - An application's distribution root `__init__.py` wildcarding its subpackages → stop, nothing outside
-  imports that root, and every importer would pay for the dependencies it drags in; it carries
-  `__version__` only.
+  imports that root, and every importer would pay for the dependencies it drags in; it stays empty.
 - A library or SDK root re-exporting whatever sits beneath it rather than the names it publishes → stop,
   that root is the contract; enumerate it, and leave a name whose import pulls a heavy or optional
   dependency to its own module path.
 - A module with import-time side effects being wildcarded into its package → stop, importing the package
   would now run it.
-- A module-level `settings = Settings()`, client, engine or connection → stop, put it behind a factory;
-  as written, every importer pays for it and the failure names the import instead of the missing value.
+- A module-level `settings = Settings()`, client, engine, connection or metadata-read `__version__` →
+  stop, put it behind a factory; as written, every importer pays for it and the failure names the
+  import instead of the missing value.
 - Importing an inner module rather than its package (`from pkg.foo.foo import Foo`) → stop, import from
   the package.
 - Reaching a symbol through a grandparent package → stop, one hop; the middle `__all__` is computed and
