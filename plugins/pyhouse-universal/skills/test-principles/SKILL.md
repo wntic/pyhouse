@@ -145,7 +145,7 @@ The coupling point is deliberate and load-bearing:
 
 Fake modules and imports follow `python-packaging`.
 
-**No autouse fixtures except**: the session-scoped DB guard, the session-scoped migration runner, and the session-end bucket cleanup. Each autouse is documented; no one ever adds a "convenience" autouse.
+**No autouse fixtures except**: the session-scoped DB guard and the session-scoped migration runner. Each autouse is documented; no one ever adds a "convenience" autouse.
 
 ### Flat — tests tree and conftest hierarchy (pytest, uv workspace)
 
@@ -395,8 +395,8 @@ fixture, and passes it in.
    datastore is the one sanctioned alternative, and it is guarded on both sides: opt in through a
    dedicated variable, never an ambient one, and refuse to run unless something explicitly declared
    the database disposable — an exact match against a declared throwaway name, or a marker set by
-   whatever provisioned it — never inferring disposability from the host, the port or any part of
-   the DSN. `flat-test-integration-setup` carries the declared-name form and
+   whatever provisioned it — never inferring it from the host, the port or a pattern over the DSN;
+   an exact match against a declared name is a declaration. `flat-test-integration-setup` carries the declared-name form and
    `hex-test-integration-setup` the provisioner's-marker form. An *unguarded* "developer's local Postgres" mode → stop; the suite TRUNCATEs every
    table it can see, and the variable that would divert it is exported by tools that know nothing
    about this suite.
