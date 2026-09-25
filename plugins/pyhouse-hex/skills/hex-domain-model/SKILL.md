@@ -145,6 +145,66 @@ Use this variant only when the value carries no domain meaning beyond "this is a
 participates in the ubiquitous language — a `FooTotal`, a `RetentionWindow` with behaviour — it is an
 ordinary value object.
 
+### Value object — the instances the port templates name
+
+The port signatures in `hex-domain-ports` name four value objects. Each is the standard form above,
+filled in, in the subdomain package whose port names it:
+
+```python
+# src/myapp/domain/bars/canonical_bar_url.py
+from dataclasses import dataclass
+
+__all__ = ["CanonicalBarUrl"]
+
+@dataclass(frozen=True)
+class CanonicalBarUrl:
+    value: str
+```
+
+```python
+# src/myapp/domain/bars/bar_token.py
+from dataclasses import dataclass
+from datetime import datetime
+
+__all__ = ["BarToken"]
+
+@dataclass(frozen=True)
+class BarToken:
+    value: str
+    expires_at: datetime
+```
+
+```python
+# src/myapp/domain/foos/foo_export_row.py
+from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
+
+__all__ = ["FooExportRow"]
+
+@dataclass(frozen=True)
+class FooExportRow:
+    id: UUID
+    name: str
+    created_at: datetime
+```
+
+```python
+# src/myapp/domain/audit/audit_event.py
+from dataclasses import dataclass
+from uuid import UUID
+
+__all__ = ["AuditEvent"]
+
+@dataclass(frozen=True)
+class AuditEvent:
+    subject_id: UUID
+    action: str
+```
+
+`FooExportRow` is a read-model rather than a value object — it carries `created_at`, which no entity
+does (Entity rule 6) — and takes the same frozen form (`hex-application`, read models).
+
 ### Enum — `StrEnum` (the default, for string-valued sets)
 
 ```python
@@ -240,7 +300,7 @@ class FooListFilter:
     created_from: date | None = None
     created_to: date | None = None
     sort: FooSort = FooSort.CREATED_AT_DESC
-    limit: int = 50  # this example's page size; the project picks its own
+    limit: int = 50
     offset: int = 0
 ```
 
@@ -343,8 +403,8 @@ One case is neither a shape here nor a neighbour's:
 4. **Sort is an enum reference**, never a bare string. See `python-packaging` for its module.
 5. **One pagination shape, explicitly.** Either `limit: int` + `offset: int`, both defaulted, or
    `cursor: str | None`. Never both. If it is not stated which, ask. **The default page size is the
-   project's decision, not the catalogue's** — the template's `50` is that example's number; pick one
-   bound, state it once, and keep every filter in the service on it.
+   project's decision, not the catalogue's** — pick one bound, state it once, and keep every filter in
+   the service on it.
 6. **No methods.** A filter record is a passive data bag. Anything computed — translating a sort key to
    a SQL column, say — belongs in the repository adapter.
 7. **No business invariants.** A repository receives whatever the caller passed; range and authorization

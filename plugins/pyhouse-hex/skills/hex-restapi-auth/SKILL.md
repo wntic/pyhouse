@@ -172,7 +172,7 @@ declare. Each of those is an unverifiable credential and answers 401 like a bad 
 500. Here `require` turns an absent claim into the library's own `InvalidTokenError`, and the last arm
 catches what building the identity raises on a claim of the wrong shape — `ValueError` from a string
 `UUID(...)` or `Role(...)` cannot parse, `AttributeError` or `TypeError` from `UUID(...)` handed a
-non-string. Recent PyJWT releases reject a non-string `sub` themselves; the arm keeps the verifier
+non-string. PyJWT 2.10 and later reject a non-string `sub` themselves; the arm keeps the verifier
 correct without depending on that.
 
 ### `infrastructure/jwt/settings.py`
@@ -333,8 +333,9 @@ issue. Those are two different answers, not two spellings of one; `exception-cat
 
 ## The route's auth dependency and codes
 
-**`ROUTES.md`** — the half consulted every time a route is written: the decision table for which
-dependency an operation takes, the `_`-vs-`user` binding rule and the stamp-from-the-identity rule,
+**Read `ROUTES.md` before writing or changing any route in an app that declares auth** — only this
+file is loaded automatically. It is the half consulted every time a route is written: the decision
+table for which dependency an operation takes, the `_`-vs-`user` binding rule and the stamp-from-the-identity rule,
 the four things that derive an authenticated route from an auth-free one, and the coordinated
 advertisement rule joining the chosen dependency to the codes the route declares.
 

@@ -20,6 +20,7 @@ adapters.
 
 ```python
 from collections.abc import Sequence
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 from uuid import UUID
 
@@ -28,7 +29,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from myapp.domain.exceptions import (
-    ConflictError, FooConflictError, InUseError, NotFoundError, ValidationError,
+    ConflictError,
+    FooConflictError,
+    InUseError,
+    NotFoundError,
+    ValidationError,
 )
 from myapp.domain.foos import Foo, FooListFilter, FooSort
 
@@ -150,16 +155,31 @@ class FooRepository:
 def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:
     if filter.bar_ids:
         stmt = stmt.where(foos_table.c.bar_id.in_(filter.bar_ids))
+    if filter.created_from is not None:
+        stmt = stmt.where(foos_table.c.created_at >= _start_of(filter.created_from))
+    if filter.created_to is not None:
+        stmt = stmt.where(foos_table.c.created_at < _start_of(filter.created_to + timedelta(days=1)))
     return stmt
+
+
+def _start_of(day: date) -> datetime:
+    return datetime.combine(day, time.min, tzinfo=UTC)
 ```
+
+Both date bounds are inclusive and read as UTC days: `created_to` admits every instant of that day, so
+the upper bound is the start of the next one.
 
 ## Template — unit-of-work-managed form
 
-Only the constructor and the method bodies differ: methods use `self._session.execute(...)` directly and
-**never call `commit()`** — the unit of work owns the transaction.
+A class of its own, `FooSessionRepository` in `foo_session_repository.py`, when the aggregate needs the
+standalone form too. Only the constructor and the method bodies differ: methods use
+`self._session.execute(...)` directly and **never call `commit()`** — the unit of work owns the
+transaction. The module-level helpers (`_SORT_COLUMNS`, `_FK_FIELD_MAP`, `_map_integrity_error`,
+`_apply_filter`) are shared, not copied: once both forms exist they move to one module both adapters
+import, so the constraint-name map stays single.
 
 ```python
-class FooRepository:
+class FooSessionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

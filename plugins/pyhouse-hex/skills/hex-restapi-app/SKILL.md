@@ -20,6 +20,7 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - Constructing or extending the composition root this shell attaches → `hex-wiring`.
 - Creating the application handlers routes receive from it → `hex-application`.
 - Whether the service should be hexagonal at all → `architecture-choice`; the project substrate, dependencies, lint and initial Alembic setup around this shell → `hex-project-setup`.
+- An HTTP service with no rules of its own to protect — internal CRUD over its store, a webhook, a proxy → `flat-entrypoint`'s HTTP trigger shape, in the `pyhouse-flat` plugin, once `architecture-choice` has settled the family.
 - Middleware class naming and the `restapi/middleware/` package layout → `naming` and `python-packaging`.
 - The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-app-invariants`.
 

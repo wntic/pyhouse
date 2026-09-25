@@ -50,13 +50,9 @@ __all__ = [
 class FooResponse(BaseModel):
     id: UUID
     name: str
-    sort_order: int
-    usage_count: int = 0
+    bar_id: UUID
 
-# This shows the OFFSET pagination shape. A resource whose `hex-domain-model`
-# filter record chose cursor paging instead carries `items`, `next_cursor:
-# str | None`, `limit` — `hex-domain-model`'s one-pagination-shape rule picks
-# exactly one; match whichever shape the filter declared (Rule 7).
+# Offset paging; a filter that pages by cursor makes this `items`, `next_cursor`, `limit` (Rule 7).
 class FooListResponse(BaseModel):
     items: Sequence[FooResponse]
     total: int
@@ -64,17 +60,12 @@ class FooListResponse(BaseModel):
     offset: int
 
 class FooCreateRequest(BaseModel):
-    # Both bounds restate a constraint the DOMAIN already states — `min_length=1`
-    # mirrors `Foo`'s non-empty-name invariant, `max_length` the maximum that
-    # invariant (or the width the name is persisted at) declares. 120 is this
-    # example's number; take the real one from the domain, and where the domain
-    # states no maximum, state none here.
-    name: Annotated[str, Field(min_length=1, max_length=120)]
-    sort_order: int = 0
+    name: Annotated[str, Field(min_length=1)]  # mirrors Foo's non-empty-name invariant
+    bar_id: UUID
 
 class FooUpdateRequest(BaseModel):
-    name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
-    sort_order: int | None = None
+    name: Annotated[str | None, Field(min_length=1)] = None
+    bar_id: UUID | None = None
 ```
 
 ## Other bindings
@@ -121,7 +112,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 ### PATCH semantics
 
 5. **Every field on `*UpdateRequest` is `T | None = None`.** The handler interprets `None` as "leave unchanged"; an explicit value as "set to this". Non-negotiable — the command DTO encodes the same partial-update contract.
-6. **`*CreateRequest` lists required fields without `None`** and uses defaults (`sort_order: int = 0`) for genuinely optional inputs.
+6. **`*CreateRequest` lists required fields without `None`**, and gives a default only to an input that is genuinely optional.
 
 ### `*ListResponse`
 
@@ -160,14 +151,14 @@ See `python-style` and `python-packaging` for the shared typing and import rules
 After writing the module, update `restapi/schemas/__init__.py`:
 
 ```python
-from . import foos  # alphabetized with siblings
+from . import errors, foos
+from .errors import *
 from .foos import *
 
-__all__ = (
-    foos.__all__
-    # + sibling.__all__ ...
-)
+__all__ = errors.__all__ + foos.__all__
 ```
+
+`errors` is `hex-restapi-app`'s and stays; each resource module joins it in alphabetical order.
 
 See `python-packaging` for package re-exports and `__all__` composition.
 

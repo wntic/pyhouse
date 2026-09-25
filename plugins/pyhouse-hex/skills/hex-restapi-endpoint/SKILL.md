@@ -45,16 +45,20 @@ from typing import Annotated
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
 from myapp.application.foos import (
     CreateFooCommand,
     CreateFooHandler,
+    DeleteFooCommand,
+    DeleteFooHandler,
     GetFooHandler,
     GetFooQuery,
     ListFoosHandler,
     ListFoosQuery,
+    UpdateFooCommand,
+    UpdateFooHandler,
 )
 from myapp.domain.foos import FooListFilter
 
@@ -62,6 +66,7 @@ from ..schemas import (
     FooCreateRequest,
     FooListResponse,
     FooResponse,
+    FooUpdateRequest,
     error_responses,
 )
 
@@ -70,20 +75,26 @@ __all__ = ["router"]
 router = APIRouter(prefix="/foos", tags=["foos"], route_class=DishkaRoute)
 ```
 
+The skeleton imports what the CRUD routes below use; a file-transfer or collection-action route adds
+the names its own template shows.
+
 
 **The route templates below are the primary, auth-free form** — every route in an app that declares
 no auth, and the public routes of an app that does. Whether an app has auth at all follows from its
 routes. An authenticated route adds exactly four things to one of these templates — the auth-dependency
-parameter last in the signature, the `domain.auth` + `..dependencies` imports, the `401` (and `403` when
-role-gated) codes, and the `caller_id=user.id` argument where the DTO carries it — and nothing else. The
+parameter last in the signature, the `domain.auth` + `..dependencies` imports and `Depends`, the `401`
+(and `403` when role-gated) codes, and the `caller_id=user.id` argument where the DTO carries it — and
+nothing else. The
 derivation, the dependency choice and the code join are `hex-restapi-auth`'s; one worked authenticated
-variant is kept below, under `mixed multipart + JSON`.
+variant is kept below, under `mixed multipart + JSON`. The commands these routes build are therefore
+`hex-application`'s in their auth-free form, without `caller_id` — its auth-derived-fields rule drops
+the field, and the handler's `caller_id` log argument with it, in an app with no caller to thread.
 
 ### `list` (paginated read) — pagination shape mirrors `hex-domain-model`
 
 Use the **`limit`/`offset`** template when the matching `hex-domain-model` uses limit/offset paging. Use the **`cursor`** template when it uses a cursor. The two forms are mutually exclusive — never both.
 
-**A page size is always bounded and always defaulted** — an unbounded `limit` lets one request ask for the whole table. The *ceiling* and the *default* are the app's decision, not this skill's, so they are named module-level constants in the router file rather than literals in a signature: `Query(...)` bounds are evaluated when the route function is defined, so they cannot be injected per request, and a named constant is what lets one app state its number once and reuse it across every paginated route. `100` and `50` below are **this example's numbers**; an app picks a ceiling its list query can serve in one round trip. `ge=1` on the page size and `ge=0` on the offset are not tunable — a zero-row page and a negative offset are meaningless at any ceiling.
+**A page size is always bounded and always defaulted** — an unbounded `limit` lets one request ask for the whole table. The *ceiling* and the *default* are the app's decision, not this skill's, so they are named module-level constants in the router file rather than literals in a signature: `Query(...)` bounds are evaluated when the route function is defined, so they cannot be injected per request, and a named constant is what lets one app state its number once and reuse it across every paginated route. An app picks a ceiling its list query can serve in one round trip. `ge=1` on the page size and `ge=0` on the offset are not tunable — a zero-row page and a negative offset are meaningless at any ceiling.
 
 ```python
 # In the router file, beside `router = APIRouter(...)`:
@@ -104,7 +115,7 @@ async def list_foos(
         ListFoosQuery(filter=FooListFilter(limit=limit, offset=offset)),
     )
     return FooListResponse(
-        items=[FooResponse(...) for foo in result.items],
+        items=[FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id) for foo in result.items],
         total=result.total,
         limit=limit,
         offset=offset,
@@ -124,7 +135,7 @@ async def list_foos(
         ListFoosQuery(filter=FooListFilter(cursor=cursor, limit=limit)),
     )
     return FooListResponse(
-        items=[FooResponse(...) for foo in result.items],
+        items=[FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id) for foo in result.items],
         next_cursor=result.next_cursor,
         limit=limit,
     )
@@ -141,7 +152,7 @@ async def get_foo(
     handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     foo = await handler.execute(GetFooQuery(id=id))
-    return FooResponse(...)
+    return FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id)
 ```
 
 ### `create` (with post-write read-back)
@@ -151,7 +162,7 @@ async def get_foo(
     "",
     response_model=FooResponse,
     status_code=201,
-    responses=error_responses(409, 422),
+    responses=error_responses(404, 409, 422),
 )
 async def create_foo(
     body: FooCreateRequest,
@@ -159,11 +170,15 @@ async def create_foo(
     get_handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     new_id = await handler.execute(
-        CreateFooCommand(name=body.name),
+        CreateFooCommand(name=body.name, bar_id=body.bar_id),
     )
     foo = await get_handler.execute(GetFooQuery(id=new_id))
-    return FooResponse(...)
+    return FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id)
 ```
+
+The `404` is the body's `bar_id` naming a `Bar` that does not exist: the repository translates that
+foreign-key rejection into the catalogue's not-found class (`hex-persistence`), so create advertises it
+(`CONTRACTS.md`).
 
 ### `update` (PATCH with read-back)
 
@@ -180,10 +195,10 @@ async def update_foo(
     get_handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     await handler.execute(
-        UpdateFooCommand(id=id, name=body.name),
+        UpdateFooCommand(id=id, name=body.name, bar_id=body.bar_id),
     )
     foo = await get_handler.execute(GetFooQuery(id=id))
-    return FooResponse(...)
+    return FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id)
 ```
 
 ### `delete` (204)
@@ -299,7 +314,7 @@ imports for the public form.
     "",
     status_code=201,
     response_model=FooResponse,
-    responses=error_responses(401, 403, 409, 413, 422),
+    responses=error_responses(401, 403, 404, 409, 413, 422),
 )
 async def create_foo(
     data: Annotated[str, Form()],
@@ -310,7 +325,8 @@ async def create_foo(
     try:
         payload = CreateFooPayload.model_validate_json(data)
     except PydanticValidationError as exc:
-        raise ValidationError(str(exc)) from exc
+        fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
+        raise ValidationError("invalid payload", {"fields": fields}) from exc
     ...
 ```
 
@@ -318,7 +334,7 @@ Rules:
 
 - `data: Annotated[str, Form()]` receives the JSON blob as a string. Pydantic does not automatically validate it because the parameter type is `str` — validation is explicit.
 - `<Schema>.model_validate_json(data)` parses and validates.
-- **The `try/except PydanticValidationError → raise ValidationError(str(exc)) from exc` is the single sanctioned `try/except` in a route body** in this codebase. It exists because Pydantic's exception raised inside a route is neither a `DomainError` nor the framework's request-validation error, so uncaught it reaches the catch-all handler and answers `500 INTERNAL_ERROR` for what is the client's malformed input. **Use this pattern verbatim — no other forms of error catching belong in a route.**
+- **The `try/except PydanticValidationError → raise ValidationError(...) from exc` is the single sanctioned `try/except` in a route body** in this codebase. The context names the rejected fields by location and never echoes the input: the library's own message carries each rejected value, which may be a secret, so it is not passed on. It exists because Pydantic's exception raised inside a route is neither a `DomainError` nor the framework's request-validation error, so uncaught it reaches the catch-all handler and answers `500 INTERNAL_ERROR` for what is the client's malformed input. **Use this pattern verbatim — no other forms of error catching belong in a route.**
 - Exception chaining follows `exception-catalog`.
 
 This pattern is reserved for the multipart+JSON case. **Do not generalize it.** A JSON-only route uses `body: <Schema>` and lets FastAPI's normal validation flow through the central handler.
@@ -360,7 +376,7 @@ def _export_filename(ext: str) -> str:
 - **Name it `_<purpose>_filename`** — module-level, underscore-prefixed because it is private to the
   router module and must not be re-exported. Identifier choice otherwise follows `naming`; the
   private-export rule follows `python-packaging`.
-- The shape shown (UTC timestamp `YYYYMMDD-HHMMSS`, a `myapp-foos` prefix, an extension parameter) is a reasonable default, not a fixed canon. The exact filename format — timestamp style, prefix, ASCII vs RFC 5987 — is an app-level choice; keep it consistent within one app, but don't freeze this particular shape as mandatory across apps.
+- The filename format — timestamp style, prefix, ASCII vs RFC 5987 — is an app-level choice; keep it consistent within one app.
 - Filename construction lives in the route, not the handler. The handler returns content; the route names the artifact.
 
 #### CORS `expose_headers`

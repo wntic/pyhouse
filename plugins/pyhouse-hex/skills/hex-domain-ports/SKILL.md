@@ -14,8 +14,8 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 - Aggregate-root data access — CRUD plus aggregate-specific reads → **repository protocol** (`IFooRepository`), in this skill.
 - A single action that does IO or talks to an external system — file rendering, token verification, blob storage, a third-party gateway call → **capability protocol** (`ICan<Verb>`), in this skill.
 - A pure-CPU operation a third-party library performs — JWT signature verification, IDNA-aware URL canonicalization → **capability protocol**, with a sync method instead of async; the domain cannot import the library, and the port is how it uses one.
-- Pure-CPU logic the standard library can do — trimming, case-folding, a stdlib URL normalization → no port; a value object's construction (`hex-domain-model`) or a pure domain service (`hex-domain-service`).
-- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`.
+- Pure-CPU logic the standard library can do — trimming, case-folding, a stdlib URL normalization → no port; a value object's construction (`hex-domain-model`) or a module-level domain function (`hex-domain-service`).
+- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`, which also shows the value objects the ports below name (`CanonicalBarUrl`, `BarToken`, `FooExportRow`, `AuditEvent`).
 - A rule needing cross-aggregate state, which *consumes* these protocols → `hex-domain-service`.
 - A concrete repository implementation → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store). The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
 - A concrete capability implementation → `hex-capability-adapter`.
@@ -50,6 +50,61 @@ class IFooRepository(Protocol):
     async def delete(self, id: UUID) -> None: ...
 ```
 
+### Repository protocol — a store that answers only some reads
+
+A port declares what its store can answer, never more. A key-value store reaches a record by its key and
+nothing else, so a `Foo` kept there is created, fetched by id and deleted — `list`, `count` and
+`get_by_name` would need a secondary index the store does not keep. It gets a narrower port of its own,
+named for what it holds, and a handler that needs the full read set depends on `IFooRepository` on a
+store that can serve it:
+
+```python
+from typing import Protocol
+from uuid import UUID
+
+from .foo import Foo
+
+__all__ = ["IFooArchive"]
+
+class IFooArchive(Protocol):
+    async def create(self, foo: Foo) -> None: ...
+    async def get_by_id(self, id: UUID) -> Foo: ...
+    async def delete(self, id: UUID) -> None: ...
+```
+
+A search index over the same aggregate is a derived projection with verbs of its own — the embedding
+goes in beside the entity, and a search returns scored pairs:
+
+```python
+from collections.abc import Sequence
+from typing import Protocol
+from uuid import UUID
+
+from .foo import Foo
+
+__all__ = ["IFooSearchIndex"]
+
+class IFooSearchIndex(Protocol):
+    async def add_many(self, embedded: Sequence[tuple[Foo, Sequence[float]]]) -> None: ...
+    async def search(
+        self, *, query_vector: Sequence[float], k: int
+    ) -> tuple[tuple[Foo, float], ...]: ...
+    async def delete_by_bar(self, bar_id: UUID) -> None: ...
+```
+
+An append-only record that joins a unit of work (`hex-patterns`) is a repository with one write:
+
+```python
+from typing import Protocol
+
+from .audit_event import AuditEvent
+
+__all__ = ["IAuditRepository"]
+
+class IAuditRepository(Protocol):
+    async def append(self, event: AuditEvent) -> None: ...
+```
+
 ### Capability protocol — async (the default in an event-loop program)
 
 ```python
@@ -76,6 +131,31 @@ class ICanStoreFoos(Protocol):
     async def delete(self, key: str) -> None: ...
 ```
 
+Reading the stored bytes back is a second action, so it is a second port — one adapter may satisfy
+both (`hex-capability-adapter`):
+
+```python
+from typing import Protocol
+
+__all__ = ["ICanFetchFoos"]
+
+class ICanFetchFoos(Protocol):
+    async def download(self, key: str) -> bytes: ...
+```
+
+### Capability protocol — a third-party gateway call
+
+```python
+from typing import Protocol
+
+from .bar_token import BarToken
+
+__all__ = ["ICanFetchBarToken"]
+
+class ICanFetchBarToken(Protocol):
+    async def fetch_token(self, subject: str) -> BarToken: ...
+```
+
 ### Capability protocol — sync (pure CPU only)
 
 ```python
@@ -100,7 +180,7 @@ one aggregate root, a **capability** is a single action the domain needs but can
 - A pure-CPU operation that needs a third-party library — IDNA-encoding a host, rendering in-memory
   bytes through a document library → **capability protocol**, with a sync method instead of async.
   Pure-CPU logic the standard library can do is not a port at all: it lives in the domain, as a value
-  object's construction or a pure domain service.
+  object's construction or a module-level domain function.
 
 The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
 

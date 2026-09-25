@@ -11,26 +11,6 @@ Which layer a thing belongs to, and what it is allowed to reach. This skill owns
 mechanics of packaging a module and spelling an import are `python-packaging`, and they are the same here
 as in any other project. What goes *inside* a module belongs to whichever skill owns that artifact.
 
-## Is this the right style at all?
-
-This layout costs indirection, and it buys the ability to change a database, a queue or a framework
-without touching business rules. That trade is only worth making when there are business rules to
-protect; a service with none pays the whole price and gets nothing back, and `flat-layered` is the
-sibling style for exactly that case.
-
-**The decision itself is `architecture-choice`'s** — the question that settles it, the confirming
-evidence, what each family costs, and the cases this section does not cover: a service with rules
-*and* heavy integration work, a flat service growing its first rule, a workspace whose members differ,
-and the services that need neither family. Read it before writing anything if the trade above is not
-already obvious for this service. What follows here assumes hexagonal has been chosen.
-
-How much that protection is worth buying is a volatility question, and `coupling` owns the judgment:
-the indirection pays off in proportion to how much the business will keep changing the protected
-rules. Around a core subdomain — the part the business reshapes on purpose — ports and layers earn
-their keep; around a stable supporting workflow the same structure is cost without a buyer, which is
-the flat-layered case. "Not all of a large system will be well designed" is real permission, and
-volatility is how you decide where it applies.
-
 ## When to use vs. neighbours
 
 - Whether this style is the right one at all, or the service belongs in the flat-layered family →
@@ -59,6 +39,26 @@ volatility is how you decide where it applies.
   order → `hex-wiring`. This skill owns only that the root exists — one module, `src/myapp/containers.py`
   — and that nothing else imports a concrete adapter.
 - Turning the import rules below into an automated test → `test-architecture-rule`.
+
+## Is this the right style at all?
+
+This layout costs indirection, and it buys the ability to change a database, a queue or a framework
+without touching business rules. That trade is only worth making when there are business rules to
+protect; a service with none pays the whole price and gets nothing back, and `flat-layered`, in the
+`pyhouse-flat` plugin, is the sibling style for exactly that case.
+
+**The decision itself is `architecture-choice`'s** — the question that settles it, the confirming
+evidence, what each family costs, and the cases this section does not cover: a service with rules
+*and* heavy integration work, a flat service growing its first rule, a workspace whose members differ,
+and the services that need neither family. Read it before writing anything if the trade above is not
+already obvious for this service. What follows here assumes hexagonal has been chosen.
+
+How much that protection is worth buying is a volatility question, and `coupling` owns the judgment:
+the indirection pays off in proportion to how much the business will keep changing the protected
+rules. Around a core subdomain — the part the business reshapes on purpose — ports and layers earn
+their keep; around a stable supporting workflow the same structure is cost without a buyer, which is
+the flat-layered case. "Not all of a large system will be well designed" is real permission, and
+volatility is how you decide where it applies.
 
 ## The four layers
 

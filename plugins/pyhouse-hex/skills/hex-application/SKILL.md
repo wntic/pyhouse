@@ -40,6 +40,12 @@ Outside it:
 src/myapp/application/foos/
 ├── create_foo_command.py   # CreateFooCommand
 ├── create_foo_handler.py   # CreateFooHandler
+├── update_foo_command.py   # UpdateFooCommand
+├── update_foo_handler.py   # UpdateFooHandler
+├── delete_foo_command.py   # DeleteFooCommand
+├── delete_foo_handler.py   # DeleteFooHandler
+├── get_foo_query.py        # GetFooQuery
+├── get_foo_handler.py      # GetFooHandler
 ├── list_foos_query.py      # ListFoosQuery
 ├── list_foos_handler.py    # ListFoosHandler
 └── list_foos_result.py     # ListFoosResult  (only when the read returns more than one entity)
@@ -89,7 +95,69 @@ class CreateFooHandler:
         return foo.id
 ```
 
-### Command handler — update or delete (returns `None`)
+### Command DTO and handler — update (returns `None`)
+
+A partial update: `None` on a field means "leave it unchanged", the same contract as the PATCH body
+(`hex-restapi-schema`).
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+__all__ = ["UpdateFooCommand"]
+
+@dataclass(frozen=True)
+class UpdateFooCommand:
+    caller_id: UUID
+    id: UUID
+    name: str | None = None
+    bar_id: UUID | None = None
+```
+
+```python
+from dataclasses import replace
+
+import structlog
+
+from myapp.domain.foos import IFooRepository
+
+from .update_foo_command import UpdateFooCommand
+
+__all__ = ["UpdateFooHandler"]
+
+logger = structlog.get_logger()
+
+class UpdateFooHandler:
+    def __init__(self, repo: IFooRepository) -> None:
+        self._repo = repo
+
+    async def execute(self, cmd: UpdateFooCommand) -> None:
+        foo = await self._repo.get_by_id(cmd.id)
+        changed = replace(
+            foo,
+            name=foo.name if cmd.name is None else cmd.name,
+            bar_id=foo.bar_id if cmd.bar_id is None else cmd.bar_id,
+        )
+        await self._repo.update(changed)
+        logger.info("foo_updated", foo_id=str(cmd.id), caller_id=str(cmd.caller_id))
+```
+
+`replace` builds a new entity through the constructor, so the entity's invariants run on the changed
+values exactly as they did at creation.
+
+### Command DTO and handler — delete (returns `None`)
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+__all__ = ["DeleteFooCommand"]
+
+@dataclass(frozen=True)
+class DeleteFooCommand:
+    caller_id: UUID
+    id: UUID
+```
 
 ```python
 import structlog
@@ -380,9 +448,9 @@ provider that constructs a handler is `hex-wiring`.
 
 ## Hard stops
 
-- A command handler is asked to return a list, a `Result`, or the entity → stop,
-  because mutations do not return data; use `hex-application` for a query.
-- A query handler is asked to mutate state → stop, use `hex-application` to write a command.
+- A command handler is asked to return a list, a `Result`, or the entity → stop, a mutation returns
+  the affected id or nothing; write a query handler beside it and let the caller re-read.
+- A query handler is asked to mutate state → stop, split the mutation out into a command handler.
 - A handler is asked to catch a `DomainError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
 - A handler is asked to validate cross-aggregate state inline → stop, use `hex-domain-service` and inject it.
 - Several writes must be atomic → stop, use `hex-patterns` for the unit-of-work factory the handler opens.

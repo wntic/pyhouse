@@ -185,7 +185,19 @@ changes the DSN string and the factory's return type; the shape, the name and th
 unchanged:
 
 ```python
-# infrastructure/postgres/engine.py  (the relational engine + session factory — complete)
+# src/myapp/infrastructure/postgres/engine.py  (the relational engine + session factory — complete)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from .settings import DbSettings
+
+__all__ = ["create_engine", "create_session_factory"]
+
+
 def create_engine(settings: DbSettings) -> AsyncEngine:
     return create_async_engine(
         settings.dsn,
@@ -201,11 +213,18 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 ```
 
 ```python
-# infrastructure/qdrant/connection.py  (a client-store connection factory — complete, Qdrant binding)
+# src/myapp/infrastructure/qdrant/connection.py  (a client-store connection factory — complete, Qdrant binding)
+from qdrant_client import AsyncQdrantClient
+
+from .settings import QdrantSettings
+
+__all__ = ["create_vectors_client"]
+
+
 def create_vectors_client(settings: QdrantSettings) -> AsyncQdrantClient:
     return AsyncQdrantClient(
         url=settings.url,
-        api_key=settings.api_key.get_secret_value() if settings.api_key else None,
+        api_key=settings.api_key.get_secret_value() if settings.api_key is not None else None,
     )
 ```
 

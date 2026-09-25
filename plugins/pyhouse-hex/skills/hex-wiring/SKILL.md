@@ -66,8 +66,8 @@ class DbSettings(BaseSettings):
         )
 ```
 
-**The pool numbers above are this example's, and pool sizing is a deployment decision.** `pool_size=10`
-and `max_overflow=5` are a plausible single-process web app; a worker running one long job wants far
+**Pool sizing is a deployment decision.** `pool_size=10` and `max_overflow=5` suit a single-process
+web app; a worker running one long job wants far
 fewer, and a fleet of processes has to multiply its pool by its replica count against the server's
 connection ceiling. `port` defaults to the driver's own well-known port; `pool_pre_ping=True` and
 `echo=False` are the two that are **not** taste — pre-ping costs one cheap round trip and buys immunity
@@ -94,10 +94,10 @@ class FooApiSettings(BaseSettings):
 
     api_key: SecretStr
     base_url: str = "https://api.foo.example"
-    timeout_seconds: int = 30   # this example's number — see below
+    timeout_seconds: int = 30
 ```
 
-**A timeout is a per-integration decision and `30` is only this example's.** It is set from the
+**A timeout is a per-integration decision.** It is set from the
 integration's own observed latency plus headroom, and bounded above by what the caller can wait for — a
 request-path adapter whose timeout exceeds the app's own request timeout can never fire usefully. What
 the template does fix is that the timeout is a **settings field**, read once by the composition root and
@@ -131,6 +131,86 @@ class S3Settings(BaseSettings):
     bucket: str
 ```
 
+### Template — pydantic-settings, the other classes the adapter templates read
+
+One class per consuming technology, each in that technology's `settings.py`, with the fields the
+adapter or the composition root reads and nothing else. Each sets the settings-file key in its
+`model_config` exactly as `DbSettings` does, beside the prefix shown.
+
+```python
+# src/myapp/infrastructure/idna/settings.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["IdnaSettings"]
+
+class IdnaSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_IDNA_", extra="ignore")
+
+    allowed_schemes: frozenset[str]
+```
+
+```python
+# src/myapp/infrastructure/http/settings.py
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["BarGatewaySettings"]
+
+class BarGatewaySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_BAR_", extra="ignore")
+
+    base_url: str
+    api_key: SecretStr
+    timeout_seconds: float
+```
+
+```python
+# src/myapp/infrastructure/qdrant/settings.py
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["QdrantSettings"]
+
+class QdrantSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_QDRANT_", extra="ignore")
+
+    url: str
+    foos_collection: str
+    api_key: SecretStr | None = None
+```
+
+```python
+# src/myapp/infrastructure/redis/settings.py
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["RedisSettings"]
+
+class RedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_REDIS_", extra="ignore")
+
+    url: SecretStr
+    foos_key_prefix: str
+```
+
+```python
+# src/myapp/infrastructure/export/settings.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["ExportSettings"]
+
+class ExportSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_EXPORT_", extra="ignore")
+
+    max_rows: int
+```
+
+`IdnaSettings.allowed_schemes` is read from a JSON list (`MYAPP_IDNA_ALLOWED_SCHEMES='["http","https"]'`).
+The Redis URL is a secret because it carries the password. The Qdrant key is the one optional secret: a
+store that runs unauthenticated has none, and `None` there is a declared mode rather than a missing
+credential (settings rule 6). `ExportSettings` has no adapter behind it — its one consumer is the factory
+of `FooExportTunable` (`hex-domain-model`) — so its package is named for itself (`hex-conventions`).
+
 ### How this binding spells the settings obligations
 
 Three `model_config` keys are mandatory **under pydantic-settings**, and each is one obligation from
@@ -152,16 +232,42 @@ one of the three composition roots rule 13 names, so they construct settings wit
 
 `src/myapp/containers.py` is the only file this half touches. Bindings are grouped into provider classes
 by layer and by subdomain; `create_container` assembles them. **Every dependency is resolved by type** —
-no binding is reached by its attribute name, so renaming a class cannot silently break a call site.
+no binding is reached by its attribute name, so renaming a class cannot silently break a call site. The
+template binds every adapter the catalogue's templates define for one app; an app binds the ones it has.
 
 ```python
 from collections.abc import AsyncIterator
 
 import aioboto3
-from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
+import httpx
+from dishka import AnyOf, AsyncContainer, Provider, Scope, make_async_container, provide
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-# ...imports for the classes being wired...
+from myapp.application.foos import (
+    CreateFooHandler,
+    DeleteFooHandler,
+    GetFooHandler,
+    ListFoosHandler,
+    UpdateFooHandler,
+)
+from myapp.domain.bars import ICanCanonicalizeBarUrl, ICanFetchBarToken
+from myapp.domain.foos import (
+    FooExportTunable,
+    FooUniquenessService,
+    ICanFetchFoos,
+    ICanStoreFoos,
+    IFooRepository,
+    IFooSearchIndex,
+)
+from myapp.infrastructure.export import ExportSettings
+from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
+from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
+from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
+from myapp.infrastructure.postgres.repositories import FooRepository
+from myapp.infrastructure.qdrant import QdrantSettings, create_vectors_client
+from myapp.infrastructure.qdrant.repositories import FooRepository as QdrantFooRepository
+from myapp.infrastructure.s3 import S3FooStorage, S3Settings
 
 __all__ = ["create_container"]
 
@@ -180,21 +286,24 @@ class SettingsProvider(Provider):
         return S3Settings()
 
     @provide
+    def qdrant_settings(self) -> QdrantSettings:
+        return QdrantSettings()
+
+    @provide
+    def bar_gateway_settings(self) -> BarGatewaySettings:
+        return BarGatewaySettings()
+
+    @provide
     def idna_settings(self) -> IdnaSettings:
         return IdnaSettings()
 
+    @provide
+    def export_settings(self) -> ExportSettings:
+        return ExportSettings()
+
 
 class InfrastructureProvider(Provider):
-    """2. Long-lived handles, and 3. cross-cutting helpers.
-
-    A factory that opens a resource is a generator: what is yielded is the dependency,
-    what follows the yield is its release, run when the composition root is closed.
-    The engine + session_factory pair exists ONLY when a relational store backs a
-    repository. A client-style store (qdrant / redis / ...) has no engine — it yields
-    the client its `create_<store>_client(settings)` factory builds and closes that
-    instead. Bind the long-lived handles the app's datastores actually need, not a
-    fixed relational pair.
-    """
+    """2. Long-lived handles, each released after its yield, and 3. cross-cutting adapters."""
 
     scope = Scope.APP
 
@@ -216,6 +325,19 @@ class InfrastructureProvider(Provider):
             aws_secret_access_key=settings.secret_key.get_secret_value(),
         )
 
+    @provide
+    async def vectors_client(self, settings: QdrantSettings) -> AsyncIterator[AsyncQdrantClient]:
+        client = create_vectors_client(settings)
+        yield client
+        await client.close()
+
+    @provide
+    async def http_client(self, settings: BarGatewaySettings) -> AsyncIterator[httpx.AsyncClient]:
+        async with httpx.AsyncClient(timeout=settings.timeout_seconds) as client:
+            yield client
+
+    foo_storage = provide(S3FooStorage, provides=AnyOf[ICanStoreFoos, ICanFetchFoos])
+    bar_gateway = provide(HttpBarGateway, provides=ICanFetchBarToken)
     bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
 
 
@@ -228,10 +350,14 @@ class FoosProvider(Provider):
     scope = Scope.REQUEST
 
     foo_repository = provide(FooRepository, provides=IFooRepository)
+    foo_search_index = provide(QdrantFooRepository, provides=IFooSearchIndex)
     foo_uniqueness_service = provide(FooUniquenessService)
 
     create_foo_handler = provide(CreateFooHandler)
+    get_foo_handler = provide(GetFooHandler)
     list_foos_handler = provide(ListFoosHandler)
+    update_foo_handler = provide(UpdateFooHandler)
+    delete_foo_handler = provide(DeleteFooHandler)
 
     # 5. A tunable value object is process-lifetime and takes single settings fields.
     @provide(scope=Scope.APP)
@@ -249,6 +375,13 @@ def create_container(*overrides: Provider) -> AsyncContainer:
         *overrides,
     )
 ```
+
+Two repositories back `Foo` from two stores, and both classes are `FooRepository` in their own packages
+(`hex-conventions`), so the second is imported under an alias naming its store; the alias lives in this
+file only. One adapter satisfying two ports is bound once, to both (`AnyOf`), so the two ports share the
+one instance. A client-style store the templates do not bind here — the Redis archive
+(`hex-store-repository`) — joins the same way: a settings factory, a client factory that closes the
+client after its yield, and the repository bound to its port.
 
 Add `FastapiProvider()` to that list **only** when a factory takes `fastapi.Request` or
 `fastapi.WebSocket` as a parameter; the default composition root above takes neither and stays free of
@@ -383,10 +516,14 @@ not, so one class serves both without a branch.
 5. **A value that must not appear in a log, a repr or a traceback carries a type that keeps it out of
    them** — passwords, API keys, signing secrets, JWT keys. A bare `str` is printed by every default
    repr in the program, so the type is what makes disclosure impossible rather than merely discouraged.
-6. **Never default a secret.** A missing secret env var must crash the process at startup.
+6. **Never default a secret the integration requires.** A missing secret env var must crash the process
+   at startup. A credential that is genuinely optional — a store that may run unauthenticated — is
+   `None` when absent, never a placeholder value.
 7. **A secret is unwrapped only at the point of use** — inside the derived value that assembles a
-   connection string, or when constructing an SDK client. Never into a local, a log field or an
-   intermediate string. Follow `python-style` for logging and output.
+   connection string, when constructing an SDK client, or in the constructor of the adapter that sends
+   it, which holds it privately for its lifetime (`hex-capability-adapter`). Never into a log field, an
+   exception's context, or an intermediate string built for anything else. Follow `python-style` for
+   logging and output.
 8. **A value assembled from other fields is computed on the settings object, never reassembled by its
     consumers** — connection strings, composite URLs, normalized strings. Every consumer reads the
     computed value, so one place decides how the parts go together and a change to that recipe is one

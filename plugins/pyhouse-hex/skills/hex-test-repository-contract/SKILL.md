@@ -68,6 +68,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from myapp.infrastructure.postgres.tables.bars import bars_table
 
+
 @pytest.fixture
 async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
     new_id = uuid.uuid4()
@@ -201,8 +202,9 @@ async def test_list_respects_pagination_and_sort(
     sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
 ) -> None:
     repo = FooRepository(session_factory=sf)
-    for name in ("c", "a", "b"):
-        await repo.create(_foo(bar_id, name))
+    await repo.create(_foo(bar_id, "c"))
+    await repo.create(_foo(bar_id, "a"))
+    await repo.create(_foo(bar_id, "b"))
 
     page = await repo.list(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2, offset=0))
     assert [f.name for f in page] == ["a", "b"]
@@ -232,6 +234,7 @@ out of order (`c`, `a`, `b`) and asserted in order, on a missing `ORDER BY` as w
 import subprocess
 from collections.abc import Callable
 
+
 def test_migrations_round_trip(
     run_alembic: Callable[..., subprocess.CompletedProcess[str]],
 ) -> None:
@@ -247,6 +250,11 @@ that fails, or leaves behind an object the next `upgrade()` trips over, reds her
 the tests that assume head still find it; a suite run in parallel gives it a database of its own.
 
 ### Cascade — parent + sub-collection
+
+For an aggregate that owns a child collection — `FooAttachment` rows in a table that cascades from
+`foos`. The repository methods `add_attachment`, `get_attachment` and `count_attachments` and the
+`_attachment(foo_id)` builder belong to that aggregate's own repository and test module; an aggregate
+with no owned children has neither them nor this test.
 
 ```python
 async def test_cascade_delete_removes_attachments(
@@ -337,6 +345,7 @@ from myapp.domain.foos import Foo
 from myapp.infrastructure.qdrant import QdrantSettings
 from myapp.infrastructure.qdrant.repositories import FooRepository
 
+
 def _foo(name: str = "alpha", *, bar_id: uuid.UUID | None = None) -> Foo:
     return Foo(id=uuid.uuid4(), name=name, bar_id=bar_id or uuid.uuid4())
 
@@ -345,7 +354,7 @@ async def test_add_many_then_search_roundtrip(
 ) -> None:
     repo = FooRepository(client=qdrant_client, settings=qdrant_settings)
     foo = _foo()
-    await repo.add_many([(foo, (0.1, 0.2, 0.3))])
+    await repo.add_many([(foo, (0.1, 0.2, 0.3)), (_foo("other"), (0.9, 0.0, 0.1))])
 
     hits = await repo.search(query_vector=(0.1, 0.2, 0.3), k=1)
     assert len(hits) == 1
@@ -380,15 +389,18 @@ async def test_delete_by_bar_removes_only_that_bars_points(
 async def test_search_against_unreachable_store_raises_upstream_error() -> None:
     dead_url = "http://127.0.0.1:1"  # nothing listening
     dead = AsyncQdrantClient(url=dead_url, check_compatibility=False)
-    repo = FooRepository(client=dead, settings=QdrantSettings(url=dead_url, foos_collection="x"))
+    try:
+        repo = FooRepository(client=dead, settings=QdrantSettings(url=dead_url, foos_collection="x"))
 
-    with pytest.raises(UpstreamError) as exc:
-        await repo.search(query_vector=(0.0, 0.0, 0.0), k=1)
+        with pytest.raises(UpstreamError) as exc:
+            await repo.search(query_vector=(0.0, 0.0, 0.0), k=1)
+    finally:
+        await dead.close()
 
     assert exc.value.context["collection"] == "x"
-    await dead.close()
 ```
 
+The round trip seeds two points and asks for one, so a `search` that ignores `k` returns both and reds.
 The vector goes in beside the entity and is not read back: it is the store's index, not a field of
 `Foo`, so what round-trips is the entity's own fields plus the score the store computed.
 
