@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
-maintainer script. The "code" is 44 `SKILL.md` files — 42 that tell an agent how to write Python
+maintainer script. The "code" is 45 `SKILL.md` files — 43 that tell an agent how to write Python
 services, and two that tell it how to commit and branch. The Python in them is template content,
 not executed as part of anything here.
 
@@ -17,9 +17,9 @@ reports three outcomes — resolved, **missing**, and *unchecked* where a packag
 was verified. Run it before shipping a template:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy pydantic-settings \
-  structlog respx pytest 'testcontainers[postgres,minio]' alembic redis aioboto3 pyjwt \
-  uuid6 httpx cryptography idna
+python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy greenlet \
+  pydantic-settings structlog respx pytest 'testcontainers[postgres,minio]' alembic redis \
+  aioboto3 pyjwt uuid6 httpx cryptography idna
 .venv/bin/python tools/check_template_imports.py
 ```
 
@@ -116,7 +116,7 @@ tools/check_template_imports.py          resolves every import in every template
 plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
-plugins/pyhouse-flat/                    7 flat-* skills
+plugins/pyhouse-flat/                    8 flat-* skills
 plugins/pyhouse-git/                     2 git-* skills, /commit, /release,
                                          /install-commit-hook and the commit-msg hook it
                                          installs — no dependency
@@ -148,9 +148,11 @@ absent — `pyhouse-universal` has to be installable alone. Hex↔flat reference
 `git-*` → `pyhouse-git`, which stands outside that graph: it depends on nothing and nothing depends on
 it, because it is installed in repositories of any language. A `git-*` skill may name a catalogue skill
 only as an example and must read correctly with it absent. Since neither side can require the other, a
-rule both need is stated in both, worded to agree — the one instance is that a commit which is not a
+rule both need is stated in both, worded to agree. There are two instances: a commit which is not a
 release does not touch the version, stated by `git-commit-message` from the commit's side and by
-`python-versioning` from the number's. That is not a duplicate to delete.
+`python-versioning` from the number's; and below 1.0.0 a break bumps the minor, stated by
+`git-commit-message` beside its type table and by `python-versioning` rule 9. Neither is a duplicate
+to delete.
 
 **Principle and binding stay separate.** `## Rules` states obligations that survive swapping the
 library ("translate the driver's integrity error at the repository boundary"), never mechanisms

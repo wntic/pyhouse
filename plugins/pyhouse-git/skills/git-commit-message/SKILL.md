@@ -17,8 +17,7 @@ binding below; every rule above it holds under another.
 
 ## When to use vs. neighbours
 
-- Staging files, reading the diff and committing in one step → `/commit`, which composes its message
-  by this skill.
+- Staging files, reading the diff and committing in one step → `/commit`.
 - Refusing a malformed message at commit time instead of trusting everyone to remember →
   `/install-commit-hook`, which installs a `commit-msg` hook that checks the parts of this skill a
   machine can check: the shape, the blank line before a body, the uppercase break token and the subject
@@ -50,7 +49,9 @@ binding below; every rule above it holds under another.
 | `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `style`, `chore` | everything else, by what it is | none |
 
 `feat` and `fix` are the two the specification mandates and the two that carry a release; the others
-are conventional, and a repository may use more. A break carries the major whatever its type:
+are conventional, and a repository may use more. A break carries the major whatever its type — below
+1.0.0, the minor, since a `0.y.z` number has made no compatibility promise for the break to breach and
+reaching 1.0.0 is a decision no commit takes:
 
 ```
 feat(foo-client)!: return every page where only the first was returned
@@ -102,6 +103,10 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    one request is one logical change. Under a merge commit every branch commit lands, so each must be.
    Either is fine and both at once is not: the check then has to sit in two places, and usually sits in
    one. Pick one, state it where contributors read, and enforce it there — `git-branching` rule 2.
+   Where it is not recorded, the forge's merge setting is the answer; failing that, the mainline's
+   shape — merge commits on it mean every branch commit lands, and single-parent commits whose subjects
+   end in a request number mean squashing; anything else, ask. The merge commit git writes itself is
+   not a message anyone composed and is exempt, so a tool reading the history skips it.
 
 ## Hard stops
 

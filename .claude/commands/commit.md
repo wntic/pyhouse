@@ -102,13 +102,20 @@ A skill and the index entries it forces are **one** commit and take the skill's 
 `docs`. `docs` is for a documentation change that stands alone.
 
 **No trailers.** This repository uses none: no `Co-Authored-By`, no generator lines, no
-`Signed-off-by`. The shipped command's rule is to match what the repository already does, and this is
-what it does.
+`Signed-off-by`. The shipped skill's rule 8 adds a trailer only where the repository already carries
+one or the author asked for it, and this repository carries none.
 
 ### 5. Commit
 
+Pass the message through a quoted heredoc, never `-m "<message>"`: inside double quotes the shell
+expands the backticks and `$` a body here routinely carries:
+
 ```
-git commit -m "<message>"
+git commit -F - <<'EOF'
+<type>(<scope>): <description>
+
+<body>
+EOF
 ```
 
 Output the commit hash to the user after committing:

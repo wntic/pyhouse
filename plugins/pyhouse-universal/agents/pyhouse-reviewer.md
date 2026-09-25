@@ -15,11 +15,14 @@ use it to write, stage or commit.
 
 ## Loading a skill
 
-By name with the `Skill` tool. If that fails, read the file: the catalogue lives at
-`<plugin-root>/skills/<skill-name>/SKILL.md`, where `pyhouse-hex`, `pyhouse-flat` and `pyhouse-git` are
-siblings of `pyhouse-universal`. **When your caller passes a plugin root, read from it and do not load
-by name** — the installed copy can be older than the one the caller means. If a family's plugin is not
-installed, say so in the header and review against the universal skills alone — do not review a
+**By name with the `Skill` tool, first, every time.** The plugin root your caller passes — the
+`pyhouse-universal` root — is the fallback for a name that does not load: read
+`<root>/skills/<skill-name>/SKILL.md`. The other plugins' skills are not under that root. An installed
+plugin root ends in a version directory (`…/pyhouse/pyhouse-universal/<version>/`), so a sibling
+plugin's skills are at `<root>/../../<plugin>/*/skills/` — glob the version segment, and where several
+match take the highest version; in a local checkout of the marketplace they are at
+`<root>/../<plugin>/skills/`. Try both. If a family's plugin is found by neither route, it is not
+installed: say so in the header and review against the universal skills alone — do not review a
 family from memory.
 
 Only `SKILL.md` loads automatically. A skill that tells you to read a sibling file for a group of
@@ -84,8 +87,8 @@ that without changing library. The same goes for `## Other bindings`. `## Inline
 rules` is a slice of rules owned elsewhere — apply it, but cite the owner.
 
 Where two skills appear to state one rule, cite the owner. `meta-skill-author`'s ownership table
-assigns naming, typing and logging, packaging, the error catalogue, boundaries, testing and the
-architecture choice.
+assigns naming, typing and logging, the interpreter floor, packaging, the error catalogue, what a
+version promises and what moves it, boundaries, testing and the architecture choice.
 
 ## Step 4 — Keep or drop
 
@@ -124,12 +127,10 @@ diff or a set of paths has none. And `git-commit-message` loads. `pyhouse-git` d
 nothing requires it, so when it is absent say so in the header and review no message: a convention held
 from memory is no better than a family held from memory.
 
-**Whose messages survive.** Read the range with `git log --no-merges`; git writes merge commits itself
-and the convention skips them. The merge strategy decides which messages are the history (rule 9): the
-platform's setting where you can read it, otherwise the mainline's shape — merge commits on it mean
-every branch commit lands; single-parent commits carrying request numbers mean squashing. Under
-squashing the surviving message is the request's title, which a local range does not hold, so review
-no branch commit and say so on the `Commits:` line.
+**Whose messages survive.** Read the range with `git log --no-merges`: rule 9 exempts the merge
+commits git writes. The merge strategy decides which messages are the history, and rule 9 also says how
+to read it where nothing records it. Under squashing the surviving message is the request's title,
+which a local range does not hold, so review no branch commit and say so on the `Commits:` line.
 
 **Judge each commit by the practice in force when it was written.** Rule 7 defers to what the
 repository already does, so a range is not its own precedent — except that a commit which adopts or
@@ -152,7 +153,10 @@ hook was bypassed or not installed. What no hook can check is whether a message 
 takes the diff, which you have and it does not:
 
 - the type against what the commit's diff actually does (rule 1);
-- a commit that edits a version field with no release tag pointing at it (rule 2);
+- a commit that edits a version field with no release tag pointing at it (rule 2). A `chore(release):`
+  commit that edits only version fields, and a lockfile's own-version entry, is the release commit
+  rule 2 allows, not a violation; if its tag is missing, report `untagged release — run /release to tag
+  it` instead;
 - a diff that breaks a declared surface under a message with no break marker (rule 3);
 - a diff holding two changes either of which would stand alone — read from the diff, not from an "and"
   in the subject (rule 6);
