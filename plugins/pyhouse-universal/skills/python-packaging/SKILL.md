@@ -115,7 +115,7 @@ may share a module only when all three of these hold:**
 2. **They form one closed set that changes as a unit** — one error catalog; one resource's request and
    response models; one external API's payloads. A change to the set is one edit in one file; a class
    that would change for reasons of its own is not in the set.
-3. **The module is named for the set, not for one member** — `errors.py`, `foo_schemas.py`,
+3. **The module is named for the set, not for one member** — `exceptions.py`, `foo_schemas.py`,
    `foo_payloads.py`, or `foos.py` inside a `schemas/` package that already says the rest — so its
    name still predicts its contents.
 

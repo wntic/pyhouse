@@ -499,7 +499,8 @@ Settings re-exports → `python-packaging`; composition-root location → `hex-a
 
 `containers.py` needs no package wiring at all: it is `src/myapp/containers.py`, a module of the
 distribution's root package, and the root `__init__.py` does not re-export it — that file stays empty
-(`hex-architecture`). For the classes it imports, follow `python-packaging`.
+(`python-packaging`'s carve-out for an application's root). For the classes it imports, follow
+`python-packaging`.
 
 ## Hard stops
 
