@@ -67,15 +67,6 @@ async def test_duplicate_name_raises_conflict() -> None:
         await handler.execute(CreateFooCommand(caller_id=_CALLER, name="alpha", bar_id=_BAR_ID))
 
     assert exc.value.context["constraint"] == "uq_foos_name"
-
-async def test_name_is_stripped_on_create() -> None:
-    repo = FakeFooRepository()
-    handler = CreateFooHandler(repo=repo)
-
-    foo_id = await handler.execute(CreateFooCommand(caller_id=_CALLER, name="  alpha  ", bar_id=_BAR_ID))
-
-    stored = await repo.get_by_id(foo_id)
-    assert stored.name == "alpha"
 ```
 
 ### `update` handler — PATCH `None`-means-don't-touch
@@ -146,7 +137,25 @@ async def test_sorted_by_name() -> None:
 
     assert [f.name for f in result.items] == ["a", "b"]
     assert result.total == 3
+
+async def test_list_returns_only_the_requested_bars_foos() -> None:
+    other_bar = uuid.uuid4()
+    repo = FakeFooRepository(items=[
+        Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
+        Foo(id=uuid.uuid4(), name="b", bar_id=other_bar),
+    ])
+    handler = ListFoosHandler(repo=repo)
+
+    result = await handler.execute(
+        ListFoosQuery(filter=FooListFilter(bar_ids=frozenset({_BAR_ID}))),
+    )
+
+    assert [f.name for f in result.items] == ["a"]
+    assert result.total == 1
 ```
+
+The second test is also what proves the fake honours the filter (Fakes rule 5): against a fake that
+ignores `bar_ids`, both rows come back.
 
 **Seed 3, page 2 — the page size is smaller than the seeded set on purpose.** At `limit=10` over
 three rows the page holds every match, so the same asserts pass a handler that never applies the
@@ -348,7 +357,29 @@ class FakeFooStorage:
         self.deletes.append(key)
 ```
 
-The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at the test scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
+The `uploads` and `deletes` lists are the test-side observation surface.
+
+### The fake's copy contract, pinned once
+
+`tests/unit/test_fake_foo_repository.py` — one test per fake that keeps state, because Fakes rule 9 is
+what lets every handler test pin persistence, and nothing else would notice the fake losing it:
+
+```python
+import uuid
+
+from myapp.domain.foos import Foo
+from tests.unit.fakes import FakeFooRepository
+
+async def test_a_mutated_entity_does_not_reach_the_store() -> None:
+    foo = Foo(id=uuid.uuid4(), name="alpha", bar_id=uuid.uuid4())
+    repo = FakeFooRepository(items=[foo])
+
+    foo.name = "seeded-then-mutated"
+    loaded = await repo.get_by_id(foo.id)
+    loaded.name = "read-then-mutated"
+
+    assert (await repo.get_by_id(foo.id)).name == "alpha"
+``` **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at the test scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
 
 ## Rules
 
@@ -438,7 +469,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
            raise InUseError("foo is used", {"reference_type": "foo", "id": str(id)})
    ```
 
-   The storage-gateway `puts` / `deletes` call records are the only sanctioned per-call observation surface — and they observe, they do not inject failure. A test that needs an injected failure uses the inline-subclass pattern above, not a flag or a hook on the fake.
+   The storage fake's `uploads` / `deletes` call records are the only sanctioned per-call observation surface — and they observe, they do not inject failure. A test that needs an injected failure uses the inline-subclass pattern above, not a flag or a hook on the fake.
 
 9. **Never hand back the object the caller passed in — copy on write and on read, and record every `update()`.** The real repository round-trips through the database: a mutation is persisted **only** by an explicit `update()`, and a later read returns the persisted row, not the caller's object. A fake that stores and returns the same instance aliases it, so a handler that mutates the entity **in place and never calls `update()`** still sees its change on the next read — the mutate-but-never-persist bug passes green and no persistence assertion can pin it. So copy on write (`self._store[id] = replace(foo)`) and on read (`return replace(self._store[id])`) — a shallow copy via `dataclasses.replace`, deep only when a field is itself mutable and the test mutates through it — and keep an `updated: list[UUID]` call record. Handler tests then pin persistence twice, that `update` was called and that the new state reads back, and a body that forgets it reds both.
 
@@ -467,18 +498,18 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 ## Hard stops
 
-- Spec asks for `MagicMock` / `AsyncMock` to stub the repo or storage, or to "implement" a fake → stop, hand-write the fake, or use an inline `_RaiseXxxRepo` subclass for a one-off failure.
-- Spec needs the test to hit a real database or HTTP endpoint → stop, use `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
-- Spec asks for log assertions on the handler's success event → stop, those are side effects; tests assert on returned state.
-- Spec asks to add `fail_next_create=True`-style failure-injection flags to a fake → stop, use the inline subclass at the handler test module scope instead.
-- Spec asks the test to construct the FastAPI app or import `myapp.restapi.*` → stop, use `hex-test-restapi-endpoint` for the HTTP surface.
-- Spec asks to fake a handler's **concrete domain-service** dependency (e.g. `FooLimitPolicy`, injected as the class, not a Protocol) → stop, a structural fake won't type-check there; **subclass the service** (override the method under test, bypass `__init__`) or have the handler **inject via a Protocol**. Repository and capability fakes are structural because their dependencies are `Protocol`s; a concrete service is not, which is rule 10 above.
-- Spec asks to register the fake with `@runtime_checkable` / `isinstance` → stop, type checking is enough.
-- Spec asks to model `InUseError` in the default repository fake → stop, that's an inline subclass case at the test site (cross-aggregate references aren't modeled in-memory).
+- Asked for `MagicMock` / `AsyncMock` to stub the repo or storage, or to "implement" a fake → stop, hand-write the fake, or use an inline `_RaiseXxxRepo` subclass for a one-off failure.
+- A handler test needs a real database or HTTP endpoint → stop, use `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
+- Asked for log assertions on the handler's success event → stop, those are side effects; tests assert on returned state.
+- Asked to add `fail_next_create=True`-style failure-injection flags to a fake → stop, use the inline subclass at the handler test module scope instead.
+- A handler test constructs the FastAPI app or imports `myapp.restapi.*` → stop, use `hex-test-restapi-endpoint` for the HTTP surface.
+- Asked to fake a handler's **concrete domain-service** dependency (e.g. `FooLimitPolicy`, injected as the class, not a Protocol) → stop, a structural fake won't type-check there; **subclass the service** (override the method under test, bypass `__init__`) or have the handler **inject via a Protocol**. Repository and capability fakes are structural because their dependencies are `Protocol`s; a concrete service is not, which is rule 10 above.
+- Asked to register the fake with `@runtime_checkable` / `isinstance` → stop, type checking is enough.
+- Asked to model `InUseError` in the default repository fake → stop, that's an inline subclass case at the test site (cross-aggregate references aren't modeled in-memory).
 - Real adapter's exception contract cannot be located → stop, the fake's contract is copied, not invented.
 - A handler test needs a fake that does not exist under `tests/unit/fakes/` → stop, write it with
   this skill. Do not improvise a stand-in at the test site, do not reach for a mock, and do not
   weaken the assertion to avoid needing it. A missing fake is a stop, not an invitation to improvise —
   the whole point of the fake is that its exception contract matches the real adapter's, and an
   improvised stub silently does not.
-- Spec imports a fake from its inner module (`tests.unit.fakes.fake_foo_repository`) → stop, import it from `tests.unit.fakes` (`python-packaging`).
+- A test imports a fake from its inner module (`tests.unit.fakes.fake_foo_repository`) → stop, import it from `tests.unit.fakes` (`python-packaging`).
