@@ -34,7 +34,7 @@ Filename examples (`naming` owns the rule): `test_<tech>_<aggregate_or_area>.py`
 - **HTTP gateway with `respx`.** Adapter speaks `httpx` to a third-party HTTP API. Wraps the real `httpx.AsyncClient` with `respx.mock` and asserts the request shape (URL, headers, body) on the way out and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
 - **Pure-CPU.** Adapter does no IO — a canonicalizer, a renderer over in-memory bytes, a verifier. Stdlib + the real parsing / crypto library. No fixtures, no containers. **Lives under `tests/unit/infrastructure/<adapter>/`.**
 
-The flavor mirrors the adapter's template in `hex-capability-adapter` (real-SDK, HTTP gateway, sync pure-CPU). If the spec asks for two flavors in one file, split — one file per adapter, but `integration/` for a test that needs a running backend and `unit/` for everything else means a containerized adapter and a gateway or CPU adapter live in different roots regardless.
+The flavor mirrors the adapter's template in `hex-capability-adapter` (real-SDK, HTTP gateway, sync pure-CPU). If two flavors are asked for in one file, split — one file per adapter, but `integration/` for a test that needs a running backend and `unit/` for everything else means a containerized adapter and a gateway or CPU adapter live in different roots regardless.
 
 ### Containerized backend (S3 / MinIO via `s3_session` and `s3_settings`)
 
@@ -229,6 +229,18 @@ async def test_fetch_token_network_error_raises_upstream(
         await adapter.fetch_token(subject="alice")
 
     assert exc.value.context["reason"] == "ConnectError"
+
+@respx.mock
+async def test_fetch_token_read_timeout_raises_upstream(
+    client: httpx.AsyncClient, settings: BarGatewaySettings,
+) -> None:
+    respx.post(f"{_BASE_URL}/tokens").mock(side_effect=httpx.ReadTimeout("slow"))
+    adapter = HttpBarGateway(client=client, settings=settings)
+
+    with pytest.raises(UpstreamError) as exc:
+        await adapter.fetch_token(subject="alice")
+
+    assert exc.value.context["reason"] == "ReadTimeout"
 ```
 
 The outgoing body is compared as parsed JSON, never as bytes: separators and key order are the
@@ -331,7 +343,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ### Containerized flavor specifics
 
 13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client (`s3_session`, `redis`) and settings naming the test's own namespace (`s3_settings`). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is the rejected-credential case (rule 9), which builds a client with credentials the backend refuses.
-14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** A blob store, a cache or a queue has no nested transaction to discard, so each test owns a fresh prefix, key namespace or bucket, created before it and dropped after it. This is not a choice to defer to the spec — deferred, two projects answer it two ways and the second leaks state between tests. The split of ownership is by scope: the session-scoped container and client are `hex-test-integration-setup`'s, and the per-test namespace and its teardown live beside the tests that consume it (the same split `hex-test-repository-contract` rule 15 makes) — which for a blob store is that same integration conftest, because `real_app` substitutes the per-test bucket too.
+14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** A blob store, a cache or a queue has no nested transaction to discard, so each test owns a fresh prefix, key namespace or bucket, created before it and dropped after it. This is not a choice to leave open — left open, two projects answer it two ways and the second leaks state between tests. The split of ownership is by scope: the session-scoped container and client are `hex-test-integration-setup`'s, and the per-test namespace and its teardown live beside the tests that consume it (the same split `hex-test-repository-contract` rule 15 makes) — which for a blob store is that same integration conftest, because `real_app` substitutes the per-test bucket too.
 15. **Don't bypass the adapter to drive setup.** For success assertions, you may inspect the backend directly (`s3.head_object`) — that is the observation. But for setup that exists to drive the test, go through the adapter (`adapter.upload(...)` then `adapter.delete(...)`).
 
 ### HTTP-gateway flavor specifics — interception binding: respx over httpx
@@ -344,7 +356,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ### CPU flavor specifics
 
 20. **Real parsing, real crypto.** Drive the actual library: feed a canonicalizer real inputs and assert literal outputs; for a verifier, generate a real key at module scope and sign with the real library. Never hand the adapter a pre-baked value the library never produced.
-21. **One `test_*` per `raise` site in the adapter** — each library-exception arm *and* each guard the adapter raises itself. Each test triggers exactly one, and asserts the `context` key that arm sets (Rule 5).
+21. **One `test_*` per `raise` site in the adapter** — each library-exception arm *and* each guard the adapter raises itself. Each test triggers exactly one, and asserts the `context` key that arm sets (Rule 6).
 22. **No fixtures.** Pure-CPU adapters are constructed in-line in each test from module-level settings. They have no lifecycle.
 
 ## Inlined typing / import rules
@@ -356,12 +368,12 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ## Hard stops
 
 - Nothing up-tree provides the live backend a containerized flavor drives (`s3_session` / `s3_settings`, `redis`, … under this catalogue's binding) → stop, use `hex-test-integration-setup` to extend the fixtures first; what the flavor needs is the running backend, not a particular fixture name.
-- Spec asks for `unittest.mock` / `MagicMock` of the SDK client → stop, use `test-principles` for substitution rules; the SDK boundary is exactly what this test exists to verify.
-- Spec asks to mock the adapter itself → stop, use `hex-test-application-handler`.
-- Spec asks for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles` for marker rules.
-- Spec asks to assert `pytest.raises(<SdkExceptionClass>)` directly → stop, use `exception-catalog` for boundary translation; assert the translated `DomainError` subclass.
-- Spec asks to assert on a translated exception without checking `context` keys → stop, check the context keys; the context map is the load-bearing contract this test exists to pin.
-- Spec asks for a happy-path test only with no error-translation cases → stop, cover the exception map row-by-row.
-- Spec includes FastAPI / `httpx.AsyncClient` over `ASGITransport` / DI container references → stop, use `hex-test-restapi-endpoint`.
-- CPU adapter spec asks to use `respx` or a container → stop, check the adapter classification; pure-CPU code needs neither, and an adapter with IO is mis-classified.
-- Spec asks for a token-verifier test here → stop, use `hex-test-restapi-auth`; the flavor is this skill's, the example is not, and duplicating it teaches auth twice.
+- Asked for `unittest.mock` / `MagicMock` of the SDK client → stop, use `test-principles` for substitution rules; the SDK boundary is exactly what this test exists to verify.
+- Asked to mock the adapter itself → stop, use `hex-test-application-handler`.
+- Asked for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles` for marker rules.
+- Asked to assert `pytest.raises(<SdkExceptionClass>)` directly → stop, use `exception-catalog` for boundary translation; assert the translated `DomainError` subclass.
+- Asked to assert on a translated exception without checking `context` keys → stop, check the context keys; the context map is the load-bearing contract this test exists to pin.
+- Asked for a happy-path test only with no error-translation cases → stop, cover the exception map row-by-row.
+- A test references FastAPI, `httpx.AsyncClient` over `ASGITransport` or the DI container → stop, use `hex-test-restapi-endpoint`.
+- A pure-CPU adapter's test is given `respx` or a container → stop, check the adapter classification; pure-CPU code needs neither, and an adapter with IO is mis-classified.
+- Asked for a token-verifier test here → stop, use `hex-test-restapi-auth`; the flavor is this skill's, the example is not, and duplicating it teaches auth twice.
