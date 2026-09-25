@@ -12,7 +12,7 @@ b-tree index for no benefit, and a database-side default means the writer cannot
 created without reading it back. `uuid6.uuid7()` returns a `uuid.UUID` subclass, so it drops straight
 into `Column(..., default=uuid7)`.
 
-`myapp/storage/foo_table.py`:
+`src/myapp/storage/foo_table.py`:
 
 ```python
 from sqlalchemy import (
@@ -27,7 +27,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from uuid6 import uuid7
 
-from myapp.storage.metadata import metadata
+from .metadata import metadata
 
 foo_table = Table(
     "foos",
@@ -54,5 +54,18 @@ The declared width on `label` is a schema fact a test can read off the column to
 schema itself defines, rather than inventing a value that only happens to be rejected
 (`flat-test-persistence`).
 
-`storage/__init__.py` re-exports every table module and the metadata, so migration autogenerate sees the
-whole schema from one import.
+A table module's public names are bare `Table` objects, and `metadata.py`'s is a bare `MetaData`, so
+neither is wildcarded into the package `__init__` (`python-packaging`, carve-out 3 — `foo_table` would
+shadow its own module). Code inside the package reaches them by relative import, code outside by the
+module path (`from myapp.storage.foo_table import foo_table`), and the migration environment imports
+every table module once for its registration side effect (`flat-project-setup`), so autogenerate sees
+the whole schema. `src/myapp/storage/__init__.py` re-exports the modules that declare `__all__`:
+
+```python
+from . import engine, foo_storage, settings
+from .engine import *
+from .foo_storage import *
+from .settings import *
+
+__all__ = engine.__all__ + foo_storage.__all__ + settings.__all__
+```

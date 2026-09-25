@@ -8,23 +8,32 @@ pure function that maps rows back into the service's declared types.
 
 ## The storage class — SQLAlchemy async (one declared transaction owner)
 
-`myapp/storage/foo_storage.py` — a concrete class, no `Protocol` (rule 2). **Every public method opens
+`src/myapp/storage/foo_storage.py` — a concrete class, no `Protocol` (rule 2). **Every public method opens
 and owns its transaction**, which is this class's declared half of rule 3; the helpers it calls accept
 the connection and never commit.
 
 ```python
 from collections.abc import Sequence
 from datetime import UTC
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from myapp.exceptions import FooAlreadyRecorded, FooNotFound, MyappError, StorageWriteRejected
-from myapp.schemas.foo import Foo
-from myapp.storage.engine import bulk_upsert, bulk_upsert_returning
-from myapp.storage.foo_table import bar_table, foo_table
+from myapp.exceptions import (
+    FooAlreadyRecordedError,
+    FooNotFoundError,
+    MyappError,
+    StorageWriteRejectedError,
+)
+from myapp.schemas import Foo
+
+from .engine import bulk_upsert, bulk_upsert_returning
+from .foo_table import bar_table, foo_table
+
+__all__ = ["FooStorage", "normalize_reference"]
 
 
 def normalize_reference(reference: str) -> str:
@@ -53,15 +62,14 @@ def _to_foo(rows: Sequence[RowMapping]) -> Foo:
 
 
 def _translate(exc: DBAPIError) -> MyappError:
-    constraint = getattr(exc.orig, "constraint_name", None) or str(exc.orig)
-    if "uq_foos_reference" in constraint:
-        return FooAlreadyRecorded(
+    driver_error = exc.orig.__cause__ if exc.orig is not None else None  # asyncpg's own exception
+    constraint = getattr(driver_error, "constraint_name", None)
+    if constraint == "uq_foos_reference":
+        return FooAlreadyRecordedError(
             "a foo with this reference is already recorded",
-            context={"field": "reference", "constraint": "uq_foos_reference"},
+            {"field": "reference", "constraint": constraint},
         )
-    return StorageWriteRejected(
-        "the datastore rejected the write", context={"constraint": constraint}
-    )
+    return StorageWriteRejectedError("the datastore rejected the write", {"constraint": constraint})
 
 
 class FooStorage:
@@ -100,6 +108,22 @@ class FooStorage:
             except DBAPIError as exc:
                 raise _translate(exc) from exc
 
+    async def record_new(self, foo: Foo) -> None:
+        """Owns the transaction: a reference already recorded is refused, never updated."""
+        async with self._engine.begin() as conn:
+            try:
+                inserted = await conn.execute(foo_table.insert().values(_to_row(foo)).returning(foo_table.c.id))
+                foo_id: UUID = inserted.scalar_one()
+                await bulk_upsert(
+                    conn,
+                    bar_table,
+                    [{"foo_id": foo_id, "label": label} for label in foo.labels],
+                    conflict_columns=["foo_id", "label"],
+                    update_columns=[],
+                )
+            except DBAPIError as exc:
+                raise _translate(exc) from exc
+
     async def get_by_reference(self, reference: str) -> Foo:
         async with self._engine.connect() as conn:
             result = await conn.execute(
@@ -109,7 +133,7 @@ class FooStorage:
             )
             rows = result.mappings().all()
         if not rows:
-            raise FooNotFound("no foo with this reference", context={"reference": reference})
+            raise FooNotFoundError("no foo with this reference", {"reference": reference})
         return _to_foo(rows)
 ```
 
@@ -120,12 +144,18 @@ test can point it at a container without touching the environment.
 two statements sit inside **one** `engine.begin()`. Split across two connection blocks, a failure in the
 second leaves parentless rows behind.
 
+`record_new` is the write for a caller that must not overwrite: a plain insert, so a reference already
+recorded fails on `uq_foos_reference` and reaches the caller as `FooAlreadyRecordedError` — the branch of
+`_translate` that `record_batch`, which resolves that conflict itself, can never reach.
+
 `update_columns=[]` on the second write resolves to *do nothing*: a label already recorded for that foo is
 not an error, and an update with an empty assignment list is a syntax error.
 
 `_translate` **ends by returning a catalogue exception**: the last statement is the fallback, not a
 re-raise of the driver's type. Without it every caller's `except` clause ends up written against a
-library it was supposed never to import.
+library it was supposed never to import. It matches on the constraint name the driver reports — never on
+the error's text — and puts that name, not the stringified error, into `context`. SQLAlchemy wraps the
+asyncpg exception in an adapter, so the name is read off the original that the adapter chains as its cause.
 
 `_to_foo` is a **pure function**: no IO, no logging. It normalizes what the driver hands back — the
 natural key's one form, a naive timestamp's offset — so one unit test pins both and nothing above this

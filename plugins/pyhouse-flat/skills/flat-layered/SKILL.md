@@ -36,9 +36,9 @@ the family is chosen.
   `pyhouse-hex` plugin. Nothing in this skill applies there.
 - More than one entrypoint drives the same domain logic (REST + gRPC + a queue consumer, all calling
   the same rules) → not this skill; that shared core is exactly what ports exist to protect.
-- A dependency already has, or is about to get, a second real implementation (two providers, a fake for
-  tests standing in for a real backend) → not this skill for that dependency; extract a narrow
-  `Protocol` for it and keep the rest flat.
+- A dependency already has, or is about to get, a second real production implementation (two providers
+  the service switches between) → not this skill for that dependency; extract a narrow `Protocol` for
+  it and keep the rest flat. A test double is not a second implementation (rule 13).
 - A single script with no more than a couple of modules → still too heavy for this skill; just write
   the script (`architecture-choice` states what does apply to one).
 - The question is not the layout but the boundary — split vs merge, contract vs shared knowledge,
@@ -51,8 +51,10 @@ the family is chosen.
 - This service is one of several distributions sharing one repository → this skill still covers its own
   internal layout unchanged; the repository root, the member split and the tooling settled once are
   `python-workspace`. One distribution on its own needs none of that.
-- What triggers a run — a loop, a cron entry, a stream, or durable execution once it is earned →
-  `flat-entrypoint`, which owns the run function's own obligations.
+- What triggers a run — a loop, a cron entry, a stream, an HTTP request, or durable execution once it
+  is earned → `flat-entrypoint`, which owns the run function's own obligations.
+- The `pyproject.toml`, the toolchain configuration and the migration environment, laid once when the
+  service is created → `flat-project-setup`.
 
 Four skills apply here exactly as they do anywhere else, and this skill does **not** restate them:
 
@@ -60,7 +62,7 @@ Four skills apply here exactly as they do anywhere else, and this skill does **n
   `python-packaging`.
 - Annotation forms, collection types, the shape a record takes as it crosses a package boundary,
   logging, comments → `python-style`.
-- The `exceptions/` catalog and translating SDK errors into it → `exception-catalog`.
+- The `exceptions.py` catalog and translating SDK errors into it → `exception-catalog`.
 - Where boundaries go at all — split vs merge, contract vs shared knowledge, how much structure a
   component deserves → `coupling`.
 
@@ -93,21 +95,22 @@ is what keeps the work units runnable from a plain loop, a test, or a one-off sc
 makes switching a service's trigger a wrapper change rather than a rewrite. A repository-wide grep
 enforces it (`test-architecture-rule`).
 
-**One other module holds that role: the framework-guarded helper.** A helper that wraps a framework call
-so the body keeps one shape whether or not the framework's context is present is the worked case
-(`flat-entrypoint`, durable obligation 10). It exists precisely so a work unit stays framework-free,
+**One other module holds that role, and only once a durable-execution engine is earned: the
+framework-guarded helper.** A helper that wraps a framework call so the body keeps one shape whether or
+not the framework's context is present is the worked case (`flat-entrypoint`, durable obligation 10).
+It exists precisely so a work unit stays framework-free,
 which is the rule's purpose, and the grep's allow-list names it by path. **For one distribution it is one
 named module at the root of that distribution's own package**; where several share a repository it is
 promoted to a library they both depend on, and it is the same one exemption. Nothing else is exempt: a
 role is declared when the package is created, never assumed from a directory name.
 
-## Package names are roles, not vocabulary
+### The package names
 
 The skeleton below is **one worked example**, not a required set of directory names. The rule is *one
 package per role kind the service has*; the names are whatever describes those roles here. A service that
 fetches nothing has no upstream-pull package. A service with no datastore of its own has no data-access
-package. A crawler might call its work units `fetch/` and `parse/`; a report pipeline `extract/` and
-`render/`.
+package. A service that fetches and parses might call its work units `fetch/` and `parse/`; a report
+pipeline `extract/` and `render/`.
 
 Copying a package name because it appears here, when the service has no such role, is the failure mode
 this warning exists to prevent — it produces an empty package and a reviewer who assumes work lives
@@ -136,16 +139,13 @@ wrapper class and a run function equally badly.
 different service fills the same roles under its own names, and creates only the ones it has.
 
 ```
-myapp/
+src/myapp/
 ├── __init__.py
 ├── __main__.py                  # the declared entry point — `python -m myapp` selects and runs one
 ├── settings.py                  # the process's own pydantic-settings class, env-prefixed
 ├── logging.py                   # structlog/stdlib logging setup, called once at startup
-├── durable.py                   # the one framework-guarded helper module (rule 9), where one is needed
-├── enums/
-│   └── __init__.py               # ONLY vocabulary genuinely used across packages — see rule 11
-├── exceptions/
-│   └── __init__.py               # one catalog of this service's exception classes
+├── enums.py                     # ONLY vocabulary genuinely used across packages — see rule 11
+├── exceptions.py                # one catalog of this service's exception classes
 ├── schemas/
 │   ├── __init__.py
 │   └── foo.py                    # Pydantic models / frozen dataclasses — payloads and results
@@ -163,23 +163,23 @@ myapp/
 ├── jobs/                         # ROLE: work units over ALREADY-STORED data
 │   ├── __init__.py
 │   └── foo_recheck.py
-├── myframework/                  # ROLE: framework wrapper — the only package importing myframework
-│   ├── __init__.py
-│   └── wrappers.py
 └── entrypoints/                  # ROLE: process definitions
     ├── __init__.py
-    ├── myframework_worker.py     # process: serves the framework's queue
+    ├── foo_loop.py               # process: the self-scheduling loop
     └── foo_stream.py             # process: a long-lived continuous stream
 ```
 
-A service with no framework to wrap simply has no wrapper package; its process definitions call the work
-units directly. A very small service may collapse its two work-unit packages into one — but never
+The tree sits under `src/`, beside the distribution's `pyproject.toml`, `tests/` and `migrations/`
+(`flat-project-setup`). A service with no framework to wrap has no wrapper package; its process
+definitions call the work units directly. One that has a framework adds one wrapper package — the HTTP
+shape's, or a durable-execution engine's together with the one guarded helper module once the engine is
+earned (`flat-entrypoint`). A very small service may collapse its two work-unit packages into one — but never
 collapse either into the process-definition package, which is what makes the work untestable without
 starting a process.
 
 ### Template — settings, on pydantic-settings
 
-`myapp/settings.py` — the process's own configuration, beside the modules that hold the rest of the
+`src/myapp/settings.py` — the process's own configuration, beside the modules that hold the rest of the
 cross-cutting setup:
 
 ```python
@@ -228,13 +228,21 @@ instead of being handed values, which rule 7 forbids.
 
 ### Template — an external-system client, on httpx
 
-`services/foo_client.py` — one concrete class, no Protocol:
+`src/myapp/services/foo_client.py` — one concrete class, no Protocol:
 
 ```python
 import httpx
+from pydantic import BaseModel, ValidationError
 
 from myapp.exceptions import FooClientError
-from myapp.schemas.foo import FooPayload
+from myapp.schemas import FooPayload
+
+__all__ = ["FooClient"]
+
+
+class _FooPage(BaseModel):
+    items: tuple[FooPayload, ...]
+    next: str | None = None
 
 
 class FooClient:
@@ -247,10 +255,34 @@ class FooClient:
             async with httpx.AsyncClient(timeout=self._timeout_seconds) as http:
                 response = await http.get(f"{self._base_url}/foos/{foo_id}")
                 response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise FooClientError(f"failed to fetch foo {foo_id}") from exc
-        return FooPayload.model_validate(response.json())
+            return FooPayload.model_validate_json(response.content)
+        except (httpx.HTTPError, ValidationError) as exc:
+            raise FooClientError("failed to fetch a foo", {"foo_id": foo_id}) from exc
+
+    async def fetch_batch(self) -> list[FooPayload]:
+        payloads: list[FooPayload] = []
+        cursor: str | None = None
+        async with httpx.AsyncClient(timeout=self._timeout_seconds) as http:
+            while True:
+                params = {"cursor": cursor} if cursor is not None else {}
+                try:
+                    response = await http.get(f"{self._base_url}/foos", params=params)
+                    response.raise_for_status()
+                    page = _FooPage.model_validate_json(response.content)
+                except (httpx.HTTPError, ValidationError) as exc:
+                    raise FooClientError("failed to fetch a page of foos", {"cursor": cursor}) from exc
+                payloads.extend(page.items)
+                if page.next is None:
+                    return payloads
+                cursor = page.next
 ```
+
+**Parsing sits inside the translated scope.** A 200 whose body is not JSON, or is JSON of the wrong
+shape, is as much an upstream failure as a 503, so the decode and the validation run inside the same
+`try` as the request and leave the client as the catalogue's error, with the identifying input in
+`context` and the original chained (`exception-catalog`). A parse written after the `try` lets a
+malformed 200 escape as the validation library's own exception. The page model is private to the module:
+it describes the upstream's envelope and never leaves this file (`python-packaging`).
 
 **The client returns a declared type, never the parsed `dict`.** The payload leaves the scope that
 built it and arrives in a work unit that has to know its fields; a bare mapping makes the receiving
@@ -296,8 +328,9 @@ test construct the client against a stub base URL without touching the environme
    storage. A service's SQL is findable in one place or it is everywhere. What that package contains is
    `flat-persistence`. Where several distributions share one store, that one package is shared between
    them and `flat-persistence` states what changes.
-5. **Introduce a port only when a second real implementation is about to be written** — a second
-   provider, a fake standing in for integration tests. Judge "about to be written" from the domain,
+5. **Introduce a port only when a second real production implementation is about to be written** — a
+   second provider the service switches between. A fake for tests never counts: test doubles come from
+   the real backend, a stubbed transport or a subclass (rule 13). Judge "about to be written" from the domain,
    not from caution (`coupling`): the credible case is a commodity dependency with a nameable
    alternative the business could plausibly adopt; a sticky one — the main datastore, the identity
    provider — never qualifies, however generic it looks, and stays concrete with test doubles made
@@ -305,9 +338,11 @@ test construct the client against a stub base URL without touching the environme
    *that one dependency*; do not retrofit the rest of the service.
 6. **One exception catalog**, and SDK/library exceptions are translated into it at the boundary — inside
    the client class that called the SDK. Shape and translation rules: `exception-catalog`.
-7. **Settings are built by a factory and passed down as values.** A settings module — `myapp/settings.py`
+7. **Settings are built by a factory and passed down as values.** A settings module — `src/myapp/settings.py`
    in the example above — exposes `get_settings()`; the process definition calls it once and hands
-   concrete arguments to the clients and work units it constructs. Nothing below the process-definition
+   concrete arguments to the clients and work units it constructs. The migration environment is the
+   process definition of a migration run and calls the data-access component's factory the same way
+   (`flat-project-setup`). Nothing below the process-definition
    role imports settings, and no module below it calls a settings factory, its own component's included.
    A settings object built at import time makes the package unimportable — by a test, by a type checker,
    by a sibling module wanting one constant — anywhere the environment is incomplete.
@@ -323,10 +358,10 @@ test construct the client against a stub base URL without touching the environme
    as reserved in the outer class and never declare a field there that begins with it. The failure is
    the same whether the second component is a package inside this distribution or a library shared with
    siblings (`flat-persistence` states that package's half).
-9. **Only a package whose declared role is framework wrapper may import the framework** — plus the one
-   framework-guarded helper module the firewall's allow-list names explicitly. For one distribution that
-   is a single named module at the root of its own package — `durable.py` in the example above — and
-   where several share a repository it is promoted to a library they both depend on. The allow-list names
+9. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
+   durable-execution engine is earned, the one framework-guarded helper module the firewall's allow-list
+   names explicitly. For one distribution that is a single named module at the root of its own package,
+   and where several share a repository it is promoted to a library they both depend on. The allow-list names
    that module by path, so the exemption stays one entry a reviewer can read. That one rule is what keeps
    the work units callable from a loop, a test or a one-off script, and it is what makes switching a
    service's trigger a wrapper change rather than a rewrite. The role is declared when the package is
@@ -335,15 +370,13 @@ test construct the client against a stub base URL without touching the environme
     observed latency and from what the caller can wait for; a default is one deployment's tuning frozen
     into a template, and it converts a missing variable into a silent wrong answer instead of a startup
     failure.
-11. **An enum lives beside the module that owns it.** A shared vocabulary package holds only what is
+11. **An enum lives beside the module that owns it.** A shared vocabulary module holds only what is
     genuinely used across packages, and admission to it runs `coupling`'s test — a blanket category
     package pulls single-owner types away from their owner and stops naming anything.
-12. **A failure is logged once, by the scope that will not re-raise it.** Nothing above a failure here
-    is contractually obliged to re-raise into a single handler, so that scope is usually the point of
-    failure itself — log it there, with its context. A scope that *does* re-raise (a client translating
-    an SDK error for its caller) stays silent and lets whoever stops the exception log it; the detail
-    rides in the translated exception's `context` (`exception-catalog`). The allocation rule and the
-    event-name contract are `python-style`'s.
+12. **Which scope logs a failure is `python-style`'s rule, and it applies here unchanged.** In a flat
+    service the scope that stops a failure is usually the loop's guard or the framework wrapper's error
+    handler; a client translating an SDK error re-raises and so stays silent, with the detail riding in
+    the translated exception's `context` (`exception-catalog`).
 13. **Test at the boundary, not through fakes of internal abstractions.** Prefer a real integration test
     — a containerized dependency, a stubbed HTTP transport — over mocking a class that has no
     interface. When isolation is needed, subclass the concrete client for one-off failure injection; do

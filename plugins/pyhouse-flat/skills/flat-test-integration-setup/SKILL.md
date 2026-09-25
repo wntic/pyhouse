@@ -1,6 +1,6 @@
 ---
 name: flat-test-integration-setup
-description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration run, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the storage package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
+description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration round trip, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the storage package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
 when_to_use: Also when asked where a flat service's test fixtures live, how integration tests get a real database, why a test suite must never truncate a developer's database, or why a session-scoped engine needs a session-scoped event loop.
 ---
 
@@ -56,6 +56,7 @@ import os
 import subprocess
 import sys
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
@@ -63,25 +64,14 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 
 _EXTERNAL_FLAG = "MYAPP_TEST_USE_EXTERNAL"
 _REQUIRED_EXTERNAL_VARS = ("MYAPP_STORAGE_DSN",)
-# The image the suite starts: the major version this project runs in production, pinned.
-# `17-alpine` is one project's answer — a project on another major writes its own.
-_CONTAINER_IMAGE = "postgres:17-alpine"
-# The database names this project declares throwaway. Matched whole, never as a substring.
+_CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
 _ALLOWED_TEST_DATABASES = frozenset({"test"})
-
-
-# ---------- container / DSN (session-scoped, guarded) ----------
+_DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(scope="session")
 def db_dsn() -> Iterator[str]:
-    """The DSN every integration test runs against.
-
-    Ephemeral container by default. Pointing the suite at an already-running database is
-    opt-in through a dedicated variable, never an ambient one: any shell or CI image that
-    exports `CI` would otherwise silently divert the suite onto whatever is in the
-    environment — and this suite TRUNCATEs every table it can see.
-    """
+    """A suite-owned container, or an external database only behind a dedicated opt-in flag."""
     if os.getenv(_EXTERNAL_FLAG) == "1":
         missing = [name for name in _REQUIRED_EXTERNAL_VARS if not os.getenv(name)]
         if missing:
@@ -93,17 +83,13 @@ def db_dsn() -> Iterator[str]:
         yield dsn
         return
 
-    from testcontainers.postgres import PostgresContainer
+    from testcontainers.community.postgres import PostgresContainer
 
-    with PostgresContainer(_CONTAINER_IMAGE) as pg:
-        yield (
-            f"postgresql+asyncpg://{pg.username}:{pg.password}"
-            f"@{pg.get_container_host_ip()}:{pg.get_exposed_port(5432)}/{pg.dbname}"
-        )
+    with PostgresContainer(_CONTAINER_IMAGE, driver="asyncpg") as pg:
+        yield pg.get_connection_url()
 
 
 def _refuse_if_not_a_test_database(dsn: str) -> None:
-    """Integration tests DROP and TRUNCATE. Refuse any name not on the declared allowlist."""
     database_name = dsn.rsplit("/", 1)[-1].split("?")[0]
     if database_name not in _ALLOWED_TEST_DATABASES:
         raise RuntimeError(
@@ -112,23 +98,24 @@ def _refuse_if_not_a_test_database(dsn: str) -> None:
         )
 
 
-# ---------- migrations (once per session) ----------
+def _alembic(dsn: str, *args: str) -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", *args],
+        capture_output=True,
+        text=True,
+        cwd=_DISTRIBUTION_ROOT,
+        env={**os.environ, "MYAPP_STORAGE_DSN": dsn},
+    )
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.fixture(scope="session")
 def _migrated_db(db_dsn: str) -> str:
-    """Replay the migration history from where the schema is defined, as the deploy command does."""
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        capture_output=True,
-        text=True,
-        env={**os.environ, "MYAPP_STORAGE_DSN": db_dsn},
-    )
-    assert result.returncode == 0, result.stderr
+    """Up, down to the base and up again, so every downgrade() runs once per session."""
+    _alembic(db_dsn, "upgrade", "head")
+    _alembic(db_dsn, "downgrade", "base")
+    _alembic(db_dsn, "upgrade", "head")
     return db_dsn
-
-
-# ---------- engine (session-scoped) ----------
 
 
 @pytest.fixture(scope="session")
@@ -140,17 +127,9 @@ async def engine(_migrated_db: str) -> AsyncIterator[AsyncEngine]:
         await engine.dispose()
 
 
-# ---------- isolation 1: rollback-scoped connection ----------
-
-
 @pytest.fixture
 async def conn(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
-    """One connection per test, inside a transaction rolled back at teardown.
-
-    For anything that ACCEPTS a connection — the bulk write helpers, and every assertion
-    query. Nothing written through it reaches disk, so tests using only this fixture are
-    the fastest and cannot leak.
-    """
+    """For anything that accepts a connection; rolled back at teardown."""
     async with engine.connect() as connection:
         trans = await connection.begin()
         try:
@@ -159,12 +138,9 @@ async def conn(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
             await trans.rollback()
 
 
-# ---------- isolation 2: whole-schema TRUNCATE (autouse here) ----------
-
-
 @pytest.fixture(autouse=True)
 async def truncate_all(engine: AsyncEngine) -> AsyncIterator[None]:
-    """Wipe every table after each test, for code that opens and owns its own transaction."""
+    """For code that opens and owns its own transaction; wipes every table afterwards."""
     from myapp.storage.metadata import metadata
 
     yield
@@ -179,13 +155,18 @@ async def truncate_all(engine: AsyncEngine) -> AsyncIterator[None]:
 own. A separate guard fixture is bypassed by any test that reaches for the DSN directly; a check inside
 `db_dsn` cannot be. And it guards on an **exact database name**, never a port heuristic — a project whose
 dev stack is remapped to non-default ports sails straight through "not the default port". The names it
-accepts are **declared by the project** in `_ALLOWED_TEST_DATABASES`; `test` is one project's convention,
-and a project that calls its throwaway database something else edits the constant rather than the
-comparison, which stays whole-name equality.
+accepts are **declared by the project** in `_ALLOWED_TEST_DATABASES`; a project that calls its throwaway
+database something else edits the constant rather than the comparison, which stays whole-name equality.
 
 The image tag is a constant for the same reason: **the container runs the major version production
 runs**, pinned to it, so the suite exercises the planner and DDL surface the migrations will meet. A
 floating tag moves the schema under the suite between runs.
+
+**The migration history runs up, down to the base, and up again, once per session.** That round trip is
+what proves every revision's `downgrade()` reverses its `upgrade()` (`flat-persistence`), and the suite
+then runs against the schema the history produces. The subprocess runs from the distribution root, where
+`alembic.ini` sits, and hands the container's DSN to the migration environment under the variable that
+environment reads — the data-access component's own, `MYAPP_STORAGE_DSN` (`flat-project-setup`).
 
 `truncate_all` is autouse **here** because this conftest is scoped to one directory of integration tests,
 all of which reach code that commits. Its teardown ordering is what keeps it safe: `TRUNCATE` takes an
@@ -194,9 +175,10 @@ returned to the pool. Because it is autouse, pytest sets it up before any fixtur
 name and therefore finalizes it last. Request it by name alongside `conn` and that ordering is no longer
 guaranteed, and the wipe can deadlock against the still-open transaction.
 
-## Template — pytest configuration (pytest, pytest-asyncio, pytest-env)
+## Template — pytest configuration (pytest, pytest-asyncio)
 
-In the distribution's own `pyproject.toml`:
+In the distribution's own `pyproject.toml` — or, where several distributions share one repository, in
+the root `pyproject.toml` that `python-workspace` lays, since pytest reads one configuration per run:
 
 ```toml
 [tool.pytest.ini_options]
@@ -204,7 +186,6 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
-env = ["D:MYAPP_STORAGE_DSN=postgresql+asyncpg://test:test@localhost:1/placeholder"]
 ```
 
 Both loop-scope lines are load-bearing, not decoration. The `engine` fixture is session-scoped, so every
@@ -214,8 +195,8 @@ statement that *errors* — a constraint violation through the storage class, th
 crashes at teardown with `RuntimeError: Event loop is closed`, because the driver cannot cancel the
 aborted command on a closed loop.
 
-The `D:` prefix on the placeholder makes it a **default** rather than an override, so the opt-in external
-path still sees a real exported DSN.
+No placeholder connection string is set for collection: nothing in the service builds settings or an
+engine at import (`flat-persistence` rule 14), so an unset variable fails only the code that reads it.
 
 The container library is imported **inside** the fixture that needs it, not at module scope, so a
 pure-unit collection pays nothing for it.
@@ -249,7 +230,8 @@ pure-unit collection pays nothing for it.
 
 1. **The migration runs from wherever the schema is defined** — this distribution when it owns its
    store, the owning library when several share one. One store, one history, replayed the same way the
-   deploy command replays it.
+   deploy command replays it, and taken down to the base and up again once per session so every
+   `downgrade()` runs.
 2. **The safety guard lives inside the fixture producing the connection details**, and guards on an
    exact database name drawn from a project-declared constant, never a port or substring heuristic.
 3. **Using a datastore the suite did not start is opt-in and explicit.** Key it on a dedicated variable,
@@ -258,9 +240,9 @@ pure-unit collection pays nothing for it.
 4. **The connection pool is session-scoped, the transaction function-scoped.** One datastore and one
    pool per run; one transaction per test. A function-scoped pool re-establishes itself every test and
    adds seconds to the run; a session-scoped connection serializes the suite onto one connection.
-5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** That factory
-   reads the placeholder connection string, and a second pool against the same datastore is never
-   disposed. Tests take the shared fixture and pass it explicitly to whatever needs one.
+5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** A second pool
+   against the same datastore runs outside the session's loop and teardown and is never disposed. Tests
+   take the shared fixture and pass it explicitly to whatever needs one.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
    still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to
@@ -275,8 +257,6 @@ pure-unit collection pays nothing for it.
 9. **Turn off the pool's per-checkout liveness check where the datastore cannot vanish mid-run.** A
    suite-owned container is up for the whole session, so the check is a round trip per checkout buying
    nothing (`pool_pre_ping=False` here). Leave it on against a remote or shared datastore.
-10. **A placeholder value the test configuration sets must default, never override**, so the opt-in
-    external path still sees a real exported value. Under pytest-env that is the `D:` prefix.
 
 ## Hard stops
 
@@ -301,3 +281,5 @@ pure-unit collection pays nothing for it.
   `"ignore:..."` entry after `"error"` with its reason in a comment.
 - The distribution has no relational store at all → stop, none of this applies; there is no transaction to
   roll back and no schema to truncate.
+- The migration fixture is trimmed to `upgrade head` alone → stop, the down-and-up round trip is the only
+  thing that runs each `downgrade()` before a deploy needs it.
