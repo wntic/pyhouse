@@ -333,9 +333,9 @@ Methods use `self._session.execute(...)` directly, and **never `commit()` or `ro
 work owns those. Committing inside a repository breaks atomicity.
 
 The audit repository only ever joins a unit of work, so it has the joining form alone. `AuditEvent` and
-`IAuditRepository` are `hex-domain-model`'s and `hex-domain-ports`'; `audit_events_table` is a `Table`
-in `hex-persistence`'s form with a store-generated key, so an append has no constraint of its own to
-violate:
+`IAuditRepository` are `hex-domain-model`'s and `hex-domain-ports`'; `audit_events_table` is
+`hex-persistence`'s append-only table (`TABLE.md`), whose key the store generates, so an append has no
+constraint of its own to violate:
 
 ```python
 # src/myapp/infrastructure/postgres/repositories/audit_repository.py
