@@ -17,9 +17,9 @@ reports three outcomes — resolved, **missing**, and *unchecked* where a packag
 was verified. Run it before shipping a template:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy pydantic-settings \
-  structlog respx pytest 'testcontainers[postgres,minio]' alembic redis aioboto3 pyjwt \
-  uuid6 httpx cryptography idna
+python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy greenlet \
+  pydantic-settings structlog respx pytest 'testcontainers[postgres,minio]' alembic redis \
+  aioboto3 pyjwt uuid6 httpx cryptography idna
 .venv/bin/python tools/check_template_imports.py
 ```
 
