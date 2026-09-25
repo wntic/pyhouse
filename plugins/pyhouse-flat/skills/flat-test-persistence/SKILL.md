@@ -113,6 +113,17 @@ async def test_the_reference_is_unique_on_a_plain_insert(conn: AsyncConnection) 
     assert "uq_foos_reference" in str(exc_info.value.orig)
 
 
+async def test_a_label_is_unique_per_foo_on_a_plain_insert(conn: AsyncConnection) -> None:
+    await conn.execute(foo_table.insert().values(**_foo()))
+    foo_id: UUID = (await conn.execute(select(foo_table.c.id))).scalar_one()
+    await conn.execute(bar_table.insert().values(foo_id=foo_id, label="amber"))
+
+    with pytest.raises(IntegrityError) as exc_info:
+        await conn.execute(bar_table.insert().values(foo_id=foo_id, label="amber"))
+
+    assert "uq_bars_foo_id" in str(exc_info.value.orig)
+
+
 async def test_an_empty_update_set_is_a_no_op_rather_than_an_error(
     conn: AsyncConnection,
 ) -> None:
@@ -154,7 +165,9 @@ async def test_empty_input_is_a_no_op(conn: AsyncConnection) -> None:
     assert count == 0
 ```
 
-The constraint name asserted there is the one the metadata's naming convention generates
+Each unique constraint appears twice: `uq_foos_reference` on a plain insert and under the reference
+upsert, `uq_bars_foo_id` on a plain insert and under the empty-update-set write that resolves against it
+(rule 3). The constraint names asserted there are the ones the metadata's naming convention generates
 (`flat-persistence`). Asserting the **name** rather than only the exception type is what catches a
 migration that dropped the intended unique index and let some other constraint fire instead.
 
@@ -181,7 +194,11 @@ import pytest
 from sqlalchemy import String, func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.exceptions import FooAlreadyRecordedError, StorageWriteRejectedError
+from myapp.exceptions import (
+    FooAlreadyRecordedError,
+    StorageUnavailableError,
+    StorageWriteRejectedError,
+)
 from myapp.schemas import Foo
 from myapp.storage import FooStorage
 from myapp.storage.foo_table import bar_table, foo_table
@@ -237,7 +254,22 @@ async def test_a_failing_second_write_leaves_no_foo_behind(engine: AsyncEngine) 
     async with engine.connect() as check:
         count = (await check.execute(select(func.count()).select_from(foo_table))).scalar_one()
     assert count == 0
+
+
+async def test_a_driver_failure_on_a_read_arrives_as_the_catalogue_error(engine: AsyncEngine) -> None:
+    unmigrated = engine.execution_options(schema_translate_map={None: "unmigrated"})
+
+    with pytest.raises(StorageUnavailableError) as exc_info:
+        await FooStorage(unmigrated).get_by_reference("alpha")
+
+    assert exc_info.value.context == {"sqlstate": "42P01"}
 ```
+
+The read-path test forces a driver failure the read cannot avoid — its tables looked up in a schema no
+migration created, which Postgres reports as `42P01`, an undefined table — through a copy of the suite's
+own engine that shares its pool, so no second engine is built. It is the test that goes red when the
+translated scope stops at the writes: a read left outside it lets the driver's type through, and nothing
+else in the file reads.
 
 The refusal test drives the translator's named branch through the one write that can reach it, and pins
 the generated constraint name in `context` rather than only the class — the same contract a caller
@@ -301,7 +333,9 @@ it would make the assertion pass for the wrong reason.
    thing at the production size costs thousands of rows on every run.
 7. **A test that forces a driver error asserts the catalogue exception the storage package produces, not
    the driver's own type.** Translation is mandatory, so the driver's class is precisely what must never
-   escape — a test expecting it pins the defect instead of the contract.
+   escape — a test expecting it pins the defect instead of the contract. A read is forced to fail once
+   too: a translation written only around the writes leaves every read leaking the driver's type, and no
+   write test notices.
 8. **A timestamp the store assigns is asserted as `test-principles`' reliability rules state**, never
    by equality and never with a strict inequality; under the rollback-scoped `conn` every write shares
    one transaction, and so one transaction-fixed clock.

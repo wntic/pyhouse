@@ -32,8 +32,9 @@ nothing here assumes a sibling distribution or a repository above it.
 - The scheduling needs are met by a loop, a cron entry or a timer — the default → none of those
   obligations apply; do not add orchestration modules "for later".
 - The named exceptions a wrapper translates at the framework boundary → `exception-catalog` owns the
-  catalogue, how a library's exception is translated into it, and how a caught one is rendered;
-  `flat-layered` rule 6 places the translation inside the client that called the library.
+  catalogue, how a library's exception is translated into it, and its status; the one rendering place is
+  this skill's HTTP shape (`HTTP.md`). `flat-layered` rule 6 places the translation inside the client
+  that called the library, and its `CATALOG.md` states the classes this family raises.
 - The service answers HTTP but has business invariants, or several entrypoints share its rules → not
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
@@ -199,7 +200,7 @@ function plus its host.
 schedules as code. They are stated under `## Rules` below, in the subsection that applies only once rule
 1 has earned an engine; a service on a loop can neither satisfy nor violate them.
 
-## Shape 3 — a continuous stream is not a workflow
+## Shape 3 — the continuous stream process
 
 A never-ending stream stays a standalone process with its own entrypoint module, whatever else the
 service runs. What it needs is not a trigger but a **liveness check**: something outside the process

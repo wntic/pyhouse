@@ -27,7 +27,7 @@ only.
 **A service that earned a durable-execution engine adds a fourth** — the orchestration above the
 wrapper, every step stubbed by its registered wire name, no datastore at all — plus the obligations that
 come with it. Those are under `## Rules`, in the subsection that applies only once an engine has been
-earned (`flat-entrypoint` rule 1 owns that test); skip it entirely otherwise.
+earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely otherwise.
 
 ## When to use vs. neighbours
 

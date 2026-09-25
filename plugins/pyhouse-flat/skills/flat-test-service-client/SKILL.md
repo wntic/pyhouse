@@ -1,6 +1,6 @@
 ---
 name: flat-test-service-client
-description: Use when testing one external-service client class with `respx` over real `httpx` transport — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception. A unit test needing no database and no container, unlike `flat-test-run-function`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`.
+description: Use when testing one external-service client class with `respx` over real `httpx` transport — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception. A unit test needing no database and no container, unlike `flat-test-run-function`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat-Layered Test — Service Client
@@ -8,8 +8,7 @@ description: Use when testing one external-service client class with `respx` ove
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 One unit-test file per client class, under the distribution's own `tests/unit/`. No database, no
-container,
-no network — `respx` intercepts at the `httpx` transport layer, so everything the client itself does
+container, no network — `respx` intercepts at the `httpx` transport layer, so everything the client itself does
 (URL assembly, headers, `raise_for_status`, JSON parsing, the `except httpx.HTTPError` translation) runs
 unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a process boundary.
 
