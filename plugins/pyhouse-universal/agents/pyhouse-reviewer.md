@@ -153,7 +153,10 @@ hook was bypassed or not installed. What no hook can check is whether a message 
 takes the diff, which you have and it does not:
 
 - the type against what the commit's diff actually does (rule 1);
-- a commit that edits a version field with no release tag pointing at it (rule 2);
+- a commit that edits a version field with no release tag pointing at it (rule 2). A `chore(release):`
+  commit that edits only version fields, and a lockfile's own-version entry, is the release commit
+  rule 2 allows, not a violation; if its tag is missing, report `untagged release — run /release to tag
+  it` instead;
 - a diff that breaks a declared surface under a message with no break marker (rule 3);
 - a diff holding two changes either of which would stand alone — read from the diff, not from an "and"
   in the subject (rule 6);
