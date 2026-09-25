@@ -63,13 +63,13 @@ carries and the RFC-7235 challenge a rejection returns are **this scheme's own**
 session cookie and a gateway header have none of the three — so these stops sit with the template that
 names the stack, and they stop wherever this binding is in use.
 
-- Spec uses `HS256` in tests while production uses `RS256` (or vice versa) → stop, the algorithm matches
+- The suite signs with `HS256` while production uses `RS256` (or vice versa) → stop, the algorithm matches
   production.
-- Spec writes the bearer header by hand inside a test → stop, use `authed_client(...)` so role, tenant
+- A test writes the bearer header by hand inside a test → stop, use `authed_client(...)` so role, tenant
   and claim shape are uniform.
-- Spec hardcodes `Authorization: Bearer <literal-jwt>` for "expired token" or "invalid claim" tests →
+- A test hardcodes `Authorization: Bearer <literal-jwt>` for "expired token" or "invalid claim" tests →
   stop, mint the test-specific token via `sign_token(...)` from the helper.
-- Spec freezes the `WWW-Authenticate` challenge to a specific realm (`Bearer realm="myapp"`) → stop, only
+- A test freezes the `WWW-Authenticate` challenge to a specific realm (`Bearer realm="myapp"`) → stop, only
   the scheme is load-bearing; the realm is app-specific.
 
 ## Other bindings
@@ -153,7 +153,7 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     dependency tree, not its first level — a role gate reaches the identity dependency through its own
     dependency, and a first-level check misses every route gated that way. *FastAPI binding:* the resolved operations are
     `fastapi.routing.iter_route_contexts(app.routes)` filtered to contexts whose original route is an
-    `APIRoute` (FastAPI 0.138 and later) — `include_router` keeps each included router as one entry in
+    `APIRoute` (FastAPI 0.137.2 and later) — `include_router` keeps each included router as one entry in
     `app.routes`, and the context resolves its prefix and router-level dependencies onto each operation
     — and the requestable path is each context's `path_format`.
 16. **The probe substitutes path placeholders with valid-shaped dummies, by pattern and never by a
@@ -210,14 +210,14 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 
 ## Hard stops
 
-- Spec asks to mock the token library, or to feed the verifier a hand-written token string → stop, sign
+- Asked to mock the token library, or to feed the verifier a hand-written token string → stop, sign
   a real token with a real key; the library's behaviour is the subject of the test.
-- Spec tests only the verifier's happy path → stop, cover every `raise` site with its `context` key
+- Only the verifier's happy path is tested → stop, cover every `raise` site with its `context` key
   (Rule 2); a translator arm nothing exercises is the gap this test exists to close.
-- Spec puts the verifier's unit test under `tests/integration/` or gives it a fixture → stop, it is
+- The verifier's unit test is put under `tests/integration/` or given a fixture → stop, it is
   pure-CPU: `tests/unit/infrastructure/<adapter>/`, module-level helpers, no container
   (`hex-test-capability-adapter`).
-- Spec adds a second token signer beside `sign_token` → stop, one signer for the whole suite, or the
+- A second token signer is added beside `sign_token` → stop, one signer for the whole suite, or the
   unit and integration paths drift apart.
 - The app has no auth (every endpoint anonymous) → stop, produce none of these files, and strip the
   `jwt_settings` parameter from `real_app` and its field and factory from `TestInfraProvider`. An
@@ -225,25 +225,25 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
   assembled.
 - Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this
   catalogue's binding) → stop, use `hex-test-integration-setup`; the suite cannot collect without it.
-- Spec proposes a session-scoped `authed_client` "to speed up tests" → stop, the factory is
+- A session-scoped `authed_client` is proposed "to speed up tests" → stop, the factory is
   function-scoped because each test's transport must be closed at teardown; the cost is negligible.
-- Spec asks to mock the verifier → stop, the integration test signs a real token against the same
+- Asked to mock the verifier → stop, the integration test signs a real token against the same
   keypair the verifier validates.
-- Spec uses `AsyncClient(transport=ASGITransport(...))` directly for an authenticated request → stop,
+- A test uses `AsyncClient(transport=ASGITransport(...))` directly for an authenticated request → stop,
   drive it through `authed_client(...)`.
-- Spec substitutes path placeholders from a fixed list of parameter names rather than by pattern → stop,
+- The probe substitutes path placeholders from a fixed list of parameter names rather than by pattern → stop,
   a route with a name the list does not carry is silently skipped.
-- Spec writes the probe against a hardcoded URL with literal placeholders (`/foos/{id}`) → stop,
+- The probe is written against a hardcoded URL with literal placeholders (`/foos/{id}`) → stop,
   substitute UUID-shaped dummies so the route resolves before the auth dependency runs.
-- Spec uses string matching to identify "protected" routes (`if "auth" in route.name`) → stop, walk the
+- The probe uses string matching to identify "protected" routes (`if "auth" in route.name`) → stop, walk the
   resolved operations and compare the callables of each one's whole dependency tree by identity.
-- Spec asks to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
+- Asked to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
   returns 401 unauth") → stop, the parametrized probe already covers it via discovery; add the endpoint
   and it joins the suite automatically.
-- Spec pins the rejection body code to a literal string (`"UNAUTHORIZED"`) → stop, assert against the
+- A test pins the rejection body code to a literal string (`"UNAUTHORIZED"`) → stop, assert against the
   domain exception's `.code` constant.
-- Spec adds an `authed_client` fixture to the root `tests/conftest.py` → stop, it belongs in
+- An `authed_client` fixture is added to the root `tests/conftest.py` → stop, it belongs in
   `tests/integration/api/conftest.py`; a root-level app fixture makes every unit test pay the
   infrastructure import chain (`hex-test-integration-setup`).
-- Spec adds a per-resource row factory inside the api conftest → stop, those live in
+- A per-resource row factory is added inside the api conftest → stop, those live in
   `tests/integration/api/<resource>/conftest.py`.

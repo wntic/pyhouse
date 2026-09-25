@@ -9,11 +9,33 @@ the authenticated endpoint forms.
 
 ```python
 import datetime as _dt
+from dataclasses import dataclass
 from uuid import uuid4
 
 import jwt
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
-__all__ = ["sign_token"]
+__all__ = ["RsaKeypair", "generate_rsa_keypair", "sign_token"]
+
+@dataclass(frozen=True)
+class RsaKeypair:
+    private_pem: str
+    public_pem: str
+
+def generate_rsa_keypair() -> RsaKeypair:
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return RsaKeypair(
+        private_pem=key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode(),
+        public_pem=key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode(),
+    )
 
 def sign_token(
     claims: dict[str, object],
@@ -43,37 +65,23 @@ from collections.abc import Callable
 from uuid import uuid4
 
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
 from myapp.domain.auth import Role
 from myapp.infrastructure.jwt.settings import JwtSettings
-
-from tests.helpers.jwt import sign_token
-
-@pytest.fixture(scope="session")
-def rsa_keypair() -> tuple[str, str]:
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    private_pem = key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
-    public_pem = key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
-    return private_pem, public_pem
+from tests.helpers.jwt import RsaKeypair, generate_rsa_keypair, sign_token
 
 @pytest.fixture(scope="session")
-def jwt_settings(rsa_keypair: tuple[str, str]) -> JwtSettings:
-    _, public_pem = rsa_keypair
+def rsa_keypair() -> RsaKeypair:
+    return generate_rsa_keypair()
+
+@pytest.fixture(scope="session")
+def jwt_settings(rsa_keypair: RsaKeypair) -> JwtSettings:
     return JwtSettings(
         algorithm="RS256",
-        public_key=SecretStr(public_pem),
+        public_key=SecretStr(rsa_keypair.public_pem),
         issuer="test-issuer",
         audience="test-audience",
     )
@@ -81,14 +89,13 @@ def jwt_settings(rsa_keypair: tuple[str, str]) -> JwtSettings:
 @pytest.fixture
 def authed_client(
     real_app: FastAPI,
-    rsa_keypair: tuple[str, str],
+    rsa_keypair: RsaKeypair,
     jwt_settings: JwtSettings,
 ) -> Callable[..., AsyncClient]:
     """Factory that mints a fresh JWT and returns an `AsyncClient` bound to
     `real_app`. Each call mints a new token; the client is an async context
     manager — always use `async with authed_client(...) as client:` so the
     underlying ASGI transport is closed at the end of the test."""
-    private_pem, _ = rsa_keypair
 
     def _factory(
         role: Role,
@@ -105,7 +112,7 @@ def authed_client(
         }
         token = sign_token(
             claims,
-            private_pem=private_pem,
+            private_pem=rsa_keypair.private_pem,
             issuer=jwt_settings.issuer,
             audience=jwt_settings.audience,
             algorithm=jwt_settings.algorithm,
