@@ -63,7 +63,7 @@ or, far more often, needs nothing and leaves `code` to do the work.
   architecture family's (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
-- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin; this skill owns the class, its `code` and its status, not the rendering.
+- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and its status, not the rendering.
 
 ## File shape (the contract every entry obeys)
 
@@ -170,8 +170,7 @@ class ForbiddenError(DomainError):
 
 
 class UpstreamError(DomainError):
-    # A dependency the service calls failed — not the caller's request. 502, never 500:
-    # 500 says this service is broken, 502 says the thing behind it is.
+    # a dependency behind this service failed — 502, never 500
     code = "UPSTREAM_ERROR"
     http_status = 502
 
