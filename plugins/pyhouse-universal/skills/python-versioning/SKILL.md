@@ -80,12 +80,18 @@ git tag -a v1.4.0 -m "myapp 1.4.0"
 git push origin v1.4.0
 ```
 
-Runtime access reads the installed distribution's metadata rather than a second literal:
+Runtime access reads the installed distribution's metadata rather than a second literal, and reads it
+when asked, not at import — `python-packaging` rule 8 builds nothing at import time, and a metadata
+lookup is a filesystem read. The function lives in a module of its own, or where the version is
+reported — never in the package root, whose contents are `python-packaging`'s:
 
 ```python
+# src/myapp/version.py
 from importlib.metadata import version
 
-__version__ = version("myapp")
+
+def get_version() -> str:
+    return version("myapp")
 ```
 
 That call takes the **distribution** name, which need not equal the import package's name.
