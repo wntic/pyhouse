@@ -40,12 +40,12 @@ nothing here assumes a sibling distribution or a repository above it.
 - Testing any of it — the run function, the loop's containment, the wrapper, the orchestration above them
   → `flat-test-run-function`.
 
-## Trigger shapes
+## The trigger process — four shapes
 
 | The work is… | Shape | Lives in |
 |---|---|---|
 | Anything on a schedule, as the starting assumption — a poll, a periodic pass, a nightly job | **Self-scheduling loop, or an external scheduler running the process once** | one module in the process-definition package |
-| Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine | a framework-wrapper package plus its worker process |
+| Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine | a framework-wrapper package plus its serving process |
 | A never-ending stream — a log or change feed, a queue consumer, a websocket feed | **Standalone stream process**, watched by an external liveness check | one module in the process-definition package |
 | A request someone else sends — a webhook, an internal CRUD or proxy endpoint, on a service with no invariants of its own | **HTTP trigger** — a thin web-framework wrapper | a framework-wrapper package plus its server process |
 
@@ -159,9 +159,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-A run function is imported from its own module, not from its package: run functions routinely share a
-name like `run_once`, so a work-unit package does not re-export them — a colliding name is reached by
-explicit import where it is consumed (`python-packaging`).
+`run_once` is imported from its own module: run functions routinely share that name, so a module whose
+name collides stays out of its package's re-export and is reached by explicit import where it is
+consumed (`python-packaging`). A run function with a name of its own is re-exported like any other.
 
 **The process definition is the only place a settings factory is called.** It reads each configured
 component's settings — the process's own and the storage package's — and hands concrete values down to
@@ -224,113 +224,14 @@ engine is built on, and its retries restart a stream that was meant to resume.
 
 A service with no invariants of its own that answers requests — an internal CRUD surface, a webhook
 receiver, a proxy — takes the same run functions behind a web framework. The framework is one more
-wrapper: **routes validate their input, call one run function, and hold no logic of their own**, and a
-catalogue error becomes its status code in exactly one handler. A route never reaches the storage class
-or the client except to hand them to a run function, and a read is a run function too, however thin.
+wrapper: **routes validate their input, call one run function, and hold no logic of their own**, and
+every failure, catalogue or not, leaves in one shape from one place. A route never reaches the storage
+class or the client except to hand them to a run function, and a read is a run function too, however
+thin. The app is built by a factory the process definition calls with the dependencies it built.
 
-`src/myapp/web/app.py` — the framework-wrapper package for this shape. `build_app` takes the
-dependencies the process definition built and closes the routes over them:
-
-```python
-from typing import Annotated
-
-import structlog
-from fastapi import FastAPI, Path, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-
-from myapp.exceptions import MyappError, ValidationError
-from myapp.ingest.foo_ingest import run_once
-from myapp.jobs.foo_lookup import find_foo
-from myapp.schemas import Foo, IngestResult
-from myapp.services import FooClient
-from myapp.storage import FooStorage
-
-__all__ = ["build_app"]
-
-logger = structlog.get_logger()
-
-_REFERENCE_MAX_LENGTH = 256
-
-
-def _render(exc: MyappError) -> JSONResponse:
-    logger.warning("request_failed", code=exc.code, context=exc.context)
-    return JSONResponse(
-        status_code=exc.http_status,
-        content={"code": exc.code, "message": str(exc), "context": exc.context},
-    )
-
-
-def build_app(client: FooClient, storage: FooStorage) -> FastAPI:
-    app = FastAPI()
-
-    @app.exception_handler(MyappError)
-    async def _on_catalogue_error(request: Request, exc: MyappError) -> JSONResponse:
-        return _render(exc)
-
-    @app.exception_handler(RequestValidationError)
-    async def _on_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
-        fields = sorted({".".join(map(str, error["loc"])) for error in exc.errors()})
-        return _render(ValidationError("the request is invalid", {"fields": fields}))
-
-    @app.post("/runs")
-    async def trigger_run() -> IngestResult:
-        return await run_once(client, storage)
-
-    @app.get("/foos/{reference}")
-    async def read_foo(reference: Annotated[str, Path(max_length=_REFERENCE_MAX_LENGTH)]) -> Foo:
-        return await find_foo(storage, reference)
-
-    return app
-```
-
-`src/myapp/jobs/foo_lookup.py` — the read's run function, in the work-unit package for already-stored
-data:
-
-```python
-from myapp.schemas import Foo
-from myapp.storage import FooStorage
-
-
-async def find_foo(storage: FooStorage, reference: str) -> Foo:
-    return await storage.get_by_reference(reference)
-```
-
-`src/myapp/entrypoints/foo_http.py` — the process definition, the only place a settings factory is
-called, exactly as for the loop. The process's settings class carries `http_host` and `http_port`,
-required like every other tunable:
-
-```python
-import uvicorn
-
-from myapp.services import FooClient
-from myapp.settings import get_settings
-from myapp.storage import FooStorage, get_engine, get_storage_settings
-from myapp.web import build_app
-
-
-def main() -> None:
-    settings = get_settings()
-    storage = FooStorage(get_engine(get_storage_settings().dsn.get_secret_value()))
-    client = FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds)
-    app = build_app(client, storage)
-
-    uvicorn.run(app, host=settings.http_host, port=settings.http_port)
-
-
-if __name__ == "__main__":
-    main()
-```
-
-**The app is built once, by a factory the process definition calls**, never as a module-level `app`
-object: a module-level app builds its dependencies at import, which is the global wiring rule 3 forbids,
-and a test could not hand it a test container's engine.
-
-**The catalogue is rendered in one place.** Once the service answers HTTP its catalogue root carries
-`http_status`, and the single handler renders `code`, the message and `context` off the exception
-(`exception-catalog`); the framework's own validation failure is turned into the catalogue's validation
-error first, so a client meets one error shape whatever went wrong. The handler is the scope that stops
-the failure, so it is the one that logs it (`python-style`).
+**Read `HTTP.md`** in this skill's directory before writing the app factory, its error handling, the
+read's run function or the server's process definition — it carries the FastAPI and uvicorn templates
+for rule 9.
 
 ## Other bindings
 
@@ -391,9 +292,10 @@ the failure, so it is the one that logs it (`python-style`).
    `while True` can only be reached by driving the loop — which needs an artificial escape that
    changes the thing under test.
 9. **An HTTP route validates its input, calls one run function, and holds no logic.** The app is built
-   by a factory from dependencies the process definition hands it, and a catalogue error becomes its
-   status code in one handler, never per route. A route that branches on the data, reaches the storage
-   class, or catches a catalogue error itself has become a second place the work lives.
+   by a factory from dependencies the process definition hands it, and every failure — a catalogue
+   error, the framework's validation failure, an unexpected exception — is rendered in one shape, in
+   one place, never per route, and logged once there. A route that branches on the data, reaches the
+   storage class, or catches a catalogue error itself has become a second place the work lives.
 
 ### Once a durable-execution engine is earned
 
@@ -433,9 +335,9 @@ separately from the rules and cited elsewhere as *durable obligation N*.
    asserts the continuation fires reads the same number the loop does instead of hardcoding it a second
    time. An underscore-prefixed name says "do not read this" to the one reader that has to.
 9. **A unit of work that runs for minutes reports progress, and the gap the engine will tolerate is
-   declared at the call site.** Without progress reports a dead worker goes unnoticed until the whole
-   close timeout elapses, and the unit can never be cancelled — so cancelling the run and shutting a
-   worker down gracefully both have to cut it off mid-flight. The tolerated gap must exceed the longest
+   declared at the call site.** Without progress reports a dead serving process goes unnoticed until
+   the whole close timeout elapses, and the unit can never be cancelled — so cancelling the run and
+   shutting the serving process down gracefully both have to cut it off mid-flight. The tolerated gap must exceed the longest
    realistic interval between reports, the first one included.
 10. **Progress reporting goes through a guarded helper, never the framework call directly.** The same
     body is called from a plain loop and from its own test, where the raw call raises because there is
@@ -499,7 +401,7 @@ These fire only once rule 1 has earned an engine; under every other trigger ther
   a continuation never reaches the statement after the loop, so the real termination condition is
   missing and what stands in its place is dead.
 - A unit of work that runs for minutes declares a close timeout and no progress reporting → stop, add
-  both; otherwise a dead worker goes unnoticed for the whole timeout and the unit can never be cancelled.
+  both; otherwise a dead serving process goes unnoticed for the whole timeout and the unit can never be cancelled.
 - A run-function body calls the framework's progress function directly → stop, use the guarded helper;
   the unguarded call raises the moment the body runs from a loop or a test.
 - A schedule is created by hand in a console, from inside the process serving the work, or without an
