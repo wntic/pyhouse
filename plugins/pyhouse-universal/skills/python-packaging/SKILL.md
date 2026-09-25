@@ -44,7 +44,7 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
   (`foo_schemas.py`). `utils.py` holding `class FooHelper` is wrong twice — the file
   names a category rather than a responsibility, and so does the class.
 - A rename is a **separate commit** from any behaviour change, and names that have escaped into
-  external contracts — log event names, exception `code` values, registered workflow/activity names,
+  external contracts — log event names, exception `code` values, job or task names registered by string,
   database constraint names, published API fields — are not renamed in place at all.
 
 ## Modules
