@@ -35,7 +35,7 @@ API key, a blob store, a vector store or an observability backend. Never copy th
 settings class.
 
 ```python
-from pydantic import SecretStr, computed_field
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["DbSettings"]
@@ -58,7 +58,6 @@ class DbSettings(BaseSettings):
     pool_pre_ping: bool = True
     echo: bool = False
 
-    @computed_field
     @property
     def dsn(self) -> str:
         return (
@@ -113,7 +112,7 @@ Three `model_config` keys are mandatory **under pydantic-settings**, and each is
 project's dotenv file, so local development reads it while production injects real environment and the
 file simply is not there; and `extra="ignore"` keeps the namespace non-strict, without which a
 neighbouring variable in it crashes startup. `SecretStr` is this binding's non-printing secret type and
-`.get_secret_value()` its unwrap; `@computed_field @property` is where a derived value is computed on
+`.get_secret_value()` its unwrap; a plain `@property` is where a derived value is computed on
 the object; `@field_validator` is where normalization and rejection are written.
 
 ### Explicit settings values for tests
@@ -433,7 +432,7 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ## Inlined typing / import rules
 
-- **Under the pydantic-settings binding:** `from pydantic import SecretStr, computed_field`, adding
+- **Under the pydantic-settings binding:** `from pydantic import SecretStr`, adding
   `field_validator` to that line **only when the class defines one** (settings rule 10) — an unused
   import is an F401 — plus `from pydantic_settings import BaseSettings, SettingsConfigDict`. Another
   settings library imports its own names; what carries over is that each is imported only where used.
