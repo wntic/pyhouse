@@ -56,10 +56,14 @@ class FooRepository:
         return f"{self._prefix}:{foo_id}"
 
     def _record_to_entity(self, record: dict[str, object]) -> Foo:
-        return Foo(id=UUID(str(record["id"])), name=str(record["name"]))
+        return Foo(
+            id=UUID(str(record["id"])),
+            name=str(record["name"]),
+            bar_id=UUID(str(record["bar_id"])),
+        )
 
     async def add(self, foo: Foo) -> None:
-        record = {"id": str(foo.id), "name": foo.name}
+        record = {"id": str(foo.id), "name": foo.name, "bar_id": str(foo.bar_id)}
         try:
             await self._client.set(self._key(foo.id), json.dumps(record))
         except RedisError as exc:
@@ -129,14 +133,14 @@ class FooRepository:
         self._client = client
         self._collection = settings.foos_collection
 
-    async def add_many(self, foos: Sequence[Foo]) -> None:
+    async def add_many(self, embedded: Sequence[tuple[Foo, Sequence[float]]]) -> None:
         points = [
             PointStruct(
                 id=str(foo.id),
-                vector=list(foo.vector),
-                payload={"bar_id": str(foo.bar_id), "text": foo.text},
+                vector=list(vector),
+                payload={"name": foo.name, "bar_id": str(foo.bar_id)},
             )
-            for foo in foos
+            for foo, vector in embedded
         ]
         try:
             await self._client.upsert(collection_name=self._collection, points=points)
@@ -155,7 +159,6 @@ class FooRepository:
                 query=list(query_vector),
                 limit=k,
                 with_payload=True,
-                with_vectors=True,  # each entity carries its own vector, never the query's
             )
         except _QDRANT_ERRORS as exc:
             raise UpstreamError(
@@ -182,14 +185,15 @@ class FooRepository:
 
     def _point_to_entity(self, point: ScoredPoint) -> Foo:
         payload = point.payload or {}
-        vector = point.vector if isinstance(point.vector, list) else []
         return Foo(
             id=UUID(str(point.id)),
+            name=str(payload["name"]),
             bar_id=UUID(str(payload["bar_id"])),
-            text=str(payload["text"]),
-            vector=tuple(v for v in vector if isinstance(v, float)),
         )
 ```
+
+The embedding is an input the index stores beside the entity, not a field of `Foo`: the search path
+never consumes a stored vector, so it does not fetch one (Rule 8).
 
 `qdrant-client` has no single exception root: its HTTP transport raises `ApiException` subclasses (an
 unexpected status, an unreachable server) and its client raises `QdrantException` subclasses (a
@@ -206,8 +210,9 @@ What changes, and what does not:
 - **Search indices** (elasticsearch, opensearch) — the collection-shaped form. The scored-pair return
   shape in Rule 3 is the same one; only the query DSL differs.
 - **Other vector stores** (weaviate, pinecone, milvus) — the collection-shaped form: the client class,
-  the point model, the filter DSL and the exception families change; the stored vector as a field of the
-  entity (Rule 8), the scored-pair return and the translation do not.
+  the point model, the filter DSL and the exception families change; the embedding passed beside the
+  entity, the entity rebuilt from its own stored payload (Rule 8), the scored-pair return and the
+  translation do not.
 - **Object stores** (`s3`, gcs, azure blob) — a bucket is a container token like any other, but a blob
   is usually a single-action capability rather than an aggregate's collection, so check
   `hex-capability-adapter` first.
