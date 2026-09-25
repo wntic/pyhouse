@@ -148,13 +148,17 @@ src/myapp/
 ├── exceptions.py                # one catalog of this service's exception classes
 ├── schemas/
 │   ├── __init__.py
-│   └── foo.py                    # Pydantic models / frozen dataclasses — payloads and results
+│   ├── foo.py                    # the service's own record — one declared type per module
+│   ├── foo_payload.py            # the upstream's wire record, parsed by the client
+│   └── ingest_result.py          # the aggregate one run returns
 ├── services/
 │   ├── __init__.py
 │   └── foo_client.py             # one concrete class per external system, SDK exceptions caught here
 ├── storage/                      # ROLE: data access
 │   ├── __init__.py
+│   ├── metadata.py               # the one MetaData and its naming convention — `flat-persistence`
 │   ├── settings.py               # this component's own class and prefix — `flat-persistence`
+│   ├── engine.py                 # the engine factory and the bulk write helpers
 │   ├── foo_table.py              # this service's own table definitions
 │   └── foo_storage.py            # the ONLY place a statement is built or a connection opened
 ├── ingest/                       # ROLE: work units that PULL from upstream and land raw rows
@@ -176,6 +180,73 @@ shape's, or a durable-execution engine's together with the one guarded helper mo
 earned (`flat-entrypoint`). A very small service may collapse its two work-unit packages into one — but never
 collapse either into the process-definition package, which is what makes the work untestable without
 starting a process.
+
+### Template — the declared records, on dataclasses and pydantic
+
+The three records every other flat template and test builds, reads or asserts on. Each is its own
+module: they change for three different reasons — the service's model, the upstream's wire format, what
+a run reports — so they are not one set (`python-packaging`).
+
+`src/myapp/schemas/foo.py` — the service's own record, built by the run function and by the storage
+package's row mapper; `id` is `None` until the record has been stored:
+
+```python
+from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
+
+__all__ = ["Foo"]
+
+
+@dataclass(frozen=True, slots=True)
+class Foo:
+    id: UUID | None
+    reference: str
+    name: str
+    observed_at: datetime
+    labels: tuple[str, ...]
+```
+
+`src/myapp/schemas/foo_payload.py` — the upstream's wire record, parsed and validated by the client:
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+__all__ = ["FooPayload"]
+
+
+class FooPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    ref: str | None
+    name: str
+    labels: tuple[str, ...] = ()
+```
+
+`src/myapp/schemas/ingest_result.py` — the aggregate a run returns (`flat-entrypoint` rule 5):
+
+```python
+from dataclasses import dataclass
+
+__all__ = ["IngestResult"]
+
+
+@dataclass(frozen=True, slots=True)
+class IngestResult:
+    fetched: int
+    kept: int
+```
+
+`ref` is **required and nullable**: the upstream always sends the key, a `null` is an item the run's
+filter drops, and a body without the key is malformed and fails the parse. `labels` defaults to empty
+because the upstream omits it when there are none. `src/myapp/schemas/__init__.py` re-exports all three
+modules (`python-packaging`).
+
+### Template — the exception catalog
+
+**Read `CATALOG.md`** in this skill's directory before writing `exceptions.py`, raising from any flat
+template, or asserting a code or a status in a flat test — it holds the catalog the family's templates
+raise and is the one place their codes and statuses are stated.
 
 ### Template — settings, on pydantic-settings
 
