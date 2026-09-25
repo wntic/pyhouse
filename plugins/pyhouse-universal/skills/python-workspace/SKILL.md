@@ -1,6 +1,6 @@
 ---
 name: python-workspace
-description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, apply migrations and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
+description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
 when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per runnable member.
 ---
 
@@ -31,7 +31,8 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
   skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one). Nothing below needs it: the tooling
   values this root settles are stated here, and the interpreter floor behind them is `python-style`'s.
 - The pytest plugin module the root `addopts` loads, and the fixtures inside it → the member family's
-  integration-setup skill (`flat-test-integration-setup`, in the `pyhouse-flat` plugin, is one).
+  integration-setup skill (`flat-test-integration-setup`, in the `pyhouse-flat` plugin, or
+  `hex-test-integration-setup`, in `pyhouse-hex`).
 - Building a single standalone distribution with no siblings and no shared store → not this skill; it
   needs no workspace root at all. Its own architecture skill lays its package skeleton, including the
   data-access role — neither assumes anything above the distribution.
@@ -63,12 +64,17 @@ logging setup should not inherit those. When the second cross-cutting helper app
 for a second `packages/` member, not a bigger first one — and a repository with nothing cross-cutting yet
 has only the one.
 
-**The datastore fixtures every member shares are not at the root.** They live in a pytest plugin module
-beside the owning library's own tests, `packages/myschema/tests/myschema_testing.py`, loaded
-repository-wide from the root `pyproject.toml` with `addopts = "-p myschema_testing"` and
+**Where members share a datastore, its fixtures are not at the root.** They live in a pytest plugin
+module beside the owning library's own tests, `packages/myschema/tests/myschema_testing.py`, loaded
+repository-wide from the root `pyproject.toml` with `-p myschema_testing` in `addopts` and
 `pythonpath = ["packages/myschema/tests"]`. A plugin is registered once per session, so every member
 shares one container. What goes inside that module is the member family's integration-setup skill's;
 what this root owns is the two settings that load it.
+
+The templates below show the workspace whose members share a store, because it is the one with the
+most to write down. **A workspace whose members share no store drops every line that serves it** — the
+`-p` option and `pythonpath` in the test configuration, the datastore service in the compose file, and
+the `migrate` target — and everything else stands unchanged.
 
 Root `pyproject.toml`:
 
@@ -90,12 +96,23 @@ python_version = "3.13"
 strict = true
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
+addopts = "--import-mode=importlib -p myschema_testing"
+pythonpath = ["packages/myschema/tests"]
 testpaths = ["packages", "services", "tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+filterwarnings = ["error"]
 
 [dependency-groups]
 dev = ["ruff", "mypy", "pytest", "pytest-asyncio", "testcontainers"]
 ```
+
+The test configuration is whole here and nowhere else (rule 6). `--import-mode=importlib` is what lets
+two members each keep a `test_exceptions.py` without a collision; the two session loop scopes let every
+test share the session-scoped engine the shared plugin opens; `filterwarnings = ["error"]` is
+`test-principles`' rule that a warning fails the run. Each of those is owned where it is explained —
+this root only has to carry all of them at once.
 
 The root project is a **workspace container plus shared tooling config, with no runtime code of its
 own**. Nothing importable lives at the root; every line of shipped code sits inside a member.
@@ -131,7 +148,7 @@ The member carries no `requires-python` and no tool configuration of its own: th
 and a member that restates the floor is the first half of a workspace that disagrees with itself
 (rule 6).
 
-`docker/local.compose.yaml`:
+`docker/local.compose.yaml`, with the datastore the members share:
 
 ```yaml
 name: myrepo
@@ -208,9 +225,9 @@ repo root reads none of them.
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
   `invoke` and `nox` give the same one-discoverable-command-set-at-the-root property; a dev Kubernetes
   cluster or Tilt gives the same per-member profile. What must survive either swap: one command syncs
-  *every* member and not only the root, one command applies migrations, each runnable member still
-  starts from its own directory, and a cleanup command names what it destroys instead of sweeping the
-  project.
+  *every* member and not only the root, each runnable member still starts from its own directory, one
+  command applies migrations wherever members share a store, and a cleanup command names what it
+  destroys instead of sweeping the project.
 
 ## Rules
 
@@ -272,8 +289,8 @@ repo root reads none of them.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.
-- A runnable member needs its own private tables no other member touches → still put the `Table` in the
-  one owning library; a second schema owner over one store means two migration histories and the second
+- A runnable member needs its own private tables in the store the members share → still put the
+  `Table` in the one owning library; a second schema owner over one store means two migration histories and the second
   to run decides what the first one's tables look like.
 - A runnable member imports a sibling runnable member → stop, promote the shared code into a library
   member.
