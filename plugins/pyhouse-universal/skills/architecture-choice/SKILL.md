@@ -96,8 +96,9 @@ and the budget it turns into.
 
 **Who calls it?** — the weakest signal, and never decisive on its own. A synchronous caller expecting
 a response and an error contract correlates with hexagonal; a schedule, a queue or a stream correlates
-with flat. Both correlations break easily: a flat service may expose a small HTTP surface, and a
-hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
+with flat. Both correlations break easily: a flat service may expose a small HTTP surface — a thin
+wrapper around its run functions, which is `flat-entrypoint`'s HTTP trigger shape in `pyhouse-flat` —
+and a hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
 execution either — for flat services the default for scheduled work is a plain loop, a cron entry or a
 timer, and a workflow engine is earned separately (`flat-entrypoint`, in `pyhouse-flat`).
 
@@ -131,7 +132,8 @@ this.** Write the script.
 
 The universal skills still bind, and they are the whole of what applies — `naming` for what things are
 called, `python-style` for typing and logging, `python-packaging` for module and import rules,
-`exception-catalog` for errors, `test-principles` for tests. Reaching for either family here produces
+`exception-catalog` for errors, `test-principles` for tests — and `python-versioning` the day it is
+distributed to anyone, which most scripts never are. Reaching for either family here produces
 packages with nothing in them and a reviewer who assumes work lives there.
 
 Run this skill again when the script stops being one: a second trigger, a second reader of the same
@@ -166,7 +168,9 @@ into a framework's tree fights the framework at every file.
 
 The universal skills still bind in full — `naming`, `python-style`, `python-packaging`,
 `python-versioning`, `exception-catalog`, `test-principles` — and they are not a consolation prize;
-they are the rules that were never architectural in the first place. The deciding question is still
+they are the rules that were never architectural in the first place. Where the framework dictates a
+module's name and contents — Django's `models.py` and `admin.py` — the framework's convention wins,
+and `python-packaging` says so itself. The deciding question is still
 worth answering, because knowing whether the project owns invariants tells the reader what to
 protect. It just selects no family here.
 
@@ -197,8 +201,8 @@ which is exactly what makes waiting cheap.
 
 **The choice is per service, never per repository.** `python-workspace` lays a workspace
 root that hosts several members; nothing about a shared root, a shared schema package or a shared toolchain requires
-the members to share an internal layout. One member enforcing pricing rules can be hexagonal while its
-three sibling crawlers stay flat, and the workspace is not inconsistent for it. Run this skill once per
+the members to share an internal layout. One member that owns `Foo` and enforces its invariants can
+be hexagonal while the flat workers beside it stay flat, and the workspace is not inconsistent for it. Run this skill once per
 member, at the point that member is created.
 
 ### The earlier choice was wrong
