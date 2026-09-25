@@ -44,13 +44,13 @@ fail() {
     exit 1
 }
 
-# Rule 1: type, optional scope, optional !, then a colon and a space.
-# Rule 4: a scope is parenthesised and non-empty. Rule 5: a description follows.
+# Spec rule 1: type, optional scope, optional !, then a colon and a space.
+# Spec rule 4: a scope is parenthesised and non-empty. Spec rule 5: a description follows.
 if ! printf '%s' "$SUBJECT" | grep -qE '^[a-z]+(\([^()]+\))?!?: .+'; then
     case "$SUBJECT" in
         *": "*) fail "the part before the colon is not a valid type or scope" ;;
-        *":"*)  fail "a space must follow the colon (rule 1)" ;;
-        *)      fail "no type — a message begins '<type>: ' (rule 1)" ;;
+        *":"*)  fail "a space must follow the colon (spec rule 1)" ;;
+        *)      fail "no type — a message begins '<type>: ' (spec rule 1)" ;;
     esac
 fi
 
@@ -62,19 +62,20 @@ if [ -n "$TYPES" ]; then
     [ "$MATCHED" = 1 ] || fail "type '$TYPE' is not one of: $TYPES"
 fi
 
-LEN=$(printf '%s' "$SUBJECT" | wc -c | tr -d ' ')
+# Characters, not bytes: drop UTF-8 continuation bytes, so an em dash counts once. Needs no locale.
+LEN=$(printf '%s' "$SUBJECT" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' ')
 [ "$LEN" -le "$MAX" ] || fail "subject is $LEN characters, limit is $MAX"
 
-# Rule 6: a body begins one blank line after the description.
+# Spec rule 6: a body begins one blank line after the description.
 SECOND=$(printf '%s\n' "$BODY_ALL" | sed -n '2p')
 if [ -n "$SECOND" ]; then
-    fail "a body must be separated from the subject by a blank line (rule 6)"
+    fail "a body must be separated from the subject by a blank line (spec rule 6)"
 fi
 
-# Rule 12/15: the footer token is uppercase. Catch the near-misses that parse as prose.
+# Spec rules 12 and 15: the footer token is uppercase. Catch the near-misses that parse as prose.
 if printf '%s\n' "$BODY_ALL" | grep -qiE '^breaking[ -]change:' \
    && ! printf '%s\n' "$BODY_ALL" | grep -qE '^BREAKING[ -]CHANGE:'; then
-    fail "BREAKING CHANGE must be uppercase to be read as a footer (rule 15)"
+    fail "BREAKING CHANGE must be uppercase to be read as a footer (spec rule 15)"
 fi
 
 exit 0
