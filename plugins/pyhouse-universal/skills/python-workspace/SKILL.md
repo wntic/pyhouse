@@ -28,7 +28,8 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
   it is earned → the member family's entrypoint skill (`flat-entrypoint`, in the `pyhouse-flat`
   plugin, is one).
 - Bootstrapping one member's dependency substrate and tool configuration → the member family's setup
-  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one). Nothing below needs it: the tooling
+  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one, and the flat family's is
+  `flat-project-setup`, in the `pyhouse-flat` plugin). Nothing below needs it: the tooling
   values this root settles are stated here, and the interpreter floor behind them is `python-style`'s.
 - The pytest plugin module the root `addopts` loads, and the fixtures inside it → the member family's
   integration-setup skill (`flat-test-integration-setup`, in the `pyhouse-flat` plugin, or
