@@ -52,7 +52,9 @@ async def create_foo(
     get_handler: FromDishka[GetFooHandler],
     user: CurrentUser = Depends(require_role(Role.<MIN_RANK>)),
 ) -> FooResponse:
-    new_id = await handler.execute(CreateFooCommand(caller_id=user.id, name=body.name))
+    new_id = await handler.execute(
+        CreateFooCommand(caller_id=user.id, name=body.name, bar_id=body.bar_id)
+    )
     ...
 ```
 
@@ -68,8 +70,9 @@ things to one of them, and nothing else:
 
 1. the auth-dependency parameter, **last** in the signature;
 2. the `from myapp.domain.auth import CurrentUser, Role` and `from ..dependencies import
-   get_current_user, require_role` imports in the router file — conditional imports, present only when
-   the app declares auth **and** this resource has ≥ 1 authenticated route;
+   get_current_user, require_role` imports in the router file, and `Depends` on its `fastapi` import —
+   conditional imports, present only when the app declares auth **and** this resource has ≥ 1
+   authenticated route;
 3. the `401` (and `403` when role-gated) codes in `error_responses(...)`;
 4. the `caller_id=user.id` argument to the command or query, where the DTO carries it
    (`hex-application` — the actor field is itself conditional).
