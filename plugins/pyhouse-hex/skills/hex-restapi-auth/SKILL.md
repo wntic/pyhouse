@@ -158,7 +158,7 @@ class PyJwtTokenVerifier:
                 "invalid token",
                 {"reason": exc.__class__.__name__},
             ) from exc
-        except ValueError as exc:
+        except (AttributeError, TypeError, ValueError) as exc:
             raise UnauthorizedError("invalid token claims", {"reason": "invalid_claims"}) from exc
 ```
 
@@ -169,9 +169,11 @@ key it published; the settings-side allowlist validator below is what keeps that
 **The identity is built inside the translated scope.** A token can carry a valid signature and still
 not describe a caller — a claim missing, a subject that is not an identifier, a role the app does not
 declare. Each of those is an unverifiable credential and answers 401 like a bad signature, never a
-500. Here `require` turns an absent claim into the library's own `InvalidTokenError`, PyJWT itself
-rejects a non-string `sub`, and the `ValueError` that `UUID(...)` or `Role(...)` raises on a value
-that does not parse is the last arm.
+500. Here `require` turns an absent claim into the library's own `InvalidTokenError`, and the last arm
+catches what building the identity raises on a claim of the wrong shape — `ValueError` from a string
+`UUID(...)` or `Role(...)` cannot parse, `AttributeError` or `TypeError` from `UUID(...)` handed a
+non-string. Recent PyJWT releases reject a non-string `sub` themselves; the arm keeps the verifier
+correct without depending on that.
 
 ### `infrastructure/jwt/settings.py`
 
