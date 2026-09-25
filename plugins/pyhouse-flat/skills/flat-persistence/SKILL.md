@@ -127,7 +127,9 @@ layout. Only this file is loaded automatically, so open the one you need:
    exists to close, and makes the write untestable inside a rolled-back transaction.
 5. **This package's edge is the boundary where a driver error is translated.** Translation with the
    cause chained, and the mandatory fallback when no case matched, are `exception-catalog`'s rules; what
-   this skill adds is where they bind — nothing above this package ever sees the driver's type.
+   this skill adds is where they bind — nothing above this package ever sees the driver's type, and
+   that covers every public method: a read, and the opening of the connection and the transaction, fail
+   with the driver's errors as surely as a write does.
 6. **The identifying context of a storage error is the offending field and the full constraint name.**
    Which class to pick and what `context` carries are `exception-catalog`'s; here the constraint name is
    the key rule 8 makes predictable, so the caller and the tests can assert on it.
@@ -190,6 +192,8 @@ layout. Only this file is loaded automatically, so open the one you need:
   partial-write race; keep it inside one.
 - A driver exception is allowed to escape this package, or the translator ends by re-raising it → stop,
   the fallback is mandatory: return a catalogue exception when no case matched.
+- A read, or the opening of a connection or a transaction, sits outside the translated scope → stop,
+  wrap the whole engine block; a refused connection escapes as the driver's type otherwise.
 - A row leaves this package as a bare mapping → stop, map it to the service's declared type here; the
   mapping is this package's, and nothing above it should learn column names.
 - A single-row insert path is being written for a batch known to exceed a few hundred rows → stop, use
