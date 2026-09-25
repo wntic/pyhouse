@@ -123,7 +123,8 @@ git pull --ff-only
 ## Hard stops
 
 - A commit is going straight onto the mainline in a repository whose changes land through requests →
-  stop, branch from the mainline and open a request.
+  stop, branch from the mainline and open a request. A repository's first commit is the exception: it
+  creates the mainline, and there is nothing yet to branch from.
 - The mainline, or a branch someone else has fetched, is about to be rebased, amended or force-pushed →
   stop; its history is someone else's base. Correct it with a new commit.
 - A force-push of your own branch that would overwrite what you have not seen → stop, use a lease

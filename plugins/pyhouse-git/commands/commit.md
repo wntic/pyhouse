@@ -26,6 +26,11 @@ for, both of which a commit makes expensive to undo:
 - **An unrelated change riding along** — a stray debug line, a reformatted file nobody asked for →
   name it and ask whether it belongs in this commit or a separate one.
 
+**An empty repository** — `git rev-parse --verify HEAD` fails, and every `git log` below with it →
+this is the first commit. It necessarily lands on the mainline, because it is what creates it
+(`git-branching` exempts it), and there is no history to read: skip the branch and convention checks
+and the practice reading in step 4, and say so.
+
 **Check the branch.** On the mainline, in a repository whose changes land through requests → say so
 and offer to branch first; a commit made there bypasses the checks every other change passes
 (`git-branching`).
