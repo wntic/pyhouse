@@ -266,7 +266,7 @@ any other failure.
 **Read the sibling `LOGGING.md` before writing a log call, naming an event, or deciding which scope logs
 a failure.** Only this file is loaded automatically, so open it rather than working from the obligations
 above: it carries the `structlog` binding, the event-name and field contract with its worked examples,
-the never-log-and-re-raise case and its level guide, where a swallowed undo failure is logged, how the
+the never-log-and-re-raise case and its level guide, where a failed undo under compensation is logged, how the
 allocation rule resolves in a hexagonal and in a flat-layered project, and the stdlib `logging`
 alternative that satisfies the same obligations.
 
@@ -333,8 +333,8 @@ no `# helpers`.
     from the raise to the first scope that handles the exception rather than re-raising it; a project
     that funnels failures into one handler makes that handler the scope. A scope that re-raises does
     not log; the detail it would have logged goes into the exception's `context`. The one failure a
-    scope swallows — an undo's, under `exception-catalog`'s best-effort compensation — stops there, so
-    that scope logs it: one `warning` event naming the failed undo, before re-raising the original.
+    re-raising scope stops — an undo's, under `exception-catalog`'s best-effort compensation — ends
+    there, so that scope logs it: one `warning` event naming the failed undo, before re-raising the original.
 13. Check logged fields against **What never reaches a log line** before emitting them, and apply the
     same two bans to anything placed in an exception's `context`.
 14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
@@ -373,9 +373,9 @@ Typing:
 Logging:
 
 - `log.x(...); raise` in the same scope → stop, that is two entries for one event; put the detail in the
-  exception's `context` and let the layer that stops it log. A swallowed undo failure logged before the
+  exception's `context` and let the layer that stops it log. A failed undo stopped and logged before the
   original is re-raised is two events, not this case.
-- An undo's failure swallowed under best-effort compensation with no log line, or logged at `error`, or
+- An undo's failure stopped under best-effort compensation with no log line, or logged at `error`, or
   logged by the undo itself → stop, the compensating scope logs one `warning` naming the failed undo; it
   is the only record that an effect was left behind.
 - A log call emitting an interpolated sentence — no event name, no fields (`log.info(f"created foo
@@ -390,7 +390,7 @@ Logging:
 - A scope that re-raises the failure logs it as well → stop, it is not the scope that explains it; the
   detail goes into the translated exception's `context` and whoever stops the exception logs. In a
   hexagonal project that fires on any log call in `domain/` or `infrastructure/`, and on an error logged
-  in `application/` other than a swallowed undo failure.
+  in `application/` other than a failed undo stopped under compensation.
 
 Comments:
 

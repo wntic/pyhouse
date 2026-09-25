@@ -40,7 +40,7 @@ log.info(f"created foo {foo.id}")
 ## Never log and re-raise the same event
 
 `log.x(...)` immediately followed by `raise` in the same scope is two entries for one event, and there is
-**no sanctioned exception** — a swallowed undo failure, below, logs a different event from the one it
+**no sanctioned exception** — a failed undo stopped under compensation, below, logs a different event from the one it
 re-raises. A scope that re-raises is not the scope that will explain the failure: the
 detail belongs in the exception it raises — the fields in `context`, the original error in `__cause__`
 through `from exc` (`exception-catalog`) — where the scope that stops it will find both.
@@ -65,10 +65,10 @@ Level guide, for the scope that does log: `warning` for an expected rule violati
 boundary — uniqueness, a foreign key; `error` for an unexpected failure — a network timeout, a
 third-party 5xx, malformed data.
 
-## A swallowed undo failure
+## A failed undo under compensation
 
-Best-effort compensation (`exception-catalog`) is the one place a failure is swallowed, and it is also
-the one place a scope that re-raises logs. The two are different events, which is why it does not break
+Best-effort compensation (`exception-catalog`) is the one place a scope that re-raises also stops a
+failure, and so the one place a scope that re-raises logs. The two are different events, which is why it does not break
 the rule above: the **undo's** failure stops in this scope and is logged here, once; the **original**
 failure is re-raised unlogged and is logged by whoever stops it.
 
@@ -110,7 +110,7 @@ re-raise is the entrypoint:
 |---|---|
 | `domain/` | **Nothing.** Zero IO includes the log socket; raise an exception carrying `context` instead. |
 | `infrastructure/` | **Nothing.** An adapter translates and re-raises, so it is never the layer that stops; the low-level detail goes into the translated exception's `context`, where the layer that does log will find it. |
-| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a swallowed undo failure under best-effort compensation, which the handler running the compensation logs at `warning` (above). |
+| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a failed undo stopped under best-effort compensation, which the handler running the compensation logs at `warning` (above). |
 | entrypoints | Errors, once, at the central handler, with request context attached. |
 
 **A central handler takes the same guide**, plus one case only it sees: an exception that is not a
