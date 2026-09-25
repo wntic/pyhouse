@@ -1,6 +1,6 @@
 ---
 name: exception-catalog
-description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, and best-effort compensation as the one failure that may be swallowed. Where the error is logged is `python-style`.
+description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, and best-effort compensation as the one case a scope that re-raises stops a second failure. Where the error is logged is `python-style`.
 ---
 
 # Exception Catalog
@@ -57,9 +57,9 @@ or, far more often, needs nothing and leaves `code` to do the work.
 - Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
   `pyhouse-hex` plugin, which references the new `code`.
 - Where the error is logged and by whom → `python-style`.
-- Whether an undo step's own failure may be swallowed while another failure propagates → this skill,
-  **Best-effort compensation**; the handler shape that runs the undo is the architecture family's
-  (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
+- Whether an undo step's own failure may be stopped while another failure propagates → this skill,
+  **Swallowing, stopping, and best-effort compensation**; the handler shape that runs the undo is the
+  architecture family's (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
 - Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin; this skill owns the class, its `code` and its status, not the rendering.
@@ -266,24 +266,31 @@ than the original error: a third-party type crossing a layer defeats every `exce
 against the catalogue, so a recognisable conflict is rendered as an unexplained crash and a swallowed
 one becomes a silent wrong answer.
 
-### Best-effort compensation — the one failure that may be swallowed
+### Swallowing, stopping, and best-effort compensation
 
-A scope that has already caused an externally visible effect — an object uploaded, a message
-published, a reservation taken — and then fails on a later step undoes the effect before letting the
-failure go. The undo runs **while that failure is already propagating**, and it can fail too. Letting
-the undo's error escape would replace the fault that actually happened with a report about the cleanup,
-so this one case is exempt from "never swallow": **an undo step's own failure may be swallowed, on three
-conditions, all required.**
+**To swallow a failure is to catch it and neither re-raise it nor log it as the scope that stops it.**
+A swallowed failure leaves no trace: nothing above sees it and nothing records it, so the operation
+reads as a success it was not. It is never done. **Stopping a failure is different and legitimate** —
+the scope that catches it, logs it once under `python-style`'s allocation and carries on (a loop
+containing one failed run and moving to the next) is the scope every failure is traced to, and it is
+exactly where the log line belongs.
 
-1. **It is swallowed only by the scope that caught the original failure and will re-raise it** — the
+**Best-effort compensation is the one case where a scope that re-raises also stops a failure.** A scope
+that has already caused an externally visible effect — an object uploaded, a message published, a
+reservation taken — and then fails on a later step undoes the effect before letting the failure go. The
+undo runs **while that failure is already propagating**, and it can fail too. Letting the undo's error
+escape would replace the fault that actually happened with a report about the cleanup, so **the undo's
+own failure is stopped in the scope that re-raises the original, on three conditions, all required.**
+
+1. **It is stopped only by the scope that caught the original failure and will re-raise it** — the
    only scope that knows a failure is propagating. The undo it calls raises like any other call; a
-   method that swallows its own failure in case some caller is compensating hides it from every caller
+   method that drops its own failure in case some caller is compensating hides it from every caller
    that is not.
 2. **That scope logs one `warning` event naming the failed undo**, with the undo's identifying inputs as
    fields and the undo's error attached. It is the only record that an effect outlived the operation
    that made it; `python-style`'s `LOGGING.md` places the call.
-3. **The original failure is re-raised unchanged**, and only the undo call sits inside the swallow —
-   never the original operation, and never a bare `except: pass`.
+3. **The original failure is re-raised unchanged**, and only the undo call sits inside the inner
+   `try` — never the original operation, and never a bare `except: pass`.
 
 ```python
 try:
@@ -297,8 +304,9 @@ except Exception:
 ```
 
 The bare `raise` re-raises the original: the inner handler has finished, so the failure being handled
-is the outer one again. Nothing else is swallowed anywhere — a translation's unmatched branch, a
-cleanup on the success path, a failure no other failure is propagating over all raise.
+is the outer one again. Everywhere else a scope that re-raises logs nothing, and a failure it
+catches is either re-raised, translated, or stopped and logged by the scope that stops it — never
+dropped. A translation's unmatched branch raises; it does not get to stop anything.
 
 ## Rules
 
@@ -357,12 +365,14 @@ cleanup on the success path, a failure no other failure is propagating over all 
     has `UpstreamUnavailableError`, a refinement of the *client* class for one upstream — and in the
     worker case that family usually serves, no `http_status`, because nothing renders it. They are not two spellings of one class and neither
     renames to the other; a project has one root and therefore only ever meets one of them.
-16. **A failure is never swallowed, with one named exception: best-effort compensation.** While a
-    failure is already propagating, an undo step's own failure may be swallowed by the scope that
-    caught the original — that scope logs one `warning` event naming the failed undo and its
-    identifying inputs, then re-raises the original failure unchanged. The undo's error must not
-    replace the fault that happened, and the warning is the only trace that an effect was left behind.
-    Nowhere else, and never as a bare `except: pass`.
+16. **A failure is never swallowed** — caught and neither re-raised nor logged by the scope that
+    stops it. A swallowed failure reads as a success; a failure stopped and logged once by the scope
+    that handles it is not swallowed. **Best-effort compensation is the one case where a scope that
+    re-raises also stops a failure:** while a failure is already propagating, an undo step's own failure
+    is stopped by the scope that caught the original — that scope logs one `warning` event naming the
+    failed undo and its identifying inputs, then re-raises the original failure unchanged. The undo's
+    error must not replace the fault that happened, and the warning is the only trace that an effect
+    was left behind. Never a bare `except: pass`.
 
 ## Inlined typing / import rules
 
@@ -383,14 +393,16 @@ cleanup on the success path, a failure no other failure is propagating over all 
 - A library or SDK exception type escapes the module that called the library → stop, translate it.
 - A translation's unmatched branch returns the raw exception, re-raises it unchanged, or swallows it with
   `pass` → stop, the fallback raises a catalogue class; a partial translation still leaks.
-- An exception swallowed with `pass`, or swallowed anywhere but around an undo step while the original
-  failure propagates → stop; the only sanctioned swallow is best-effort compensation, and it logs one
-  `warning` naming the failed undo and re-raises the original.
-- A method swallows its own failure because a caller might be compensating (a `*_best_effort` variant
-  that catches internally) → stop, let it raise; the swallow belongs to the scope that caught the
-  original failure, the only one that knows a failure is propagating.
+- A failure caught and dropped — `pass`, a bare `return`, a default value — with no re-raise and no log
+  line from the scope that stops it → stop; that is a swallow, and it reads as a success. Re-raise it,
+  translate it, or stop it and log it once.
+- A scope that re-raises the original also logging a failure other than a failed undo under
+  best-effort compensation → stop; a re-raising scope stays silent, and the undo is the one exception.
+- A method drops its own failure because a caller might be compensating (a `*_best_effort` variant
+  that catches internally) → stop, let it raise; the undo's failure is stopped by the scope that
+  caught the original failure, the only one that knows a failure is propagating.
 - An undo's failure is raised in place of the original, or the original is lost behind it → stop,
-  swallow the undo's failure under best-effort compensation and re-raise the original.
+  stop the undo's failure under best-effort compensation and re-raise the original.
 - A `context` key invented at the raise site that no test asserts on, or a key renamed on a shipped
   class → stop, the key set is a contract between the raise site, its test and the log line.
 - A password, token, API key or connection string being put in `context` → stop, it is rendered verbatim
