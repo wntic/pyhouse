@@ -156,7 +156,7 @@ not, so one class serves both without a branch.
 3. Field typing → `python-style`.
 4. **Engine-pool fields are relational-only, and their sizes are the deployment's.** `port`,
    `pool_size`, `max_overflow`, `pool_pre_ping`, `echo` and a computed connection string belong to the
-   relational template, with the numbers set from the deployment rather than copied. A non-engine
+   relational template in `SETTINGS.md`, with the numbers set from the deployment rather than copied. A non-engine
    integration omits them entirely; carrying them is dead config copied from a database class.
 5. **A value that must not appear in a log, a repr or a traceback carries a type that keeps it out of
    them** — passwords, API keys, signing secrets, JWT keys. A bare `str` is printed by every default
