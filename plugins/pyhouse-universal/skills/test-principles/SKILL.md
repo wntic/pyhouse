@@ -25,7 +25,9 @@ none of them is a dependency.
 - **Where a fixture lives is this skill's rule; the fixture file is not.** One hexagonal package's
   `tests/integration/conftest.py`, with its containers and isolation fixtures →
   `hex-test-integration-setup`. A uv workspace's shared `myschema_testing.py` pytest plugin — "where
-  do my shared fixtures live in the workspace" → `flat-test-integration-setup`.
+  do my shared fixtures live in the workspace" → the member's family integration-setup skill, for example
+  `flat-test-integration-setup` for a flat member, or `hex-test-integration-setup` (under its
+  `## Other bindings`) for a hexagonal one.
 - A static "no X in Y" invariant → `test-architecture-rule`.
 - A skill that owns a test file contradicts something here → fix that skill; this constitution is the
   source of truth.
@@ -112,10 +114,12 @@ tests/
     │                                            #   - postgres_container (session) — relational apps
     │                                            #   - db_settings (session) — relational apps
     │                                            #   - _migrated_db, _guard_against_real_db, _engine (session) — relational apps
+    │                                            #   - run_alembic (session) — relational apps
     │                                            #   - _outer_connection, sf (function) — relational apps
     │                                            #   - real_app (function) — consumes jwt_settings from down-tree WHEN the app has auth
-    │                                            #   - minio_container, storage_settings (session) — blob-store apps only
-    │                                            #   - s3_prefix (function), _cleanup_bucket_at_session_end — blob-store apps only
+    │                                            #   - minio_container, s3_session (session) — blob-store apps only
+    │                                            #   - s3_settings (function) — per-test bucket, bound into real_app — blob-store apps only
+    │                                            #   - qdrant_url, qdrant_client (session) — client-store apps
     ├── postgres/                                # repository contract tests; uses `sf` only
     │   └── test_foo_repository.py
     └── api/
@@ -171,8 +175,10 @@ the tests of the package that owns the schema — `packages/myschema/tests/mysch
 `pyproject.toml`. A plugin, not a conftest, because a plugin is registered **once per session**: every
 member shares one container, where a conftest copied into each member's `tests/` starts one container
 per member. Beside the tests, not inside `src/`: it is test-support code and has no business shipping in
-the wheel. Nothing in the plugin is autouse. `flat-test-integration-setup` owns both forms of the
-artifact — one service's own conftest by default, this plugin module once there are members to share it.
+the wheel. Nothing in the plugin is autouse. Each family's integration-setup skill owns both forms of the
+artifact — one service's own conftest by default, this plugin module once there are members to share it —
+for example `flat-test-integration-setup` for a flat member, or `hex-test-integration-setup` (under its
+`## Other bindings`) for a hexagonal one.
 
 ```
 tests/
@@ -232,7 +238,7 @@ Flat examples:
 ### Fixture scope rules
 
 - **Session-scoped fixtures** — the expensive, stateless-across-tests ones the app's features require: the postgres container + engine + connection settings (`db_settings` / `db_dsn`) + test-DB guard + migration runner (relational apps), the minio container (blob-store apps), the signing keypair + verifier settings (auth apps only — `hex-test-restapi-auth`). Anything expensive to construct and stateless across tests; a feature the app doesn't have contributes none of these.
-- **Function-scoped fixtures** — everything else. `sf`, `real_app`, `authed_client` (auth apps only), all row factories (`make_foo`, `make_bar`, …), `s3_prefix`, `conn`. Per-test rows are non-negotiable: rollback isolation or `truncate_all` requires them.
+- **Function-scoped fixtures** — everything else. `sf`, `real_app`, `authed_client` (auth apps only), all row factories (`make_foo`, `make_bar`, …), `s3_settings`, `conn`. Per-test rows are non-negotiable: rollback isolation or `truncate_all` requires them.
 - **No `module`-scoped or `class`-scoped fixtures.** Two scopes are enough — one for what is expensive and stateless across tests, one for everything else — and every scope beyond them is state shared with tests that never asked for it, in a grouping (the file, the class) that exists for readability rather than for lifecycle. A test that passes alone and fails beside its neighbours is the cost.
 - **Autouse placement is per family** — see the explicitly labelled conftest hierarchies above. In flat projects the guard and migration runner are explicit dependencies, and only `truncate_all` is made autouse, in member integration conftests.
 
@@ -357,7 +363,7 @@ realism, so take the highest rung that can reach the case.
 |------|---------------------|------|
 | 1 | **Nothing — the real dependency**, started and disposed by the suite | Any schema or run-function test. Always the default. Here: Postgres through testcontainers. |
 | 2 | **The transport underneath the dependency**, leaving the dependency's own code running | Any service-client test. Only the socket is replaced, so the client's request building, response parsing and error translation all still execute. Here: `respx` under a real `httpx` client. |
-| 3 | **One method of the concrete class**, through a subclass overriding exactly the method that must fail | One-off failure injection, at test-module scope and underscore-prefixed: `class _RaiseFooClient(FooClient): async def fetch_batch(self): raise FooClientError("boom")`. |
+| 3 | **One method of the concrete class**, through a subclass overriding exactly the method that must fail | One-off failure injection, at test-module scope and underscore-prefixed: `class _RaiseFooClient(FooClient): async def fetch_batch(self) -> list[FooPayload]: raise FooClientError("boom")`. |
 | 4 | **An attribute on the concrete class the caller constructs internally**, patched for the test | Last resort, and only where the caller builds its own dependency with no parameter to pass. Here: `monkeypatch.setattr`. |
 | — | **A `Protocol` extracted so something becomes mockable** | **Never** — that is the anticipatory abstraction the flat-layered style exists to avoid. |
 
