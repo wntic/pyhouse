@@ -21,7 +21,8 @@ Two forms are always in scope:
   default trigger's test (`flat-entrypoint`).
 
 **A service with a framework wrapper adds a third**: the same body under the framework's own decorator,
-run through whatever in-process harness that framework ships, proving reach and translation only.
+run through whatever in-process harness that framework ships, proving reach and translation
+only.
 
 **A service that earned a durable-execution engine adds a fourth** — the orchestration above the
 wrapper, every step stubbed by its registered wire name, no datastore at all — plus the obligations that
@@ -51,6 +52,8 @@ earned (`flat-entrypoint` rule 1 owns that test); skip it entirely otherwise.
 `tests/integration/test_foo_ingest.py`:
 
 ```python
+from collections.abc import Sequence
+
 import httpx
 import pytest
 import respx
@@ -59,14 +62,16 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from myapp.exceptions import FooClientError
 from myapp.ingest.foo_ingest import run_once
-from myapp.services.foo_client import FooClient
-from myapp.storage.foo_storage import FooStorage
+from myapp.services import FooClient
+from myapp.storage import FooStorage
 from myapp.storage.foo_table import bar_table, foo_table
 
 _BASE_URL = "https://foo.test"
 
+
 def _client() -> FooClient:
     return FooClient(base_url=_BASE_URL, timeout_seconds=1.0)
+
 
 @respx.mock
 async def test_a_run_lands_its_foos_and_their_labels(
@@ -80,22 +85,28 @@ async def test_a_run_lands_its_foos_and_their_labels(
 
     await run_once(_client(), FooStorage(engine))
 
-    reference = (await conn.execute(select(foo_table.c.reference))).scalar_one()
-    labels = (await conn.execute(select(bar_table.c.label))).scalars().all()
+    reference: str = (await conn.execute(select(foo_table.c.reference))).scalar_one()
+    labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
     assert reference == "alpha"
     assert labels == ["amber"]
+
 
 @respx.mock
 async def test_items_the_filter_rejects_are_not_stored(
     engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
     respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": None, "name": "a"}]})
+        return_value=httpx.Response(
+            200,
+            json={"items": [{"ref": "alpha", "name": "a"}, {"ref": None, "name": "b"}]},
+        )
     )
 
     await run_once(_client(), FooStorage(engine))
 
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 0
+    names: Sequence[str] = (await conn.execute(select(foo_table.c.name))).scalars().all()
+    assert names == ["a"]
+
 
 @respx.mock
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
@@ -110,6 +121,7 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
     assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
 
+
 @respx.mock
 async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> None:
     respx.get(f"{_BASE_URL}/foos").mock(
@@ -123,6 +135,7 @@ async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> No
 
     assert (result.fetched, result.kept) == (2, 1)
 
+
 @respx.mock
 async def test_an_upstream_failure_propagates_and_writes_nothing(
     engine: AsyncEngine, conn: AsyncConnection
@@ -135,6 +148,9 @@ async def test_an_upstream_failure_propagates_and_writes_nothing(
     assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 0
 ```
 
+The filter test seeds one item that must survive beside the one that must go, so a body that drops
+everything cannot pass it (`test-principles`, assert strength).
+
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
 mostly repeats has "the second run over the same batch changes nothing" as its central behaviour, and it
 is the one a wrong conflict-column list breaks.
@@ -143,21 +159,36 @@ The aggregate test matters because that return value is what the trigger reports
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
 fails silently everywhere a human is looking.
 
-## Template — the loop's failure containment (pytest `caplog`)
+## Template — the loop's failure containment (pytest)
 
 The loop entrypoint's contract is that one failed run does not kill the process. Test the containment,
 not the loop — a `while True` under test needs an escape, and building one changes the thing being
-tested. This is why `guarded` is a named function (`flat-entrypoint`):
+tested. This is why `guarded` is a named function (`flat-entrypoint`), and why it returns whether the
+run succeeded: the assertion is on that value, never on what was logged. It needs no datastore, so it
+lives in `tests/unit/test_foo_loop.py`:
 
 ```python
-async def test_a_failing_run_is_logged_and_does_not_escape(caplog) -> None:
+from myapp.entrypoints.foo_loop import guarded
+from myapp.exceptions import FooClientError
+
+
+async def test_a_failing_run_is_contained() -> None:
     async def _boom() -> None:
         raise FooClientError("upstream down")
 
-    await guarded(_boom)
+    assert await guarded(_boom) is False
 
-    assert "foo_ingest_run_failed" in caplog.text
+
+async def test_a_succeeding_run_is_reported_as_such() -> None:
+    async def _ok() -> None:
+        return None
+
+    assert await guarded(_ok) is True
 ```
+
+The failing case returning at all is the containment; `False` pins that the guard saw the failure
+rather than some other path returning early, and the succeeding case pins that it does not report every
+run as failed.
 
 If the `try/except` is still inline inside `while True`, either extract it or leave the loop untested —
 do not test a `while True` by monkeypatching `asyncio.sleep` to raise, which asserts the mechanism
@@ -184,9 +215,6 @@ work in-process, and the typed-failure assertion is what its history makes neces
   recorded cassette (`flat-test-service-client` names the trade-offs). Only how the upstream is pinned
   changes; rule 2's asymmetry — upstream substituted, datastore not — is the thing that must survive,
   because it is what makes this level catch wiring at all.
-- **A different log-capture mechanism** for the containment test — a structured-log capture fixture, an
-  injected recording logger. The assertion moves from the captured text to that recorder's events; rule 4
-  still holds everywhere else, and the containment test stays the one place a log is the subject.
 - **No framework wrapper at all.** A service triggered by a loop, a cron entry or a timer writes the
   first two forms and stops; nothing is missing, because there is no wrapper to prove.
 - **An engine whose harness cannot skip time.** The retry test then asserts the *declared* policy on the
@@ -212,9 +240,9 @@ work in-process, and the typed-failure assertion is what its history makes neces
    failure, both meet that condition — run twice, assert the observable state is unchanged. A run whose
    input is consumed once, or that is by construction never repeated, has nothing to pin and the test
    would assert a coincidence.
-4. **Assert on rows, and on the returned aggregate** — never on log lines, except in the
-   failure-containment test whose subject *is* the log. A run that logged `"ok"` and wrote nothing must
-   fail.
+4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
+   logged `"ok"` and wrote nothing must fail, and the loop's containment is asserted on what its guard
+   returns.
 5. **A wrapper test proves the wrapper, not the body.** One happy path and one exception translation:
    that the trigger reaches the body, and that a service failure arrives at the framework as a typed
    failure carrying the original's identity rather than an opaque one.
