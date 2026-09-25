@@ -380,15 +380,15 @@ provider that constructs a handler is `hex-wiring`.
 
 ## Hard stops
 
-- Spec asks a command handler to return a list, a `Result`, or the entity → stop, re-read the spec,
+- A command handler is asked to return a list, a `Result`, or the entity → stop,
   because mutations do not return data; use `hex-application` for a query.
-- Spec asks a query handler to mutate state → stop, use `hex-application` to write a command.
-- Spec asks a handler to catch a `DomainError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
-- Spec asks a handler to validate cross-aggregate state inline → stop, use `hex-domain-service` and inject it.
-- Spec implies several writes must be atomic → stop, use `hex-patterns` for the unit-of-work factory the handler opens.
-- Spec implies an external IO step before the DB write → stop, use `hex-patterns` for the command
+- A query handler is asked to mutate state → stop, use `hex-application` to write a command.
+- A handler is asked to catch a `DomainError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
+- A handler is asked to validate cross-aggregate state inline → stop, use `hex-domain-service` and inject it.
+- Several writes must be atomic → stop, use `hex-patterns` for the unit-of-work factory the handler opens.
+- An external IO step comes before the DB write → stop, use `hex-patterns` for the command
   body's compensating-transaction form.
-- Spec asks for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.
+- Asked for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.
 - A `*Result` grows past about three fields and starts looking like a different concept → stop, model the
   response as a domain value object or a read-model and return that.
-- Spec asks a query handler to log a read event → stop, a read is not a business event; an audit trail of who read what belongs to the entrypoint, not to the handler.
+- A query handler is asked to log a read event → stop, a read is not a business event; an audit trail of who read what belongs to the entrypoint, not to the handler.

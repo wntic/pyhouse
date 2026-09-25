@@ -468,19 +468,19 @@ distribution's root package, and the root `__init__.py` does not re-export it �
 
 ## Hard stops
 
-- Spec asks for an env read outside a settings class → stop, route it through a settings field.
-- Spec wants two unrelated integrations under one prefix → stop, split into two classes.
-- Spec asks an adapter to take individual fields instead of the settings object → stop, pass the
+- Asked for an env read outside a settings class → stop, route it through a settings field.
+- Two unrelated integrations share one prefix → stop, split into two classes.
+- An adapter is asked to take individual fields instead of the settings object → stop, pass the
   whole object. A single field is extracted only by the factory of a tunable value object.
-- Spec asks to add a binding whose dependency is not yet declared → stop, that dependency's own skill
+- Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill
   runs first.
-- Spec asks to bind a repository at process lifetime → stop, repositories are per-operation.
-- Spec asks for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
+- Asked to bind a repository at process lifetime → stop, repositories are per-operation.
+- Asked for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
   problem.
-- Spec asks to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
-- Spec asks the composition root to hand out a unit of work → stop, it hands out the factory callable;
+- Asked to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
+- The composition root is asked to hand out a unit of work → stop, it hands out the factory callable;
   the unit of work's lifetime is the handler's `async with` (`hex-patterns`).
-- Spec asks the composition root to bind a store connection or transaction handle per operation, so a
+- The composition root is asked to bind a store connection or transaction handle per operation, so a
   repository can be injected with one outside a unit of work → stop, nothing would then own the commit;
   use the standalone repository form, which opens and owns its own (`hex-persistence` for a relational
   store, `hex-store-repository` for a client-style one), or a unit of work (`hex-patterns`). A store

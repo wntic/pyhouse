@@ -288,15 +288,15 @@ For package wiring, see `python-packaging`; for infrastructure placement, see `h
 
 ## Hard stops
 
-- Spec asks the adapter to carry relational aggregate CRUD — a table, the statements against it and the
+- The adapter is asked to carry relational aggregate CRUD — a table, the statements against it and the
   migration that ships it → stop, that is a repository and not a capability; use `hex-persistence`.
-- Spec asks the adapter to inherit from `ICanX` explicitly → stop, structural subtyping is the contract.
-- Spec asks the adapter to log → stop, adapters do not log; the central error handler owns failure logs.
-- Spec asks the adapter to retry, cache, or batch internally → stop, configure that on the client where
+- The adapter is asked to inherit from `ICanX` explicitly → stop, structural subtyping is the contract.
+- The adapter is asked to log → stop, adapters do not log; the central error handler owns failure logs.
+- The adapter is asked to retry, cache, or batch internally → stop, configure that on the client where
   the client is built, or extract a separate wrapper class.
-- Spec asks the adapter to construct its own SDK client (`boto3.client(...)`, `httpx.AsyncClient()`) →
+- The adapter is asked to construct its own SDK client (`boto3.client(...)`, `httpx.AsyncClient()`) →
   stop, both the client and the settings are injected by the composition root.
-- Spec asks the adapter to raise an SDK exception type or bare `Exception` → stop, every external
+- The adapter is asked to raise an SDK exception type or bare `Exception` → stop, every external
   exception is translated into a catalogue exception at the boundary (`exception-catalog` owns the
   catalogue).
 - A secret is about to be placed in an exception's `context` or a log field → stop, `context` is rendered
