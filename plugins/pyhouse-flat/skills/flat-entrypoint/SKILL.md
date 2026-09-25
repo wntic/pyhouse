@@ -32,17 +32,18 @@ nothing here assumes a sibling distribution or a repository above it.
 - The scheduling needs are met by a loop, a cron entry or a timer — the default → none of those
   obligations apply; do not add orchestration modules "for later".
 - The named exceptions a wrapper translates at the framework boundary → `exception-catalog` owns the
-  catalogue and the error types; `flat-layered` rule 6 owns translating a library's exceptions into it.
+  catalogue, how a library's exception is translated into it, and how a caught one is rendered;
+  `flat-layered` rule 6 places the translation inside the client that called the library.
 - Testing any of it — the run function, the loop's containment, the wrapper, the orchestration above them
   → `flat-test-run-function`.
 
-## Picking a shape
+## Trigger shapes
 
 | The work is… | Shape | Lives in |
 |---|---|---|
 | Anything on a schedule, as the starting assumption — a poll, a periodic pass, a nightly job | **Self-scheduling loop, or an external scheduler running the process once** | one module in the process-definition package |
 | Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine | a framework-wrapper package plus its worker process |
-| A never-ending stream — a subprocess tailing an append-only upstream log, a queue consumer, a websocket feed | **Standalone stream process**, watched by an external liveness check | one module in the process-definition package |
+| A never-ending stream — a log or change feed, a queue consumer, a websocket feed | **Standalone stream process**, watched by an external liveness check | one module in the process-definition package |
 
 **The default for scheduled work is a plain loop, a cron entry or a timer.** A process that wakes up,
 does one run, and sleeps is the whole of most scheduling requirements, and it costs one module and no
@@ -61,26 +62,37 @@ If none of those is true, the engine is the heaviest thing in the deployment and
 them is, a loop will be reinvented badly: a `_state` table, a retry counter, a lease, an at-most-once
 guard, all of it hand-rolled and none of it tested.
 
-Shape 3 is the exception to the choice: a continuous stream is **not** scheduled work, and neither shape
-applies to it. See below.
+Shape 3 is outside that choice: a continuous stream is **not** scheduled work, and neither scheduling
+shape applies to it. See below.
 
 ## The run function — shared by every shape (structlog)
 
-`myapp/ingest/foo_ingest.py` — an upstream-pull run function: no framework import, every dependency a
+`src/myapp/ingest/foo_ingest.py` — an upstream-pull run function: no framework import, every dependency a
 parameter. `ingest/` is this example's name for one work-unit package (`flat-layered`).
 
 ```python
+from datetime import UTC, datetime
+
 import structlog
 
-from myapp.schemas.foo import IngestResult
-from myapp.services.foo_client import FooClient
-from myapp.storage.foo_storage import FooStorage
+from myapp.schemas import Foo, FooPayload, IngestResult
+from myapp.services import FooClient
+from myapp.storage import FooStorage
 
 logger = structlog.get_logger()
 
+
+def to_foo(payload: FooPayload, observed_at: datetime) -> Foo | None:
+    """The filter and the mapping in one pure step: a payload with no reference is dropped."""
+    if payload.ref is None:
+        return None
+    return Foo(id=None, reference=payload.ref, name=payload.name, observed_at=observed_at, labels=payload.labels)
+
+
 async def run_once(client: FooClient, storage: FooStorage) -> IngestResult:
     payloads = await client.fetch_batch()
-    foos = [foo for foo in (to_foo(payload) for payload in payloads) if foo is not None]
+    observed_at = datetime.now(UTC)
+    foos = [foo for foo in (to_foo(payload, observed_at) for payload in payloads) if foo is not None]
     await storage.record_batch(foos)
 
     logger.info("foo_ingest_completed", fetched=len(payloads), kept=len(foos))
@@ -101,7 +113,7 @@ merely tidy.
 
 ## Shape 1 — the self-scheduling loop, on asyncio (the default)
 
-`myapp/entrypoints/foo_loop.py`:
+`src/myapp/entrypoints/foo_loop.py`:
 
 ```python
 import asyncio
@@ -110,35 +122,42 @@ from collections.abc import Awaitable, Callable
 import structlog
 
 from myapp.ingest.foo_ingest import run_once
-from myapp.services.foo_client import FooClient
+from myapp.services import FooClient
 from myapp.settings import get_settings
-from myapp.storage.engine import get_engine
-from myapp.storage.foo_storage import FooStorage
-from myapp.storage.settings import get_storage_settings
+from myapp.storage import FooStorage, get_engine, get_storage_settings
 
 logger = structlog.get_logger()
 
 _POLL_INTERVAL_SECONDS = 30
 
-async def guarded(run: Callable[[], Awaitable[object]]) -> None:
-    """One run, with failure contained. Extracted so it can be tested without the loop."""
+
+async def guarded(run: Callable[[], Awaitable[object]]) -> bool:
+    """One run with its failure contained; returns whether the run succeeded."""
     try:
         await run()
     except Exception:
         logger.exception("foo_ingest_run_failed")
+        return False
+    return True
+
 
 async def main() -> None:
     settings = get_settings()
-    storage = FooStorage(get_engine(get_storage_settings().dsn))
+    storage = FooStorage(get_engine(get_storage_settings().dsn.get_secret_value()))
     client = FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds)
 
     while True:
         await guarded(lambda: run_once(client, storage))
         await asyncio.sleep(_POLL_INTERVAL_SECONDS)
 
+
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+A run function is imported from its own module, not from its package: run functions routinely share a
+name like `run_once`, so a work-unit package does not re-export them — a colliding name is reached by
+explicit import where it is consumed (`python-packaging`).
 
 **The process definition is the only place a settings factory is called.** It reads each configured
 component's settings — the process's own and the storage package's — and hands concrete values down to
@@ -148,7 +167,8 @@ a module inside it licence to call that factory (`flat-layered` rules 7 and 8).
 **Extract the `try/except` into `guarded`.** The loop's contract is "one failed run does not kill the
 process", and that is the only part worth testing. A `try/except` written inline inside `while True`
 can only be tested by driving the loop, which needs an artificial escape — and building the escape
-changes the thing under test.
+changes the thing under test. `guarded` returns whether the run succeeded, so a test asserts the
+containment on a value rather than on what was logged.
 
 **The interval is one named constant, declared beside the loop that sleeps on it.** `30` is this
 example's cadence and means nothing outside it — a project sets the number from how fast upstream
@@ -158,18 +178,12 @@ and a cadence read from the environment can drift out of step with the rate limi
 If the cadence genuinely has to change per deployment, it becomes a settings field and the entrypoint
 passes it in — the same rule as every other tunable in `flat-layered`.
 
-**The same loop body runs under an external scheduler.** Drop the `while True` and the sleep, run
-`main()` once, and the process is a cron entry, a systemd timer or a Kubernetes `CronJob` — a scheduler
-outside the process decides the cadence, and the module is otherwise unchanged. Prefer this wherever the
-platform already runs one: it makes the cadence operable without a redeploy and removes the idle
-process. It does **not** add durability; a run killed halfway is still a run lost.
-
 ## Shape 2 — durable execution, once it is earned
 
 Reach here only once durability, cross-restart retries or long-running orchestration has earned it, by
 the three conditions above. The shape is **three modules**: an orchestration module that invokes units of
 work and computes nothing, a wrapper class that adapts the run function into the engine's unit of work,
-and a worker process that builds the dependencies once and serves the engine's queue. They are the only
+and a process definition that builds the dependencies once and serves the engine's work. They are the only
 modules in the service that import the engine's SDK (`flat-layered` rule 9). The run function does not
 move, and none of the rules below changes.
 
@@ -183,8 +197,8 @@ schedules as code. They are stated under `## Rules` below, in the subsection tha
 
 ## Shape 3 — a continuous stream is not a workflow
 
-A never-ending stream stays a standalone process with its own entrypoint module, under either of the
-shapes above. What it needs is not a trigger but a **liveness check**: something outside the process
+A never-ending stream stays a standalone process with its own entrypoint module, whatever else the
+service runs. What it needs is not a trigger but a **liveness check**: something outside the process
 reads the stream's last observation timestamp and alarms if it is too old. A container healthcheck, a
 liveness probe, or a scraped freshness metric with an alert rule all do this, and a service with no
 workflow engine should use one of them.
@@ -193,29 +207,27 @@ So a service can end up with two entrypoint modules:
 
 ```text
 entrypoints/
-├── myframework_worker.py   # process: serves the engine's queue, where one is earned
+├── foo_ingest_durable.py   # process: serves the engine's foo-ingest work, where an engine is earned
 └── foo_stream.py           # process: a long-lived continuous stream, stateful
 ```
 
 Do **not** park the stream inside one long-lived unit of work, and do not model each incoming item as a
-workflow. A workflow per item burns the engine's action budget and adds no value; a long-lived unit of
-work fights the replay model every durable-execution engine is built on, and its retries restart a
-stream that was meant to resume.
+workflow. A workflow per item turns every item into orchestration overhead and history the engine must
+keep, and adds no value; a long-lived unit of work fights the replay model every durable-execution
+engine is built on, and its retries restart a stream that was meant to resume.
 
 ## Other bindings
 
 - **An external scheduler in place of the self-scheduling loop.** Drop the `while True` and the sleep,
-  run `main()` once, and the module is a cron entry, a systemd timer or a Kubernetes `CronJob` (shape 1
-  above). Wiring and failure containment are unchanged; the cadence becomes operable without a
-  redeploy, and durability is still not bought.
+  run `main()` once, and the module is a cron entry, a systemd timer or a Kubernetes `CronJob`. Wiring
+  and failure containment are unchanged; the cadence becomes operable without a redeploy and the idle
+  process goes, so prefer it wherever the platform already runs a scheduler. Durability is still not
+  bought — a run killed halfway is still a run lost.
 - **A durable-execution engine in place of either.** Restate and DBOS take the durable-function shape
   in-process; Step Functions and Azure Durable Functions are the managed equivalents; Airflow, Dagster
-  and Prefect solve the batch-DAG half. The wrapper package and the worker process appear, every rule
-  below holds unchanged, and the run function moves in none of them. What the engine *adds* is the
-  durable obligations under `## Rules`, which hold in all of them.
-- **The plain loop is not one binding among several — it is the default the engine must be earned
-  against.** Nothing above licenses shape 2 without durability, cross-restart retries or long-running
-  orchestration to point at.
+  and Prefect solve the batch-DAG half. The wrapper package and its process appear, every rule below
+  holds unchanged, and the run function moves in none of them. What the engine *adds* is the durable
+  obligations under `## Rules`, which hold in all of them.
 
 ## Rules
 
@@ -242,13 +254,13 @@ stream that was meant to resume.
    timestamps, so what a trigger reports, logs or stores stays bounded; the items themselves live in the
    datastore.
 6. **The routing name a run is addressed to has exactly one source, and every participant reads it from
-   that one place.** A queue URL, a topic, a subscription name or an engine's task queue is normally a
-   per-deployment value and then belongs with the rest of the process's settings (`flat-layered` rule 8);
-   where the platform makes the schedule itself code in the same repository, the name is a module
-   constant both the schedule and the process serving it import. What is never acceptable is two
-   sources — a schedule resolving the name from one environment and the process serving it from
-   another — because the disagreement surfaces as work that silently goes nowhere, with nothing to
-   catch it.
+   that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is
+   normally a per-deployment value and then belongs with the rest of the process's settings
+   (`flat-layered` rule 8); where the platform makes the schedule itself code in the same repository, the
+   name is a module constant both the schedule and the process serving it import. What is never
+   acceptable is two sources — a schedule resolving the name from one environment and the process
+   serving it from another — because the disagreement surfaces as work that silently goes nowhere, with
+   nothing to catch it.
 7. **A continuous stream is a process, not a scheduled run.** Give it its own entrypoint module and
    watch it from outside with a liveness check on the freshness of its last observation. Never model
    each incoming item as an orchestration, and never park the stream inside one long-lived unit of
@@ -271,9 +283,11 @@ separately from the rules and cited elsewhere as *durable obligation N*.
 2. **Inside replayed code the engine's clock is the only clock.** Reading the wall clock, drawing
    randomness, or minting a random identifier makes replay diverge from the recorded history. Take the
    value from the engine, or pass it in as an argument.
-3. **An orchestration module keeps its non-engine imports out of the engine's sandbox.** An engine
-   that re-imports modules per run is slow on anything heavy and fails outright on anything with
-   import-time state.
+3. **Orchestration code imports nothing with import-time state or side effects.** An engine may load
+   or re-load the orchestration module in an isolated environment of its own, so an import that builds
+   an object, opens a connection or reads configuration either fails there or runs again on every load.
+   The orchestration module imports the engine and the declarations of the units it invokes, and nothing
+   else.
 4. **The wire name of a unit of work is declared explicitly, separately from the symbol implementing
    it.** Schedules, execution history and test stubs all bind to the wire name, so renaming the method
    must not be able to break a running schedule.
@@ -309,11 +323,17 @@ separately from the rules and cited elsewhere as *durable obligation N*.
 11. **A healthcheck declares no retries.** Its whole job is to turn red the moment the thing it watches
     is stale; a retry hides exactly the failure it exists to surface. Where the engine is already present
     for other work, a short healthcheck run on a schedule is how a continuous stream's liveness check
-    (rule 7 above) gets the engine's retry and visibility machinery.
+    (`## Rules` rule 7, not durable obligation 7) gets the engine's visibility machinery.
 12. **Schedules are code, held in one versioned, re-runnable definition** — never created by hand in a
-    console and never from inside the worker process. Each one states its catch-up window, its overlap
-    policy and its time zone explicitly: the engine's defaults will replay a year of missed runs after
-    an outage, stack overrunning runs, and shift the cadence twice a year with no code change.
+    console and never from inside the process serving the work. Each one states its catch-up window, its
+    overlap policy and its time zone explicitly, never inheriting the engine's: whatever an engine
+    defaults to decides how many missed runs replay after an outage, whether an overrunning run stacks
+    under the next, and whether the cadence moves with daylight saving — three operational decisions no
+    one made.
+13. **The engine's connection settings are required, with no default.** Its address, and whatever
+    namespace or tenant it routes by, come from the process's settings like any other tunable
+    (`flat-layered` rule 10); a default lets a deployment that forgot one start and reach the wrong
+    engine instead of failing at startup.
 
 ## Hard stops
 
@@ -353,11 +373,13 @@ These fire only once rule 1 has earned an engine; under every other trigger ther
   both; otherwise a dead worker goes unnoticed for the whole timeout and the unit can never be cancelled.
 - A run-function body calls the framework's progress function directly → stop, use the guarded helper;
   the unguarded call raises the moment the body runs from a loop or a test.
-- A schedule is created by hand in a console, from inside the worker process, or without an explicit
-  catch-up window → stop; it belongs in the versioned definition, and the default catch-up window replays
-  a year of missed runs after an outage.
+- A schedule is created by hand in a console, from inside the process serving the work, or without an
+  explicit catch-up window, overlap policy and time zone → stop; it belongs in the versioned definition,
+  and an inherited default is a decision nobody made.
+- An orchestration module imports something with import-time state or side effects → stop, import only
+  the engine and the unit declarations it invokes.
 - A healthcheck run declares retries → stop, the retry hides the staleness it exists to report.
 - A service exception escapes the framework boundary untranslated → stop, wrap it so the context and the
   error type survive.
-- The engine's address or namespace is being given a default → stop, both are required settings; a
-  deployment that forgets one must fail at startup rather than reach the wrong cluster.
+- An engine connection setting is being given a default → stop, it is required; a deployment that
+  forgets one must fail at startup rather than reach the wrong engine.
