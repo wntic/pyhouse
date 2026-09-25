@@ -136,7 +136,7 @@ Behavioral fakes expose a call-record list (`self.exported`) so handler tests ca
 
 ## Storage gateway with a call-record observation surface
 
-A storage fake records what it was asked to do (uploads / deletes) so compensating-transaction tests can assert the undo ran — no failure-injection flags, just observable call records. Its `delete` is the port's plain reversing method and succeeds like the real one; a test that needs the undo itself to fail subclasses it (`_RaiseOnDeleteStorage` above):
+A storage fake records what it was asked to do (uploads / deletes) so compensating-transaction tests can assert the undo ran — no failure-injection flags, just observable call records. Its `delete` is the port's plain reversing method and succeeds like the real one; a test that needs the undo itself to fail subclasses it (`_RaiseOnDeleteStorage` in the `compensating-tx` handler template in `SKILL.md`):
 
 ```python
 __all__ = ["FakeFooStorage"]
