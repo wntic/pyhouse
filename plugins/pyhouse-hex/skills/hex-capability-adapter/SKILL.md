@@ -256,8 +256,8 @@ type rather than a raw string.
     `UnauthorizedError` for a rejected credential; `NotFoundError` when the object or subject does not
     exist; `ValidationError` only when the upstream rejected the inputs as malformed; `context` carries
     the key, subject or id plus the upstream's own code or status, and never the token or key. An adapter
-    never swallows a failure — the one sanctioned swallow, a failed undo during compensation, happens in
-    the calling handler (`hex-patterns`), which can log it; an adapter cannot.
+    never swallows a failure, and never stops one either — a failed undo during compensation is stopped
+    in the calling handler (`hex-patterns`), which logs it; an adapter cannot.
 
 ### No business logic, no logging
 
