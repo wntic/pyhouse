@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 interpreter floor, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -62,34 +62,23 @@ matters.
 
 ### The interpreter floor
 
-**Every form in this skill needs Python 3.10, and nothing in this catalogue needs more.** PEP 604
-unions, `X | None`, and the `collections.abc` generics that replace the `typing` aliases all land in
-3.10; the ban on `from __future__ import annotations` above is affordable precisely because 3.10 gives
-that syntax natively. So **3.10 is the catalogue's own floor** — the oldest interpreter its templates
-are written to run on.
+**The house floor is Python 3.13.** It is a choice this style makes, not a limit some template
+happened to hit: one floor across every project means every template runs as pasted and every reader
+meets one set of forms. The catalogue's templates are written against it and use what 3.11–3.13 added
+freely — `enum.StrEnum`, `datetime.UTC`, PEP 695 `type` aliases and generic syntax, `AsyncGenerator[None]`
+with its defaulted send type.
 
-Two things are misremembered as raising it, and neither does:
+**A project may raise the floor; it never lowers it.** Raising it is a decision — a library whose own
+minimum sits higher, or a form the project wants from a newer interpreter — taken once, for the whole
+project, never in half the code. Below 3.13 the templates stop being correct as written, and a project
+that back-ports them one form at a time has two dialects in one tree.
 
-- **A library raises the floor only when its own minimum is above 3.10.** Every binding this
-  catalogue's templates use runs on 3.10, so adopting one raises nothing; check the minimum of any
-  library added beyond them before assuming otherwise, and record the answer with the floor rather than
-  re-deriving it.
-- **A feature reaching the standard library on a later interpreter does not raise the floor either**,
-  as long as the project takes it from a third-party package instead. Whether to take it at all is the
-  decision of the skill that generates the value, not of this one — but it is taken **once, for the
-  whole project**, never in half the code.
-
-**A project's own floor is the project's to choose, and like the line length it is chosen once, at
-setup, and written down.** Three settings name that one interpreter and must stay in step:
-`requires-python` in the root `pyproject.toml`, the linter's `target-version`, and the type checker's
-`python_version`. All three name the **oldest** interpreter the project must run on, never the newest
-one on the developer's machine — a form the linter permits because `target-version` drifted upward is a
-form that fails on the deployment runtime. A member of a workspace never restates them; the root
-settles them and every member inherits.
-
-Where a template in this catalogue shows a concrete value it writes `>=3.12` and `py312`. That is one
-project's choice shown whole, not a requirement: substitute the project's floor, at or above 3.10, in
-all three places at once.
+**The floor is chosen once, at setup, and written down in three settings that must stay in step:**
+`requires-python` in the root `pyproject.toml` (`>=3.13`), the linter's `target-version` (`py313`), and
+the type checker's `python_version` (`3.13`). All three name the **oldest** interpreter the project must
+run on, never the newest one on the developer's machine — a form the linter permits because
+`target-version` drifted upward is a form that fails on the deployment runtime. A member of a workspace
+never restates them; the root settles them and every member inherits.
 
 ### Full coverage on every signature
 
@@ -113,17 +102,18 @@ Related convention: when collecting heterogeneous values, use `dict[str, object]
 point of consumption.
 
 Past the boundary — in business logic, a handler body, a run function — `Any` is forbidden. If a type is
-hard to express, introduce a `TypeAlias` or a small dataclass.
+hard to express, introduce a `type` alias or a small dataclass.
 
-### `TypeAlias` for repeated complex types
+### A `type` alias for repeated complex types
 
 ```python
-from typing import TypeAlias
+from uuid import UUID
 
-FooKey: TypeAlias = tuple[UUID, int]
+type FooKey = tuple[UUID, int]
 ```
 
-Use one whenever the same composite — a `tuple[…, …]`, a `dict[str, frozenset[UUID]]`, a callable
+The PEP 695 `type` statement, not `typing.TypeAlias` — the statement is the form the 3.13 floor gives,
+and it is evaluated lazily, so an alias may name a class defined further down. Use one whenever the same composite — a `tuple[…, …]`, a `dict[str, frozenset[UUID]]`, a callable
 signature — appears in more than one signature. Place it at the top of the module owning the concept,
 after imports and before classes, and re-export it via `__all__` if it crosses module boundaries. For a
 module-internal one-shot type, write the type out; a premature alias hides intent.
@@ -155,8 +145,8 @@ Ordinary procedural code may use mutable collections **internally** — loop acc
 but anything crossing into a frozen type is converted first.
 
 *In a hexagonal project this binds the whole of `domain/`, without exception. In a flat-layered service
-it binds the frozen result and payload dataclasses in `schemas/`, and nothing forces it on a local
-accumulator.*
+it binds the frozen result and payload records that pass between its packages, wherever the service
+keeps them, and nothing forces it on a local accumulator.*
 
 ### A record that crosses a boundary is a declared type
 
@@ -174,7 +164,7 @@ is parsed.
 | Being passed | Declare instead |
 |---|---|
 | a `dict` whose keys are known when the code is written | a frozen dataclass, or a validation model at a parse boundary |
-| a tuple whose positions mean different things | a frozen dataclass; a `TypeAlias` only when it is genuinely n of one thing |
+| a tuple whose positions mean different things | a frozen dataclass; a `type` alias only when it is genuinely n of one thing |
 | `**kwargs` forwarded and unpacked further down | named parameters, or one parameter of a declared type |
 
 A `dict` is still the right type where the **keys are data**: a lookup keyed by id, a count per
@@ -277,8 +267,9 @@ any other failure.
 **Read the sibling `LOGGING.md` before writing a log call, naming an event, or deciding which scope logs
 a failure.** Only this file is loaded automatically, so open it rather than working from the obligations
 above: it carries the `structlog` binding, the event-name and field contract with its worked examples,
-the never-log-and-re-raise case and its level guide, how the allocation rule resolves in a hexagonal and
-in a flat-layered project, and the stdlib `logging` alternative that satisfies the same obligations.
+the never-log-and-re-raise case and its level guide, where a failed undo under compensation is logged, how the
+allocation rule resolves in a hexagonal and in a flat-layered project, and the stdlib `logging`
+alternative that satisfies the same obligations.
 
 ### What never reaches a log line
 
@@ -315,9 +306,9 @@ no `# helpers`.
 
 1. Apply the union, generic and runtime-annotation forms in **Typing**, including validation models.
 2. Check complete signature coverage in source and tests; use named functions for business logic.
-3. **Settle the interpreter floor once, at setup, at or above the catalogue's 3.10**, and keep
+3. **Settle the interpreter floor once, at setup, at the house floor of 3.13 or above**, and keep
    `requires-python`, the linter's `target-version` and the type checker's `python_version` naming
-   that same oldest supported interpreter.
+   that same oldest supported interpreter. A project may raise the floor, never lower it.
 4. Restrict `Any` to the two raw-boundary cases; use the documented heterogeneous-value and repeated-type
    forms after parsing.
 5. Check shared value types against the immutable-collection table and convert at their boundary.
@@ -342,7 +333,9 @@ no `# helpers`.
 12. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
     from the raise to the first scope that handles the exception rather than re-raising it; a project
     that funnels failures into one handler makes that handler the scope. A scope that re-raises does
-    not log; the detail it would have logged goes into the exception's `context`.
+    not log; the detail it would have logged goes into the exception's `context`. The one failure a
+    re-raising scope stops — an undo's, under `exception-catalog`'s best-effort compensation — ends
+    there, so that scope logs it: one `warning` event naming the failed undo, before re-raising the original.
 13. Check logged fields against **What never reaches a log line** before emitting them, and apply the
     same two bans to anything placed in an exception's `context`.
 14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
@@ -359,7 +352,10 @@ Typing:
   (`required: "Foo"`); unquoted it is a `NameError` at class-definition time, and the future import that
   would defer it is banned.
 - `Optional[X]` or `Union[A, B]` → stop, use `X | None` / `A | B`.
-- Bare `Any` outside the documented external-boundary cases → stop, introduce a `TypeAlias` or a small
+- A `requires-python`, `target-version` or `python_version` below 3.13, or the three naming different
+  interpreters → stop, set all three to the house floor or one above it; below it the templates are not
+  correct as written, and three disagreeing settings let a form pass the linter that fails at runtime.
+- Bare `Any` outside the documented external-boundary cases → stop, introduce a `type` alias or a small
   dataclass; do not let `Any` spread.
 - Untyped `**kwargs` / `*args` in business logic → stop, a dataclass is missing.
 - A `dict` or tuple with a fixed set of known fields crossing a boundary — returned from a client,
@@ -378,7 +374,11 @@ Typing:
 Logging:
 
 - `log.x(...); raise` in the same scope → stop, that is two entries for one event; put the detail in the
-  exception's `context` and let the layer that stops it log.
+  exception's `context` and let the layer that stops it log. A failed undo stopped and logged before the
+  original is re-raised is two events, not this case.
+- An undo's failure stopped under best-effort compensation with no log line, or logged at `error`, or
+  logged by the undo itself → stop, the compensating scope logs one `warning` naming the failed undo; it
+  is the only record that an effect was left behind.
 - A log call emitting an interpolated sentence — no event name, no fields (`log.info(f"created foo
   {foo.id}")`) → stop, nothing in that line can be filtered, grouped or alerted on; emit an event name
   plus the identifiers as fields. This fires on every binding, the stdlib one included.
@@ -391,7 +391,7 @@ Logging:
 - A scope that re-raises the failure logs it as well → stop, it is not the scope that explains it; the
   detail goes into the translated exception's `context` and whoever stops the exception logs. In a
   hexagonal project that fires on any log call in `domain/` or `infrastructure/`, and on an error logged
-  in `application/`.
+  in `application/` other than a failed undo stopped under compensation.
 
 Comments:
 
