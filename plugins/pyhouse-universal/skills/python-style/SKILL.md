@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 interpreter floor, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -62,34 +62,23 @@ matters.
 
 ### The interpreter floor
 
-**Every form in this skill needs Python 3.10, and nothing in this catalogue needs more.** PEP 604
-unions, `X | None`, and the `collections.abc` generics that replace the `typing` aliases all land in
-3.10; the ban on `from __future__ import annotations` above is affordable precisely because 3.10 gives
-that syntax natively. So **3.10 is the catalogue's own floor** — the oldest interpreter its templates
-are written to run on.
+**The house floor is Python 3.13.** It is a choice this style makes, not a limit some template
+happened to hit: one floor across every project means every template runs as pasted and every reader
+meets one set of forms. The catalogue's templates are written against it and use what 3.11–3.13 added
+freely — `enum.StrEnum`, `datetime.UTC`, PEP 695 `type` aliases and generic syntax, `AsyncGenerator[None]`
+with its defaulted send type.
 
-Two things are misremembered as raising it, and neither does:
+**A project may raise the floor; it never lowers it.** Raising it is a decision — a library whose own
+minimum sits higher, or a form the project wants from a newer interpreter — taken once, for the whole
+project, never in half the code. Below 3.13 the templates stop being correct as written, and a project
+that back-ports them one form at a time has two dialects in one tree.
 
-- **A library raises the floor only when its own minimum is above 3.10.** Every binding this
-  catalogue's templates use runs on 3.10, so adopting one raises nothing; check the minimum of any
-  library added beyond them before assuming otherwise, and record the answer with the floor rather than
-  re-deriving it.
-- **A feature reaching the standard library on a later interpreter does not raise the floor either**,
-  as long as the project takes it from a third-party package instead. Whether to take it at all is the
-  decision of the skill that generates the value, not of this one — but it is taken **once, for the
-  whole project**, never in half the code.
-
-**A project's own floor is the project's to choose, and like the line length it is chosen once, at
-setup, and written down.** Three settings name that one interpreter and must stay in step:
-`requires-python` in the root `pyproject.toml`, the linter's `target-version`, and the type checker's
-`python_version`. All three name the **oldest** interpreter the project must run on, never the newest
-one on the developer's machine — a form the linter permits because `target-version` drifted upward is a
-form that fails on the deployment runtime. A member of a workspace never restates them; the root
-settles them and every member inherits.
-
-Where a template in this catalogue shows a concrete value it writes `>=3.12` and `py312`. That is one
-project's choice shown whole, not a requirement: substitute the project's floor, at or above 3.10, in
-all three places at once.
+**The floor is chosen once, at setup, and written down in three settings that must stay in step:**
+`requires-python` in the root `pyproject.toml` (`>=3.13`), the linter's `target-version` (`py313`), and
+the type checker's `python_version` (`3.13`). All three name the **oldest** interpreter the project must
+run on, never the newest one on the developer's machine — a form the linter permits because
+`target-version` drifted upward is a form that fails on the deployment runtime. A member of a workspace
+never restates them; the root settles them and every member inherits.
 
 ### Full coverage on every signature
 
@@ -315,9 +304,9 @@ no `# helpers`.
 
 1. Apply the union, generic and runtime-annotation forms in **Typing**, including validation models.
 2. Check complete signature coverage in source and tests; use named functions for business logic.
-3. **Settle the interpreter floor once, at setup, at or above the catalogue's 3.10**, and keep
+3. **Settle the interpreter floor once, at setup, at the house floor of 3.13 or above**, and keep
    `requires-python`, the linter's `target-version` and the type checker's `python_version` naming
-   that same oldest supported interpreter.
+   that same oldest supported interpreter. A project may raise the floor, never lower it.
 4. Restrict `Any` to the two raw-boundary cases; use the documented heterogeneous-value and repeated-type
    forms after parsing.
 5. Check shared value types against the immutable-collection table and convert at their boundary.
@@ -359,6 +348,9 @@ Typing:
   (`required: "Foo"`); unquoted it is a `NameError` at class-definition time, and the future import that
   would defer it is banned.
 - `Optional[X]` or `Union[A, B]` → stop, use `X | None` / `A | B`.
+- A `requires-python`, `target-version` or `python_version` below 3.13, or the three naming different
+  interpreters → stop, set all three to the house floor or one above it; below it the templates are not
+  correct as written, and three disagreeing settings let a form pass the linter that fails at runtime.
 - Bare `Any` outside the documented external-boundary cases → stop, introduce a `TypeAlias` or a small
   dataclass; do not let `Any` spread.
 - Untyped `**kwargs` / `*args` in business logic → stop, a dataclass is missing.
