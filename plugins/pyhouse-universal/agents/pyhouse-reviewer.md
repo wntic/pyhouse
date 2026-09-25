@@ -87,8 +87,8 @@ that without changing library. The same goes for `## Other bindings`. `## Inline
 rules` is a slice of rules owned elsewhere — apply it, but cite the owner.
 
 Where two skills appear to state one rule, cite the owner. `meta-skill-author`'s ownership table
-assigns naming, typing and logging, packaging, the error catalogue, boundaries, testing and the
-architecture choice.
+assigns naming, typing and logging, the interpreter floor, packaging, the error catalogue, what a
+version promises and what moves it, boundaries, testing and the architecture choice.
 
 ## Step 4 — Keep or drop
 
