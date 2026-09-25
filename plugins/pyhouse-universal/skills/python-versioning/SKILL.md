@@ -63,7 +63,7 @@ it alone; bumping as each change lands carries the number past anything that was
 [project]
 name = "myapp"
 version = "1.4.0"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 ```
 
 Three integer components, no `v`, no hyphen, no plus sign. The pre-release ladder, when one is cut,
