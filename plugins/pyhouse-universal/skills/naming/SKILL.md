@@ -32,9 +32,9 @@ never its layout.
   `hex-architecture` (in `pyhouse-hex`), whichever style the project uses.
 - Where the boundary between two components goes at all → `coupling`. A name cannot rescue a wrong
   boundary; if a thing resists naming, suspect the split before the vocabulary.
-- Log event names, exception `code` values, task/workflow registration strings, database constraint
-  names → those are *frozen external contracts*, owned by `python-style`, `exception-catalog` and
-  whichever skill owns that artifact. See **Renaming** below.
+- Log event names, exception `code` values, job or task names registered by string, database
+  constraint names → those are *frozen external contracts*, owned by `python-style`,
+  `exception-catalog` and whichever skill owns that artifact. See **Renaming** below.
 - A test builder, fixture or failure-injection subclass needs a name → this skill for the name;
   `test-principles` for whether it should be a fixture at all.
 - A test *function* or test *file* name → `test-principles`, which owns the `test_` file mirror and the
@@ -274,8 +274,8 @@ Renaming is cheap, mechanical and reviewable; a stale name is none of those. **D
 commit** so it cannot hide a behaviour change.
 
 The exception is a name that has escaped the codebase and become an external contract. Those are
-frozen and are **not** renamed in place: log event names, exception `code` values, workflow, activity
-and task names registered by string, queue and topic names, database table/column and constraint
+frozen and are **not** renamed in place: log event names, exception `code` values, job or
+task names registered by string, queue and topic names, database table/column and constraint
 names, Alembic revision identifiers, serialization aliases and published API fields,
 environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new name alongside it and
 retire the old one deliberately, with a migration.
@@ -313,7 +313,7 @@ retire the old one deliberately, with a migration.
   existing word.
 - The same word now names two different concepts in the project → stop, it identifies neither.
 - A class named `…Data`, `…Info`, `…Details`, `…Manager` or `…Processor` → stop, name the subject and
-  what it asserts.
+  what it asserts, unless a framework defines the word and the class is that (**Other exceptions**).
 - A class carrying a role suffix (`…Result`, `…Payload`, `…Handler`, `…Service`, `…Request`,
   `…Response`) with no subject in front, or on a class that does not play the role the architecture
   defines for that word → stop, name the subject and what it asserts; the carve-out covers the role,
@@ -344,8 +344,8 @@ retire the old one deliberately, with a migration.
   `StripeClient.fetch_stripe_charge`) → stop, delete the repeated word.
 - A module has outgrown its name and is being extended anyway → stop, rename it first, in its own
   commit.
-- A log event name, exception `code`, registered workflow/activity/task name, queue name, database
-  constraint name, serialization alias or env-var name is being renamed in place → stop, those are
-  external contracts; add the new one and retire the old deliberately.
+- A log event name, exception `code`, job or task name registered by string, queue name,
+  database constraint name, serialization alias or env-var name is being renamed in place → stop,
+  those are external contracts; add the new one and retire the old deliberately.
 - A thing resists every candidate name because no sentence describes it without "and" → stop, this is
   a boundary problem, not a vocabulary problem; load `coupling`.

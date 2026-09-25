@@ -139,7 +139,7 @@ Concrete, in the standalone form:
 
 ```python
 def test_domain_has_no_sqlalchemy() -> None:
-    hits = _grep(r"import sqlalchemy|from sqlalchemy", _DOMAIN)
+    hits = _grep(r"^[[:space:]]*(import|from) sqlalchemy\b", _DOMAIN)
     assert hits == [], "sqlalchemy import in domain:\n" + "\n".join(hits)
 ```
 
@@ -192,14 +192,17 @@ Widening the sweep over the member that holds the shared helper and allow-listin
 looked at it, and adding the sweep without the allow-list entry turns the firewall red on its own
 sanctioned exception.
 
-Standalone example:
+Standalone example — the two allow-listed paths are constants at the top of the file, beside the
+others (rule 4):
 
 ```python
+_MAIN_PY = str(_ROOT / "src" / "myapp" / "restapi" / "main.py")
+_CLI = str(_ROOT / "src" / "myapp" / "cli") + "/"
+
+
 def test_no_print_calls_outside_allowed() -> None:
-    _main_py = str(_ROOT / "src" / "myapp" / "restapi" / "main.py")
-    _cli = str(_ROOT / "src" / "myapp" / "cli")
-    all_hits = _grep(r"print\(", _SRC)
-    forbidden = [h for h in all_hits if not h.startswith(_main_py) and not h.startswith(_cli)]
+    all_hits = _grep(r"\bprint\(", _SRC)
+    forbidden = [h for h in all_hits if not h.startswith(_MAIN_PY) and not h.startswith(_CLI)]
     assert forbidden == [], "print() calls found outside allowed locations:\n" + "\n".join(forbidden)
 ```
 

@@ -43,7 +43,8 @@ depending on it.
 - Choosing a version floor or a pin for a dependency this project **consumes** → the inverse concern,
   and not here. A floor states a known breaking boundary in someone else's history; this skill is
   about producing your own. The hexagonal family states the consuming rule under `hex-project-setup`,
-  in the `pyhouse-hex` plugin.
+  in the `pyhouse-hex` plugin, and the flat family under `flat-project-setup`, in the `pyhouse-flat`
+  plugin.
 - A repository holding several distributions — the member split, in-repo dependency edges, tooling
   settled once → `python-workspace`. It governs members; which number each member carries is here.
 - Database schema evolution and the migration chain → the family's persistence skill. A migration is

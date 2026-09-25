@@ -28,7 +28,8 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
   it is earned → the member family's entrypoint skill (`flat-entrypoint`, in the `pyhouse-flat`
   plugin, is one).
 - Bootstrapping one member's dependency substrate and tool configuration → the member family's setup
-  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one). Nothing below needs it: the tooling
+  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one, and the flat family's is
+  `flat-project-setup`, in the `pyhouse-flat` plugin). Nothing below needs it: the tooling
   values this root settles are stated here, and the interpreter floor behind them is `python-style`'s.
 - The pytest plugin module the root `addopts` loads, and the fixtures inside it → the member family's
   integration-setup skill (`flat-test-integration-setup`, in the `pyhouse-flat` plugin, or
@@ -289,9 +290,9 @@ repo root reads none of them.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.
-- A runnable member needs its own private tables in the store the members share → still put the
-  `Table` in the one owning library; a second schema owner over one store means two migration histories and the second
-  to run decides what the first one's tables look like.
+- A runnable member needs its own private tables in the store the members share → stop, put the
+  `Table` in the one owning library; a second schema owner over one store means two migration
+  histories, and the second to run decides what the first one's tables look like.
 - A runnable member imports a sibling runnable member → stop, promote the shared code into a library
   member.
 - Runtime code is being added to the root `pyproject.toml`'s project → stop, the root is a container;

@@ -28,7 +28,8 @@ needed to reach a recommendation and state its reason is here; the family skills
   judgement the cost question below runs on.
 - Whether one particular dependency earns a `Protocol` → the chosen family's own rule decides; this
   skill chooses the family, not the port.
-- Which trigger a flat service runs on — loop, schedule, stream, durable execution → `flat-entrypoint`,
+- Which trigger a flat service runs on — loop, schedule, stream, a thin HTTP wrapper, durable
+  execution → `flat-entrypoint`,
   in the `pyhouse-flat` plugin.
 - A workspace holding several services → `python-workspace` owns the workspace root; the
   family is still chosen once per service, here.
@@ -57,10 +58,12 @@ and moves on has enforced nothing of its own; it has checked that someone else k
 - **Yes — the rules about what is valid live in this codebase and are its reason for existing.**
   Hexagonal. The layer split exists to keep those rules testable and changeable without touching a
   database, a queue or a framework.
-- **No — the service orchestrates external systems, and its correctness is whether the data moved.**
-  Flat-layered — what the literature calls package by layer, after Simon Brown, with what Fowler calls
-  transaction scripts above it. There is nothing to protect, so the protection would be cost with no
-  buyer, and choosing flat is not a compromise.
+- **No — the service orchestrates external systems, and its correctness is whether the data moved;
+  or it serves requests over data it stores without rules of its own.** Flat-layered — what the
+  literature calls package by layer, after Simon Brown, with what Fowler calls transaction scripts
+  above it. There is nothing to protect, so the protection would be cost with no buyer, and choosing
+  flat is not a compromise. A service of the second kind answers HTTP through `flat-entrypoint`'s
+  HTTP shape, in the `pyhouse-flat` plugin.
 
 Answer this first. It settles most services on its own. Everything below either confirms that answer
 or flips a genuinely borderline one; nothing below outweighs it.
@@ -75,7 +78,9 @@ invariants".
 and mutates over a lifetime while it stays the same thing. Yes → hexagonal; that noun is an aggregate,
 and identity, lifecycle and construction-time rules all attach to it. A service that reads records
 from one system, transforms them, writes them to another and owns no noun at all is the flat case in
-its purest form.
+its purest form. A noun that is only stored and served — records created, read and updated over
+HTTP with nothing about them the service refuses — does not flip a "no" to the deciding question; it
+stays flat.
 
 **Will more than one entrypoint drive the same rules?** — REST plus a queue consumer plus a CLI, all
 reaching the same logic. Yes → hexagonal, and strongly: a shared core with two callers is exactly what

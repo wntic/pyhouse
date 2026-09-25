@@ -135,7 +135,7 @@ logging allocation (domain never logs, application logs successes only).
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
 | `hex-restapi-auth` | Caller identity, the token-verifier port and adapter, route dependencies, the role gate, and the auth codes a route advertises |
 
-**The first four are complete on their own.** `hex-restapi-auth` is optional: a service behind an
+**The first three are complete on their own.** `hex-restapi-auth` is optional: a service behind an
 authenticating gateway, an mTLS-fronted API or a public one declares no auth and never loads it.
 
 ## Hex tests (8)
@@ -246,7 +246,7 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
   `flat-test-service-client` carries the test. Split it out only if the client family grows past one
   template.
 
-Two entries that stood here are closed. `hex-persistence` is no longer oversized — it is 175 lines with
+Two entries that stood here are closed. `hex-persistence` is no longer oversized — its templates sit in
 `TABLE.md`, `REPOSITORY.md` and `REVISION.md` beside it. Flat-side exception translation is genuinely
 covered: `exception-catalog` carries a flat-layered catalog template, the translation section and the
 mandatory-fallback rule, and `flat-layered` routes to it.
