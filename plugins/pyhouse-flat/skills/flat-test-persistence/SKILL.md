@@ -113,6 +113,17 @@ async def test_the_reference_is_unique_on_a_plain_insert(conn: AsyncConnection) 
     assert "uq_foos_reference" in str(exc_info.value.orig)
 
 
+async def test_a_label_is_unique_per_foo_on_a_plain_insert(conn: AsyncConnection) -> None:
+    await conn.execute(foo_table.insert().values(**_foo()))
+    foo_id: UUID = (await conn.execute(select(foo_table.c.id))).scalar_one()
+    await conn.execute(bar_table.insert().values(foo_id=foo_id, label="amber"))
+
+    with pytest.raises(IntegrityError) as exc_info:
+        await conn.execute(bar_table.insert().values(foo_id=foo_id, label="amber"))
+
+    assert "uq_bars_foo_id" in str(exc_info.value.orig)
+
+
 async def test_an_empty_update_set_is_a_no_op_rather_than_an_error(
     conn: AsyncConnection,
 ) -> None:
@@ -154,7 +165,9 @@ async def test_empty_input_is_a_no_op(conn: AsyncConnection) -> None:
     assert count == 0
 ```
 
-The constraint name asserted there is the one the metadata's naming convention generates
+Each unique constraint appears twice: `uq_foos_reference` on a plain insert and under the reference
+upsert, `uq_bars_foo_id` on a plain insert and under the empty-update-set write that resolves against it
+(rule 3). The constraint names asserted there are the ones the metadata's naming convention generates
 (`flat-persistence`). Asserting the **name** rather than only the exception type is what catches a
 migration that dropped the intended unique index and let some other constraint fire instead.
 
