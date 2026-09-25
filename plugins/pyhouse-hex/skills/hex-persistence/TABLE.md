@@ -3,7 +3,7 @@
 Topic file of `hex-persistence`. The mechanism-free obligations are rules 1–5 in `SKILL.md`; what
 follows is the **SQLAlchemy Core + Postgres** binding that satisfies them.
 
-Column types are a **design decision** — a JSON column, a vector column, a check constraint, a foreign
+Column types are a **design decision** — a JSON column, an array column, a check constraint, a foreign
 key — not a mechanical transcription of the entity's fields. That is why the column-type rules come
 first.
 

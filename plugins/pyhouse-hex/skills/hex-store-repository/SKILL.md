@@ -1,6 +1,6 @@
 ---
 name: hex-store-repository
-description: Use when an aggregate is persisted on a nonrelational store — key-value, document, search-index or vector (redis, mongo, qdrant, elasticsearch) — reached through an injected SDK client. Produces the repository adapter, its container token and namespace keys from settings, record mapping, and SDK-error translation. Not a relational `Table` and its migration (`hex-persistence`), and not a single-action `ICan<Verb>` port (`hex-capability-adapter`).
+description: Use when an aggregate is persisted on a nonrelational store — key-value, document or wide-column (redis, mongo, dynamo) — reached through an injected SDK client, or a derived index is kept beside the authoritative store. Produces the repository adapter satisfying the narrower port such a store answers, its container token and namespace keys, record mapping, and SDK-error translation. Not a relational `Table` and its migration (`hex-persistence`), and not a single-action `ICan<Verb>` port (`hex-capability-adapter`).
 paths: ["**/infrastructure/**"]
 ---
 
@@ -8,7 +8,7 @@ paths: ["**/infrastructure/**"]
 
 Produces one repository class that adapts a domain repository protocol to a client-style datastore — any store reached through an injected SDK client rather than the shared relational bootstrap. That sentence is the whole selection rule: **the store profile, not the vendor, decides that this skill applies.** The adapter does not inherit from the protocol — structural subtyping at the DI injection site is the contract.
 
-**A new vendor is a store-profile row plus its package — never a fork of this skill** (Rule 12). The pattern is fixed here (client injection, container token from settings, record↔entity mapping, boundary translation via `exception-catalog`); the vendor rides in through three things and nothing else: the injected client type, the store's settings class, and the SDK semantics that store documents. Key-value, document, wide-column, search-index and vector stores are all one profile under that rule, which is why one skill serves them.
+**A new vendor is a store-profile row plus its package — never a fork of this skill** (Rule 12). The pattern is fixed here (client injection, container token from settings, record↔entity mapping, boundary translation via `exception-catalog`); the vendor rides in through three things and nothing else: the injected client type, the store's settings class, and the SDK semantics that store documents. Key-value, document and wide-column stores are all one profile under that rule, and so is an index kept beside the authoritative store, which is why one skill serves them.
 
 ## When to use vs. neighbours
 
@@ -23,9 +23,7 @@ Produces one repository class that adapts a domain repository protocol to a clie
 - The integration contract test that drives this adapter against the real store →
   `hex-test-repository-contract`.
 
-## Template(s) — redis-py and qdrant-client
-
-### Key-value / document form — worked binding: `redis`
+## Template — redis-py, key-value form
 
 One vendor is worked end to end so the shape is concrete; a document store (mongo, dynamo, a
 key-value cache) differs only in the SDK's call names and its exception root. A key-value store answers
@@ -93,130 +91,24 @@ class FooRepository:
             raise NotFoundError("Foo not found", {"id": str(id)})
 ```
 
-### Collection-shaped form — worked binding: Qdrant (`qdrant-client`)
-
-The second profile shape — a collection of points searched by similarity — worked on Qdrant's async
-client. It is a derived projection of `Foo`, not its authoritative store, and satisfies
-`IFooSearchIndex` (`hex-domain-ports`) from `qdrant/repositories/foo_search_index.py`. A search index or
-another vector store differs in the client class, the point model, the filter DSL and the exception
-families; see `## Other bindings`.
-
-```python
-from collections.abc import Sequence
-from uuid import UUID
-
-from qdrant_client import AsyncQdrantClient
-from qdrant_client.common.client_exceptions import QdrantException
-from qdrant_client.http.exceptions import ApiException
-from qdrant_client.models import (
-    FieldCondition,
-    Filter,
-    FilterSelector,
-    MatchValue,
-    PointStruct,
-    ScoredPoint,
-)
-
-from myapp.domain.exceptions import UpstreamError
-from myapp.domain.foos import Foo
-
-from ..settings import QdrantSettings
-
-__all__ = ["FooRepository"]
-
-_QDRANT_ERRORS = (ApiException, QdrantException)
-
-
-class FooRepository:
-    def __init__(self, client: AsyncQdrantClient, settings: QdrantSettings) -> None:
-        self._client = client
-        self._collection = settings.foos_collection
-
-    async def add_many(self, embedded: Sequence[tuple[Foo, Sequence[float]]]) -> None:
-        points = [
-            PointStruct(
-                id=str(foo.id),
-                vector=list(vector),
-                payload={"name": foo.name, "bar_id": str(foo.bar_id)},
-            )
-            for foo, vector in embedded
-        ]
-        try:
-            await self._client.upsert(collection_name=self._collection, points=points)
-        except _QDRANT_ERRORS as exc:
-            raise UpstreamError(
-                "vector upsert failed",
-                {"collection": self._collection, "reason": exc.__class__.__name__},
-            ) from exc
-
-    async def search(
-        self, *, query_vector: Sequence[float], k: int
-    ) -> tuple[tuple[Foo, float], ...]:
-        try:
-            response = await self._client.query_points(
-                collection_name=self._collection,
-                query=list(query_vector),
-                limit=k,
-                with_payload=True,
-            )
-        except _QDRANT_ERRORS as exc:
-            raise UpstreamError(
-                "vector search failed",
-                {"collection": self._collection, "reason": exc.__class__.__name__},
-            ) from exc
-        return tuple((self._point_to_entity(point), point.score) for point in response.points)
-
-    async def delete_by_bar(self, bar_id: UUID) -> None:
-        selector = FilterSelector(
-            filter=Filter(must=[FieldCondition(key="bar_id", match=MatchValue(value=str(bar_id)))])
-        )
-        try:
-            await self._client.delete(collection_name=self._collection, points_selector=selector)
-        except _QDRANT_ERRORS as exc:
-            raise UpstreamError(
-                "vector delete failed",
-                {
-                    "collection": self._collection,
-                    "bar_id": str(bar_id),
-                    "reason": exc.__class__.__name__,
-                },
-            ) from exc
-
-    def _point_to_entity(self, point: ScoredPoint) -> Foo:
-        payload = point.payload or {}
-        return Foo(
-            id=UUID(str(point.id)),
-            name=str(payload["name"]),
-            bar_id=UUID(str(payload["bar_id"])),
-        )
-```
-
-The embedding is an input the index stores beside the entity, not a field of `Foo`: the search path
-never consumes a stored vector, so it does not fetch one (Rule 8).
-
-`qdrant-client` has no single exception root: its HTTP transport raises `ApiException` subclasses (an
-unexpected status, an unreachable server) and its client raises `QdrantException` subclasses (a
-rate-limit response), so the adapter catches both families by name — never a bare `Exception`.
-
 ## Other bindings
 
-One form is worked per profile above; every other store is the same two files with different SDK names.
-What changes, and what does not:
+The key-value form is the one worked binding; every other client-style store is the same two files with
+different SDK names. What changes, and what does not:
 
 - **Document / wide-column stores** (mongo, dynamo, cassandra) — the key-value form, with the container
   token being a collection or table name instead of a key prefix, and the record a native document
   rather than a JSON string. Mapping helpers, translation and thinness are unchanged.
-- **Search indices** (elasticsearch, opensearch) — the collection-shaped form. The scored-pair return
-  shape in Rule 3 is the same one; only the query DSL differs.
-- **Other vector stores** (weaviate, pinecone, milvus) — the collection-shaped form: the client class,
-  the point model, the filter DSL and the exception families change; the embedding passed beside the
-  entity, the entity rebuilt from its own stored payload (Rule 8), the scored-pair return and the
-  translation do not.
+- **A search index — vector or full-text** (a vector store, OpenSearch) — a derived projection of the aggregate,
+  never its authoritative store (Rule 1), so it satisfies a narrower port of its own shaped by what the
+  index answers (`hex-domain-ports`) — typically an upsert, a query returning scored pairs (Rule 3) and a
+  delete by the field the projection is keyed on. Client injection, the container token from settings,
+  the entity rebuilt from the stored payload (Rule 8), translation and ownership are unchanged. An index
+  inside the relational database (`pgvector`) is reached through the shared engine, so it is
+  `hex-persistence`.
 - **Object stores** (`s3`, gcs, azure blob) — a bucket is a container token like any other, but a blob
   is usually a single-action capability rather than an aggregate's collection, so check
   `hex-capability-adapter` first.
-- **`pgvector` and other relational extensions** — relational, not this profile: the store is reached
-  through the shared engine, so it is `hex-persistence` even though the workload is vector search.
 
 Each of these is one store-profile row and one `infrastructure/<kind>/` package. None of them is a
 second copy of this skill.
@@ -237,9 +129,9 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ### Form
 
-1. **Names and module structure** follow `naming` and `python-packaging`; technology placement follows `hex-architecture` and `hex-conventions`. An aggregate has exactly one **authoritative** store — the one its writes go to — unlike a capability port that several vendors may implement. A second store may hold a derived projection of the same aggregate (a vector index over `Foo`, say), which is why the repository file stem is protocol-derived for client stores; see `hex-conventions`. Two stores both accepting writes for one aggregate is the thing this forbids.
+1. **Names and module structure** follow `naming` and `python-packaging`; technology placement follows `hex-architecture` and `hex-conventions`. An aggregate has exactly one **authoritative** store — the one its writes go to — unlike a capability port that several vendors may implement. A second store may hold a derived projection of the same aggregate (an index over `Foo`, see `## Other bindings`), which is why the repository file stem is protocol-derived for client stores; see `hex-conventions`. Two stores both accepting writes for one aggregate is the thing this forbids.
 2. **No explicit `(IFooRepository)` inheritance.** Structural subtyping.
-3. **Method signatures match the protocol exactly**, including async mode, keyword-only markers, and compound return shapes (a `tuple[tuple[Foo, float], ...]` of scored hits is returned as pairs — never flattened to bare entities with the score discarded).
+3. **Method signatures match the protocol exactly**, including async mode, keyword-only markers, and compound return shapes (a `tuple[tuple[Foo, float], ...]` of scored pairs is returned as pairs — never flattened to bare entities with the second element discarded).
 
 ### Client & settings
 
@@ -248,9 +140,9 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ### Records ↔ entities
 
-6. **Private, pure mapping helpers** (`_record_to_entity` / `_point_to_entity` / `_entity_to_record`): no IO; logging follows `python-style`. IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore in an adapter body is a hard stop in `hex-project-setup` and is "never sanctioned" in `hex-capability-adapter`; an adapter is the one place the vendor type is allowed, so there is nothing to silence.
+6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`): no IO; logging follows `python-style`. IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore in an adapter body is a hard stop in `hex-project-setup` and is "never sanctioned" in `hex-capability-adapter`; an adapter is the one place the vendor type is allowed, so there is nothing to silence.
 7. **The record shape is a design decision, not a transcription.** What becomes the key, what goes into the payload, what the store indexes — the client-store analogue of "column types are judgment" in `hex-persistence`. The aggregate's access patterns and the store's semantics guide it.
-8. **An entity is reconstructed from its own stored data.** Never substitute query-side values for stored ones (e.g. a search result's vector is the point's own, not the query's); when the read path doesn't consume a stored field, omit it explicitly rather than faking it.
+8. **An entity is reconstructed from its own stored data.** Never substitute query-side values for stored ones (e.g. an entity rebuilt from a record is built from the record's fields, never patched with the key or the arguments the caller looked it up by); when the read path doesn't consume a stored field, omit it explicitly rather than faking it.
 
 ### Exception translation
 
@@ -262,7 +154,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching, consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` binds aioboto3, httpx and idna in one skill).
 13. **No provisioning.** The repository never creates collections, indexes, buckets, or schemas — provisioning is a deployment/bootstrap concern.
-14. **Ordering is explicit.** A `list`/`search` that promises an order must produce it deliberately (the store's score order, an explicit sort key) — never rely on insertion accident.
+14. **Ordering is explicit.** A `list`, `scan` or query that promises an order must produce it deliberately (an explicit sort key, the store's documented result order) — never rely on insertion accident.
 15. **No retries, no caching, no domain reasoning.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules). Logging follows `python-style`.
 
 ### Testing neighbours

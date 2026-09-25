@@ -14,7 +14,7 @@ here, into the classes `exception-catalog` owns.
 ## When to use vs. neighbours
 
 - Aggregate-root CRUD over a relational store → `hex-persistence`, not this skill.
-- Aggregate-root persistence on a key-value, document or vector store → `hex-store-repository`; an injected SDK client alone does not make something a capability.
+- Aggregate-root persistence on a key-value or document store, or an index kept beside it → `hex-store-repository`; an injected SDK client alone does not make something a capability.
 - The `ICan<Verb>` protocol file this adapter satisfies → `hex-domain-ports`.
 - The settings class (`<Tech>Settings`) the adapter consumes → `hex-wiring`.
 - The binding that constructs this adapter (almost always process-lifetime) → `hex-wiring`.

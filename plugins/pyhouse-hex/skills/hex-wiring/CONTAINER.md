@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 import aioboto3
 import httpx
 from dishka import AnyOf, AsyncContainer, Provider, Scope, make_async_container, provide
-from qdrant_client import AsyncQdrantClient
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from myapp.application.foos import (
@@ -25,16 +25,16 @@ from myapp.domain.foos import (
     FooUniquenessService,
     ICanFetchFoos,
     ICanStoreFoos,
+    IFooArchive,
     IFooRepository,
-    IFooSearchIndex,
 )
 from myapp.infrastructure.export import ExportSettings
 from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
 from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
 from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
 from myapp.infrastructure.postgres.repositories import FooRepository
-from myapp.infrastructure.qdrant import QdrantSettings, create_vectors_client
-from myapp.infrastructure.qdrant.repositories import FooRepository as QdrantFooRepository
+from myapp.infrastructure.redis import RedisSettings, create_archive_client
+from myapp.infrastructure.redis.repositories import FooRepository as RedisFooRepository
 from myapp.infrastructure.s3 import S3FooStorage, S3Settings
 
 __all__ = ["create_container"]
@@ -54,8 +54,8 @@ class SettingsProvider(Provider):
         return S3Settings()
 
     @provide
-    def qdrant_settings(self) -> QdrantSettings:
-        return QdrantSettings()
+    def redis_settings(self) -> RedisSettings:
+        return RedisSettings()
 
     @provide
     def bar_gateway_settings(self) -> BarGatewaySettings:
@@ -94,10 +94,10 @@ class InfrastructureProvider(Provider):
         )
 
     @provide
-    async def vectors_client(self, settings: QdrantSettings) -> AsyncIterator[AsyncQdrantClient]:
-        client = create_vectors_client(settings)
+    async def archive_client(self, settings: RedisSettings) -> AsyncIterator[Redis]:
+        client = create_archive_client(settings)
         yield client
-        await client.close()
+        await client.aclose()
 
     @provide
     async def http_client(self, settings: BarGatewaySettings) -> AsyncIterator[httpx.AsyncClient]:
@@ -118,7 +118,7 @@ class FoosProvider(Provider):
     scope = Scope.REQUEST
 
     foo_repository = provide(FooRepository, provides=IFooRepository)
-    foo_search_index = provide(QdrantFooRepository, provides=IFooSearchIndex)
+    foo_archive = provide(RedisFooRepository, provides=IFooArchive)
     foo_uniqueness_service = provide(FooUniquenessService)
 
     create_foo_handler = provide(CreateFooHandler)
@@ -146,10 +146,12 @@ def create_container(*overrides: Provider) -> AsyncContainer:
 
 Two repositories back `Foo` from two stores, and both classes are `FooRepository` in their own packages
 (`hex-conventions`), so the second is imported under an alias naming its store; the alias lives in this
-file only. One adapter satisfying two ports is bound once, to both (`AnyOf`), so the two ports share the
-one instance. A client-style store the templates do not bind here — the Redis archive
-(`hex-store-repository`) — joins the same way: a settings factory, a client factory that closes the
-client after its yield, and the repository bound to its port.
+file only. The template binds both only because it binds every adapter the catalogue defines: an
+aggregate has one authoritative store (`hex-store-repository` rule 1), so a real app binds the one its
+`Foo` is written to, plus at most a projection derived from it. One adapter satisfying two ports is bound once, to both (`AnyOf`), so the two ports share the
+one instance. A client-style store is bound in three steps, the Redis archive (`hex-store-repository`)
+being the worked one: a settings factory, a client factory that closes the client after its yield, and
+the repository bound to its port.
 
 Add `FastapiProvider()` to that list **only** when a factory takes `fastapi.Request` or
 `fastapi.WebSocket` as a parameter; the default composition root above takes neither and stays free of

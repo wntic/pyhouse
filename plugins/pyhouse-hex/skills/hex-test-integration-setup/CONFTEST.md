@@ -296,39 +296,39 @@ The two connection records are private `TypedDict`s: they never leave this modul
 module of their own (`python-packaging`'s private-type allowance), and each is a declared shape rather
 than a bare `dict` (`python-style`).
 
-## Client-store session fixtures — Qdrant via `qdrant-client`
+## Client-store session fixtures — redis-py
 
 An app with a client-style store adds its session half to `tests/integration/conftest.py`: the
-container and one client for the whole run. The per-test collection and its teardown sit beside the
-repository tests in `tests/integration/qdrant/conftest.py` (`hex-test-repository-contract`).
+container and one client for the whole run. The per-test key prefix and its teardown sit beside the
+repository tests in `tests/integration/redis/conftest.py` (`hex-test-repository-contract`).
 
 ```python
 import os
 from collections.abc import AsyncIterator, Iterator
 
 import pytest
-from qdrant_client import AsyncQdrantClient
+from redis.asyncio import Redis
 
 
 @pytest.fixture(scope="session")
-def qdrant_url() -> Iterator[str]:
-    provided = os.getenv("MYAPP_TEST_QDRANT_URL")  # a dedicated opt-in variable, never ambient `CI`
+def redis_url() -> Iterator[str]:
+    provided = os.getenv("MYAPP_TEST_REDIS_URL")  # a dedicated opt-in variable, never ambient `CI`
     if provided:
         yield provided
         return
-    from testcontainers.community.qdrant import QdrantContainer
+    from testcontainers.community.redis import RedisContainer
 
-    # An exact tag within one minor of the installed qdrant-client (it warns otherwise), never `:latest`.
-    with QdrantContainer("<vector-store-image>:<pinned-tag>") as qdrant:
-        yield f"http://{qdrant.rest_host_address}"
+    # Same pin rule as the relational image (e.g. `redis:7.4-alpine`), never `:latest`.
+    with RedisContainer("<key-value-image>:<pinned-tag>") as redis:
+        yield f"redis://{redis.get_container_host_ip()}:{redis.get_exposed_port(6379)}/0"
 
 @pytest.fixture(scope="session")
-async def qdrant_client(qdrant_url: str) -> AsyncIterator[AsyncQdrantClient]:
-    client = AsyncQdrantClient(url=qdrant_url)
+async def redis_client(redis_url: str) -> AsyncIterator[Redis]:
+    client = Redis.from_url(redis_url)
     try:
         yield client
     finally:
-        await client.close()
+        await client.aclose()
 ```
 
 ## `tests/conftest.py` (top-level, optional sub-template)
@@ -351,7 +351,7 @@ filterwarnings = ["error"]
 ```
 
 `--import-mode=importlib` lets two test modules share a basename in different directories
-(`tests/integration/postgres/test_foo_repository.py` and `tests/integration/qdrant/test_foo_repository.py`)
+(`tests/integration/postgres/test_foo_repository.py` and `tests/integration/redis/test_foo_repository.py`)
 without an `__init__.py` in every test directory; because that mode puts nothing on `sys.path`,
 `pythonpath = ["."]` is what lets a test import `tests.unit.fakes` or `tests.helpers.jwt`.
 `filterwarnings = ["error"]` makes every warning a failure, so a deprecation or an unclosed resource reds

@@ -7,7 +7,7 @@ Topic file of `hex-wiring`. The mechanism-free obligations are `### Rules — se
 
 A **relational-engine** example. Its connection-pool fields (`port`, `pool_size`,
 `max_overflow`, `pool_pre_ping`, `echo`) and the `dsn` are **relational-only** — they mean nothing for an
-API key, a blob store, a vector store or an observability backend. Never copy them into a non-engine
+API key, a blob store, a key-value store or an observability backend. Never copy them into a non-engine
 settings class.
 
 ```python
@@ -50,7 +50,7 @@ connection ceiling. `port` defaults to the driver's own well-known port; `pool_p
 to connections the server closed underneath the pool, and `echo=True` in production writes every
 statement, parameters included, into the log. Set the sizes from the deployment; keep the last two.
 
-## Template — pydantic-settings, generic integration (API key, blob store, vector store, observability)
+## Template — pydantic-settings, generic integration (API key, blob store, key-value store, observability)
 
 Most integrations need a credential plus an endpoint or model name and maybe a knob or two — no pool, no
 port, no DSN. This is the shape for everything that is not a relational engine:
@@ -141,21 +141,6 @@ class BarGatewaySettings(BaseSettings):
 ```
 
 ```python
-# src/myapp/infrastructure/qdrant/settings.py
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["QdrantSettings"]
-
-class QdrantSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_QDRANT_", extra="ignore")
-
-    url: str
-    foos_collection: str
-    api_key: SecretStr | None = None
-```
-
-```python
 # src/myapp/infrastructure/redis/settings.py
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -182,7 +167,5 @@ class ExportSettings(BaseSettings):
 ```
 
 `IdnaSettings.allowed_schemes` is read from a JSON list (`MYAPP_IDNA_ALLOWED_SCHEMES='["http","https"]'`).
-The Redis URL is a secret because it carries the password. The Qdrant key is the one optional secret: a
-store that runs unauthenticated has none, and `None` there is a declared mode rather than a missing
-credential (settings rule 6). `ExportSettings` has no adapter behind it — its one consumer is the factory
+The Redis URL is a secret because it carries the password. `ExportSettings` has no adapter behind it — its one consumer is the factory
 of `FooExportTunable` (`hex-domain-model`) — so its package is named for itself (`hex-conventions`).

@@ -72,25 +72,8 @@ class IFooArchive(Protocol):
     async def delete(self, id: UUID) -> None: ...
 ```
 
-A search index over the same aggregate is a derived projection with verbs of its own — the embedding
-goes in beside the entity, and a search returns scored pairs:
-
-```python
-from collections.abc import Sequence
-from typing import Protocol
-from uuid import UUID
-
-from .foo import Foo
-
-__all__ = ["IFooSearchIndex"]
-
-class IFooSearchIndex(Protocol):
-    async def add_many(self, embedded: Sequence[tuple[Foo, Sequence[float]]]) -> None: ...
-    async def search(
-        self, *, query_vector: Sequence[float], k: int
-    ) -> tuple[tuple[Foo, float], ...]: ...
-    async def delete_by_bar(self, bar_id: UUID) -> None: ...
-```
+An index kept beside the authoritative store is the same rule again: its own narrower port, whose verbs
+are what that index answers.
 
 An append-only record that joins a unit of work (`hex-patterns`) is a repository with one write:
 

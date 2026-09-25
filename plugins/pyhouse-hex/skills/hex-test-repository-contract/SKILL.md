@@ -1,6 +1,6 @@
 ---
 name: hex-test-repository-contract
-description: Use when testing an aggregate's repository adapter — an `IFooRepository` implementation — against the real backend rather than a fake, in both halves of that contract, relational over Postgres through the `sf` rollback fixture (constraints on insert and on update, cascades, the pinned constraint name) and client-store (vector, cache, document) isolated by a fresh per-test namespace. Not a flat-layered service's storage-package write path, which is `flat-test-persistence`, in the `pyhouse-flat` plugin, not a capability port's adapter, which is `hex-test-capability-adapter`, and not the fixtures it consumes — containers, the migration run and `sf` are `hex-test-integration-setup`'s.
+description: Use when testing an aggregate's repository adapter — an `IFooRepository` implementation — against the real backend rather than a fake, in both halves of that contract, relational over Postgres through the `sf` rollback fixture (constraints on insert and on update, cascades, the pinned constraint name) and client-store (key-value, document) isolated by a fresh per-test namespace. Not a flat-layered service's storage-package write path, which is `flat-test-persistence`, in the `pyhouse-flat` plugin, not a capability port's adapter, which is `hex-test-capability-adapter`, and not the fixtures it consumes — containers, the migration run and `sf` are `hex-test-integration-setup`'s.
 ---
 
 # Hex Test — Repository Contract
@@ -13,7 +13,7 @@ what unit coverage cannot.
 ## When to use vs. neighbours
 
 - A repository adapter on a relational store, under `infrastructure/postgres/repositories/` → the **relational** half of this skill.
-- A repository adapter on a client-style store (vector, cache, document), under `infrastructure/<store-kind>/repositories/` → the **client-style** half of this skill.
+- A repository adapter on a client-style store (key-value, document), under `infrastructure/<store-kind>/repositories/` → the **client-style** half of this skill.
 - An adapter behind an `ICan<Verb>` capability port rather than an `IFooRepository` → `hex-test-capability-adapter`, not this skill — even when it is driven against a container.
 - Schema-only checks (an index exists, a migration carries data correctly) → separate flat files under `tests/integration/postgres/` (`test_indexes.py`, `test_<NNNN>_migration.py`) that take the `run_alembic` fixture (`hex-test-integration-setup`), not `sf`.
 - HTTP-layer integration (route, OpenAPI) → `hex-test-restapi-endpoint`; the authenticated and role-gated variants of those tests → `hex-test-restapi-auth`.
@@ -25,12 +25,12 @@ what unit coverage cannot.
 - Speed targets, fixture placement and the substitution ladder → `test-principles`.
 - The write path is a flat-layered service's own storage package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `sf`.
 
-## Template(s) — pytest, testcontainers, SQLAlchemy async over Postgres, Qdrant via qdrant-client
+## Template(s) — pytest, testcontainers, SQLAlchemy async over Postgres, redis-py
 
 - **Relational** — real `UNIQUE` and `FK` violations, real `ON DELETE CASCADE` semantics, the
   `IntegrityError`-to-domain-exception translator's constraint-name map, and the `updated_at` the
   repository writes on update.
-- **Client-style** (vector, cache, document) — the entity-record mapping round-trip and the
+- **Client-style** (key-value, document) — the entity-record mapping round-trip and the
   SDK-error-to-domain-exception translation the adapter performs at its boundary. There is no SQL
   transaction and no constraint map here, so both the isolation mechanism and the load-bearing assertion
   are different.
@@ -44,7 +44,7 @@ first thing to get right.
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). Isolate exactly as the per-test bucket does for blobs: **each test owns a fresh namespace** — a unique collection name (qdrant/chroma), key-prefix (redis), or database/bucket — created in a fixture and dropped at teardown. Bring the real store up once per session via testcontainers; create/destroy the per-test namespace per test. **The split is by scope, not by store kind.** `hex-test-integration-setup` owns every **session-scoped** container, engine and client fixture, whatever the store — that is what guarantees one container per session. The sibling `tests/integration/<store-kind>/conftest.py` owns only the **per-test** namespace fixture and its teardown, which is this skill's concern. The per-test bucket is the one per-test fixture up-tree, because `real_app` binds it as well as the tests that use it.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). Isolate exactly as the per-test bucket does for blobs: **each test owns a fresh namespace** — a unique key-prefix (redis), collection or database name (a document store), or bucket — created in a fixture and dropped at teardown. Bring the real store up once per session via testcontainers; create/destroy the per-test namespace per test. **The split is by scope, not by store kind.** `hex-test-integration-setup` owns every **session-scoped** container, engine and client fixture, whatever the store — that is what guarantees one container per session. The sibling `tests/integration/<store-kind>/conftest.py` owns only the **per-test** namespace fixture and its teardown, which is this skill's concern. The per-test bucket is the one per-test fixture up-tree, because `real_app` binds it as well as the tests that use it.
 
 ### Relational
 
@@ -282,127 +282,141 @@ async def test_attachment_with_wrong_parent_raises_not_found(
         await repo.get_attachment(uuid.uuid4(), att.id)
 ```
 
-### Client-style store — Qdrant via `qdrant-client`
+### Client-style store — redis-py
 
 ```
 tests/integration/
-├── conftest.py                         # + qdrant_url, qdrant_client (session) — hex-test-integration-setup's
-└── qdrant/
-    ├── conftest.py                     # qdrant_settings — the per-test collection
+├── conftest.py                         # + redis_url, redis_client (session) — hex-test-integration-setup's
+└── redis/
+    ├── conftest.py                     # redis_settings — the per-test key prefix
     └── test_<aggregate_snake>_repository.py
 ```
 
 A client store gives the test three things and only three: an **SDK client**, a **namespace handle**
-(collection, key prefix, index, database or bucket name) and a **settings object** carrying that handle.
-Qdrant is the worked binding — `hex-store-repository`'s own — and its namespace is a collection. The
-worked semantics are a scored search, because that is the client-store contract with the most to prove;
-a cache's round-trip is the same template with fewer assertions.
+(key prefix, collection, index, database or bucket name) and a **settings object** carrying that handle.
+Redis is the worked binding — `hex-store-repository`'s own — and its namespace is a key prefix. The
+adapter satisfies `IFooArchive`, so the contract is that port's three verbs: create, fetch by id and
+delete, each with its absent-record case, plus the translation of a store failure.
 
-The session half — the Qdrant container and one `AsyncQdrantClient` for the run (`qdrant_url`,
-`qdrant_client`) — is `hex-test-integration-setup`'s, in its `CONFTEST.md`; this skill writes only the
-per-test half below.
+The session half — the Redis container and one client for the run (`redis_url`, `redis_client`) — is
+`hex-test-integration-setup`'s, in its `CONFTEST.md`; this skill writes only the per-test half below.
 
-### Per-test half — `tests/integration/qdrant/conftest.py`
+### Per-test half — `tests/integration/redis/conftest.py`
 
 ```python
 import uuid
 from collections.abc import AsyncIterator
 
 import pytest
-from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, VectorParams
+from pydantic import SecretStr
+from redis.asyncio import Redis
 
-from myapp.infrastructure.qdrant import QdrantSettings
+from myapp.infrastructure.redis import RedisSettings
 
-_DIM = 3  # the test vectors' dimension — the production one lives in settings
 
 @pytest.fixture
-async def qdrant_settings(
-    qdrant_url: str, qdrant_client: AsyncQdrantClient
-) -> AsyncIterator[QdrantSettings]:
-    """A fresh collection per test — namespace isolation, since a client store
-    has no transaction to roll back. Created before the test, dropped after."""
-    settings = QdrantSettings(url=qdrant_url, foos_collection=f"test_{uuid.uuid4().hex}")
-    await qdrant_client.create_collection(
-        settings.foos_collection, vectors_config=VectorParams(size=_DIM, distance=Distance.COSINE)
-    )
+async def redis_settings(redis_url: str, redis_client: Redis) -> AsyncIterator[RedisSettings]:
+    """A fresh key prefix per test — namespace isolation, since a key-value store
+    has no transaction to roll back. Every key under it is deleted after the test."""
+    settings = RedisSettings(url=SecretStr(redis_url), foos_key_prefix=f"test:{uuid.uuid4().hex}")
     try:
         yield settings
     finally:
-        await qdrant_client.delete_collection(settings.foos_collection)
+        pattern = f"{settings.foos_key_prefix}:*"
+        keys = [key async for key in redis_client.scan_iter(match=pattern)]
+        if keys:
+            await redis_client.delete(*keys)
 ```
 
 ### `test_<aggregate_snake>_repository.py`
 
 ```python
 import uuid
+from dataclasses import asdict
 
 import pytest
-from qdrant_client import AsyncQdrantClient
+from pydantic import SecretStr
+from redis.asyncio import Redis
 
-from myapp.domain.exceptions import UpstreamError
+from myapp.domain.exceptions import NotFoundError, UpstreamError
 from myapp.domain.foos import Foo
-from myapp.infrastructure.qdrant import QdrantSettings
-from myapp.infrastructure.qdrant.repositories import FooRepository
+from myapp.infrastructure.redis import RedisSettings
+from myapp.infrastructure.redis.repositories import FooRepository
 
 
-def _foo(name: str = "alpha", *, bar_id: uuid.UUID | None = None) -> Foo:
-    return Foo(id=uuid.uuid4(), name=name, bar_id=bar_id or uuid.uuid4())
+def _foo(name: str = "alpha") -> Foo:
+    return Foo(id=uuid.uuid4(), name=name, bar_id=uuid.uuid4())
 
-async def test_add_many_then_search_roundtrip(
-    qdrant_client: AsyncQdrantClient, qdrant_settings: QdrantSettings
+async def test_create_then_get_returns_every_field(
+    redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = FooRepository(client=qdrant_client, settings=qdrant_settings)
+    repo = FooRepository(client=redis_client, settings=redis_settings)
     foo = _foo()
-    await repo.add_many([(foo, (0.1, 0.2, 0.3)), (_foo("other"), (0.9, 0.0, 0.1))])
 
-    hits = await repo.search(query_vector=(0.1, 0.2, 0.3), k=1)
-    assert len(hits) == 1
-    found, score = hits[0]
-    assert (found.id, found.name, found.bar_id) == (foo.id, foo.name, foo.bar_id)
-    assert isinstance(score, float)
+    await repo.create(foo)
 
-async def test_search_returns_nearest_first(
-    qdrant_client: AsyncQdrantClient, qdrant_settings: QdrantSettings
+    assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
+
+async def test_create_writes_under_the_configured_prefix(
+    redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = FooRepository(client=qdrant_client, settings=qdrant_settings)
-    await repo.add_many([(_foo("near"), (0.1, 0.0, 0.0)), (_foo("far"), (0.9, 0.9, 0.9))])
+    repo = FooRepository(client=redis_client, settings=redis_settings)
+    foo = _foo()
 
-    hits = await repo.search(query_vector=(0.1, 0.0, 0.0), k=2)
-    assert [f.name for f, _ in hits] == ["near", "far"]
+    await repo.create(foo)
 
-async def test_delete_by_bar_removes_only_that_bars_points(
-    qdrant_client: AsyncQdrantClient, qdrant_settings: QdrantSettings
+    assert await redis_client.exists(f"{redis_settings.foos_key_prefix}:{foo.id}") == 1
+
+async def test_get_by_id_of_absent_record_raises_not_found(
+    redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = FooRepository(client=qdrant_client, settings=qdrant_settings)
-    keep, drop = uuid.uuid4(), uuid.uuid4()
-    await repo.add_many([
-        (_foo("keep", bar_id=keep), (0.1, 0.0, 0.0)),
-        (_foo("drop", bar_id=drop), (0.0, 0.1, 0.0)),
-    ])
+    repo = FooRepository(client=redis_client, settings=redis_settings)
+    missing = uuid.uuid4()
 
-    await repo.delete_by_bar(drop)
+    with pytest.raises(NotFoundError) as exc:
+        await repo.get_by_id(missing)
 
-    remaining = await repo.search(query_vector=(0.1, 0.1, 0.1), k=10)
-    assert {f.bar_id for f, _ in remaining} == {keep}
+    assert exc.value.context["id"] == str(missing)
 
-async def test_search_against_unreachable_store_raises_upstream_error() -> None:
-    dead_url = "http://127.0.0.1:1"  # nothing listening
-    dead = AsyncQdrantClient(url=dead_url, check_compatibility=False)
+async def test_delete_removes_the_record(
+    redis_client: Redis, redis_settings: RedisSettings
+) -> None:
+    repo = FooRepository(client=redis_client, settings=redis_settings)
+    foo = _foo()
+    await repo.create(foo)
+
+    await repo.delete(foo.id)
+
+    with pytest.raises(NotFoundError):
+        await repo.get_by_id(foo.id)
+
+async def test_delete_of_absent_record_raises_not_found(
+    redis_client: Redis, redis_settings: RedisSettings
+) -> None:
+    repo = FooRepository(client=redis_client, settings=redis_settings)
+
+    with pytest.raises(NotFoundError):
+        await repo.delete(uuid.uuid4())
+
+async def test_get_against_unreachable_store_raises_upstream_error() -> None:
+    dead_url = "redis://127.0.0.1:1/0"  # nothing listening
+    dead = Redis.from_url(dead_url)
+    settings = RedisSettings(url=SecretStr(dead_url), foos_key_prefix="x")
+    missing = uuid.uuid4()
     try:
-        repo = FooRepository(client=dead, settings=QdrantSettings(url=dead_url, foos_collection="x"))
+        repo = FooRepository(client=dead, settings=settings)
 
         with pytest.raises(UpstreamError) as exc:
-            await repo.search(query_vector=(0.0, 0.0, 0.0), k=1)
+            await repo.get_by_id(missing)
     finally:
-        await dead.close()
+        await dead.aclose()
 
-    assert exc.value.context["collection"] == "x"
+    assert exc.value.context["key"] == f"x:{missing}"
 ```
 
-The round trip seeds two points and asks for one, so a `search` that ignores `k` returns both and reds.
-The vector goes in beside the entity and is not read back: it is the store's index, not a field of
-`Foo`, so what round-trips is the entity's own fields plus the score the store computed.
+The prefix test reads the raw key through the session client, inside the test's own namespace: an
+adapter that ignored the configured prefix would still round-trip through its own `get_by_id`, and only
+a read that goes around it proves where the record landed.
 
 ## Other bindings
 
@@ -417,10 +431,10 @@ The vector goes in beside the entity and is not read back: it is the store's ind
 - **Another engine or driver.** The constraint names, the error code and the attribute the adapter's
   translator reads off it change together (`hex-persistence`); what the test must cover — insert *and*
   update on every unique field, one test per cascade, found and not-found per lookup — does not.
-- **Another client store** — another vector store, a search index, a cache or a document store. The
-  SDK client, its testcontainer and the namespace token change (an index, a key prefix, a database);
-  the session/per-test split, the per-test namespace with teardown, the round-trip, ordering and
-  translation assertions do not. Where no testcontainers module exists for the store, a pinned
+- **Another client store** — a document store, a wide-column store, or an index kept beside the
+  authoritative store. The SDK client, its testcontainer and the namespace token change (a collection,
+  an index, a database); the session/per-test split, the per-test namespace with teardown, the
+  round-trip, ordering and translation assertions do not. Where no testcontainers module exists for the store, a pinned
   `DockerContainer` with an explicit wait strategy is the same fixture.
 
 ## Rules
@@ -445,13 +459,13 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 ### Client-style store
 
 13. **Each test runs against the real store via testcontainers** — never a fake, never a mock. The fake (`hex-test-application-handler`) is for handler unit tests; this layer exists to prove the adapter against the actual backend, which is the only place the SDK call shape and error mapping are exercised.
-14. **Isolate by a per-test namespace, not rollback.** A fresh collection / key-prefix / database per test, created in the per-test settings fixture (`qdrant_settings`) and dropped at teardown. There is no transaction to roll back; do not reach for `sf`.
+14. **Isolate by a per-test namespace, not rollback.** A fresh key-prefix / collection / database per test, created in the per-test settings fixture (`redis_settings`) and emptied or dropped at teardown. There is no transaction to roll back; do not reach for `sf`.
 15. **The container is session-scoped; the namespace is function-scoped.** One store per run, because starting it is expensive; one namespace per test, because that is what gives each test sole ownership. Where the environment supplies the store instead of the fixture starting one, the endpoint is read from a **dedicated opt-in variable**, never an ambient one like `CI` — `test-principles` reliability rules.
-16. **Exercise the full protocol**, CRUD verbs and non-CRUD alike — `add_many`/`get`/`delete` AND the store's own verbs (`search`, `delete_by_<field>`, range/scan). A `search` test asserts ordering (nearest-first / score-ordered), not just membership.
-17. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A returned scored pair asserts both the entity and that the score is a real `float`, not a placeholder.
+16. **Exercise the full protocol**, CRUD verbs and non-CRUD alike — `create`/`get_by_id`/`delete` with their absent-record cases AND any verb of the port's own (`delete_by_<field>`, range/scan). A verb that promises an order asserts that order, not just membership.
+17. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A compound return asserts every element it carries, not just the entity.
 18. **Assert the SDK-error → domain-exception translation end-to-end.** This is the load-bearing contract (the client-store analogue of the relational `context["constraint"]` assertion): point the repository at an unreachable/closed client, or trigger a store rejection, and assert the boundary raises the domain exception the adapter promises — `UpstreamError` for a network / store failure, `NotFoundError` for an absent record — never the raw SDK exception. These are the domain exceptions `hex-store-repository` translates into at its boundary (shown here as placeholders); assert whichever ones that adapter actually raises, not a frozen literal. Assert the `context` keys the adapter promises.
 19. Follow `test-principles` for natural-key test values. Namespace isolation gives each test an empty store at start (same as the relational contract's rollback guarantee).
-20. **Small test vectors.** Use a tiny dimension (e.g. 3) created on the per-test collection; the production embedding dimension is a settings concern, not the contract's.
+20. **Assert where the record landed.** The namespace the adapter writes under comes from settings (`hex-store-repository`), and an adapter that ignores it still round-trips through its own reads; one test reads the raw record through the session client, inside the test's own namespace, to prove the configured token is the one used.
 21. **No web framework, no HTTP client, no DI container in this file either** (rule 11). Import the repository class, construct it with the real client and a settings object scoped to the per-test namespace, call methods, assert.
 22. **No assertions on global store contents.** Assert only within this test's namespace — exactly the per-test bucket's discipline, because cleanup is namespace-scoped, not transactional.
 
@@ -462,7 +476,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 - Builder `_<aggregate>()` returns the entity type; overrides keyword-only.
 - No `from __future__ import annotations`.
 
-For a client-style store, the store's own SDK (`qdrant_client`) and `myapp.infrastructure.<store-kind>`
+For a client-style store, the store's own SDK (`redis.asyncio`) and `myapp.infrastructure.<store-kind>`
 replace the SQLAlchemy and Postgres imports. The client and the per-test settings arrive as two
 fixtures, each annotated with its own type — never a bare tuple (`python-style`) — and a yielding
 fixture uses `AsyncIterator[T]` / `Iterator[T]`.
@@ -481,4 +495,4 @@ fixture uses `AsyncIterator[T]` / `Iterator[T]`.
 - Asked to use `sf` / transaction rollback for a client store → stop, there is no nested transaction; isolate by per-test namespace + teardown.
 - Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.
 - A client-store test asserts on `ConflictError` + `context["constraint"]` → stop, that is the relational `IntegrityError` contract; a client store asserts the domain exceptions its adapter translates SDK errors into (`UpstreamError` / `NotFoundError`) instead.
-- A test asserts on store contents outside the test's own namespace → stop, assert only within the per-test collection/prefix.
+- A test asserts on store contents outside the test's own namespace → stop, assert only within the per-test prefix or collection.

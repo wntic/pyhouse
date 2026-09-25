@@ -40,7 +40,7 @@ tests/
 **Read the sibling `CONFTEST.md` before writing or changing any fixture in that hierarchy.** Only this
 file is loaded automatically, so open it rather than reconstructing the fixtures from the obligations
 below: it carries the full `tests/integration/conftest.py`, the session fixtures a client-style store
-adds to it (Qdrant), the top-level and api sub-templates with the import rule the root conftest must
+adds to it (Redis), the top-level and api sub-templates with the import rule the root conftest must
 obey, and the eleven numbered spellings of the obligations under this
 binding — the one sanctioned sessionmaker, the savepoint mode, the session/function scope split, and the
 disposability marker the container fixture is entitled to set.
@@ -108,7 +108,7 @@ Consult `test-principles` for the testing constitution.
 - **`tests/integration/api/conftest.py`** — created here, empty by default. Its only current occupant is
   the auth fixture set, which is `hex-test-restapi-auth`'s and exists only for an app that declares auth.
 
-**This is the relational-store isolation strategy.** The engine, the Alembic migration run, and the savepoint-rollback `sf` all assume a relational store — the per-test transaction that ROLLBACKs is a SQL-database mechanism. An app whose only datastore is client-style (qdrant / redis / …) has no engine, no migration chain, and cannot use savepoint rollback; it isolates by **per-test namespace + teardown** instead (the per-test bucket `s3_settings` creates in `CONFTEST.md` is exactly that pattern). Lay the Postgres machinery only when the app has a relational store.
+**This is the relational-store isolation strategy.** The engine, the Alembic migration run, and the savepoint-rollback `sf` all assume a relational store — the per-test transaction that ROLLBACKs is a SQL-database mechanism. An app whose only datastore is client-style (redis / a document store / …) has no engine, no migration chain, and cannot use savepoint rollback; it isolates by **per-test namespace + teardown** instead (the per-test bucket `s3_settings` creates in `CONFTEST.md` is exactly that pattern). Lay the Postgres machinery only when the app has a relational store.
 
 **What this skill owns, exactly: every session-scoped fixture, for every store kind.** Containers,
 engines, migration runs and long-lived clients belong here because one container per session is the
@@ -192,7 +192,7 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 - Asked for a `function`-scoped engine (one engine per test) → stop, that rebuilds the pool for every test; the engine is session-scoped, only the connection is function-scoped.
 - Asked for session-scoped row fixtures (`make_foo` returning the same id across tests) → stop, rows are per-test; factories return fresh rows per call.
 - The guard infers "this must be a test database" from the port number, a `test` substring in the database name, or any other property of the DSN → stop, the guard takes an explicit marker set by whatever provisioned the database; a deduction passes for a real database that happens to match and the suite then migrates over it.
-- The app has no relational store — a qdrant/redis-only app, say → stop, omit the Postgres engine / Alembic / savepoint-`sf` machinery; there is no SQL transaction to roll back. Isolate the client stores by per-test namespace + teardown (the per-test bucket pattern), not by this fixture.
+- The app has no relational store — a redis-only app, say → stop, omit the Postgres engine / Alembic / savepoint-`sf` machinery; there is no SQL transaction to roll back. Isolate the client stores by per-test namespace + teardown (the per-test bucket pattern), not by this fixture.
 - The app has no auth (every endpoint anonymous) but `real_app` carries a verifier-settings substitution → stop, strip the fixture parameter and the factory in `TestInfraProvider`. An auth-less app binds no verifier settings, so a factory claiming to override one fails when the graph is assembled; whether an app has auth follows from its routes (`hex-restapi-auth`), it is not a universal.
 - A token-minting fixture, a signing keypair or an authenticated client is put in either conftest this skill owns → stop, use `hex-test-restapi-auth`; they belong to the auth-only fixture set.
 - A per-resource row factory is added inside this conftest → stop, those live in `tests/integration/api/<resource>/conftest.py`.

@@ -12,7 +12,7 @@ convention, the repository's integrity-error translator matches on them to produ
 exception, and the revision writes them out in full. Rename one and all three change, in the same
 commit.
 
-For a non-relational store — a vector, cache or document backend — use the client-repository form
+For a non-relational store — a key-value, cache or document backend — use the client-repository form
 instead. The store profile decides which applies (`hex-conventions` block B).
 
 ## When to use vs. neighbours
@@ -23,8 +23,8 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - The `IFooRepository` protocol file the adapter is written against → `hex-domain-ports`.
 - Why the adapter satisfies that protocol structurally and never inherits it → `hex-architecture`.
 - The one-time migration bootstrap — config, `env.py`, the baseline revision → `hex-project-setup`.
-- A repository on a client-style store — key-value, document, search-index or vector, reached through an
-  injected SDK client instead of the shared engine → `hex-store-repository`.
+- A repository on a client-style store — key-value, document, or an index kept beside the authoritative
+  store, reached through an injected SDK client instead of the shared engine → `hex-store-repository`.
 - Tables, bulk upserts and migrations in a flat-layered service's own storage package, reached
   directly rather than through a port → `flat-persistence`, in the `pyhouse-flat` plugin.
 - The settings class and the DI provider that construct this repository → `hex-wiring`.

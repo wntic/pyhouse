@@ -65,7 +65,7 @@ every derived path and class name here, multiplying one careless choice across t
 | domain exception | `NotFoundError` | `NotFoundError` | appended to `domain/exceptions.py` (single catalog) |
 | application command | `CreateBar` (subdomain derived, see below) | `CreateBarCommand` + `CreateBarHandler` | `application/bars/create_bar_command.py` + `application/bars/create_bar_handler.py` |
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |
-| datastore | named `<name>`, kind `<kind>` (e.g. `vectors` on a vector store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
+| datastore | named `<name>`, kind `<kind>` (e.g. `archive` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
 | settings | `S3Settings` | `S3Settings` | `infrastructure/s3/settings.py` — subpackage = the consuming tech; the module is always `settings.py`, one settings class per subpackage |
 | repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repo-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
 | capability adapter | implements `ICanManageTokens`, adapter `jwt`, role `TokenManager` | `JwtTokenManager` | `infrastructure/jwt/jwt_token_manager.py` |
@@ -101,7 +101,7 @@ without the domain importing a settings library.
   (`repositories/`, `tables/`).
 - a non-relational datastore's **kind** — `infrastructure/<kind>/`, one directory per kind the project
   actually uses, holding `connection.py` (the `create_<name>_client` factory) and its settings. The kind
-  is the vendor's own token, kept concrete: a cache, a vector store and a search index each get their
+  is the vendor's own token, kept concrete: a cache, a document store and an index each get their
   own directory under their own name.
 - a capability adapter's **adapter** token — `infrastructure/jwt/`, `infrastructure/s3/`.
 - a settings class's **consuming tech** — the adapter of the capability that uses it, or the kind of the
@@ -120,15 +120,15 @@ on the store profile (block B), because polyglot persistence lets two repositori
 - a **relational store** repo → `<snake(aggregate)>_repository.py` (`Foo` on `main` →
   `foo_repository.py`).
 - a **client-style store** repo → the **protocol-derived** stem: the implemented protocol name minus its
-  leading `I`, snaked (`IFooSearchIndex` on `vectors` → `foo_search_index.py`).
+  leading `I`, snaked (`IFooArchive` on `archive` → `foo_archive.py`).
 
-So a `Foo` backed by both a relational `IFooRepository` and a search-store `IFooSearchIndex` lands two
+So a `Foo` backed by both a relational `IFooRepository` and a key-value `IFooArchive` lands two
 distinct files — `<relational-kind>/repositories/foo_repository.py` and
-`<store-kind>/repositories/foo_search_index.py`. An aggregate-only stem would collide.
+`<store-kind>/repositories/foo_archive.py`. An aggregate-only stem would collide.
 
 **Which repository form applies is decided by the store profile, not the vendor.** A relational store →
 the SQLAlchemy Core form in `hex-persistence`. **Any** client-style store → a vendor-agnostic
-client-repository form covering every vector / cache / document backend. A new client-style backend is a
+client-repository form covering every key-value / cache / document backend. A new client-style backend is a
 **profile row in block B plus its package**, never a new form.
 
 **Imports and package mechanics are not restated here.** A referenced type resolves to its owning module:
@@ -158,7 +158,7 @@ worked out, as the shape to copy:
 | kind | profile | resource type | resource import |
 |---|---|---|---|
 | `postgres` | relational | `async_sessionmaker[AsyncSession]` | `from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker` |
-| `<vector-store>` | client-style | the SDK's async client | that SDK's client import |
+| `redis` | client-style | `Redis` | `from redis.asyncio import Redis` |
 | `<cache>` | client-style | the SDK's async client | that SDK's client import |
 
 - **Relational** also selects the repository form (block A): yes → `hex-persistence`; no → the
@@ -213,19 +213,16 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 ```
 
 ```python
-# src/myapp/infrastructure/qdrant/connection.py  (a client-store connection factory — complete, Qdrant binding)
-from qdrant_client import AsyncQdrantClient
+# src/myapp/infrastructure/redis/connection.py  (a client-store connection factory — complete, redis-py binding)
+from redis.asyncio import Redis
 
-from .settings import QdrantSettings
+from .settings import RedisSettings
 
-__all__ = ["create_vectors_client"]
+__all__ = ["create_archive_client"]
 
 
-def create_vectors_client(settings: QdrantSettings) -> AsyncQdrantClient:
-    return AsyncQdrantClient(
-        url=settings.url,
-        api_key=settings.api_key.get_secret_value() if settings.api_key is not None else None,
-    )
+def create_archive_client(settings: RedisSettings) -> Redis:
+    return Redis.from_url(settings.url.get_secret_value())
 ```
 
 The engine factory reads the connection string the settings object derives rather than reassembling it
@@ -234,7 +231,7 @@ Every client-style store has the second shape; another vendor changes the client
 the constructor keywords, never the name or the completeness rule.
 
 The factory name is `create_<datastore-name>_client` — the datastore's *name*, not its kind, so
-`create_vectors_client` for a datastore named `vectors`. The resource type and import come from the
+`create_archive_client` for a datastore named `archive`. The resource type and import come from the
 profile table. Only a genuinely unknown kind (the degraded `object` row) cannot be written complete;
 there alone leave a `NotImplementedError` plus a loud comment.
 
