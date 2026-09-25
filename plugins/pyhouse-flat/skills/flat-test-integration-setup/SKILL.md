@@ -175,7 +175,7 @@ returned to the pool. Because it is autouse, pytest sets it up before any fixtur
 name and therefore finalizes it last. Request it by name alongside `conn` and that ordering is no longer
 guaranteed, and the wipe can deadlock against the still-open transaction.
 
-## Template — pytest configuration (pytest, pytest-asyncio, pytest-env)
+## Template — pytest configuration (pytest, pytest-asyncio)
 
 In the distribution's own `pyproject.toml` — or, where several distributions share one repository, in
 the root `pyproject.toml` that `python-workspace` lays, since pytest reads one configuration per run:
@@ -186,7 +186,6 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
-env = ["D:MYAPP_STORAGE_DSN=postgresql+asyncpg://test:test@localhost:1/placeholder"]
 ```
 
 Both loop-scope lines are load-bearing, not decoration. The `engine` fixture is session-scoped, so every
@@ -196,8 +195,8 @@ statement that *errors* — a constraint violation through the storage class, th
 crashes at teardown with `RuntimeError: Event loop is closed`, because the driver cannot cancel the
 aborted command on a closed loop.
 
-The `D:` prefix on the placeholder makes it a **default** rather than an override, so the opt-in external
-path still sees a real exported DSN.
+No placeholder connection string is set for collection: nothing in the service builds settings or an
+engine at import (`flat-persistence` rule 14), so an unset variable fails only the code that reads it.
 
 The container library is imported **inside** the fixture that needs it, not at module scope, so a
 pure-unit collection pays nothing for it.
@@ -241,9 +240,9 @@ pure-unit collection pays nothing for it.
 4. **The connection pool is session-scoped, the transaction function-scoped.** One datastore and one
    pool per run; one transaction per test. A function-scoped pool re-establishes itself every test and
    adds seconds to the run; a session-scoped connection serializes the suite onto one connection.
-5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** That factory
-   reads the placeholder connection string, and a second pool against the same datastore is never
-   disposed. Tests take the shared fixture and pass it explicitly to whatever needs one.
+5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** A second pool
+   against the same datastore runs outside the session's loop and teardown and is never disposed. Tests
+   take the shared fixture and pass it explicitly to whatever needs one.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
    still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to
@@ -258,8 +257,6 @@ pure-unit collection pays nothing for it.
 9. **Turn off the pool's per-checkout liveness check where the datastore cannot vanish mid-run.** A
    suite-owned container is up for the whole session, so the check is a round trip per checkout buying
    nothing (`pool_pre_ping=False` here). Leave it on against a remote or shared datastore.
-10. **A placeholder value the test configuration sets must default, never override**, so the opt-in
-    external path still sees a real exported value. Under pytest-env that is the `D:` prefix.
 
 ## Hard stops
 

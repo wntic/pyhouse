@@ -79,7 +79,6 @@ dev = [
     "mypy",
     "pytest",
     "pytest-asyncio>=0.26",  # 0.26 is where asyncio_default_test_loop_scope arrived
-    "pytest-env",
     "respx",
     "ruff",
     "testcontainers[postgres]>=4.15",  # 4.15 is where testcontainers.community arrived
@@ -117,7 +116,7 @@ the role that needs them and not before:
 |---|---|---|
 | any | the settings library, the structured logger | the test runner and its async plugin, the linter, the type checker |
 | a client over HTTP | the HTTP client | the transport stub |
-| data access on a relational store | the Core library with its async extra, the async driver, the migration tool, the time-ordered id package | the container library, the pytest env plugin |
+| data access on a relational store | the Core library with its async extra, the async driver, the migration tool, the time-ordered id package | the container library |
 | an HTTP trigger | the web framework and its server | — |
 | a durable-execution engine, once earned | the engine's SDK | the engine's test harness |
 | a vendor SDK client | that SDK, with the client that wraps it | whatever double the SDK ships |

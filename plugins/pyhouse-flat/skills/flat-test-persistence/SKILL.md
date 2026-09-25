@@ -306,7 +306,7 @@ it would make the assertion pass for the wrong reason.
    by equality and never with a strict inequality; under the rollback-scoped `conn` every write shares
    one transaction, and so one transaction-fixed clock.
 9. **A storage-class test constructs the class with the `engine` fixture**, never with the production
-   engine factory — that one reads the placeholder connection string (`flat-persistence`).
+   engine factory — that builds a second pool the suite never disposes (`flat-test-integration-setup`).
 10. **Ordering is asserted only where the query guarantees it.** Add an explicit order clause to any
     query whose result is compared to a list; a relational store promises no insertion order, and a test
     that passes on two rows fails on two hundred.
