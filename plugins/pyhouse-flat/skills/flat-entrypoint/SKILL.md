@@ -1,10 +1,10 @@
 ---
 name: flat-entrypoint
-description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — a plain loop, a cron entry or a timer, a continuous stream process, or durable execution — and deciding whether a workflow engine is earned at all; the loop is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free run function every trigger wraps, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, and the containment that keeps one failed run from killing the process. It also carries the obligations that exist only once a durable-execution engine is in play, which are inert under every other trigger. Testing any of it is `flat-test-run-function`.
-when_to_use: Also when asked for a polling loop, a `__main__` entrypoint, a nightly or periodic job, a queue or websocket consumer process, a durable workflow, a batch loop, a heartbeat, a schedule or a cron expression, an overlap or catch-up policy, or whether this service needs a workflow engine at all.
+description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — a plain loop, a cron entry or a timer, a continuous stream process, a thin HTTP wrapper, or durable execution — and deciding whether a workflow engine is earned at all; the loop is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free run function every trigger wraps, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, and the containment that keeps one failed run from killing the process. It also carries the obligations that exist only once a durable-execution engine is in play, which are inert under every other trigger. Testing any of it is `flat-test-run-function`.
+when_to_use: Also when asked for a polling loop, a `__main__` entrypoint, a nightly or periodic job, a queue or websocket consumer process, a webhook, an internal CRUD or proxy endpoint on a service with no invariants, a durable workflow, a batch loop, a heartbeat, a schedule or a cron expression, an overlap or catch-up policy, or whether this service needs a workflow engine at all.
 ---
 
-# Flat-Layered Entrypoint — loop vs schedule vs stream vs durable
+# Flat-Layered Entrypoint — loop vs schedule vs stream vs HTTP vs durable
 
 Covers the **process-definition** and **framework-wrapper** roles of one `flat-layered` service, whatever
 this service calls those packages. The shapes differ only in *what triggers a run*; the run itself always
@@ -34,6 +34,9 @@ nothing here assumes a sibling distribution or a repository above it.
 - The named exceptions a wrapper translates at the framework boundary → `exception-catalog` owns the
   catalogue, how a library's exception is translated into it, and how a caught one is rendered;
   `flat-layered` rule 6 places the translation inside the client that called the library.
+- The service answers HTTP but has business invariants, or several entrypoints share its rules → not
+  this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
+  `pyhouse-hex` plugin.
 - Testing any of it — the run function, the loop's containment, the wrapper, the orchestration above them
   → `flat-test-run-function`.
 
@@ -44,6 +47,7 @@ nothing here assumes a sibling distribution or a repository above it.
 | Anything on a schedule, as the starting assumption — a poll, a periodic pass, a nightly job | **Self-scheduling loop, or an external scheduler running the process once** | one module in the process-definition package |
 | Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine | a framework-wrapper package plus its worker process |
 | A never-ending stream — a log or change feed, a queue consumer, a websocket feed | **Standalone stream process**, watched by an external liveness check | one module in the process-definition package |
+| A request someone else sends — a webhook, an internal CRUD or proxy endpoint, on a service with no invariants of its own | **HTTP trigger** — a thin web-framework wrapper | a framework-wrapper package plus its server process |
 
 **The default for scheduled work is a plain loop, a cron entry or a timer.** A process that wakes up,
 does one run, and sleeps is the whole of most scheduling requirements, and it costs one module and no
@@ -62,8 +66,8 @@ If none of those is true, the engine is the heaviest thing in the deployment and
 them is, a loop will be reinvented badly: a `_state` table, a retry counter, a lease, an at-most-once
 guard, all of it hand-rolled and none of it tested.
 
-Shape 3 is outside that choice: a continuous stream is **not** scheduled work, and neither scheduling
-shape applies to it. See below.
+Shapes 3 and 4 are outside that choice: a continuous stream and a request are **not** scheduled work,
+and neither scheduling shape applies to them. See below.
 
 ## The run function — shared by every shape (structlog)
 
@@ -216,6 +220,118 @@ workflow. A workflow per item turns every item into orchestration overhead and h
 keep, and adds no value; a long-lived unit of work fights the replay model every durable-execution
 engine is built on, and its retries restart a stream that was meant to resume.
 
+## Shape 4 — an HTTP trigger, on FastAPI
+
+A service with no invariants of its own that answers requests — an internal CRUD surface, a webhook
+receiver, a proxy — takes the same run functions behind a web framework. The framework is one more
+wrapper: **routes validate their input, call one run function, and hold no logic of their own**, and a
+catalogue error becomes its status code in exactly one handler. A route never reaches the storage class
+or the client except to hand them to a run function, and a read is a run function too, however thin.
+
+`src/myapp/web/app.py` — the framework-wrapper package for this shape. `build_app` takes the
+dependencies the process definition built and closes the routes over them:
+
+```python
+from typing import Annotated
+
+import structlog
+from fastapi import FastAPI, Path, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from myapp.exceptions import MyappError, ValidationError
+from myapp.ingest.foo_ingest import run_once
+from myapp.jobs.foo_lookup import find_foo
+from myapp.schemas import Foo, IngestResult
+from myapp.services import FooClient
+from myapp.storage import FooStorage
+
+__all__ = ["build_app"]
+
+logger = structlog.get_logger()
+
+_REFERENCE_MAX_LENGTH = 256
+
+
+def _render(exc: MyappError) -> JSONResponse:
+    logger.warning("request_failed", code=exc.code, context=exc.context)
+    return JSONResponse(
+        status_code=exc.http_status,
+        content={"code": exc.code, "message": str(exc), "context": exc.context},
+    )
+
+
+def build_app(client: FooClient, storage: FooStorage) -> FastAPI:
+    app = FastAPI()
+
+    @app.exception_handler(MyappError)
+    async def _on_catalogue_error(request: Request, exc: MyappError) -> JSONResponse:
+        return _render(exc)
+
+    @app.exception_handler(RequestValidationError)
+    async def _on_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
+        fields = sorted({".".join(map(str, error["loc"])) for error in exc.errors()})
+        return _render(ValidationError("the request is invalid", {"fields": fields}))
+
+    @app.post("/runs")
+    async def trigger_run() -> IngestResult:
+        return await run_once(client, storage)
+
+    @app.get("/foos/{reference}")
+    async def read_foo(reference: Annotated[str, Path(max_length=_REFERENCE_MAX_LENGTH)]) -> Foo:
+        return await find_foo(storage, reference)
+
+    return app
+```
+
+`src/myapp/jobs/foo_lookup.py` — the read's run function, in the work-unit package for already-stored
+data:
+
+```python
+from myapp.schemas import Foo
+from myapp.storage import FooStorage
+
+
+async def find_foo(storage: FooStorage, reference: str) -> Foo:
+    return await storage.get_by_reference(reference)
+```
+
+`src/myapp/entrypoints/foo_http.py` — the process definition, the only place a settings factory is
+called, exactly as for the loop. The process's settings class carries `http_host` and `http_port`,
+required like every other tunable:
+
+```python
+import uvicorn
+
+from myapp.services import FooClient
+from myapp.settings import get_settings
+from myapp.storage import FooStorage, get_engine, get_storage_settings
+from myapp.web import build_app
+
+
+def main() -> None:
+    settings = get_settings()
+    storage = FooStorage(get_engine(get_storage_settings().dsn.get_secret_value()))
+    client = FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds)
+    app = build_app(client, storage)
+
+    uvicorn.run(app, host=settings.http_host, port=settings.http_port)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+**The app is built once, by a factory the process definition calls**, never as a module-level `app`
+object: a module-level app builds its dependencies at import, which is the global wiring rule 3 forbids,
+and a test could not hand it a test container's engine.
+
+**The catalogue is rendered in one place.** Once the service answers HTTP its catalogue root carries
+`http_status`, and the single handler renders `code`, the message and `context` off the exception
+(`exception-catalog`); the framework's own validation failure is turned into the catalogue's validation
+error first, so a client meets one error shape whatever went wrong. The handler is the scope that stops
+the failure, so it is the one that logs it (`python-style`).
+
 ## Other bindings
 
 - **An external scheduler in place of the self-scheduling loop.** Drop the `while True` and the sleep,
@@ -228,6 +344,10 @@ engine is built on, and its retries restart a stream that was meant to resume.
   and Prefect solve the batch-DAG half. The wrapper package and its process appear, every rule below
   holds unchanged, and the run function moves in none of them. What the engine *adds* is the durable
   obligations under `## Rules`, which hold in all of them.
+- **Another web framework in place of FastAPI.** Starlette, Litestar, aiohttp or Flask: the app factory,
+  the routes and the one error handler are spelled in that framework, and the process definition starts
+  its server. The factory taking built dependencies, the routes that validate and call one run function,
+  and the single rendering of catalogue errors are unchanged.
 
 ## Rules
 
@@ -252,7 +372,8 @@ engine is built on, and its retries restart a stream that was meant to resume.
    the outer one no longer bounds it.
 5. **Return aggregates, not lists of items.** Run functions return frozen dataclasses of counters or
    timestamps, so what a trigger reports, logs or stores stays bounded; the items themselves live in the
-   datastore.
+   datastore. A read served over HTTP is the one exception by construction — it returns the single record
+   it was asked for, never the items a run processed.
 6. **The routing name a run is addressed to has exactly one source, and every participant reads it from
    that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is
    normally a per-deployment value and then belongs with the rest of the process's settings
@@ -269,6 +390,10 @@ engine is built on, and its retries restart a stream that was meant to resume.
    kill the process" is the loop's only testable contract, and a `try/except` written inline inside
    `while True` can only be reached by driving the loop — which needs an artificial escape that
    changes the thing under test.
+9. **An HTTP route validates its input, calls one run function, and holds no logic.** The app is built
+   by a factory from dependencies the process definition hands it, and a catalogue error becomes its
+   status code in one handler, never per route. A route that branches on the data, reaches the storage
+   class, or catches a catalogue error itself has become a second place the work lives.
 
 ### Once a durable-execution engine is earned
 
@@ -355,6 +480,10 @@ separately from the rules and cited elsewhere as *durable obligation N*.
   it one source both of them read.
 - Business logic is being written into the wrapper instead of the run function → stop, the wrapper holds
   the trigger; the work stays where a test can call it directly.
+- An HTTP route reaches the storage class or the client itself, or maps a catalogue error to a status of
+  its own → stop, route through a run function and let the one handler render it.
+- The web app is built at module scope → stop, build it in a factory the process definition calls with
+  the dependencies it built.
 
 ### Under a durable-execution engine
 

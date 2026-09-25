@@ -1,7 +1,7 @@
 ---
 name: flat-test-run-function
 description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test every time, the loop's failure-containment contract, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the storage package's write path, which is `flat-test-persistence`.
-when_to_use: Also when asked to test a `run_once` body, a polling loop's error handling, a wrapper class, a workflow's retry policy, a batch loop's termination, or what a continuation carries across runs.
+when_to_use: Also when asked to test a `run_once` body, a polling loop's error handling, a wrapper class, an HTTP route in front of a run function, a workflow's retry policy, a batch loop's termination, or what a continuation carries across runs.
 ---
 
 # Flat-Layered Test — Run Function
@@ -20,8 +20,8 @@ Two forms are always in scope:
 - **The loop's failure containment** — that one failed run does not kill the process. This is the
   default trigger's test (`flat-entrypoint`).
 
-**A service with a framework wrapper adds a third**: the same body under the framework's own decorator,
-run through whatever in-process harness that framework ships, proving reach and translation
+**A service with a framework wrapper adds a third**: the same body under the framework's own decorator
+or route, run through whatever in-process harness that framework ships, proving reach and translation
 only.
 
 **A service that earned a durable-execution engine adds a fourth** — the orchestration above the
@@ -209,12 +209,62 @@ stripped, and nothing else in the suite notices.
 Under a durable-execution engine that harness is the one the engine ships for running a single unit of
 work in-process, and the typed-failure assertion is what its history makes necessary.
 
+### The HTTP shape — FastAPI, driven in-process through `httpx.ASGITransport`
+
+`tests/integration/test_foo_http.py` — the app built by the same factory the process definition calls,
+over the suite's own engine, driven on the test's event loop:
+
+```python
+import httpx
+import respx
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from myapp.services import FooClient
+from myapp.storage import FooStorage
+from myapp.web import build_app
+
+_BASE_URL = "https://foo.test"
+
+
+def _http(engine: AsyncEngine) -> httpx.AsyncClient:
+    app = build_app(FooClient(base_url=_BASE_URL, timeout_seconds=1.0), FooStorage(engine))
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app")
+
+
+@respx.mock
+async def test_a_run_request_reaches_the_run_function(engine: AsyncEngine) -> None:
+    respx.get(f"{_BASE_URL}/foos").mock(
+        return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]})
+    )
+
+    async with _http(engine) as http:
+        response = await http.post("/runs")
+
+    assert response.json() == {"fetched": 1, "kept": 1}
+
+
+async def test_a_catalogue_error_arrives_as_its_status_and_code(engine: AsyncEngine) -> None:
+    async with _http(engine) as http:
+        response = await http.get("/foos/unknown")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "FOO_NOT_FOUND"
+```
+
+The in-process transport runs the app on the test's own event loop, which is the loop the
+session-scoped engine was opened on (`flat-test-integration-setup`); a harness that runs the app on a
+loop of its own, as FastAPI's synchronous `TestClient` does, would hand that engine's connections to a
+second loop. `respx` intercepts the client's outbound transport and leaves the in-process one alone.
+
 ## Other bindings
 
 - **A different upstream-stub mechanism** — a transport handed to the client, a local stub server, a
   recorded cassette (`flat-test-service-client` names the trade-offs). Only how the upstream is pinned
   changes; rule 2's asymmetry — upstream substituted, datastore not — is the thing that must survive,
   because it is what makes this level catch wiring at all.
+- **Another web framework's harness for the HTTP shape** — Starlette's, Litestar's or aiohttp's own
+  in-process client. The two wrapper tests and what they assert are unchanged; the harness must drive the
+  app on the loop the suite's engine lives on.
 - **No framework wrapper at all.** A service triggered by a loop, a cron entry or a timer writes the
   first two forms and stops; nothing is missing, because there is no wrapper to prove.
 - **An engine whose harness cannot skip time.** The retry test then asserts the *declared* policy on the

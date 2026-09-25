@@ -51,8 +51,8 @@ the family is chosen.
 - This service is one of several distributions sharing one repository → this skill still covers its own
   internal layout unchanged; the repository root, the member split and the tooling settled once are
   `python-workspace`. One distribution on its own needs none of that.
-- What triggers a run — a loop, a cron entry, a stream, or durable execution once it is earned →
-  `flat-entrypoint`, which owns the run function's own obligations.
+- What triggers a run — a loop, a cron entry, a stream, an HTTP request, or durable execution once it
+  is earned → `flat-entrypoint`, which owns the run function's own obligations.
 - The `pyproject.toml`, the toolchain configuration and the migration environment, laid once when the
   service is created → `flat-project-setup`.
 
@@ -171,9 +171,9 @@ src/myapp/
 
 The tree sits under `src/`, beside the distribution's `pyproject.toml`, `tests/` and `migrations/`
 (`flat-project-setup`). A service with no framework to wrap has no wrapper package; its process
-definitions call the work units directly. One that has a framework adds one wrapper package — a
-durable-execution engine's, together with the one guarded helper module, once the engine is earned
-(`flat-entrypoint`). A very small service may collapse its two work-unit packages into one — but never
+definitions call the work units directly. One that has a framework adds one wrapper package — the HTTP
+shape's, or a durable-execution engine's together with the one guarded helper module once the engine is
+earned (`flat-entrypoint`). A very small service may collapse its two work-unit packages into one — but never
 collapse either into the process-definition package, which is what makes the work untestable without
 starting a process.
 
