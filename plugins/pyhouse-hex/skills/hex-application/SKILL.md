@@ -21,7 +21,7 @@ Inside this skill, pick by what the change does:
 Outside it:
 
 - The mutation performs an external IO step before the DB write and must undo it on failure → still a command, but the handler body follows `hex-patterns` (the compensating-transaction form).
-- Two or more repositories must commit atomically → still a command, with an `IUnitOfWork` injected; see `hex-patterns`.
+- Two or more repositories must commit atomically → still a command, with a unit-of-work factory injected that the handler opens itself; see `hex-patterns`.
 - The entity, value object or filter record the DTOs mention → `hex-domain-model`.
 - The `IFooRepository` a handler depends on → `hex-domain-ports`.
 - A rule needing another aggregate's state, which the handler calls rather than inlines → `hex-domain-service`.
@@ -100,6 +100,16 @@ class CreateFooHandler:
 ### Command handler — update or delete (returns `None`)
 
 ```python
+import structlog
+
+from myapp.domain.foos import IFooRepository
+
+from .delete_foo_command import DeleteFooCommand
+
+__all__ = ["DeleteFooHandler"]
+
+logger = structlog.get_logger()
+
 class DeleteFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
@@ -142,8 +152,19 @@ class ListFoosQuery:
 ### Query handler — single entity
 
 ```python
+# get_foo_query.py
+from dataclasses import dataclass
 from uuid import UUID
 
+__all__ = ["GetFooQuery"]
+
+@dataclass(frozen=True)
+class GetFooQuery:
+    id: UUID
+```
+
+```python
+# get_foo_handler.py
 from myapp.domain.foos import Foo, IFooRepository
 
 from .get_foo_query import GetFooQuery
@@ -224,8 +245,8 @@ Artifact names follow `naming`; module boundaries follow `python-packaging`.
 - An authorization-scoped read ("things I can see") → **query**, whose DTO carries `caller_id`.
 - The mutation performs an external IO step before the DB write and must undo it on failure → still a
   command, but the handler body follows `hex-patterns` (the compensating-transaction form).
-- Two or more repositories must commit atomically → still a command, with an `IUnitOfWork` injected; see
-  `hex-patterns`.
+- Two or more repositories must commit atomically → still a command, with a unit-of-work factory
+  injected that the handler opens itself; see `hex-patterns`.
 - A handler never returns a transport model. The use case must be callable from a second entrypoint —
   a CLI, a consumer — which has no web framework in it.
 
@@ -275,7 +296,7 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
 1. **`@dataclass(frozen=True)`.** Always frozen.
 2. **No methods.** Just data.
 3. **Domain filter records are passed by reference, not flattened.** Carry `filter: FooListFilter`, not
-   loose `parent_ids` / `created_from` fields.
+   loose `bar_ids` / `created_from` fields.
 
 ### Result DTO (when present)
 
@@ -292,7 +313,7 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
 1. **One public method.**
    `async def execute(self, cmd: <CommandClass>) -> <ReturnType>`. Nothing else public — a second public
    method is a second use case, reachable in a half-finished state.
-2. **Constructor takes only ports, domain services, a unit of work, or tunable value objects.** A
+2. **Constructor takes only ports, domain services, a unit-of-work factory, or tunable value objects.** A
    concrete infrastructure handle in the signature — a database session, an HTTP client — means the
    handler cannot run in a test or under a second entrypoint without that infrastructure present. Follow
    `python-style` for annotations.
@@ -319,8 +340,11 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
    these two stays forbidden.
 6. **Command success logging:** follow `python-style`; include
    `caller_id=str(cmd.caller_id)` **only when the command carries it**.
-7. **No transaction management inside the handler.** The transaction lifecycle is wired at the entrypoint
-   through DI, typically an `IUnitOfWork` when several writes must be atomic.
+7. **No transaction management inside the handler — the default.** A handler that writes through one
+   repository leaves the transaction to it: the standalone repository form opens and commits its own
+   (`hex-persistence`). The one earned exception is a handler that writes through **two or more**
+   repositories atomically: it opens a unit of work itself, one per `execute`, from an injected factory —
+   `hex-patterns` owns that form.
 
 ### Query handler
 
@@ -369,7 +393,7 @@ provider that constructs a handler is `hex-wiring`.
 - Spec asks a query handler to mutate state → stop, use `hex-application` to write a command.
 - Spec asks a handler to catch a `DomainError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
 - Spec asks a handler to validate cross-aggregate state inline → stop, use `hex-domain-service` and inject it.
-- Spec implies several writes must be atomic → stop, use `hex-patterns` for an `IUnitOfWork` dependency.
+- Spec implies several writes must be atomic → stop, use `hex-patterns` for the unit-of-work factory the handler opens.
 - Spec implies an external IO step before the DB write → stop, use `hex-patterns` for the command
   body's compensating-transaction form.
 - Spec asks for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.
