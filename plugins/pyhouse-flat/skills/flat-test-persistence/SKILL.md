@@ -181,7 +181,7 @@ import pytest
 from sqlalchemy import String, func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.exceptions import StorageWriteRejectedError
+from myapp.exceptions import FooAlreadyRecordedError, StorageWriteRejectedError
 from myapp.schemas import Foo
 from myapp.storage import FooStorage
 from myapp.storage.foo_table import bar_table, foo_table
@@ -215,6 +215,16 @@ async def test_a_reference_is_normalized_once_on_the_way_in_and_out(
     assert (await storage.get_by_reference("alpha")).reference == "alpha"
 
 
+async def test_recording_a_known_reference_as_new_is_refused_by_constraint(engine: AsyncEngine) -> None:
+    storage = FooStorage(engine)
+    await storage.record_new(_a_foo())
+
+    with pytest.raises(FooAlreadyRecordedError) as exc_info:
+        await storage.record_new(_a_foo(reference=" ALPHA "))
+
+    assert exc_info.value.context == {"field": "reference", "constraint": "uq_foos_reference"}
+
+
 async def test_a_failing_second_write_leaves_no_foo_behind(engine: AsyncEngine) -> None:
     """The two writes are one transaction — a failure in the last must undo the first."""
     label_type = bar_table.c.label.type
@@ -228,6 +238,10 @@ async def test_a_failing_second_write_leaves_no_foo_behind(engine: AsyncEngine) 
         count = (await check.execute(select(func.count()).select_from(foo_table))).scalar_one()
     assert count == 0
 ```
+
+The refusal test drives the translator's named branch through the one write that can reach it, and pins
+the generated constraint name in `context` rather than only the class — the same contract a caller
+matches on.
 
 The atomicity test is the one that justifies the storage class existing at all — without it, nothing pins
 the "one transaction, not two" decision, and a refactor splitting the writes into separate connection
