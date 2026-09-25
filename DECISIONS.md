@@ -792,3 +792,79 @@ request where the mainline takes changes no other way. `/commit` offers a branch
 onto such a mainline.
 **Reverse by:** deleting `plugins/pyhouse-git/skills/git-branching/`, its index rows and counts, and the
 pointers in `git-commit-message`, `/release` and `/commit`.
+
+### D72 — A pre-release review, fixed in verified batches rather than by hand
+Before the catalogue was used on real projects, eight read-only agents reviewed it: five against the
+portability gate plugin by plugin, three for how the skills fit together (citations and ownership,
+conflicting rules, an end-to-end walk of five project shapes). About a hundred findings came back. The
+portability problem an earlier review had fought — one project's engine and names hard-wired into
+rules — was essentially gone; what remained was **template code that did not run against the library it
+binds**, skills contradicting one another where a template met a universal rule, and a few coverage
+gaps. The import checker could not see the first kind: every import resolved, and the code still failed.
+
+The fix ran as batches that owned disjoint files, each on its own branch, each checked by a second agent
+that had not written it and rebuilt the templates into a real project — mypy strict, the test suites
+against real Postgres, MinIO and Qdrant containers, migrations up and down, and mutations proving a test
+goes red on the defect it claims to guard. A final verification assembled every template of each family
+into one project. What that last step found is the lesson worth keeping: **templates reviewed one skill at
+a time pass; templates copied together did not** — five settings classes named and never defined, a
+repository that did not satisfy its own port, a response schema without the field every test asserted.
+**Reverse by:** nothing to reverse; the decisions it produced are D73–D78.
+
+### D73 — The house interpreter floor is 3.13, a choice rather than a consequence
+`python-style` claimed 3.10 was the floor and that nothing in the catalogue needed more, while templates
+used `StrEnum` and `datetime.UTC` (3.11). The floor is now 3.13 and stated as a house choice — one floor
+means every template runs as pasted — with `type` aliases replacing `TypeAlias`. A project may raise it,
+never lower it. The commits carry `!`: a project on 3.10–3.12 that complied no longer does.
+**Reverse by:** lowering the three settings in `python-style`, both setup skills and `python-workspace`,
+and rewriting the 3.11+ forms in templates.
+
+### D74 — One class per module is capped by a test, not a list of exceptions
+Every new multi-class case had to argue its way onto a list. `python-packaging` now states a test:
+several classes may share a module only when all are declarations (no state, not injected, no
+lifecycle), they change as one closed set, and the module is named for the set. A class with behaviour
+always has its own module. Two allowances remain: a private declaration that never leaves its module,
+and a module whose name a framework dictates (Django's `models.py`), which is what makes the universal
+skills read correctly on a framework tree. An application's root `__init__.py` now stays empty — a
+module-level `__version__` read is building something at import — which supersedes the root-`__version__`
+occupant D58 refers to. The flat catalog became the module `exceptions.py` for the same reason.
+**Reverse by:** restoring the two-item list in `python-packaging` and the root-`__version__` carve-out.
+
+### D75 — Swallowing is defined, and compensation is its one named exception
+Three skills could not be satisfied at once: `hex-patterns` swallowed a failed undo with `pass`,
+`exception-catalog` forbade swallowing, `LOGGING.md` let only the stopping scope log. `exception-catalog`
+now defines swallowing — catching a failure and neither re-raising it nor logging it as the scope that
+stops it — so a loop that logs a failed run and carries on is stopping, not swallowing. Best-effort
+compensation is the one case where a scope that re-raises also stops a second failure: it logs one
+warning for the failed undo and re-raises the original. A `*_best_effort` method that drops its own
+failure is a hard stop. An upstream rejecting the service's own credential is an `UpstreamError`;
+`UnauthorizedError` is for a credential the service's caller presented.
+**Reverse by:** deleting rule 16 and the subsection from `exception-catalog` and the matching section of
+`LOGGING.md`.
+
+### D76 — Names that denote a role are not vague nouns
+`naming`'s vague-noun stop fired on `…Handler`, `…Result`, `…Payload` and "`Service` anywhere" — names the
+families require. It now lists the role suffixes an architecture defines and allows them when the subject
+is present and the class plays the role; a framework-defined word (`Manager` on a Django manager) is
+allowed on the same terms.
+**Reverse by:** removing the role-suffix section and its hard-stop carve-outs from `naming`.
+
+### D77 — A service with no invariants that answers HTTP is flat, and flat can now be set up
+`architecture-choice` sent a service with no invariants to flat and said a flat service "may expose a small
+HTTP surface", yet flat had no HTTP entrypoint and hex refused the service — the most common internal
+service had no home. `flat-entrypoint` gained an HTTP shape: a thin framework wrapper around the same run
+functions, errors rendered once, templates in `HTTP.md`. `architecture-choice` now routes a service that
+serves requests over data it stores without rules of its own there. The flat family also had no setup
+skill, so `flat-project-setup` was added (pyproject, toolchain, dependency floors each justified by a real
+break, the Alembic bootstrap); the catalogue is 45 skills.
+**Reverse by:** deleting `flat-project-setup` and the HTTP shape, and the routing sentences in
+`architecture-choice`; restore the counts.
+
+### D78 — Templates name the vendor they bind, and one aggregate has one shape
+The client-style store template used a `store_sdk` that was Qdrant with the name removed, down to its
+port — unrunnable, and a vendor disguised as generic. It now binds `qdrant-client` under a heading that
+says so; key-value stores get their own narrower port (`IFooArchive`) because they cannot answer the
+aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template, every
+settings class a template constructs has a body and a provider, and settings are constructed at exactly
+three composition roots (the container, the migration environment, the test infrastructure).
+**Reverse by:** not advisable — each of these was a template that did not run as copied.
