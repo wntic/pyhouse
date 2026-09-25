@@ -81,9 +81,9 @@ too. The counts in every heading are the number of directories on disk.
 
 ## Packaging — which plugin a skill ships in
 
-The catalogue is distributed on the Claude Code marketplace as three plugins under the marketplace name
-`pyhouse`. Every new Python skill belongs to exactly one of them. A fourth plugin, `pyhouse-git`, ships
-beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
+The catalogue is distributed on the Claude Code marketplace as four plugins under the marketplace name
+`pyhouse`. Three of them hold Python house style, and every new Python skill belongs to exactly one of
+those three. The fourth, `pyhouse-git`, ships beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
 depends on nothing and nothing in the catalogue depends on it, so a `git-*` skill may name a catalogue
 skill only as an example and must read correctly in a repository with no Python in it.
 
