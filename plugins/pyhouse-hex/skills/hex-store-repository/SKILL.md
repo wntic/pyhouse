@@ -28,7 +28,10 @@ Produces one repository class that adapts a domain repository protocol to a clie
 ### Key-value / document form — worked binding: `redis`
 
 One vendor is worked end to end so the shape is concrete; a document store (mongo, dynamo, a
-key-value cache) differs only in the SDK's call names and its exception root.
+key-value cache) differs only in the SDK's call names and its exception root. A key-value store answers
+only reads by key, so this adapter satisfies `IFooArchive` — create, fetch by id, delete — rather than
+the full `IFooRepository` (`hex-domain-ports`), and lives in `redis/repositories/foo_archive.py`
+(`hex-conventions`' protocol-derived stem).
 
 ```python
 import json
@@ -38,8 +41,6 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from myapp.domain.exceptions import NotFoundError, UpstreamError
-# The adapter uses structural subtyping at the DI site (Rule 2); imports follow
-# python-packaging.
 from myapp.domain.foos import Foo
 
 from ..settings import RedisSettings
@@ -50,19 +51,15 @@ __all__ = ["FooRepository"]
 class FooRepository:
     def __init__(self, client: Redis, settings: RedisSettings) -> None:
         self._client = client
-        self._prefix = settings.foos_key_prefix   # the store's container token (Rule 5)
+        self._prefix = settings.foos_key_prefix
 
-    def _key(self, foo_id: UUID) -> str:
-        return f"{self._prefix}:{foo_id}"
+    def _key(self, id: UUID) -> str:
+        return f"{self._prefix}:{id}"
 
-    def _record_to_entity(self, record: dict[str, object]) -> Foo:
-        return Foo(
-            id=UUID(str(record["id"])),
-            name=str(record["name"]),
-            bar_id=UUID(str(record["bar_id"])),
-        )
+    def _record_to_entity(self, record: dict[str, str]) -> Foo:
+        return Foo(id=UUID(record["id"]), name=record["name"], bar_id=UUID(record["bar_id"]))
 
-    async def add(self, foo: Foo) -> None:
+    async def create(self, foo: Foo) -> None:
         record = {"id": str(foo.id), "name": foo.name, "bar_id": str(foo.bar_id)}
         try:
             await self._client.set(self._key(foo.id), json.dumps(record))
@@ -72,35 +69,37 @@ class FooRepository:
                 {"key": self._key(foo.id), "reason": exc.__class__.__name__},
             ) from exc
 
-    async def get_by_id(self, foo_id: UUID) -> Foo:
+    async def get_by_id(self, id: UUID) -> Foo:
         try:
-            raw = await self._client.get(self._key(foo_id))
+            raw = await self._client.get(self._key(id))
         except RedisError as exc:
             raise UpstreamError(
                 "store read failed",
-                {"key": self._key(foo_id), "reason": exc.__class__.__name__},
+                {"key": self._key(id), "reason": exc.__class__.__name__},
             ) from exc
         if raw is None:
-            raise NotFoundError("Foo not found", {"id": str(foo_id)})
+            raise NotFoundError("Foo not found", {"id": str(id)})
         return self._record_to_entity(json.loads(raw))
 
-    async def delete(self, foo_id: UUID) -> None:
+    async def delete(self, id: UUID) -> None:
         try:
-            removed = await self._client.delete(self._key(foo_id))
+            removed = await self._client.delete(self._key(id))
         except RedisError as exc:
             raise UpstreamError(
                 "store delete failed",
-                {"key": self._key(foo_id), "reason": exc.__class__.__name__},
+                {"key": self._key(id), "reason": exc.__class__.__name__},
             ) from exc
         if removed == 0:
-            raise NotFoundError("Foo not found", {"id": str(foo_id)})
+            raise NotFoundError("Foo not found", {"id": str(id)})
 ```
 
 ### Collection-shaped form — worked binding: Qdrant (`qdrant-client`)
 
 The second profile shape — a collection of points searched by similarity — worked on Qdrant's async
-client. A search index or another vector store differs in the client class, the point model, the
-filter DSL and the exception families; see `## Other bindings`.
+client. It is a derived projection of `Foo`, not its authoritative store, and satisfies
+`IFooSearchIndex` (`hex-domain-ports`) from `qdrant/repositories/foo_search_index.py`. A search index or
+another vector store differs in the client class, the point model, the filter DSL and the exception
+families; see `## Other bindings`.
 
 ```python
 from collections.abc import Sequence
@@ -151,7 +150,7 @@ class FooRepository:
             ) from exc
 
     async def search(
-        self, query_vector: Sequence[float], k: int
+        self, *, query_vector: Sequence[float], k: int
     ) -> tuple[tuple[Foo, float], ...]:
         try:
             response = await self._client.query_points(
@@ -233,7 +232,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 ├── settings.py            # hex-wiring
 └── repositories/
     ├── __init__.py        # package wiring — python-packaging
-    └── foo_repository.py  # this skill writes this file
+    └── foo_archive.py     # this skill writes this file — the stem is the port's (`hex-conventions`)
 ```
 
 ### Form
@@ -261,7 +260,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ### Vendor & semantics
 
-12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching, consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` serves boto3, httpx, PyJWT, and openai with one skill).
+12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching, consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` binds aioboto3, httpx and idna in one skill).
 13. **No provisioning.** The repository never creates collections, indexes, buckets, or schemas — provisioning is a deployment/bootstrap concern.
 14. **Ordering is explicit.** A `list`/`search` that promises an order must produce it deliberately (the store's score order, an explicit sort key) — never rely on insertion accident.
 15. **No retries, no caching, no domain reasoning.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules). Logging follows `python-style`.
