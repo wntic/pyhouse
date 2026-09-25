@@ -75,18 +75,17 @@ class CreateFooHandler:
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
         foo_id = uuid.uuid4()
-        foo = Foo(id=foo_id, name=cmd.name, storage_key=f"foos/{foo_id}")
+        foo = Foo(id=foo_id, name=cmd.name, bar_id=cmd.bar_id)
+        storage_key = f"foos/{foo.id}"
 
-        await self._storage.upload(foo.storage_key, cmd.data)
+        await self._storage.upload(storage_key, cmd.data)
         try:
             await self._repo.create(foo)
         except Exception:
             try:
-                await self._storage.delete(foo.storage_key)
+                await self._storage.delete(storage_key)
             except Exception as undo_exc:
-                logger.warning(
-                    "foo_upload_undo_failed", storage_key=foo.storage_key, exc_info=undo_exc
-                )
+                logger.warning("foo_upload_undo_failed", storage_key=storage_key, exc_info=undo_exc)
             raise
 
         logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
@@ -94,7 +93,8 @@ class CreateFooHandler:
 ```
 
 The entity is built — and its invariants checked — before the upload, so a malformed command fails
-with nothing to undo (compensation rule 7). `caller_id` is logged only when the command carries it
+with nothing to undo (compensation rule 7). The storage key is derived from the entity's id, so the
+entity carries no field for it and the key can be rebuilt wherever it is needed. `caller_id` is logged only when the command carries it
 (`hex-application`).
 
 ## Template — compensation, multi-step side effects
@@ -263,7 +263,7 @@ class CreateFooHandler:
         self._uow_factory = uow_factory
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(id=uuid.uuid4(), name=cmd.name)
+        foo = Foo(id=uuid.uuid4(), name=cmd.name, bar_id=cmd.bar_id)
         async with self._uow_factory() as uow:
             await uow.foos.create(foo)
             await uow.audit.append(AuditEvent(subject_id=foo.id, action="foo_created"))
@@ -280,16 +280,16 @@ This is the one handler form that opens a transaction itself — the earned exce
 Compensation outside, unit of work inside:
 
 ```python
-await self._storage.upload(foo.storage_key, cmd.data)
+await self._storage.upload(storage_key, cmd.data)
 try:
     async with self._uow_factory() as uow:
         ...
         await uow.commit()
 except Exception:
     try:
-        await self._storage.delete(foo.storage_key)
+        await self._storage.delete(storage_key)
     except Exception as undo_exc:
-        logger.warning("foo_upload_undo_failed", storage_key=foo.storage_key, exc_info=undo_exc)
+        logger.warning("foo_upload_undo_failed", storage_key=storage_key, exc_info=undo_exc)
     raise
 ```
 
