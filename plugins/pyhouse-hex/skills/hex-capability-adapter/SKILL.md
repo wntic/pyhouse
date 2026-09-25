@@ -77,7 +77,7 @@ class S3FooStorage:
     def __init__(self, session: aioboto3.Session, settings: S3Settings) -> None:
         self._session = session
         self._bucket = settings.bucket
-        self._endpoint_url = str(settings.endpoint_url)
+        self._endpoint_url = settings.endpoint_url
 
     async def upload(self, key: str, body: bytes) -> None:
         try:

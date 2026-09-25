@@ -105,6 +105,32 @@ injected — never a constant hardcoded inside the adapter. Whether it carries a
 and rule 2's question: default it only if one value is safe for every deployment, and make it required
 otherwise.
 
+### Template — pydantic-settings, S3-compatible blob store
+
+The settings class the S3 adapter (`hex-capability-adapter`) consumes, in `infrastructure/s3/settings.py`
+(`hex-conventions` derives the path and the name). The endpoint is required, so the same class reaches
+a hosted store and an S3-compatible one; the adapter reads `bucket` and `endpoint_url`, and the
+composition root builds the SDK session from the two credential fields.
+
+```python
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["S3Settings"]
+
+class S3Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_S3_",
+        env_file=".env",
+        extra="ignore",
+    )
+
+    endpoint_url: str
+    access_key: str
+    secret_key: SecretStr
+    bucket: str
+```
+
 ### How this binding spells the settings obligations
 
 Three `model_config` keys are mandatory **under pydantic-settings**, and each is one obligation from
@@ -131,6 +157,7 @@ no binding is reached by its attribute name, so renaming a class cannot silently
 ```python
 from collections.abc import AsyncIterator
 
+import aioboto3
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -180,6 +207,14 @@ class InfrastructureProvider(Provider):
     @provide
     def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return create_session_factory(engine=engine)
+
+    @provide
+    def s3_session(self, settings: S3Settings) -> aioboto3.Session:
+        # A session holds credentials, not connections; the adapter opens a client per call.
+        return aioboto3.Session(
+            aws_access_key_id=settings.access_key,
+            aws_secret_access_key=settings.secret_key.get_secret_value(),
+        )
 
     bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
 
