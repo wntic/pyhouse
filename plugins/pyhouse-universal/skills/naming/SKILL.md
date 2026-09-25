@@ -313,7 +313,7 @@ retire the old one deliberately, with a migration.
   existing word.
 - The same word now names two different concepts in the project → stop, it identifies neither.
 - A class named `…Data`, `…Info`, `…Details`, `…Manager` or `…Processor` → stop, name the subject and
-  what it asserts.
+  what it asserts, unless a framework defines the word and the class is that (**Other exceptions**).
 - A class carrying a role suffix (`…Result`, `…Payload`, `…Handler`, `…Service`, `…Request`,
   `…Response`) with no subject in front, or on a class that does not play the role the architecture
   defines for that word → stop, name the subject and what it asserts; the carve-out covers the role,
