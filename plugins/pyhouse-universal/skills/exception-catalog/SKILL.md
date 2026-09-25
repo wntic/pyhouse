@@ -12,16 +12,17 @@ nothing raises a type that was invented at the call site.
 Where that file sits is the only thing that varies, and one obligation settles it for any project
 shape: **one catalog module, at a place every part of the codebase may import from without creating a
 cycle, named for what it holds.** The catalog imports nothing of the project's own, so anything may
-import it; put it wherever the project's own import direction makes that true — `exceptions.py`, or
-`exceptions/__init__.py` when the package form is the one that fits. The root class is named for the
-project, and every other class in the file descends from it.
+import it; put it wherever the project's own import direction makes that true. It is a module,
+`exceptions.py` — never `exceptions/__init__.py`, because an `__init__.py` holds only imports and
+`__all__` (`python-packaging`); `from myapp.exceptions import …` reads the same either way. The root
+class is named for the project, and every other class in the file descends from it.
 
 Two worked cases, one per architecture family this catalogue covers:
 
 | Architecture | Catalog file | Root class |
 |---|---|---|
 | Hexagonal (`hex-architecture`) | `<package>/domain/exceptions.py` | `DomainError` |
-| Flat-layered (`flat-layered`) | `<package>/exceptions/__init__.py` | `<Service>Error` |
+| Flat-layered (`flat-layered`) | `<package>/exceptions.py` | `<Service>Error` |
 
 A project in neither family reads the obligation rather than the table, and it answers as easily: a
 framework-shaped tree puts the module where every one of the framework's units already imports from,
@@ -85,7 +86,7 @@ This is also the form to copy when the project is in neither family — the `cod
 transport annotation added below only if something in the project actually reads one.
 
 ```python
-# myapp/exceptions/__init__.py
+# myapp/exceptions.py
 __all__ = [
     "FooClientError",
     "MyappError",
@@ -387,6 +388,8 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
 - A new exception type is being defined outside the catalog file → stop, add it there first.
 - A second catalog is being added because some package cannot import the first one → stop, the catalog
   is placed where every part of the codebase may import it; move the one file rather than splitting it.
+- The catalog's classes are being written into an `exceptions/__init__.py` → stop, make it the module
+  `exceptions.py`; an `__init__.py` holds only imports and `__all__`.
 - A subclass is being given an `__init__` override or extra fields → stop, use the inherited `context`.
 - A library exception is re-raised without `from exc` → stop, the cause is lost and the translation
   becomes unprovable.
