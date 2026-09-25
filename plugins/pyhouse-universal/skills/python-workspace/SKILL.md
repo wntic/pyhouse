@@ -289,9 +289,9 @@ repo root reads none of them.
 - A new member is being created and its encapsulated knowledge cannot be named in one sentence →
   stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
   to exist.
-- A runnable member needs its own private tables in the store the members share → still put the
-  `Table` in the one owning library; a second schema owner over one store means two migration histories and the second
-  to run decides what the first one's tables look like.
+- A runnable member needs its own private tables in the store the members share → stop, put the
+  `Table` in the one owning library; a second schema owner over one store means two migration
+  histories, and the second to run decides what the first one's tables look like.
 - A runnable member imports a sibling runnable member → stop, promote the shared code into a library
   member.
 - Runtime code is being added to the root `pyproject.toml`'s project → stop, the root is a container;
