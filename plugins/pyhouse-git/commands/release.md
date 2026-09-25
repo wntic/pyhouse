@@ -118,9 +118,16 @@ which is the case the types exist to prevent and cannot always catch.
    exception: commit it on a branch, open the request, and tag in item 3 only once it has landed — on
    the release commit under a keep-every-commit merge method, on the squashed commit under squash.
    Running this command again after it lands finds that commit and offers the tag (step 3).
-3. Tag that commit, annotated, spelled as step 3 settled — once per member under per-member tags:
-   `git tag -a <tag>`.
-   The annotation names the version and each member's bump.
+3. Tag that commit, annotated, spelled as step 3 settled — once per member under per-member tags. Pass
+   the annotation on standard input, so no editor opens; it names the version and each member's bump:
+
+   ```
+   git tag -a -F - <tag> <release commit> <<'EOF'
+   <tag>
+
+   <member> <current> -> <next>
+   EOF
+   ```
 4. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so
    many words: once the tag leaves this machine it cannot be taken back.
 
