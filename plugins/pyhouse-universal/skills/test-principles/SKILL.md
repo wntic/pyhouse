@@ -119,7 +119,7 @@ tests/
     │                                            #   - real_app (function) — consumes jwt_settings from down-tree WHEN the app has auth
     │                                            #   - minio_container, s3_session (session) — blob-store apps only
     │                                            #   - s3_settings (function) — per-test bucket, bound into real_app — blob-store apps only
-    │                                            #   - qdrant_url, qdrant_client (session) — client-store apps
+    │                                            #   - redis_url (session) — key-value store apps (the non-relational store binding)
     ├── postgres/                                # repository contract tests; uses `sf` only
     │   └── test_foo_repository.py
     └── api/
