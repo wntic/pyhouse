@@ -54,16 +54,13 @@ in an app with no auth, drops the field entirely — see the auth-derived-fields
 from dataclasses import dataclass
 from uuid import UUID
 
-from myapp.domain.foos import FooCategory
-
 __all__ = ["CreateFooCommand"]
 
 @dataclass(frozen=True)
 class CreateFooCommand:
     caller_id: UUID
     name: str
-    category: FooCategory
-    sort_order: int = 0
+    bar_id: UUID
 ```
 
 ### Command handler — create (returns `UUID`)
@@ -86,12 +83,7 @@ class CreateFooHandler:
         self._repo = repo
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(
-            id=uuid.uuid4(),
-            name=cmd.name,
-            category=cmd.category,
-            sort_order=cmd.sort_order,
-        )
+        foo = Foo(id=uuid.uuid4(), name=cmd.name, bar_id=cmd.bar_id)
         await self._repo.create(foo)
         logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
         return foo.id
