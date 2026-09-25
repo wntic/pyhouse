@@ -50,7 +50,9 @@ the release commit lands after this command last ran (step 7). Look for it first
 git log --format='%h %s' --grep='^chore(release): ' <last tag>..HEAD
 ```
 
-With no tag yet, search `HEAD` alone. A match whose tag does not exist is that release, landed and
+With no tag yet, search `HEAD` alone. Read the tag name from the subject with any trailing request
+suffix stripped — a squash merge often lands it as `chore(release): v0.7.0 (#34)`, whose tag is
+`v0.7.0`. A match whose tag does not exist is that release, landed and
 waiting: offer to tag it (step 7, item 3) and propose nothing new until it is tagged.
 
 The range itself, with bodies, because a break may be stated only in a footer (step 4):
