@@ -50,7 +50,9 @@ binding below; every rule above it holds under another.
 | `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `style`, `chore` | everything else, by what it is | none |
 
 `feat` and `fix` are the two the specification mandates and the two that carry a release; the others
-are conventional, and a repository may use more. A break carries the major whatever its type:
+are conventional, and a repository may use more. A break carries the major whatever its type — below
+1.0.0, the minor, since a `0.y.z` number has made no compatibility promise for the break to breach and
+reaching 1.0.0 is a decision no commit takes:
 
 ```
 feat(foo-client)!: return every page where only the first was returned
