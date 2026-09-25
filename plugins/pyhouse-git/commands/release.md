@@ -111,7 +111,10 @@ which is the case the types exist to prevent and cannot always catch.
 
 ## 7. Cut it — only after an explicit yes
 
-1. Edit exactly the version fields the proposal named. Nothing else goes into this commit.
+1. Edit exactly the version fields the proposal named. Where the ecosystem's lockfile also records the
+   project's own version — `package-lock.json`, `Cargo.lock`, `uv.lock` — regenerate it with the
+   ecosystem's own lock command, or update that one entry, in the same commit: a lockfile left at the
+   old number fails the next locked install or check. Nothing else goes into this commit.
 2. Commit it as `chore(release): <tag>`. `chore`, because a release commit records no change of its own
    and must not propose another version — it is the one commit `git-commit-message` rule 2 lets touch
    the version. **Where the mainline takes changes only through a request**, the release commit is no
