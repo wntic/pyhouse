@@ -107,6 +107,18 @@ not repeated here.
 tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
 is immutable: a correction is the next number, never a moved tag.
 
+## Branching
+
+Recorded once here, as `git-branching` rule 2 asks of any repository.
+
+- `main` is the mainline. It always passes the catalogue checks; releases are tags on it, cut by
+  `/release`.
+- Every change is made on a short-lived branch named for it — `feature/…` or `fix/…` — started from
+  current `main`.
+- A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
+  rebase-merge.
+- History on `main` is never rewritten, and a branch is deleted once it has landed.
+
 ## Layout
 
 ```
