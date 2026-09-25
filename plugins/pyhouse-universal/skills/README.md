@@ -1,8 +1,8 @@
 # House-style skills
 
-43 skills: 42 project-neutral Python skills in seven families — Universal (10), Meta (1), Hex core
-(12), Hex REST API (4), Hex tests (8), Flat core (3), Flat tests (4) — and one language-independent
-Git skill.
+44 skills: 42 project-neutral Python skills in seven families — Universal (10), Meta (1), Hex core
+(12), Hex REST API (4), Hex tests (8), Flat core (3), Flat tests (4) — and two language-independent
+Git skills.
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -168,13 +168,14 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `flat-test-service-client` | One client class's test |
 | `flat-test-run-function` | What a trigger runs — the body, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 
-## Git (1)
+## Git (2)
 
 In `pyhouse-git`, which depends on nothing and holds in a repository of any language.
 
 | Skill | Owns |
 |---|---|
 | `git-commit-message` | The commit message — its shape, the type as the record of which release a change earns, the break marker, and where the convention has to hold under a squash or a merge |
+| `git-branching` | How a change reaches the mainline — the one mainline releases are cut from, the merge method recorded once, the short-lived one-change branch, history made true before it lands and never rewritten after, and when a released version earns a maintenance branch |
 
 ## Conventions across both sets
 
