@@ -70,13 +70,17 @@ def canonicalize_url(raw: str) -> str:
     if scheme not in _DEFAULT_PORTS:
         raise ValidationError("url scheme must be http or https", {"field": "scheme"})
     host = (parts.hostname or "").lower()
-    port = parts.port
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValidationError("url port must be a number in range", {"field": "port"}) from exc
     netloc = host if port in (None, _DEFAULT_PORTS[scheme]) else f"{host}:{port}"
     return urlunsplit((scheme, netloc, parts.path.rstrip("/"), parts.query, ""))
 ```
 
-It is called where it is needed — by a value object's construction or a handler's input mapping — and
-is never bound in the composition root, because there is nothing to construct.
+It is called from inside the domain — an entity's `__post_init__` or a value object's construction —
+never by a handler, which passes input through unchanged (`hex-application`), and it is never bound
+in the composition root, because there is nothing to construct.
 
 ## Rules
 

@@ -56,6 +56,7 @@ import pytest
 from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import Foo
 
+
 def _make_foo(
     *, id: uuid.UUID | None = None, name: str = "Test", bar_id: uuid.UUID | None = None
 ) -> Foo:
@@ -95,6 +96,7 @@ import pytest
 from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import Foo
 
+
 def test_equality_by_id() -> None:
     shared_id = uuid.uuid4()
     bar_id = uuid.uuid4()
@@ -113,6 +115,7 @@ import pytest
 
 from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import FooKey
+
 
 def test_canonical_equality() -> None:
     a = FooKey(raw="abc", canonical="ABC")
@@ -135,6 +138,7 @@ import pytest
 from myapp.domain.amounts import Money
 from myapp.domain.exceptions import ValidationError
 
+
 def test_amount_must_be_non_negative() -> None:
     with pytest.raises(ValidationError) as exc:
         Money(amount=-1, currency="USD")
@@ -153,6 +157,7 @@ import pytest
 
 from myapp.domain.foos import FooStatus
 
+
 def test_values() -> None:
     assert FooStatus.ALPHA == "ALPHA"
     assert FooStatus.BETA == "BETA"
@@ -167,6 +172,7 @@ def test_values() -> None:
 import pytest
 
 from myapp.domain.foos import FooPriority
+
 
 def test_values() -> None:
     assert FooPriority.LOW == "LOW"
@@ -198,6 +204,7 @@ from myapp.domain.exceptions import FooConflictError
 from myapp.domain.foos import Foo, FooUniquenessService
 from tests.unit.fakes import FakeFooRepository
 
+
 def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
     foos = [Foo(id=uuid.uuid4(), name=n, bar_id=uuid.uuid4()) for n in existing_names or []]
     return FooUniquenessService(repo=FakeFooRepository(items=foos))
@@ -223,6 +230,7 @@ import pytest
 from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import canonicalize_url
 
+
 def test_strips_trailing_slash() -> None:
     assert canonicalize_url("https://example.com/path/") == "https://example.com/path"
 
@@ -240,6 +248,12 @@ def test_rejects_non_http() -> None:
     with pytest.raises(ValidationError) as exc:
         canonicalize_url("ftp://example.com")
     assert exc.value.context["field"] == "scheme"
+
+
+def test_rejects_non_numeric_port() -> None:
+    with pytest.raises(ValidationError) as exc:
+        canonicalize_url("https://example.com:http/path")
+    assert exc.value.context["field"] == "port"
 ```
 
 The canonicalizer here is a domain function because it is pure logic over the standard library. One
