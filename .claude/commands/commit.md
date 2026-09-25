@@ -102,8 +102,8 @@ A skill and the index entries it forces are **one** commit and take the skill's 
 `docs`. `docs` is for a documentation change that stands alone.
 
 **No trailers.** This repository uses none: no `Co-Authored-By`, no generator lines, no
-`Signed-off-by`. The shipped command's rule is to match what the repository already does, and this is
-what it does.
+`Signed-off-by`. The shipped skill's rule 8 adds a trailer only where the repository already carries
+one or the author asked for it, and this repository carries none.
 
 ### 5. Commit
 
