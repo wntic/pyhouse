@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
-maintainer script. The "code" is 44 `SKILL.md` files — 42 that tell an agent how to write Python
+maintainer script. The "code" is 45 `SKILL.md` files — 43 that tell an agent how to write Python
 services, and two that tell it how to commit and branch. The Python in them is template content,
 not executed as part of anything here.
 
@@ -116,7 +116,7 @@ tools/check_template_imports.py          resolves every import in every template
 plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
-plugins/pyhouse-flat/                    7 flat-* skills
+plugins/pyhouse-flat/                    8 flat-* skills
 plugins/pyhouse-git/                     2 git-* skills, /commit, /release,
                                          /install-commit-hook and the commit-msg hook it
                                          installs — no dependency
