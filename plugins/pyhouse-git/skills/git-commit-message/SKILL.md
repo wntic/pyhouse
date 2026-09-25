@@ -17,8 +17,7 @@ binding below; every rule above it holds under another.
 
 ## When to use vs. neighbours
 
-- Staging files, reading the diff and committing in one step → `/commit`, which composes its message
-  by this skill.
+- Staging files, reading the diff and committing in one step → `/commit`.
 - Refusing a malformed message at commit time instead of trusting everyone to remember →
   `/install-commit-hook`, which installs a `commit-msg` hook that checks the parts of this skill a
   machine can check: the shape, the blank line before a body, the uppercase break token and the subject
