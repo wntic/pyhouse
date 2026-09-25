@@ -58,8 +58,8 @@ infrastructure adapter needs.
 concrete pin, so nothing rots. A pinned `>=` on a substrate library under eternal manual bump is the
 disease this avoids. A floor at a known breaking boundary, below, is the one exception.
 
-**Floors on an SDK — the lone, disciplined exception.** An adapter's SDK *may* carry a `>=` floor, but
-only when it marks a **known breaking-version boundary** — an API the code relies on landed or changed
+**Floors — the one exception, and it is the same for an SDK as for a substrate library.** An adapter's
+SDK *may* carry a `>=` floor, but only when it marks a **known breaking-version boundary** — an API the code relies on landed or changed
 there — with the floor sitting at that boundary, expressed as the major, and the reason in a comment. It
 is a *contract* fact ("needs v2, where the API changed"), never a recency guess: do not write a version
 you recall as "recent", because that recollection is frozen at a training cutoff, and a floor padded
@@ -70,7 +70,8 @@ been stable for years gets **no floor at all**. Symmetry lives in the *rule*, no
 library.
 
 **A substrate library takes a floor on the same terms and no others** — only where code the project
-carries relies on an API that landed at a known release. Under the FastAPI binding that case is real:
+carries relies on an API that landed at a known release. Under the bindings here that case is real
+twice. The FastAPI one:
 the app-invariant and auth-probe tests (`hex-test-app-invariants`, `hex-test-restapi-auth`) walk the
 app's resolved operations through `fastapi.routing.iter_route_contexts`, which first ships in 0.137.2,
 and from 0.137.0 an included router is a single `_IncludedRouter` entry in `app.routes`, so a walk over
@@ -82,7 +83,17 @@ so the floor names the release that shipped the API rather than a major:
 dependencies = [
     "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the app-invariant tests rely on
 ]
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=0.26",  # asyncio_default_test_loop_scope, the session loop the integration suite runs on
+]
 ```
+
+The dev one: the integration suite shares one event loop across the session (`hex-test-integration-setup`,
+whose `CONFTEST.md` carries the `[tool.pytest.ini_options]` block that sets it), and
+`asyncio_default_test_loop_scope`, the key that puts the tests on that loop, first ships in
+`pytest-asyncio` 0.26.
 
 **Dev dependencies live under `[dependency-groups]` (PEP 735).** Write `[dependency-groups]` with
 `dev = [...]`, which the package manager installs by default. Do not write a deprecated
@@ -129,16 +140,16 @@ commands read, because it is house style and has no other home.
   again. A decision invisible in the config has not been made, and a later reader cannot tell a chosen 88
   from an inherited default. **This skill mandates no value**; it mandates that the value is written and
   that it stops being a per-file debate. Two documented options:
-  - **88** — the linter's and formatter's default, and the most common value in the wider ecosystem. Pick
-    it and every tool, every shared config and every contributor's muscle memory already agrees.
+  - **88** — the linter's and formatter's default. Pick it and every tool and every shared config already
+    agrees.
   - **120** — the value **this catalogue's own templates are written to**, and the argument for it is
     greenfield-specific. The signal that argues for a wider limit — signatures and single-line
     explanatory comments colliding with it — cannot be read on an empty tree, because there are no
     signatures and no comments yet; while the reformat cost that argues for staying at 88 is **zero**
     there, there being nothing to reformat. Against that zero stand the recurring cases where 88 makes
     the limit cut the content instead of wrapping it: single-line comments trimmed with a loss of
-    meaning, and a port docstring's contract keys dropped. On an established project the same argument
-    runs the other way, because the cost is no longer zero.
+    meaning. On an established project the same argument runs the other way, because the cost is no
+    longer zero.
   The cost of moving is real, which is why this is a **project-setup decision** and not a mid-change
   one: `line-length` drives the **formatter** as well as the line-length lint rule, so raising it
   reformats the tree. If an established project does move, the reformat travels as its own commit, so it
@@ -157,6 +168,36 @@ commands read, because it is house style and has no other home.
   per-package override block with missing-imports ignored — list every such package the project carries,
   dev dependencies included when the suite imports them. This is the **only** sanctioned way to silence a
   missing-stub error; never an inline ignore comment on a content module.
+- **Package bases for `tests`**: the suite has a `conftest.py` in several directories and no
+  `__init__.py` above them, so the checker is told to derive a module's name from its path under the
+  source roots (`explicit_package_bases`, with `src` and the tree root as `mypy_path`); without it,
+  `mypy src tests` stops at the second `conftest.py` with a duplicate-module error.
+
+### Template — `pyproject.toml` toolchain tables, ruff and mypy
+
+```toml
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B006", "B904"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F403", "F405"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+explicit_package_bases = true
+mypy_path = ["src", "."]
+```
+
+`B006` is the mutable-default-argument rule and `B904` the raise-without-from rule; `F403` and `F405` are
+the two wildcard-import warnings. A package the project carries that ships no stubs adds one block,
+`[[tool.mypy.overrides]]` with `module = ["<package>", "<package>.*"]` and
+`ignore_missing_imports = true`.
 
 ## C. Relational migration bootstrap (write-once) — Alembic over SQLAlchemy and Postgres
 
@@ -177,21 +218,20 @@ prepend_sys_path = src
 ```
 
 ```python
-# migrations/env.py  — async, wired to the project's shared MetaData, online mode only:
-# the app is always migrated against a live connection, and autogenerate also runs online.
+# migrations/env.py  — async, online mode only: the app is always migrated against a live connection.
 import asyncio
 
 from alembic import context
+from sqlalchemy import Connection
 
 import myapp.infrastructure.postgres.tables  # noqa: F401  — registers every Table on the shared metadata
-from myapp.infrastructure.postgres.engine import create_engine
+from myapp.infrastructure.postgres import DbSettings, create_engine
 from myapp.infrastructure.postgres.metadata import metadata
-from myapp.infrastructure.postgres.settings import DbSettings
 
 target_metadata = metadata
 
 
-def _run(connection) -> None:  # the migration context drives this inside run_sync
+def _run(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
