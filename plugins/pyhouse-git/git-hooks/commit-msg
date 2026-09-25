@@ -2,7 +2,7 @@
 # Reject a commit message that is not Conventional Commits 1.0.0.
 # https://www.conventionalcommits.org/en/v1.0.0/
 #
-# Install: /pyhouse-git:install-commit-hook, or by hand —
+# Install: /pyhouse-git:install-commit-hook, or by hand, where core.hooksPath is unset —
 #   mkdir -p .githooks && cp this file .githooks/commit-msg && chmod +x .githooks/commit-msg
 #   git config core.hooksPath .githooks
 #
