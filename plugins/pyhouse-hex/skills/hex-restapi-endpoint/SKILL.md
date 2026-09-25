@@ -71,7 +71,7 @@ router = APIRouter(prefix="/foos", tags=["foos"], route_class=DishkaRoute)
 ```
 
 
-**The per-`kind` templates below are the primary, auth-free form** — every route in an app that declares
+**The route templates below are the primary, auth-free form** — every route in an app that declares
 no auth, and the public routes of an app that does. Whether an app has auth at all follows from its
 routes. An authenticated route adds exactly four things to one of these templates — the auth-dependency
 parameter last in the signature, the `domain.auth` + `..dependencies` imports, the `401` (and `403` when
@@ -224,8 +224,8 @@ async def bulk_update_foos(
 
 FastAPI resolves a request against the routes **in declaration order**, which makes the reachability
 obligation (rule 18) a property of where a route sits in the file. `/bulk` is captured by `/{id}` if
-`/{id}` was declared first — `"bulk"` parses as a string UUID until validation fails, by which time the
-wrong handler ran.
+`/{id}` was declared first — `"bulk"` matches the `{id}` path, fails its UUID validation, and the
+request answers `422` before any handler runs; the static route is never reached.
 
 **Declare every static collection-level path (`/bulk`, `/export`, `/bars`) above the `/{id}` route** —
 any non-parameterized sibling of `/{id}`, whatever the method. When extending an existing router file,
@@ -245,7 +245,7 @@ is never a frozen role; it is the slot `hex-restapi-auth` fills.
 
 ### `upload` — multipart upload
 
-#### Pure file upload (`slot: single`)
+#### Pure file upload — one file
 
 ```python
 @router.post(
@@ -267,12 +267,12 @@ async def import_xlsx(
 
 Rules:
 
-- `file: UploadFile` for the file slot. Companion scalar/UUID fields use `= Form(...)` — they share the same multipart envelope.
-- `await file.read()` loads the body into memory. This is bounded **only** when the app declares a request-size cap middleware (`hex-restapi-app`'s `MaxRequestSizeMiddleware`), which rejects oversize requests before the route runs. A request-size cap is a per-app `restapi.middlewares` choice, not a given: if the app declares none, the body is unbounded and `file.read()` is **not** safe — the app must add a size cap (or the route must stream-and-bound the read) before relying on it. The templates here assume the app declares such a cap.
+- `file: UploadFile` for the file part. Companion scalar/UUID fields use `= Form(...)` — they share the same multipart envelope.
+- `await file.read()` loads the body into memory. This is bounded **only** when the app declares a request-size cap middleware (`hex-restapi-app`'s `MaxRequestSizeMiddleware`), which rejects oversize requests before the route runs. A request-size cap is the app's own choice, not a given: if the app declares none, the body is unbounded and `file.read()` is **not** safe — the app must add a size cap (or the route must stream-and-bound the read) before relying on it. The templates here assume the app declares such a cap.
 - **Advertise `413`** in `responses=error_responses(...)` **only when the app declares a request-size cap middleware** — 413 is produced by that middleware (its code registered in `MIDDLEWARE_ERRORS`), not by a domain exception, so an app without one has no 413 to advertise, and the OpenAPI discovery check (`hex-test-app-invariants`) would reject the orphan code. The `413` shown in the decorator templates is present because those templates assume a size-capped app; drop it for an app that declares no size middleware.
 - The route does not parse the file — pass bytes to the handler via the command DTO (`file_data: bytes`).
 
-#### Multiple optional uploads (`slot: optional-many`)
+#### Multiple optional uploads
 
 ```python
 attachments: list[UploadFile] | None = None,
@@ -283,10 +283,10 @@ for f in attachments or []:
     attachment_inputs.append(CreateFooAttachment(data=raw, mime=f.content_type or ""))
 ```
 
-- Slot type `list[UploadFile] | None = None` handles "no files attached" cleanly.
+- The parameter type `list[UploadFile] | None = None` handles "no files attached" cleanly.
 - Build a list of application input dataclasses inside the route; capture both `data` and `f.content_type or ""`. The empty-string fallback is deliberate — domain validates the mime and an empty value triggers a clear `ValidationError` rather than `None` slipping through.
 
-#### Mixed multipart + JSON (`slot: mixed-multipart-json`) — the only sanctioned `try/except` in a route body
+#### Mixed multipart + JSON — the only sanctioned `try/except` in a route body
 
 **This is the one worked AUTHENTICATED template in this skill, and it requires `hex-restapi-auth`.** It
 is role-gated, so it advertises `403` as well as `401`: the advertised codes must match the chosen
@@ -316,9 +316,9 @@ async def create_foo(
 
 Rules:
 
-- `data: Annotated[str, Form()]` receives the JSON blob as a string. Pydantic does not automatically validate it because the slot type is `str` — validation is explicit.
+- `data: Annotated[str, Form()]` receives the JSON blob as a string. Pydantic does not automatically validate it because the parameter type is `str` — validation is explicit.
 - `<Schema>.model_validate_json(data)` parses and validates.
-- **The `try/except PydanticValidationError → raise ValidationError(str(exc)) from exc` is the single sanctioned `try/except` in a route body** in this codebase. It exists because Pydantic's exception is not a `DomainError` and would otherwise produce FastAPI's default 422 instead of an `ErrorResponse`-shaped body. **Use this pattern verbatim — no other forms of error catching belong in a route.**
+- **The `try/except PydanticValidationError → raise ValidationError(str(exc)) from exc` is the single sanctioned `try/except` in a route body** in this codebase. It exists because Pydantic's exception raised inside a route is neither a `DomainError` nor the framework's request-validation error, so uncaught it reaches the catch-all handler and answers `500 INTERNAL_ERROR` for what is the client's malformed input. **Use this pattern verbatim — no other forms of error catching belong in a route.**
 - Exception chaining follows `exception-catalog`.
 
 This pattern is reserved for the multipart+JSON case. **Do not generalize it.** A JSON-only route uses `body: <Schema>` and lets FastAPI's normal validation flow through the central handler.
@@ -405,7 +405,7 @@ An app with no CORS configured has no such list to extend. **Verify `expose_head
 | `PATCH` collection action (`/bulk`, …) | `status_code=204` | `Response(status_code=204)` |
 | `DELETE` | `status_code=204` | `Response(status_code=204)` |
 
-For 204 endpoints, the function return annotation is `-> Response` and the body is `return Response(status_code=204)`. **Do not return `None`** — FastAPI then emits an empty 200.
+For 204 endpoints, the function return annotation is `-> Response` and the body is `return Response(status_code=204)`. **Do not return `None`** — the 204 then lives in the decorator alone, and a decorator that loses its `status_code=204` answers 200 with a JSON `null` body instead of failing visibly.
 
 ### What the route advertises
 
@@ -416,7 +416,7 @@ The per-operation code sets, the helper and the middleware registry are in the s
 10. **Never hand-write the advertisement mapping** — `responses={404: {...}}` typed out at the decorator. Always go through the helper, because the helper is what checks the code against the set of codes something can actually produce; a hand-written entry is the one path by which a status nothing raises reaches the document.
 11. **One hand-maintained registry, and only one.** A status a middleware introduces, with no domain exception behind it, is the only kind registered by hand; everything domain-side derives from the error catalogue's own exported set.
 12. **A middleware-introduced status is registered before it is advertised.** The helper validates against the known set, so an unregistered status fails loudly at import rather than reaching the document.
-13. **A route taking any validated input advertises the input-validation status.** Path parameter, query parameter, filter, pagination or body — any of them can be rejected before the handler runs, so the document must say so. It is *any-input* validation, not body validation: a lone `{id}` produces it, and only a parameterless, body-less route omits it. Where the framework publishes that response on its own, the decorator still names it, so the document reads the same whichever half put it there.
+13. **A route taking any validated input advertises the input-validation status.** Path parameter, query parameter, filter, pagination or body — any of them can be rejected before the handler runs, so the document must say so. It is *any-input* validation, not body validation: a lone `{id}` produces it, and only a parameterless, body-less route omits it. Where the framework publishes a response of its own for that status, the decorator still names it: the framework's entry describes the framework's error body, not the one the app sends.
 
 ### Handler injection
 
@@ -452,7 +452,7 @@ handler: FromDishka[ListFoosHandler],
 27. **Writing the upload to disk inside the route.** Pass bytes (or an `UploadFile`) to the handler; storage is an infrastructure concern (`hex-capability-adapter`).
 28. **Computing or enforcing a per-route size limit.** `MaxRequestSizeMiddleware` is the single chokepoint. If a specific route needs a tighter cap, add it as an application-layer rule that raises `ValidationError` after parsing.
 29. **Streaming without `media_type`.** Browsers and clients rely on it.
-30. **Catching exceptions other than the one sanctioned `PydanticValidationError → ValidationError` translation in mixed-multipart-json mode.** Do not extend the `try/except`.
+30. **Catching exceptions other than the one sanctioned `PydanticValidationError → ValidationError` translation in the mixed multipart + JSON route.** Do not extend the `try/except`.
 31. **Returning `FileResponse` from a path on disk.** All file content originates from the handler's bytes. The API does not serve filesystem paths.
 32. **`response_model` on a streaming route.** Meaningless and confuses OpenAPI.
 
@@ -486,11 +486,11 @@ app.include_router(foos_router)
 - Spec asks the route to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
 - Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
 
-- Spec asks for a `try/except` other than the mixed-multipart-json one → stop, no other `try/except` belongs in a route body.
+- Spec asks for a `try/except` other than the mixed multipart + JSON one → stop, no other `try/except` belongs in a route body.
 - Spec wants the route to compute file size limits → stop, that's the middleware's job.
 - Spec wants the route to parse the file content → stop, that's the handler's job; the route passes bytes.
 - Spec adds a download response header beyond `Content-Disposition` without updating CORS `expose_headers` (when CORS is configured) → stop, update both in the same change.
 - Spec asks a route to catch a domain exception and translate it → stop, use `exception-catalog`.
 - Spec advertises `401` or `403` on a route that attaches no auth dependency → stop, those codes follow the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
 - Spec proposes a third auth dependency type, or any other auth machinery → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.
-- Spec omits the input-validation status on a route that takes a path param, query param, filter or body → stop. Where the framework publishes that response itself — FastAPI does — the decorator names it too, so the document reads the same whichever half put it there; where the framework publishes nothing of its own, the decorator is the only thing documenting the status at all.
+- Spec omits the input-validation status on a route that takes a path param, query param, filter or body → stop. Where the framework publishes that response itself — FastAPI does — its entry describes the framework's error body rather than the app's, so the decorator names it too; where the framework publishes nothing of its own, the decorator is the only thing documenting the status at all.

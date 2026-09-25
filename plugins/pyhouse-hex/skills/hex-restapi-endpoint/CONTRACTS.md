@@ -48,7 +48,7 @@ than cosmetic: `error_responses(...)` validates against the known set, and an au
 | Read, parameterless | nothing (plus `404` if it can not-find) |
 | Read by id (`{id}` path param) | `404, 422` |
 | List / browse (filter or pagination params) | `422` |
-| Create (body) | `409, 422` |
+| Create (body) | `409, 422` (plus `404` if the body references another aggregate by id) |
 | Update (`{id}` plus body) | `404, 409, 422` |
 | Delete (`{id}` path param) | `404, 409, 422` — `409` covers in-use |
 | Static collection action (a literal path segment) | `422` |
@@ -56,18 +56,22 @@ than cosmetic: `error_responses(...)` validates against the known set, and an au
 | Multipart upload | add `413` to whichever set applies |
 
 **Advertise `422` on every route carrying ANY validated input** — a path param, query, filter or
-pagination params, or a body. FastAPI auto-injects a `422` request-validation response into the OpenAPI
-for *every* such operation, so declaring it keeps the published document **honest**: a client reading the
-schema sees the same failure set whether it comes from the decorator or from the framework, and nobody has
-to know which half put it there. Do not expect a test to catch a miss — the
-`test_openapi_advertises_error_codes` invariant (`hex-test-app-invariants`) exempts exactly this code,
-because the framework inserts it where the decorator cannot see it. The rule stands on the document
-telling the truth, not on a red run. That is why Read-by-id and Delete carry `422` despite having no body:
+pagination params, or a body. Any of them can be rejected before the handler runs, and the shell renders
+that rejection as an `ErrorResponse` carrying the catalogue's validation code (`hex-restapi-app`).
+FastAPI publishes a `422` of its own for every such operation, but it describes the framework's default
+`HTTPValidationError` body, which the shell never sends; the decorator's `error_responses(..., 422)`
+entry replaces it, so the published document names the body the client actually receives. Do not expect
+a test to catch a miss — the `test_openapi_advertises_error_codes` invariant (`hex-test-app-invariants`)
+exempts exactly this code, because the framework inserts an entry for it where the decorator cannot see
+it. The rule stands on the document telling the truth, not on a red run. That is why Read-by-id and Delete carry `422` despite having no body:
 the `{id}` path param alone produces it. Only a parameterless, body-less route — a `GET /me` or a health
 probe — omits it. The trap is reading `422` as "body validation"; it is *any-input* validation.
 
 **List a code only if the route can actually produce it.** No `409` on a read, no `413` on a route with no
-size cap in front of it, and no auth code on a route with no auth dependency.
+size cap in front of it, and no auth code on a route with no auth dependency. The converse holds too: a
+code the write path can raise is listed. Where the repository translates a reference to a missing
+aggregate into the catalogue's not-found class (`hex-persistence`), a create or update whose body names
+that aggregate by id can answer `404`, and advertises it.
 
 ## Procedure — routine route
 
