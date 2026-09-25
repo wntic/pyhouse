@@ -1,6 +1,6 @@
 ---
 name: python-packaging
-description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap, the four-part re-export contract, and building nothing at import time. Naming a module is `naming`.
+description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap with the test for when a closed set of declarations may share a module, the four-part re-export contract, and building nothing at import time. Naming a module is `naming`.
 when_to_use: Adding a public module to a package; a wildcard import; import order; a module-level settings object, engine or client.
 ---
 
@@ -26,7 +26,8 @@ What they do *not* decide is which package a module belongs in. That is the arch
 - Which package a module belongs in → `hex-architecture` (in the `pyhouse-hex` plugin) or
   `flat-layered` (in `pyhouse-flat`).
 - Annotation forms, logging, comments → `python-style`.
-- The exception catalog's contents, and why that one file holds many classes → `exception-catalog`.
+- The exception catalog's contents and where its file sits → `exception-catalog`; that it may hold many
+  classes is this skill's set test, of which it is the first worked example.
 - Whether the boundary between two modules or packages should exist at all → `coupling`, first; this skill owns the mechanics once it is drawn.
 
 ## Naming — owned by `naming`
@@ -39,7 +40,8 @@ ported or generated, because that is where names arrive by inertia.
 Two consequences of naming land here, in the packaging mechanics, and are enforced below:
 
 - A module filename must describe its contents and **match its single class in snake_case**
-  (`foo_client.py` → `FooClient`). `utils.py` holding `class FooHelper` is wrong twice — the file
+  (`foo_client.py` → `FooClient`), or name the set when a closed set of declarations shares it
+  (`foo_schemas.py`). `utils.py` holding `class FooHelper` is wrong twice — the file
   names a category rather than a responsibility, and so does the class.
 - A rename is a **separate commit** from any behaviour change, and names that have escaped into
   external contracts — log event names, exception `code` values, registered workflow/activity names,
@@ -50,6 +52,8 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 - **A module that defines a class defines exactly one**, and the module name matches it in snake_case
   (`foo_client.py` → `FooClient`, `entity_registry.py` → `EntityRegistry`). The rule caps classes per
   module; it does not require one. A module of related functions is a first-class shape — see below.
+  The one way past the cap is a closed set of declarations, named for the set — see **When several
+  classes may share a module**.
 - **`__all__` goes after the imports and before the class definition**, never at the top of the file.
 - A module filename must describe its contents, by the rules in `naming`.
 
@@ -98,19 +102,43 @@ nobody declared, shared by every caller in the process and every test in the run
 object with an owner, or it does not exist. Anything that must be *built* rather than declared is
 rule 8's, mutable or not.
 
-### The named exceptions to one-class-per-module
+### When several classes may share a module
 
-Two file *shapes* deliberately hold several classes, because they co-evolve and splitting them would cost
-readability with no decoupling gain:
+The cap exists because a class with behaviour is a unit: a reader looks for it by name, a test
+constructs it on its own, and it changes for its own reasons, so a second one in the same file hides
+behind the first one's filename. Declarations that belong together have none of those properties —
+splitting them buys no decoupling and costs a reader the one view of the whole set. **Several classes
+may share a module only when all three of these hold:**
 
-1. **The exception catalog** — one file holding the root error and every subclass, so the catalog stays
-   auditable (`exception-catalog`).
-2. **A per-resource wire-schema module** — the request/response models describing one resource's
-   contract from different angles.
+1. **Every class is a declaration** — an exception, a record or wire model, an enum, a `TypedDict`.
+   None holds state, is injected, or has a lifecycle to open and close.
+2. **They form one closed set that changes as a unit** — one error catalog; one resource's request and
+   response models; one external API's payloads. A change to the set is one edit in one file; a class
+   that would change for reasons of its own is not in the set.
+3. **The module is named for the set, not for one member** — `errors.py`, `foo_schemas.py`,
+   `foo_payloads.py` — so its name still predicts its contents.
 
-The carve-out is by exact file, not by directory or category. A third entity in `foos/foo.py` is still
-wrong; two adapters in one repository module are still wrong; a command and its handler in one file are
-still wrong.
+**A class with behaviour always has its own module**, whatever it would sit beside. The two worked
+examples of the test:
+
+- **The exception catalog** — the root error and every subclass in one file, so the catalog stays
+  auditable in one read (`exception-catalog` owns its contents and its place).
+- **A per-resource wire-schema module** — the request and response models describing one resource's
+  contract from different angles.
+
+Two further allowances, and no others:
+
+- **A private declaration that never leaves its module** — an underscore-named record, enum or
+  `TypedDict` used only by the module that declares it — may sit beside that module's class. It is part
+  of that class's implementation, not a second unit; the day another module imports it, it moves to a
+  module of its own and loses the underscore.
+- **A module whose name and contents a framework dictates** — Django's `models.py` and `admin.py`,
+  Alembic's `env.py` — follows the framework's convention. The framework finds what it loads by that
+  name, and a split it does not expect fights it at every file.
+
+What the test still refuses: two entities in one module each change for their own reasons (condition
+2); two adapters, or a command beside its handler, put behaviour in a shared file (condition 1); a
+set module named after one of its members hides the rest (condition 3).
 
 Modules holding multiple **functions** — a route module, a module of pure filters — do not engage this
 rule at all. It is about classes.
@@ -304,9 +332,13 @@ hand-written imports land in the right block.
 ## Rules
 
 1. Use `naming` for identifier choice and renaming; check module filenames against their class names.
-2. Check class counts against **Modules** and its two exact-file exceptions; the rule caps classes at
-   one and does not require one, so a function-only module does not engage it. Whether the module wants
-   a class at all is **When a module needs a class at all**: state its methods share, or no class.
+2. **One class per module, unless the classes are one closed set of declarations.** Several classes
+   share a module only when every one is a declaration with no state, injection or lifecycle, they
+   change as one unit, and the module is named for the set; a class with behaviour always has its own
+   module. The only other allowances are a private declaration that never leaves its module and a
+   module whose name and contents a framework dictates. The rule caps classes and does not require one,
+   so a function-only module does not engage it. Whether the module wants a class at all is **When a
+   module needs a class at all**: state its methods share, or no class.
 3. Put module exports between imports and definitions, using the placement shown in **Modules**.
 4. Check each re-exporting `__init__.py` against all four parts of the re-export contract.
 5. When adding a public module, complete all four package edits listed under that contract.
@@ -325,8 +357,13 @@ hand-written imports land in the right block.
 
 ## Hard stops
 
-- A new module file with two top-level classes → stop, split it. The only exceptions are the exception
-  catalog and a per-resource wire-schema module.
+- A class with behaviour — state, an injected collaborator, a lifecycle — sharing its module with any
+  other public class → stop, split it; a class with behaviour always has its own module.
+- Several declarations in one module that do not change as one unit, or a set module named after one
+  of its members → stop, split it or name the module for the set; the allowance is for one closed set,
+  not for any classes that happen to be small.
+- A private helper type in a shared module being imported by another module → stop, give it its own
+  module and drop the underscore; the allowance ends when it leaves.
 - A module filename that does not match its class in snake_case → stop, rename the file.
 - A class carrying **behaviour** with no constructor state, whose methods never read an attribute its
   `__init__` set → stop, the module is already the namespace; these are module-level functions. This
