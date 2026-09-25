@@ -86,7 +86,7 @@ parameter last in the signature, the `domain.auth` + `..dependencies` imports an
 (and `403` when role-gated) codes, and the `caller_id=user.id` argument where the DTO carries it — and
 nothing else. The
 derivation, the dependency choice and the code join are `hex-restapi-auth`'s; one worked authenticated
-variant is kept below, under `mixed multipart + JSON`. The commands these routes build are therefore
+variant is kept in `TRANSFER.md`, under `mixed multipart + JSON`. The commands these routes build are therefore
 `hex-application`'s in their auth-free form, without `caller_id` — its auth-derived-fields rule drops
 the field, and the handler's `caller_id` log argument with it, in an app with no caller to thread.
 
@@ -251,9 +251,9 @@ place a new static endpoint **above** the `update` / `get_by_id` / `delete` rout
 A framework that resolves by specificity instead has no such stop: the obligation is unchanged, and
 nothing in the file's layout can violate it.
 
-File transfer breaks the otherwise-uniform CRUD shape: routes accept multipart bodies or return raw bytes. The conventions below must be repeated verbatim in any new file-transfer route — they encode several non-obvious rules and the single route-body `try/except` exemption.
+File transfer breaks the otherwise-uniform CRUD shape: routes accept multipart bodies or return raw bytes. The conventions in `TRANSFER.md` must be repeated verbatim in any new file-transfer route — they encode several non-obvious rules and the single route-body `try/except` exemption.
 
-**Auth follows the idiom above:** the upload and download templates below are the auth-free form, and the
+**Auth follows the idiom above:** the upload and download templates in `TRANSFER.md` are the auth-free form, and the
 mixed multipart + JSON one is kept as this skill's single worked **authenticated** variant, so the
 interaction between a gated route and its advertised codes has somewhere to be read. The auth dependency
 is never a frozen role; it is the slot `hex-restapi-auth` fills.
