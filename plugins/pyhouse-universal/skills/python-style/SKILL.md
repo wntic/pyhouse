@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 interpreter floor, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured `structlog` event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 interpreter floor, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -144,8 +144,8 @@ Ordinary procedural code may use mutable collections **internally** — loop acc
 but anything crossing into a frozen type is converted first.
 
 *In a hexagonal project this binds the whole of `domain/`, without exception. In a flat-layered service
-it binds the frozen result and payload dataclasses in `schemas/`, and nothing forces it on a local
-accumulator.*
+it binds the frozen result and payload records that pass between its packages, wherever the service
+keeps them, and nothing forces it on a local accumulator.*
 
 ### A record that crosses a boundary is a declared type
 
