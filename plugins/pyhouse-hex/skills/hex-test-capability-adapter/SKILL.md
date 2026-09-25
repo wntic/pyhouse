@@ -144,6 +144,7 @@ tests/unit/infrastructure/<adapter>/
 ```python
 import json
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -158,7 +159,7 @@ _BASE_URL = "https://api.bar.example"
 
 @pytest.fixture
 def settings() -> BarGatewaySettings:
-    return BarGatewaySettings(base_url=_BASE_URL, api_key=SecretStr("test-key"))
+    return BarGatewaySettings(base_url=_BASE_URL, api_key=SecretStr("test-key"), timeout_seconds=5.0)
 
 @pytest.fixture
 async def client() -> AsyncIterator[httpx.AsyncClient]:
@@ -176,11 +177,23 @@ async def test_fetch_token_happy_path(
 
     token = await adapter.fetch_token(subject="alice")
 
-    assert token == BarToken(value="tok-1", expires_at="2030-01-01T00:00:00Z")
+    assert token == BarToken(value="tok-1", expires_at=datetime(2030, 1, 1, tzinfo=UTC))
     assert route.called
     request = route.calls.last.request
     assert request.headers["Authorization"] == "Bearer test-key"
     assert json.loads(request.content) == {"subject": "alice"}
+
+@respx.mock
+async def test_fetch_token_malformed_body_raises_upstream(
+    client: httpx.AsyncClient, settings: BarGatewaySettings,
+) -> None:
+    respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(200, json={"token": "tok-1"}))
+    adapter = HttpBarGateway(client=client, settings=settings)
+
+    with pytest.raises(UpstreamError) as exc:
+        await adapter.fetch_token(subject="alice")
+
+    assert exc.value.context == {"subject": "alice", "reason": "KeyError"}
 
 @respx.mock
 async def test_fetch_token_404_raises_not_found(
@@ -242,6 +255,9 @@ async def test_fetch_token_read_timeout_raises_upstream(
 
     assert exc.value.context["reason"] == "ReadTimeout"
 ```
+
+A `200` whose body lacks a field the domain type needs is the parse arm's case: without the adapter's
+translation around the parse, the `KeyError` escapes and the test reds.
 
 The outgoing body is compared as parsed JSON, never as bytes: separators and key order are the
 client library's serialisation choice, not the upstream's contract, and a byte comparison breaks on a

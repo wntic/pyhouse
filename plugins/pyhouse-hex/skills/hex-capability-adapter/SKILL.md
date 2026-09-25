@@ -47,9 +47,10 @@ import aioboto3
 from botocore.exceptions import ClientError
 
 from myapp.domain.exceptions import (
-    NotFoundError, UpstreamError, ValidationError,
+    NotFoundError,
+    UpstreamError,
+    ValidationError,
 )
-# No import of the protocols the adapter satisfies (Rule 2).
 
 from .settings import S3Settings
 
@@ -110,10 +111,12 @@ methods (`hex-domain-ports`) while nothing limits how many ports one adapter sat
 ### Template — async HTTP gateway (httpx)
 
 ```python
+from datetime import datetime
+
 import httpx
 
-from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
 from myapp.domain.bars import BarToken  # the protocol (ICanFetchBarToken) is NOT imported — Rule 2
+from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
 
 from .settings import BarGatewaySettings
 
@@ -140,8 +143,17 @@ class HttpBarGateway:
                 "bar gateway unreachable",
                 {"subject": subject, "reason": exc.__class__.__name__},
             ) from exc
-        payload = response.json()
-        return BarToken(value=payload["token"], expires_at=payload["expires_at"])
+        try:
+            payload = response.json()
+            return BarToken(
+                value=payload["token"],
+                expires_at=datetime.fromisoformat(payload["expires_at"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise UpstreamError(
+                "bar gateway returned a malformed body",
+                {"subject": subject, "reason": exc.__class__.__name__},
+            ) from exc
 
 def _map_status(exc: httpx.HTTPStatusError, *, subject: str) -> Exception:
     status = exc.response.status_code
@@ -154,6 +166,10 @@ def _map_status(exc: httpx.HTTPStatusError, *, subject: str) -> Exception:
         {"subject": subject, "status": status},
     )
 ```
+
+A `200` is not a result until its body has been read: a body that is not JSON, or that lacks a field
+the domain type needs, raises from the parse, and the parse sits inside a translated scope of its own so
+that failure arrives as `UpstreamError` like any other upstream fault (rule 9).
 
 ### Template — sync pure CPU (stdlib plus a parsing library)
 
@@ -239,9 +255,11 @@ type rather than a raw string.
 6. **Stash the fields the methods use, not the settings object** — unless several methods read several
    fields. The constructor signature is then an honest statement of what the adapter actually depends
    on, and a test can build it without assembling a settings object.
-7. **A secret is unwrapped once, in the constructor** (`settings.api_key.get_secret_value()` under a
-   settings library with a secret type), never on each call. A secret never reaches a log line
-   (`python-style`) and never reaches an exception's `context` (rule 10).
+7. **A secret is unwrapped once, in the constructor of the adapter that sends it**
+   (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
+   private attribute and never unwrapped again per call — the point of use `hex-wiring` settings rule 7
+   names. A secret never reaches a log line (`python-style`) and never reaches an exception's `context`
+   (rule 10).
 
 ### Exception translation
 
