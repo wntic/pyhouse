@@ -76,14 +76,18 @@ Root `pyproject.toml`:
 [project]
 name = "myrepo"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -101,12 +105,10 @@ once, at the root, and inherited.** A member never restates them — a second `l
 `pyproject.toml` is how two halves of one workspace start disagreeing about what a diff should look like.
 `line-length = 120` is the value this catalogue's templates are written to; **88** is the linter's and
 the wider ecosystem's default, and the argument between them turns on whether there is an existing
-tree to reformat. Pick either, write it at the root, and stop arguing. The interpreter floor is the
-same kind of decision, and `python-style` owns it: **3.10** is what this catalogue's own Python forms
-require, and a workspace may sit higher. Whatever it picks, three settings name that one oldest
-supported interpreter and stay in step — `requires-python` here, `target-version` under the linter, and
-`python_version` under the type checker. The `>=3.12` and `py312` in the templates above are one
-workspace's choice shown whole, not a requirement.
+tree to reformat. Pick either, write it at the root, and stop arguing. The interpreter floor is
+settled at the root the same way, and `python-style` owns it: the house floor is 3.13, a workspace may
+raise it and never lower it, and the three settings that name it — `requires-python`, the linter's
+`target-version` and the type checker's `python_version` — stay in step here and nowhere else.
 
 Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 
@@ -115,7 +117,6 @@ Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 [project]
 name = "myapp"
 version = "0.1.0"
-requires-python = ">=3.12"
 dependencies = ["myschema"]
 
 [tool.uv.sources]
@@ -125,6 +126,10 @@ myschema = { workspace = true }
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 ```
+
+The member carries no `requires-python` and no tool configuration of its own: the root settles both,
+and a member that restates the floor is the first half of a workspace that disagrees with itself
+(rule 6).
 
 `docker/local.compose.yaml`:
 
