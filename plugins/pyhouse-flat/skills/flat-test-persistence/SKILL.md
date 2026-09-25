@@ -46,14 +46,16 @@ rule 3), never from a guess:
 `tests/integration/test_foo_table.py`:
 
 ```python
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from myapp.storage.engine import bulk_upsert
+from myapp.storage import bulk_upsert
 from myapp.storage.foo_table import bar_table, foo_table
 
 
@@ -79,7 +81,7 @@ async def test_a_second_write_of_one_reference_updates_rather_than_duplicates(
         conflict_columns=["reference"], update_columns=["name"],
     )
 
-    names = (await conn.execute(select(foo_table.c.name))).scalars().all()
+    names: Sequence[str] = (await conn.execute(select(foo_table.c.name))).scalars().all()
     assert names == ["second"]
 
 
@@ -90,7 +92,7 @@ async def test_a_second_write_leaves_columns_outside_the_update_set_alone(
         conn, foo_table, [_foo()],
         conflict_columns=["reference"], update_columns=["name"],
     )
-    first_created_at = (await conn.execute(select(foo_table.c.created_at))).scalar_one()
+    first_created_at: datetime = (await conn.execute(select(foo_table.c.created_at))).scalar_one()
 
     await bulk_upsert(
         conn, foo_table, [_foo(name="second")],
@@ -115,7 +117,7 @@ async def test_an_empty_update_set_is_a_no_op_rather_than_an_error(
     conn: AsyncConnection,
 ) -> None:
     await conn.execute(foo_table.insert().values(**_foo()))
-    foo_id = (await conn.execute(select(foo_table.c.id))).scalar_one()
+    foo_id: UUID = (await conn.execute(select(foo_table.c.id))).scalar_one()
     row: dict[str, object] = {"foo_id": foo_id, "label": "amber"}
     await bulk_upsert(
         conn, bar_table, [row], conflict_columns=["foo_id", "label"], update_columns=[]
@@ -158,7 +160,7 @@ migration that dropped the intended unique index and let some other constraint f
 
 The chunk-boundary test uses `chunk_size=2` against five rows deliberately: it crosses the boundary three
 times with an uneven last chunk, which is where an off-by-one in the slice shows up. Proving the same
-thing at the production chunk size would need thousands of rows and cost a second per run.
+thing at the production chunk size would need thousands of rows on every run.
 
 **The row builders return mappings, not a declared type, and that is deliberate.** `bulk_upsert` is
 parameterised by the `Table`, so at *that* boundary the keys are data — the same helper takes every
@@ -172,15 +174,16 @@ the storage class — returns that type, not a mapping.
 `tests/integration/test_foo_storage.py`:
 
 ```python
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import String, func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.exceptions import StorageWriteRejected
-from myapp.schemas.foo import Foo
-from myapp.storage.foo_storage import FooStorage
+from myapp.exceptions import StorageWriteRejectedError
+from myapp.schemas import Foo
+from myapp.storage import FooStorage
 from myapp.storage.foo_table import bar_table, foo_table
 
 
@@ -199,7 +202,7 @@ async def test_a_batch_lands_its_foos_and_their_labels(
 ) -> None:
     await FooStorage(engine).record_batch([_a_foo()])
 
-    labels = (await conn.execute(select(bar_table.c.label))).scalars().all()
+    labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
     assert labels == ["amber"]
 
 
@@ -214,10 +217,11 @@ async def test_a_reference_is_normalized_once_on_the_way_in_and_out(
 
 async def test_a_failing_second_write_leaves_no_foo_behind(engine: AsyncEngine) -> None:
     """The two writes are one transaction — a failure in the last must undo the first."""
-    label_width = bar_table.c.label.type.length
-    over_long_label = "l" * (label_width + 1)
+    label_type = bar_table.c.label.type
+    assert isinstance(label_type, String) and label_type.length is not None
+    over_long_label = "l" * (label_type.length + 1)
 
-    with pytest.raises(StorageWriteRejected):
+    with pytest.raises(StorageWriteRejectedError):
         await FooStorage(engine).record_batch([_a_foo(labels=(over_long_label,))])
 
     async with engine.connect() as check:
@@ -280,13 +284,13 @@ it would make the assertion pass for the wrong reason.
    join table that records the same pair twice relies on exactly that.
 6. **Cross a chunk boundary with a deliberately small chunk size and an uneven last chunk**, never with
    production-sized input. Five rows at a chunk size of two crosses it three times; proving the same
-   thing at the production size costs thousands of rows and a second per run.
+   thing at the production size costs thousands of rows on every run.
 7. **A test that forces a driver error asserts the catalogue exception the storage package produces, not
    the driver's own type.** Translation is mandatory, so the driver's class is precisely what must never
    escape — a test expecting it pins the defect instead of the contract.
-8. **Never assert a timestamp advanced with a strict inequality** where the store's clock is
-   transaction-fixed — two writes inside one transaction then produce identical values and the strict
-   comparison flakes. Under Postgres `now()` that means `>=`, not `>`.
+8. **A timestamp the store assigns is asserted as `test-principles`' reliability rules state**, never
+   by equality and never with a strict inequality; under the rollback-scoped `conn` every write shares
+   one transaction, and so one transaction-fixed clock.
 9. **A storage-class test constructs the class with the `engine` fixture**, never with the production
    engine factory — that one reads the placeholder connection string (`flat-persistence`).
 10. **Ordering is asserted only where the query guarantees it.** Add an explicit order clause to any
