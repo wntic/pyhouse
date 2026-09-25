@@ -55,6 +55,7 @@ from botocore.exceptions import ClientError
 from myapp.domain.exceptions import NotFoundError, UpstreamError
 from myapp.infrastructure.s3 import S3FooStorage, S3Settings
 
+
 async def test_upload_then_head_object_succeeds(
     s3_session: Session,
     s3_settings: S3Settings,
@@ -153,7 +154,7 @@ from pydantic import SecretStr
 
 from myapp.domain.bars import BarToken
 from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
-from myapp.infrastructure.bar import BarGatewaySettings, HttpBarGateway
+from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
 
 _BASE_URL = "https://api.bar.example"
 

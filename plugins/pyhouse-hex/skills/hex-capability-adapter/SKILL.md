@@ -110,6 +110,9 @@ methods (`hex-domain-ports`) while nothing limits how many ports one adapter sat
 
 ### Template — async HTTP gateway (httpx)
 
+In `infrastructure/http/http_bar_gateway.py`: the directory names the technology the adapter speaks —
+HTTP — not the `Bar` concern it serves (rule 4), and its settings class sits beside it.
+
 ```python
 from datetime import datetime
 

@@ -150,7 +150,7 @@ class IdnaSettings(BaseSettings):
 ```
 
 ```python
-# src/myapp/infrastructure/bar/settings.py
+# src/myapp/infrastructure/http/settings.py
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -260,8 +260,8 @@ from myapp.domain.foos import (
     IFooRepository,
     IFooSearchIndex,
 )
-from myapp.infrastructure.bar import BarGatewaySettings, HttpBarGateway
 from myapp.infrastructure.export import ExportSettings
+from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
 from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
 from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
 from myapp.infrastructure.postgres.repositories import FooRepository
