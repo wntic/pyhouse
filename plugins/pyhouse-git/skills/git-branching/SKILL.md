@@ -24,8 +24,8 @@ One depends on the answer:
   method → `git-commit-message`. This skill picks the merge method; that one says what the choice
   obliges each message to be.
 - Working out the next version from the history and cutting the release commit and tag → `/release`.
-- What a version number promises, and the tag's own form → `python-versioning`, in the
-  `pyhouse-universal` plugin.
+- What a version number promises, and the tag's own form → the ecosystem's versioning rules; for a
+  Python distribution, for example, `python-versioning`, in the `pyhouse-universal` plugin.
 - Refusing a malformed message at commit time → `/install-commit-hook`. It checks a message's shape,
   not which branch it lands on.
 
