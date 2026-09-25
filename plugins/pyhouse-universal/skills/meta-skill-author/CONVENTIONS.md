@@ -4,7 +4,7 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 44 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 45 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -29,7 +29,7 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Hex core (12)
 
-- `hex-architecture` — Choose this style when business invariants must outlive infrastructure or serve multiple entrypoints.
+- `hex-architecture` — Once the family is hexagonal, decides which layer a module belongs in and which way an import may cross; whether hexagonal fits at all is `architecture-choice`'s.
 - `hex-conventions` — Resolve artifact locations and context ownership before applying an artifact's file template.
 - `hex-project-setup` — Run the migration bootstrap once; later table changes use the persistence skill's paired revision.
 - `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together.
@@ -60,11 +60,12 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-test-app-invariants` — Pins properties of the assembled app that adding or removing an endpoint must never oblige anyone to edit.
 - `hex-test-restapi-auth` — Layer the auth fixtures over the shared integration setup; produced only for an app whose entrypoint authenticates.
 
-### Flat core (3)
+### Flat core (4)
 
-- `flat-layered` — Four role kinds carry the rules; the worked example's directory names are one project's and are replaceable, and one distribution on its own is the default.
+- `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; one distribution on its own is the default.
 - `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
 - `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
+- `flat-project-setup` — Lay a flat service down once — pyproject, toolchain, dependency floors and the migration bootstrap; per-change revisions are `flat-persistence`'s.
 
 ### Flat tests (4)
 
@@ -80,9 +81,9 @@ too. The counts in every heading are the number of directories on disk.
 
 ## Packaging — which plugin a skill ships in
 
-The catalogue is distributed on the Claude Code marketplace as three plugins under the marketplace name
-`pyhouse`. Every new Python skill belongs to exactly one of them. A fourth plugin, `pyhouse-git`, ships
-beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
+The catalogue is distributed on the Claude Code marketplace as four plugins under the marketplace name
+`pyhouse`. Three of them hold Python house style, and every new Python skill belongs to exactly one of
+those three. The fourth, `pyhouse-git`, ships beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
 depends on nothing and nothing in the catalogue depends on it, so a `git-*` skill may name a catalogue
 skill only as an example and must read correctly in a repository with no Python in it.
 
@@ -90,7 +91,7 @@ skill only as an example and must read correctly in a repository with no Python 
 |---|---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
-| `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (7) | `pyhouse-universal` |
+| `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |
 
 **The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.

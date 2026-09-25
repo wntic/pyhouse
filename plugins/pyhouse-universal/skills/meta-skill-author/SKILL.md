@@ -17,7 +17,7 @@ design the change format.
 
 **Read the sibling `CONVENTIONS.md` in this skill's own directory before writing anything.** It carries
 the catalogue's shared placeholder vocabulary (`Foo`, `Bar`, `myapp`, `myschema` and the names derived
-from them), the banned vocabulary, the index of what each existing skill covers, the three-plugin
+from them), the banned vocabulary, the index of what each existing skill covers, the four-plugin
 packaging layout, and the two standing catalogue decisions — what is deliberately out of scope, and why
 repositories are not split read/write. Only this file is loaded automatically; the sibling is not, so
 open it rather than working from this summary of it.
@@ -80,7 +80,7 @@ invoked by hand.
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue.** 41 skills at ~400 characters is ~4,100 tokens,
+- **There is no total budget across the catalogue.** 45 skills at ~400 characters is ~4,500 tokens,
   about 2% of a 200k window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
@@ -322,6 +322,12 @@ flat-test-<artifact>     flat-test-run-function, ...
     could repeat — what was run, against what, and what came back. Otherwise drop the evidence
     language and let the rule stand as the obligation it is. A fabricated measurement is worse than no
     evidence: it is what stops the next reader checking.
+14. **A rule a defect paid for travels verbatim.** When such a rule is moved, merged or reworded
+    across skills, copy the sentence rather than restate it. What carries it is one distinctive phrase
+    or code pattern, the part a plausibly-wrong rewrite would never reproduce by accident; a paraphrase
+    keeps the topic and drops exactly that, so the rule survives as a heading and stops changing
+    anyone's behaviour. If the wording around it has to change, keep that phrase intact inside the new
+    wording.
 
 ## Ownership — reference, never restate
 
@@ -441,17 +447,19 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
 ## After writing the file
 
 The catalogue has two indexes — the one in the sibling `CONVENTIONS.md` and the catalogue index at
-`skills/README.md`. Both are **derived from the skills' own frontmatter**, `name` plus `description`,
-by the repo's index generator. They are output, not source: a skill's coverage is stated once, in its
-own frontmatter.
+`skills/README.md`. A skill's coverage is stated once, in its own frontmatter; both indexes restate
+it, and no generator derives them yet, so they are kept in step by hand in the same change as the
+skill.
 
-1. **Run the index generator and commit its output with the skill.** Do not hand-edit either index —
-   a line typed straight into one of them is a third statement of what the skill covers, and it is the
-   one that goes stale first.
-2. If the generated entry reads badly, fix the `description` and regenerate. An index cannot say
-   something the frontmatter does not.
+1. **Add the skill to both indexes.** In `CONVENTIONS.md`, one disambiguating line under its family —
+   written to agree with the skill's `description` and body, not copied from either. In
+   `skills/README.md`, one row in its family's table.
+2. **Update every count the skill changes** — the family heading in both indexes, the total at the
+   top of each, the plugin's row in the packaging table, the plugin table and the prose total in the
+   repository's top-level `README.md`, and the counts in the repository's `CLAUDE.md`. Counts are the
+   first thing to go stale.
 3. Confirm which plugin the skill ships in, using the packaging table in `CONVENTIONS.md` — the prefix
-   decides it, and the generator groups the entry by that prefix.
+   decides it.
 
 ## Hard stops
 
