@@ -357,7 +357,7 @@ class FakeFooStorage:
         self.deletes.append(key)
 ```
 
-The `uploads` and `deletes` lists are the test-side observation surface.
+The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at the test scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
 
 ### The fake's copy contract, pinned once
 
@@ -379,7 +379,7 @@ async def test_a_mutated_entity_does_not_reach_the_store() -> None:
     loaded.name = "read-then-mutated"
 
     assert (await repo.get_by_id(foo.id)).name == "alpha"
-``` **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at the test scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
+```
 
 ## Rules
 
