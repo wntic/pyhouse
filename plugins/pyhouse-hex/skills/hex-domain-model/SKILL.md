@@ -206,6 +206,23 @@ class Foo(Enum):
     C = 3
 ```
 
+### Filter sort enum
+
+`domain/foos/foo_sort.py`, beside the filter that imports it (`hex-conventions`). One member per ordering
+the list read offers, each naming a column and a direction; the repository maps every member to its
+ordered column (`hex-persistence`).
+
+```python
+from enum import StrEnum
+
+__all__ = ["FooSort"]
+
+class FooSort(StrEnum):
+    CREATED_AT_DESC = "created_at_desc"
+    CREATED_AT_ASC = "created_at_asc"
+    NAME_ASC = "name_asc"
+```
+
 ### Filter record
 
 ```python
