@@ -36,9 +36,7 @@ stable, descriptive suffix.
 
 ```python
 # src/myapp/infrastructure/postgres/tables/foos.py
-from sqlalchemy import (
-    CheckConstraint, Column, DateTime, ForeignKey, Index, Table, Text,
-)
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Table, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -56,14 +54,18 @@ foos_table: Table = Table(
         UUID(as_uuid=True),
         ForeignKey("bars.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
     ),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    ),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("char_length(name) > 0", name="name_non_empty"),
-    Index("ix_foos_bar_id", "bar_id"),
-    Index("ix_foos_created_at", "created_at"),
 )
 ```
+
+`index=True` on a column is the single-column index with no `name=`: the convention names it
+`ix_foos_bar_id` and `ix_foos_created_at`, exactly what the revision writes out.
 
 ## Rules — column types
 
