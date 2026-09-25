@@ -439,7 +439,7 @@ For `restapi/__init__.py` and `restapi/middleware/__init__.py`, follow `python-p
 
 - The spec asks to add `domain/error_catalog.py` → stop, reject as obsolete; the catalog is dynamic.
 - Asked to attach business logic to lifespan → stop, reserve lifespan for infrastructure teardown only: disposing the resources the app's datastores opened.
-- The spec asks the translator to branch on a second exception class → stop, encode new behavior via subclass `code`/`http_status` instead; the one sanctioned branch is the auth challenge (`hex-restapi-auth`).
+- Asked to make the translator branch on a second exception class → stop, encode new behavior via subclass `code`/`http_status` instead; the one sanctioned branch is the auth challenge (`hex-restapi-auth`). The request-validation handler in the template is not such a branch: it translates the framework's input rejection into the catalogue's `ValidationError` and hands it to the domain handler, so it stays.
 - `domain/exceptions.py` does not exist yet → stop, use `exception-catalog` bootstrap first.
 - `myapp/containers.py` does not exist yet → stop, use `hex-wiring` first.
 - Spec asks `lifespan` to dispose a named engine or client → stop, declare that release beside the resource's construction in `hex-wiring`; `lifespan` closes the composition root and nothing else.
