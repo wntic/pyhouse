@@ -139,8 +139,8 @@ That call takes the **distribution** name, which need not equal the import packa
 6. **A change that can break a consumer who used only the declared surface is a major** — from
    `1.0.0` on; below it, rule 9 says what it bumps. That includes removing or renaming a name in it,
    changing what a call returns, reordering or retyping its parameters, changing a default that a call
-   omitting it depends on, and changing which exception a documented failure raises. Whether the consumer *deserved* to depend on it is not the test; whether
-   the surface declared it is.
+   omitting it depends on, and changing which exception a documented failure raises. Whether the
+   consumer *deserved* to depend on it is not the test; whether the surface declared it is.
 
 7. **Adding to the surface without changing what is there is a minor, and so is deprecating.** A
    deprecation is a release event of its own: it ships in a minor, at least one release before the
