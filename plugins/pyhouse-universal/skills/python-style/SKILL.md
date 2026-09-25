@@ -102,17 +102,18 @@ Related convention: when collecting heterogeneous values, use `dict[str, object]
 point of consumption.
 
 Past the boundary — in business logic, a handler body, a run function — `Any` is forbidden. If a type is
-hard to express, introduce a `TypeAlias` or a small dataclass.
+hard to express, introduce a `type` alias or a small dataclass.
 
-### `TypeAlias` for repeated complex types
+### A `type` alias for repeated complex types
 
 ```python
-from typing import TypeAlias
+from uuid import UUID
 
-FooKey: TypeAlias = tuple[UUID, int]
+type FooKey = tuple[UUID, int]
 ```
 
-Use one whenever the same composite — a `tuple[…, …]`, a `dict[str, frozenset[UUID]]`, a callable
+The PEP 695 `type` statement, not `typing.TypeAlias` — the statement is the form the 3.13 floor gives,
+and it is evaluated lazily, so an alias may name a class defined further down. Use one whenever the same composite — a `tuple[…, …]`, a `dict[str, frozenset[UUID]]`, a callable
 signature — appears in more than one signature. Place it at the top of the module owning the concept,
 after imports and before classes, and re-export it via `__all__` if it crosses module boundaries. For a
 module-internal one-shot type, write the type out; a premature alias hides intent.
@@ -163,7 +164,7 @@ is parsed.
 | Being passed | Declare instead |
 |---|---|
 | a `dict` whose keys are known when the code is written | a frozen dataclass, or a validation model at a parse boundary |
-| a tuple whose positions mean different things | a frozen dataclass; a `TypeAlias` only when it is genuinely n of one thing |
+| a tuple whose positions mean different things | a frozen dataclass; a `type` alias only when it is genuinely n of one thing |
 | `**kwargs` forwarded and unpacked further down | named parameters, or one parameter of a declared type |
 
 A `dict` is still the right type where the **keys are data**: a lookup keyed by id, a count per
@@ -354,7 +355,7 @@ Typing:
 - A `requires-python`, `target-version` or `python_version` below 3.13, or the three naming different
   interpreters → stop, set all three to the house floor or one above it; below it the templates are not
   correct as written, and three disagreeing settings let a form pass the linter that fails at runtime.
-- Bare `Any` outside the documented external-boundary cases → stop, introduce a `TypeAlias` or a small
+- Bare `Any` outside the documented external-boundary cases → stop, introduce a `type` alias or a small
   dataclass; do not let `Any` spread.
 - Untyped `**kwargs` / `*args` in business logic → stop, a dataclass is missing.
 - A `dict` or tuple with a fixed set of known fields crossing a boundary — returned from a client,
