@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from myapp.infrastructure.postgres.engine import create_engine, dispose_engine
+from myapp.infrastructure.postgres.engine import create_engine
 from myapp.infrastructure.postgres.settings import DbSettings
 from myapp.infrastructure.s3 import S3Settings
 
@@ -194,7 +194,7 @@ async def _engine(_migrated_db: DbSettings) -> AsyncIterator[AsyncEngine]:
     try:
         yield engine
     finally:
-        await dispose_engine(engine)
+        await engine.dispose()
 
 @pytest.fixture
 async def _outer_connection(_engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
@@ -350,7 +350,7 @@ and authenticated-client fixtures, and `real_app` above grows the `jwt_settings`
 
 ## Per-resource `conftest.py` is **not** owned here
 
-Per-resource fixtures (`make_foo`, `foo_id`, `bar_id`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them but expects the consuming spec to declare what it needs.
+Per-resource fixtures (`make_foo`, `foo_id`, `bar_id`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them, and each resource's tests declare the ones they need.
 
 ## How this binding spells them — testcontainers, Alembic, SQLAlchemy savepoints
 
