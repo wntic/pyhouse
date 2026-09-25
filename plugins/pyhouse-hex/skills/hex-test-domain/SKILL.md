@@ -1,14 +1,14 @@
 ---
 name: hex-test-domain
-description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` alone — no IO, no fixtures, no fakes, no container. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a canonicalization rule gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
+description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` — no IO, no fixtures, no container, and an orchestrator service run on the in-memory fake of its port. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a canonicalization rule gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
 ---
 
 # Hex Test — Domain
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-The four kinds of test the domain layer takes: stdlib plus `pytest` plus `myapp.domain.*` and nothing
-else.
+The four kinds of test the domain layer takes: stdlib plus `pytest` plus `myapp.domain.*`, and for an
+orchestrator service the hand-written fake of its port.
 
 ## When to use vs. neighbours
 
@@ -181,7 +181,7 @@ The rank ladder is this example enum's own. Test every member's value, the rejec
 and the method at, above and below the bar — `satisfies` is the rank-ordered `StrEnum` shape from
 `hex-domain-model`, whatever the enum ranks.
 
-### Domain service — orchestrator, with a minimal inline stub
+### Domain service — orchestrator, on the fake of its port
 
 ```python
 import uuid
@@ -190,16 +190,11 @@ import pytest
 
 from myapp.domain.exceptions import FooConflictError
 from myapp.domain.foos import Foo, FooUniquenessService
+from tests.unit.fakes import FakeFooRepository
 
 def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
-    class _MinimalRepo:
-        def __init__(self, names: list[str]) -> None:
-            self._by_name = {n: Foo(id=uuid.uuid4(), name=n, bar_id=uuid.uuid4()) for n in names}
-
-        async def get_by_name(self, name: str) -> Foo | None:
-            return self._by_name.get(name)
-
-    return FooUniquenessService(repo=_MinimalRepo(existing_names or []))
+    foos = [Foo(id=uuid.uuid4(), name=n, bar_id=uuid.uuid4()) for n in existing_names or []]
+    return FooUniquenessService(repo=FakeFooRepository(items=foos))
 
 async def test_assert_name_available_raises_when_taken() -> None:
     service = _service(["alpha"])
@@ -253,8 +248,8 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
    method is declared async; making the rest async buys nothing and hides which subjects do IO-shaped
    work. Async configuration and markers → `test-principles`.
 2. The no-mocks contract → `test-principles`. The domain has no IO to stub, and where
-   a stub is needed (a service's injected protocol) it is hand-written so the dependency surface stays
-   visible.
+   a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
+   class for a narrow protocol (rule 17).
 3. Fixture-versus-builder rules → `test-principles`.
 4. **Assert against literal expected values.** Never re-implement the rule under test to compute the
    expected value — that hides the defect where both sides make the same mistake.
@@ -303,14 +298,16 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 
 ### Domain service
 
-17. **An orchestrator uses a minimal inline class, not a fake from `tests/unit/fakes/`.** The class
-    implements only the protocol methods the service actually calls. That makes the true dependency
-    surface visible: a service that "needs the whole repository" is probably an entity method in disguise.
-    The fakes directory exists and is real (`hex-test-application-handler`) — it is for *handler* tests, where the
-    fake stands in for a whole adapter.
-18. **The `_service(...)` factory returns the constructed service**, hiding the inline-class plumbing from
-    each test body.
-19. **One `test_*` per behaviour of each method**, named so the test name *is* the spec line —
+17. **An orchestrator runs on the fake of the port it takes.** A service that takes the whole
+    repository port (`IFooRepository`) is built on `FakeFooRepository` from `tests.unit.fakes`
+    (`hex-test-application-handler`): under a strict type checker a stand-in must satisfy the whole
+    protocol, and that fake already does, with the real adapter's exception contract. A minimal inline
+    class is allowed only when the service's parameter is a protocol declaring exactly the methods it
+    calls — it then implements that protocol and nothing more, which keeps the narrow dependency
+    surface visible.
+18. **The `_service(...)` factory returns the constructed service**, hiding the collaborator plumbing
+    from each test body.
+19. **One `test_*` per behaviour of each method**, named so the test name *is* the behaviour's one-line statement —
     `test_assert_name_available_raises_when_taken`, `test_assert_name_available_passes_when_free`.
 20. **A pure-logic service constructs one instance at module scope.** It is stateless; per-test
     construction is ceremony.
@@ -323,31 +320,33 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 
 Identical for all four kinds:
 
-- Stdlib (`uuid`, and `datetime` only when genuinely needed) plus `pytest` plus `myapp.domain.*`. No
-  infrastructure, no application, no restapi, no Pydantic, no SQLAlchemy.
+- Stdlib (`uuid`, and `datetime` only when genuinely needed) plus `pytest` plus `myapp.domain.*`, and
+  `tests.unit.fakes` for an orchestrator's collaborators. No infrastructure, no application, no restapi,
+  no Pydantic, no SQLAlchemy.
 - Full annotations on a builder or factory and on an inline stub class. Tests are
   `def test_*() -> None` or `async def test_*() -> None`.
 - No `from __future__ import annotations`.
 
 ## Hard stops
 
-- Spec asks a test here to touch a database, an HTTP endpoint or blob storage → stop, use
+- A test here needs a database, an HTTP endpoint or blob storage → stop, use
   `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
-- Spec asks for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
-- Spec asks for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
-- Spec asks to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
-- Spec re-implements the rule in the test to compute the expected value → stop, assert literal values.
-- Spec asserts on log output or captured logs → stop, the domain layer logs nothing at all
+- Asked for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
+- Asked for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
+- Asked to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
+- A test re-implements the rule to compute the expected value → stop, assert literal values.
+- A test asserts on log output or captured logs → stop, the domain layer logs nothing at all
   (`python-style` allocates logging by layer); assert the return value or the raised exception.
 - Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
   entity's own fields and nothing else. `created_at` / `updated_at` are the usual case: the store
   maintains them, so they are not entity fields (`hex-domain-model`, Entity rule 6).
 - The value object declares no invariant of its own and no custom equality → stop, produce no file.
-- Spec proposes looping over enum members → stop, write explicit asserts.
-- Spec uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent
+- A test loops over enum members → stop, write explicit asserts.
+- A test uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent
   truthy-but-not-`True` bugs.
-- An enum's members are not enumerated in the spec → stop, list them explicitly.
-- Spec adds methods to a service's inline stub that the service never calls → stop, implement
-  exactly the called surface.
-- Spec adds `@pytest.mark.asyncio` → stop, use `test-principles`.
+- An enum's members are not known → stop, list them explicitly.
+- An inline stub stands in for a full port, or implements methods beyond the narrow protocol the
+  service's parameter declares → stop, use the port's fake from `tests.unit.fakes`, or the narrow
+  protocol exactly.
+- A test adds `@pytest.mark.asyncio` → stop, use `test-principles`.
 - A pure-logic canonicalizer's test omits `test_idempotent` → stop, add `test_idempotent`; idempotence is part of the contract.
