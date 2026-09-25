@@ -104,6 +104,10 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    one request is one logical change. Under a merge commit every branch commit lands, so each must be.
    Either is fine and both at once is not: the check then has to sit in two places, and usually sits in
    one. Pick one, state it where contributors read, and enforce it there — `git-branching` rule 2.
+   Where it is not recorded, the forge's merge setting is the answer; failing that, the mainline's
+   shape — merge commits on it mean every branch commit lands, and single-parent commits whose subjects
+   end in a request number mean squashing; anything else, ask. The merge commit git writes itself is
+   not a message anyone composed and is exempt, so a tool reading the history skips it.
 
 ## Hard stops
 
