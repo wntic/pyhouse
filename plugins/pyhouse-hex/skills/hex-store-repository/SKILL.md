@@ -102,7 +102,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 __all__ = ["RedisSettings"]
 
 class RedisSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_REDIS_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_REDIS_",
+        env_file=".env",
+        extra="ignore",
+    )
 
     url: SecretStr
     foos_key_prefix: str

@@ -186,7 +186,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 __all__ = ["BarGatewaySettings"]
 
 class BarGatewaySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_BAR_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_BAR_",
+        env_file=".env",
+        extra="ignore",
+    )
 
     base_url: str
     api_key: SecretStr
@@ -255,7 +259,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 __all__ = ["IdnaSettings"]
 
 class IdnaSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_IDNA_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_IDNA_",
+        env_file=".env",
+        extra="ignore",
+    )
 
     allowed_schemes: frozenset[str]
 ```

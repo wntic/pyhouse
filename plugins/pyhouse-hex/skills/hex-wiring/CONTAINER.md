@@ -167,7 +167,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 __all__ = ["ExportSettings"]
 
 class ExportSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_EXPORT_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_EXPORT_",
+        env_file=".env",
+        extra="ignore",
+    )
 
     max_rows: int
 ```
