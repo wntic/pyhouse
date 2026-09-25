@@ -23,7 +23,7 @@ Produces one repository class that adapts a domain repository protocol to a clie
 - The integration contract test that drives this adapter against the real store →
   `hex-test-repository-contract`.
 
-## Template(s) — two store profiles, each naming its stack
+## Template(s) — redis-py and qdrant-client
 
 ### Key-value / document form — worked binding: `redis`
 
@@ -42,24 +42,28 @@ from myapp.domain.exceptions import NotFoundError, UpstreamError
 # python-packaging.
 from myapp.domain.foos import Foo
 
-from ..settings import FoosStoreSettings
+from ..settings import RedisSettings
 
 __all__ = ["FooRepository"]
 
 
 class FooRepository:
-    def __init__(self, client: Redis, settings: FoosStoreSettings) -> None:
+    def __init__(self, client: Redis, settings: RedisSettings) -> None:
         self._client = client
-        self._prefix = settings.key_prefix   # the store's container token (Rule 5)
+        self._prefix = settings.foos_key_prefix   # the store's container token (Rule 5)
 
     def _key(self, foo_id: UUID) -> str:
         return f"{self._prefix}:{foo_id}"
 
     def _record_to_entity(self, record: dict[str, object]) -> Foo:
-        return Foo(id=UUID(str(record["id"])), name=str(record["name"]))
+        return Foo(
+            id=UUID(str(record["id"])),
+            name=str(record["name"]),
+            bar_id=UUID(str(record["bar_id"])),
+        )
 
     async def add(self, foo: Foo) -> None:
-        record = {"id": str(foo.id), "name": foo.name}
+        record = {"id": str(foo.id), "name": foo.name, "bar_id": str(foo.bar_id)}
         try:
             await self._client.set(self._key(foo.id), json.dumps(record))
         except RedisError as exc:
@@ -92,92 +96,84 @@ class FooRepository:
             raise NotFoundError("Foo not found", {"id": str(foo_id)})
 ```
 
-### Collection-shaped form — placeholder client, worked on a scored-search store
+### Collection-shaped form — worked binding: Qdrant (`qdrant-client`)
 
-The second form is deliberately **not** a second vendor. `store_sdk` below stands for whatever client
-library this datastore's store profile names (`hex-conventions` block B) — a vector store such as
-qdrant, weaviate or pinecone, a search index such as elasticsearch or opensearch, a document store's
-collection API. Substituting the real SDK's type names is the whole of the port; everything else on the
-page holds unchanged.
+The second profile shape — a collection of points searched by similarity — worked on Qdrant's async
+client. A search index or another vector store differs in the client class, the point model, the
+filter DSL and the exception families; see `## Other bindings`.
 
 ```python
+from collections.abc import Sequence
 from uuid import UUID
 
-from store_sdk import AsyncStoreClient
-from store_sdk.models import (
+from qdrant_client import AsyncQdrantClient
+from qdrant_client.common.client_exceptions import QdrantException
+from qdrant_client.http.exceptions import ApiException
+from qdrant_client.models import (
     FieldCondition,
     Filter,
     FilterSelector,
     MatchValue,
-    Record,
-    ScoredRecord,
+    PointStruct,
+    ScoredPoint,
 )
 
 from myapp.domain.exceptions import UpstreamError
 from myapp.domain.foos import Foo
 
-from ..settings import FoosVectorSettings
+from ..settings import QdrantSettings
 
 __all__ = ["FooRepository"]
 
+_QDRANT_ERRORS = (ApiException, QdrantException)
+
 
 class FooRepository:
-    def __init__(self, client: AsyncStoreClient, settings: FoosVectorSettings) -> None:
+    def __init__(self, client: AsyncQdrantClient, settings: QdrantSettings) -> None:
         self._client = client
-        self._collection = settings.collection
+        self._collection = settings.foos_collection
 
-    async def add_many(self, foos: tuple[Foo, ...]) -> None:
+    async def add_many(self, embedded: Sequence[tuple[Foo, Sequence[float]]]) -> None:
         points = [
-            Record(
+            PointStruct(
                 id=str(foo.id),
-                vector=foo.vector,
-                payload={"bar_id": str(foo.bar_id), "text": foo.text},
+                vector=list(vector),
+                payload={"name": foo.name, "bar_id": str(foo.bar_id)},
             )
-            for foo in foos
+            for foo, vector in embedded
         ]
         try:
             await self._client.upsert(collection_name=self._collection, points=points)
-        # Many store SDKs expose no single exception root; boundary translation
-        # follows exception-catalog (Rule 9).
-        except Exception as exc:
+        except _QDRANT_ERRORS as exc:
             raise UpstreamError(
                 "vector upsert failed",
                 {"collection": self._collection, "reason": exc.__class__.__name__},
             ) from exc
 
     async def search(
-        self, query_vector: list[float], k: int
+        self, query_vector: Sequence[float], k: int
     ) -> tuple[tuple[Foo, float], ...]:
         try:
             response = await self._client.query_points(
                 collection_name=self._collection,
-                query=query_vector,
+                query=list(query_vector),
                 limit=k,
                 with_payload=True,
-                with_vectors=True,  # each entity carries its OWN vector, never the query's
             )
-        except Exception as exc:
+        except _QDRANT_ERRORS as exc:
             raise UpstreamError(
                 "vector search failed",
                 {"collection": self._collection, "reason": exc.__class__.__name__},
             ) from exc
-        # The store computed a similarity score per hit — return it alongside the entity
-        # (the protocol's pair shape exists precisely so the score is not discarded).
-        return tuple(
-            (self._point_to_entity(point), point.score) for point in response.points
-        )
+        return tuple((self._point_to_entity(point), point.score) for point in response.points)
 
     async def delete_by_bar(self, bar_id: UUID) -> None:
         selector = FilterSelector(
-            filter=Filter(
-                must=[FieldCondition(key="bar_id", match=MatchValue(value=str(bar_id)))]
-            )
+            filter=Filter(must=[FieldCondition(key="bar_id", match=MatchValue(value=str(bar_id)))])
         )
         try:
-            await self._client.delete(
-                collection_name=self._collection, points_selector=selector
-            )
-        except Exception as exc:
+            await self._client.delete(collection_name=self._collection, points_selector=selector)
+        except _QDRANT_ERRORS as exc:
             raise UpstreamError(
                 "vector delete failed",
                 {
@@ -187,16 +183,21 @@ class FooRepository:
                 },
             ) from exc
 
-    def _point_to_entity(self, point: ScoredRecord) -> Foo:
+    def _point_to_entity(self, point: ScoredPoint) -> Foo:
         payload = point.payload or {}
-        vector = point.vector if isinstance(point.vector, list) else []
         return Foo(
             id=UUID(str(point.id)),
+            name=str(payload["name"]),
             bar_id=UUID(str(payload["bar_id"])),
-            text=str(payload["text"]),
-            vector=[float(v) for v in vector],
         )
 ```
+
+The embedding is an input the index stores beside the entity, not a field of `Foo`: the search path
+never consumes a stored vector, so it does not fetch one (Rule 8).
+
+`qdrant-client` has no single exception root: its HTTP transport raises `ApiException` subclasses (an
+unexpected status, an unreachable server) and its client raises `QdrantException` subclasses (a
+rate-limit response), so the adapter catches both families by name — never a bare `Exception`.
 
 ## Other bindings
 
@@ -208,8 +209,10 @@ What changes, and what does not:
   rather than a JSON string. Mapping helpers, translation and thinness are unchanged.
 - **Search indices** (elasticsearch, opensearch) — the collection-shaped form. The scored-pair return
   shape in Rule 3 is the same one; only the query DSL differs.
-- **Vector stores** (qdrant, weaviate, pinecone, milvus) — the collection-shaped form as written; the
-  vector is a stored field of the entity, which is what Rule 8 is about.
+- **Other vector stores** (weaviate, pinecone, milvus) — the collection-shaped form: the client class,
+  the point model, the filter DSL and the exception families change; the embedding passed beside the
+  entity, the entity rebuilt from its own stored payload (Rule 8), the scored-pair return and the
+  translation do not.
 - **Object stores** (`s3`, gcs, azure blob) — a bucket is a container token like any other, but a blob
   is usually a single-action capability rather than an aggregate's collection, so check
   `hex-capability-adapter` first.
@@ -270,7 +273,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.foos import Foo`); the sibling settings module relative (`from ..settings import FoosStoreSettings`). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
+- Domain imports absolute (`from myapp.domain.foos import Foo`); the sibling settings module relative (`from ..settings import RedisSettings`). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - Raw SDK payloads may be `dict[str, Any]` / `object` at the immediate boundary — convert to the domain type in the mapping helper, never return them.
 - No `from __future__ import annotations`. Full annotations on every method.

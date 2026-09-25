@@ -51,10 +51,10 @@ __all__ = ["Foo"]
 @dataclass
 class Foo:
     id: UUID
-    # required fields first; `field: T | None = None` after
+    name: str
+    bar_id: UUID
 
     def __post_init__(self) -> None:
-        # one block per invariant; omit method entirely if no invariants
         if not self.name:
             raise ValidationError("name must be non-empty", {"field": "name"})
 
@@ -133,8 +133,8 @@ class FooExportTunable:
 
 Distinguishing characteristics:
 
-- Sourced from a settings class at the DI layer — the provider wires
-  `FooExportTunable(max_rows=export_settings.provided.max_rows)`. See `hex-wiring`.
+- Sourced from a settings class at the composition root — a provider of its own reads each field off
+  the settings object and passes it: `FooExportTunable(max_rows=settings.max_rows)`. See `hex-wiring`.
 - Injected into domain services and application handlers, never into entities. Entities do not read
   tunables; services do.
 - Every value-object rule still applies: frozen, no methods, primitive or VO fields only. Which
@@ -219,7 +219,7 @@ __all__ = ["FooListFilter"]
 
 @dataclass(frozen=True)
 class FooListFilter:
-    parent_ids: frozenset[UUID] = field(default_factory=frozenset)
+    bar_ids: frozenset[UUID] = field(default_factory=frozenset)
     created_from: date | None = None
     created_to: date | None = None
     sort: FooSort = FooSort.CREATED_AT_DESC

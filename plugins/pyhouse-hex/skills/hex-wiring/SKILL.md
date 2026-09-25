@@ -1,13 +1,14 @@
 ---
 name: hex-wiring
 description: Use when adding a binding in `containers.py` or an env-backed settings class — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and the settings class owning one integration's env namespace, its secret fields and its derived values. Bound here to dishka and pydantic-settings, with other DI and settings libraries mapped under `## Other bindings`. The class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate and toolchain are `hex-project-setup`, not runtime wiring.
-paths: ["**/containers.py", "**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
+paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
 # Hex — Wiring
 
 Two halves of one job: getting values in from the environment, and handing objects to whoever needs
-them. The two meet at one rule: a settings class is instantiated **only** by the composition root.
+them. The two meet at one rule: a settings class is instantiated **only** at a composition root
+(settings rule 13).
 
 ## When to use vs. neighbours
 
@@ -34,7 +35,7 @@ API key, a blob store, a vector store or an observability backend. Never copy th
 settings class.
 
 ```python
-from pydantic import SecretStr, computed_field
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["DbSettings"]
@@ -57,7 +58,6 @@ class DbSettings(BaseSettings):
     pool_pre_ping: bool = True
     echo: bool = False
 
-    @computed_field
     @property
     def dsn(self) -> str:
         return (
@@ -112,12 +112,13 @@ Three `model_config` keys are mandatory **under pydantic-settings**, and each is
 project's dotenv file, so local development reads it while production injects real environment and the
 file simply is not there; and `extra="ignore"` keeps the namespace non-strict, without which a
 neighbouring variable in it crashes startup. `SecretStr` is this binding's non-printing secret type and
-`.get_secret_value()` its unwrap; `@computed_field @property` is where a derived value is computed on
+`.get_secret_value()` its unwrap; a plain `@property` is where a derived value is computed on
 the object; `@field_validator` is where normalization and rejection are written.
 
 ### Explicit settings values for tests
 
-Settings test construction → `test-principles`.
+Settings test construction → `test-principles`. The test infrastructure provider and its fixtures are
+one of the three composition roots rule 13 names, so they construct settings with explicit values:
 
 `DbSettings(host="localhost", user="t", password=SecretStr("t"), name="t")`.
 
@@ -148,8 +149,12 @@ class SettingsProvider(Provider):
         return DbSettings()
 
     @provide
-    def storage_settings(self) -> StorageSettings:
-        return StorageSettings()
+    def s3_settings(self) -> S3Settings:
+        return S3Settings()
+
+    @provide
+    def idna_settings(self) -> IdnaSettings:
+        return IdnaSettings()
 
 
 class InfrastructureProvider(Provider):
@@ -176,9 +181,7 @@ class InfrastructureProvider(Provider):
     def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return create_session_factory(engine=engine)
 
-    @provide
-    def url_canonicalizer(self) -> UrlCanonicalizer:
-        return UrlCanonicalizer()
+    bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
 
 
 class FoosProvider(Provider):
@@ -226,6 +229,9 @@ hand the handler one shared instance for the whole request, which is a different
 from collections.abc import Callable
 from functools import partial
 
+from myapp.domain.uow import IUnitOfWork
+from myapp.infrastructure.postgres import SqlAlchemyUnitOfWork
+
 
 class FoosProvider(Provider):
     @provide(scope=Scope.APP)
@@ -252,8 +258,8 @@ What changes between libraries is only where each obligation is written.
   own prefix argument, a secret field becomes its secret wrapper — or a `str` behind a `__repr__` that
   refuses to print it — a derived value becomes an ordinary read-only property on the settings class, and
   a validator becomes that library's converter or validator hook. Unchanged: one class per integration,
-  one prefix per class, a required field with no default, no default on a secret, construction only in
-  the composition root, and no environment read anywhere else.
+  one prefix per class, a required field with no default, no default on a secret, construction only at
+  a composition root, and no environment read anywhere else.
 - **A hand-rolled settings module.** A frozen dataclass with a `from_env()` classmethod that reads each
   variable, raises on a missing required one, wraps each secret, and exposes derived values as
   properties. The obligations are identical; what the library was doing for free — the missing-value
@@ -264,8 +270,8 @@ What changes between libraries is only where each obligation is written.
 ### Dependency injection
 
 Both libraries below are actively maintained; this is a fit decision, not a liveness one. The honest
-counterweights to the primary binding: `dependency-injector` is far more widely known, and `dishka`
-requires Python 3.10 or newer — which the union type syntax used throughout this catalogue already does.
+counterweight to the primary binding is that `dependency-injector` is far more widely known; `dishka`'s
+own interpreter requirement sits below the house floor `python-style` sets, so it never raises it.
 
 - **`dependency-injector`.** The obligations are identical; what changes is the spelling and one extra
   rule. A `containers.DeclarativeContainer` subclass replaces the provider classes, `providers.*`
@@ -359,8 +365,10 @@ not, so one class serves both without a branch.
 11. **One settings class per infrastructure subpackage.** Bundling unrelated config under one prefix is
     forbidden.
 12. **Settings live next to the adapter they configure.** There is no top-level central settings module.
-13. **Settings are instantiated only in `containers.py`.** Never call `DbSettings()` from a handler, an
-    entrypoint, a test fixture or another settings class.
+13. **Settings are constructed only at a composition root, and there are exactly three:** the DI
+    container module (`containers.py`), the migration environment (`migrations/env.py`), and the test
+    infrastructure provider and its fixtures. Nowhere else — never `DbSettings()` in a handler, an
+    adapter, an entrypoint module or another settings class.
 14. **Adapters depend on the settings type**, never on `os.environ` or `os.getenv`. No `os.getenv`
     anywhere outside a settings class.
 15. Settings test construction → `test-principles`.
@@ -369,7 +377,7 @@ not, so one class serves both without a branch.
 
 | Lifetime | Use for | Examples |
 |---|---|---|
-| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a URL canonicalizer, **tunable value objects**, a stateless factory callable. |
+| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a library-backed canonicalizer adapter, **tunable value objects**, a stateless factory callable. |
 | **Per operation** | Instances meant to be fresh for each request or each job, cheap to construct. | Every `*Handler`, every `*Repository`, **domain services** that compose them, a stateful adapter bound to per-request state. |
 
 **Default to per-operation for application and domain artifacts. Reserve process lifetime for objects
@@ -424,7 +432,7 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ## Inlined typing / import rules
 
-- **Under the pydantic-settings binding:** `from pydantic import SecretStr, computed_field`, adding
+- **Under the pydantic-settings binding:** `from pydantic import SecretStr`, adding
   `field_validator` to that line **only when the class defines one** (settings rule 10) — an unused
   import is an F401 — plus `from pydantic_settings import BaseSettings, SettingsConfigDict`. Another
   settings library imports its own names; what carries over is that each is imported only where used.
@@ -454,8 +462,9 @@ adding a binding, find the right section and insert it after the latest declarat
 
 Settings re-exports → `python-packaging`; composition-root location → `hex-architecture`.
 
-`containers.py` needs no package wiring at all: it is a top-level module at the project root, not a
-package member. For the classes it imports, follow `python-packaging`.
+`containers.py` needs no package wiring at all: it is `src/myapp/containers.py`, a module of the
+distribution's root package, and the root `__init__.py` does not re-export it — that file stays empty
+(`hex-architecture`). For the classes it imports, follow `python-packaging`.
 
 ## Hard stops
 

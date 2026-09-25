@@ -34,6 +34,9 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - The integration test that drives this adapter against a real database → `hex-test-repository-contract`.
 - A data-only migration (`backfill_*`, `seed_*`) with no DDL → its own revision file; this skill covers
   DDL only.
+- The spec asks for an ORM, a declarative base or relationships → still this skill: the templates here
+  are Core, and an ORM project satisfies rules 1–14 through the ORM bullet under `## Other bindings`;
+  do not copy a Core template into a mapped class.
 
 ## Template(s) — SQLAlchemy Core, asyncpg, Alembic
 
@@ -41,7 +44,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 src/myapp/infrastructure/postgres/
 ├── metadata.py                    # the shared MetaData with naming_convention
 ├── tables/
-│   ├── __init__.py                # re-export the new module
+│   ├── __init__.py                # import the new module (no wildcard)
 │   └── foos.py                    # the Table
 └── repositories/
     ├── __init__.py                # re-export the new module
@@ -68,7 +71,7 @@ The full file templates live in three topic files, one per artifact in that layo
   runs is the SQL in the file, so a query's cost is readable at the call site and lazy loading cannot
   appear behind an attribute access. Under the ORM the mapped class is *not* the domain entity — keep the
   two separate and keep the mapper, or the domain grows a persistence dependency.
-- **Another engine or driver.** Rules 1–13 hold; the dialect-specific column types, the SQLSTATE codes
+- **Another engine or driver.** Rules 1–14 hold; the dialect-specific column types, the SQLSTATE codes
   and the attribute path the translator reads the constraint name through all change together. The skill
   states that coupling where it bites (`REPOSITORY.md`), because it is the one place a driver swap is not
   mechanical.
@@ -117,9 +120,16 @@ The full file templates live in three topic files, one per artifact in that layo
 12. **A schema change is a coordinated pair in one commit** — the table definition and one new migration.
     A later change is authored as a *new* migration, never by rewriting a shipped one, and generated
     migration output is a draft to hand-edit, not a result. The reverse operation is mandatory and
-    reverses in the opposite order, because the test environment runs it.
+    reverses in the opposite order, because the migration round-trip test runs it — upgrade, downgrade,
+    upgrade again against a real database.
 13. **Extract a shared integrity-error mapper on repetition, never preemptively**, and migrate every
     existing repository in the commit that introduces it — partial adoption causes drift.
+14. **Migrations run as a deploy step before the new code starts, and every schema change is compatible
+    with the code still running.** Expand first: add what the new code needs while the old code keeps
+    working against it. Contract later: dropping, renaming or tightening anything the old code still
+    reads or writes — a column removed, a `NOT NULL` added, a constraint narrowed — ships in a later
+    release, once no running code depends on it. A change that needs both halves is two revisions in two
+    releases, never one.
 
 ## Inlined typing / import rules
 
@@ -148,15 +158,14 @@ Both:
 
 ## Package wiring
 
-`tables/__init__.py` must re-export the new table module — `from . import foos` + `from .foos import *` —
-otherwise migration autogenerate cannot see the table. `repositories/__init__.py` must re-export the new
-adapter the same way. Mechanics: `hex-architecture`.
+`tables/__init__.py` must import the new table module — `from . import foos` — otherwise migration
+autogenerate cannot see the table. A table module's public name is a bare object, not a class, so it is
+not wildcarded into the package (`python-packaging` carve-out 3); the repository imports it from its own
+module (`from ..tables.foos import foos_table`). `repositories/__init__.py` re-exports the new adapter
+class with the usual `from . import foo_repository` + wildcard. Mechanics: `python-packaging`.
 
 ## Hard stops
 
-- Spec asks for an ORM, a declarative base, or relationships → **scoping note, not a stop**: the
-  templates here are Core, and an ORM project satisfies rules 1–13 differently. Read `## Other bindings`
-  first, and do not copy a Core template into a mapped class.
 - Spec asks for a database `ENUM` type → stop, use a text column plus a check constraint (rule 4).
 - Spec asks for length-bounded varchars → stop, use unbounded text plus the domain's own length rule
   (rule 4).

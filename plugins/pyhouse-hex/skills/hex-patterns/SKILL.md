@@ -48,34 +48,59 @@ Elsewhere:
 - A flat service's run function and trigger wrappers → `flat-entrypoint`, in the `pyhouse-flat` plugin.
 - Layer boundaries and the injection site → `hex-architecture`.
 - The repository that joins a unit of work → `hex-persistence`.
-- The `*_best_effort` cleanup method a compensation calls → its contract is stated here, declared on a port by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`.
+- The reversing method a compensation calls (`delete`, `retract`) → declared on a port beside its forward operation by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`; the guard that lets the handler swallow its failure is stated here, as `exception-catalog`'s best-effort compensation exception.
 - The composition-root declarations both patterns need — the `IUnitOfWork` binding and its scope → `hex-wiring`.
 - What the handler may log → `python-style`.
 
 ## Template — compensation, a single side effect
 
 ```python
-async def execute(self, cmd: UpsertFooCommand) -> uuid.UUID:
-    # validation that doesn't depend on the side effect goes BEFORE the upload
-    ...
+import uuid
 
-    storage_key = await self._storage.put(cmd.data, ...)
+import structlog
 
-    try:
-        await self._repo.create(Foo(..., storage_key=storage_key))
-    except Exception:
-        await self._storage.delete_many_best_effort([storage_key])
-        raise
+from myapp.domain.foos import Foo, ICanStoreFoos, IFooRepository
 
-    # caller_id is logged only when the command carries it (the authenticated form);
-    # an auth-less command has no caller_id field — drop it.
-    logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
-    return foo.id
+from .create_foo_command import CreateFooCommand
+
+__all__ = ["CreateFooHandler"]
+
+logger = structlog.get_logger()
+
+
+class CreateFooHandler:
+    def __init__(self, repo: IFooRepository, storage: ICanStoreFoos) -> None:
+        self._repo = repo
+        self._storage = storage
+
+    async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
+        foo_id = uuid.uuid4()
+        foo = Foo(id=foo_id, name=cmd.name, bar_id=cmd.bar_id)
+        storage_key = f"foos/{foo.id}"
+
+        await self._storage.upload(storage_key, cmd.data)
+        try:
+            await self._repo.create(foo)
+        except Exception:
+            try:
+                await self._storage.delete(storage_key)
+            except Exception as undo_exc:
+                logger.warning("foo_upload_undo_failed", storage_key=storage_key, exc_info=undo_exc)
+            raise
+
+        logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
+        return foo.id
 ```
+
+The entity is built — and its invariants checked — before the upload, so a malformed command fails
+with nothing to undo (compensation rule 7). The storage key is derived from the entity's id, so the
+entity carries no field for it and the key can be rebuilt wherever it is needed. `caller_id` is logged only when the command carries it
+(`hex-application`).
 
 ## Template — compensation, multi-step side effects
 
-Accumulate the work-to-undo in a list so partial progress is cleaned too:
+Accumulate the work-to-undo in a list so partial progress is cleaned too — inside the same handler,
+each undo guarded the same way:
 
 ```python
 uploaded_keys: list[str] = []
@@ -84,7 +109,11 @@ try:
     foo = _build_foo(cmd, items)
     await self._repo.create(foo)
 except Exception:
-    await self._storage.delete_many_best_effort(uploaded_keys)
+    for key in uploaded_keys:
+        try:
+            await self._storage.delete(key)
+        except Exception as undo_exc:
+            logger.warning("foo_upload_undo_failed", storage_key=key, exc_info=undo_exc)
     raise
 ```
 
@@ -100,62 +129,79 @@ previous_key = await self._repo.upsert_foo(...)
 # ... the try/except wraps only the upsert above ...
 
 if previous_key is not None:
-    await self._storage.delete_many_best_effort([previous_key])
+    await self._storage.delete(previous_key)
 ```
 
-That trailing call is ordinary cleanup: it runs only on success and disposes of the *old* resource. Do
-not conflate the two.
+That trailing call is ordinary cleanup: it runs only on success and disposes of the *old* resource. No
+failure is propagating when it runs, so the best-effort guard does not apply and its failure propagates
+like any other step's. Do not conflate the two.
 
 ## Template — unit of work, the protocol
 
 ```python
-# src/myapp/domain/i_unit_of_work.py
-from typing import Protocol
+# src/myapp/domain/uow/i_unit_of_work.py
+from types import TracebackType
+from typing import Protocol, Self
 
-from .audit import IAuditRepository
-from .foos import IFooRepository
+from ..audit import IAuditRepository
+from ..foos import IFooRepository
 
 __all__ = ["IUnitOfWork"]
 
 
 class IUnitOfWork(Protocol):
-    foos: IFooRepository
-    audit: IAuditRepository
+    @property
+    def foos(self) -> IFooRepository: ...
+    @property
+    def audit(self) -> IAuditRepository: ...
 
-    async def __aenter__(self) -> "IUnitOfWork": ...
-    async def __aexit__(self, *args: object) -> None: ...
+    async def __aenter__(self) -> Self: ...
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...
     async def commit(self) -> None: ...
 ```
 
-Repository attributes are typed by their **domain protocols**, never by concrete adapters.
+The unit of work spans subdomains, so it gets a cross-cutting subdomain package of its own,
+`domain/uow/`, the way `hex-domain-ports` places auth in `domain/auth/` — a port still sits in a
+subdomain package (`hex-architecture` rule 5), never at the domain root.
+
+Repository members are typed by their **domain protocols**, never by concrete adapters, and are
+**read-only properties**: a settable protocol attribute is invariant, so an implementation exposing a
+concrete `FooRepository` would not satisfy `foos: IFooRepository`; a read-only one is covariant and does.
 
 ## Template — unit of work, the implementation (SQLAlchemy async session)
 
 ```python
 # src/myapp/infrastructure/postgres/sqlalchemy_unit_of_work.py
 from types import TracebackType
+from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from myapp.infrastructure.postgres.repositories import AuditRepository, FooRepository
+from .repositories import AuditRepository, FooRepository
 
 __all__ = ["SqlAlchemyUnitOfWork"]
 
 
 class SqlAlchemyUnitOfWork:
-    foos: FooRepository
-    audit: AuditRepository
-
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        self._sf = session_factory
-        self._session: AsyncSession | None = None
+        self._session = session_factory()
+        self._foos = FooRepository(self._session)
+        self._audit = AuditRepository(self._session)
 
-    async def __aenter__(self) -> "SqlAlchemyUnitOfWork":
-        session = self._sf()
-        await session.__aenter__()
-        self._session = session
-        self.foos = FooRepository(session)
-        self.audit = AuditRepository(session)
+    @property
+    def foos(self) -> FooRepository:
+        return self._foos
+
+    @property
+    def audit(self) -> AuditRepository:
+        return self._audit
+
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
@@ -164,32 +210,28 @@ class SqlAlchemyUnitOfWork:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        session = self._session
-        if session is None:
-            return
         try:
             if exc_type is not None:
-                await session.rollback()
+                await self._session.rollback()
         finally:
-            await session.__aexit__(exc_type, exc, tb)
-            self._session = None
+            await self._session.close()
 
     async def commit(self) -> None:
-        if self._session is None:
-            raise RuntimeError("commit() called outside an active unit of work")
         await self._session.commit()
 ```
 
 Three details are load-bearing under a strict type checker, and all three are ordinary correctness too:
 
-- `_session` is `AsyncSession | None`, so **every** use narrows it through a local first — dereferencing
-  the attribute directly fails the checker and would crash if the object were reused after exit.
-- `foos` and `audit` are **declared as class-level annotations**. Assigning them only inside `__aenter__`
-  leaves the checker with no attribute to find at the injection site.
+- The repository members are **read-only properties** returning the concrete adapters, which is what
+  satisfies the protocol's read-only members.
+- `__aexit__` has the protocol's **exact three-parameter signature**; a looser one on either side fails
+  the structural check where the factory is bound.
 - The session is closed in a `finally`, so a failing `rollback()` cannot leak the connection.
 
-The session begins its transaction lazily on first use, so there is no explicit `begin()` — calling one
-on a session that already has an implicit transaction raises.
+The factory builds a fresh instance per `execute`, so the session and the repositories sharing it are
+created in the constructor and nothing is optional. Creating a session opens no connection: it begins
+its transaction lazily on first use, so there is no explicit `begin()` — calling one on a session that
+already has an implicit transaction raises.
 
 The implementation does **not** inherit from `IUnitOfWork` — satisfaction is structural
 (`hex-architecture`).
@@ -200,11 +242,16 @@ The handler receives `uow_factory: Callable[[], IUnitOfWork]` and opens a fresh 
 `execute`:
 
 ```python
+import uuid
 from collections.abc import Callable
 
 import structlog
 
-from myapp.domain import IUnitOfWork
+from myapp.domain.audit import AuditEvent
+from myapp.domain.foos import Foo
+from myapp.domain.uow import IUnitOfWork
+
+from .create_foo_command import CreateFooCommand
 
 __all__ = ["CreateFooHandler"]
 
@@ -216,26 +263,33 @@ class CreateFooHandler:
         self._uow_factory = uow_factory
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
+        foo = Foo(id=uuid.uuid4(), name=cmd.name, bar_id=cmd.bar_id)
         async with self._uow_factory() as uow:
             await uow.foos.create(foo)
-            await uow.audit.append(AuditEvent(...))
+            await uow.audit.append(AuditEvent(subject_id=foo.id, action="foo_created"))
             await uow.commit()
         logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
         return foo.id
 ```
+
+This is the one handler form that opens a transaction itself — the earned exception to
+`hex-application`'s no-transaction-code rule, and the only one.
 
 ## Template — both patterns together
 
 Compensation outside, unit of work inside:
 
 ```python
-storage_key = await self._storage.put(...)
+await self._storage.upload(storage_key, cmd.data)
 try:
     async with self._uow_factory() as uow:
         ...
         await uow.commit()
 except Exception:
-    await self._storage.delete_many_best_effort([storage_key])
+    try:
+        await self._storage.delete(storage_key)
+    except Exception as undo_exc:
+        logger.warning("foo_upload_undo_failed", storage_key=storage_key, exc_info=undo_exc)
     raise
 ```
 
@@ -285,10 +339,13 @@ corresponding query handler and result type from `hex-application`.
 ## Naming (unit of work)
 
 - One `IUnitOfWork` per transactional **scope**, not per aggregate. The default name is `IUnitOfWork` in
-  `i_unit_of_work.py`.
-- Several units of work are justified only for genuinely different scopes: different backends →
-  `IPostgresUnitOfWork`, `IRedisUnitOfWork` in `i_<backend>_unit_of_work.py`; a read/write split, which is
-  rare → `IReadUnitOfWork`, `IWriteUnitOfWork` in `i_<scope>_unit_of_work.py`.
+  `domain/uow/i_unit_of_work.py`.
+- Several units of work are justified only for genuinely different scopes, and each is named for the
+  scope, never for the backend that implements it: two stores that each hold their own transactions →
+  named for the store's role (`ICacheUnitOfWork` beside `IUnitOfWork`, never `IRedisUnitOfWork`), because
+  a port is domain vocabulary and a vendor name in `domain/` is an infrastructure fact leaking inward;
+  a read/write split, which is rare → `IReadUnitOfWork`, `IWriteUnitOfWork`. All of them in
+  `domain/uow/i_<scope>_unit_of_work.py`.
 - **Never name one after an aggregate.** `IFooUnitOfWork` conflates "what is inside the transaction" with
   "what kind of transaction it is".
 
@@ -310,30 +367,23 @@ corresponding query handler and result type from `hex-application`.
 
 ### Compensating transaction
 
-1. **This `try/except Exception` is the only `try/except` allowed in a handler**, alongside the
-   failure-state transition. Needing another means the design is wrong — push the catch into
-   infrastructure or remove it.
+1. **This `try/except Exception`, with the guard around its undo call (rule 3), is the only
+   `try/except` allowed in a handler**, alongside the failure-state transition. Needing another means
+   the design is wrong — push the catch into infrastructure or remove it.
 2. **Catch `Exception`, not specific exceptions.** Compensation must run regardless of the cause.
-3. **The undo must never let its own failure mask the original error.** It is best-effort, in one of two
-   sanctioned shapes — the choice is the author's, do not assume one:
-   - a dedicated **`*_best_effort` method** on the protocol (`delete_many_best_effort`) that swallows its
-     internal errors, called directly as the templates show; **or**
-   - the **plain protocol method** (`delete` / `revert`) wrapped in a nested swallow at the call site when
-     no `*_best_effort` variant exists:
-     ```python
-     except Exception:
-         try:
-             await self._storage.delete(storage_key)
-         except Exception:
-             pass  # best-effort — the undo's own failure must not mask the original error
-         raise
-     ```
-   Never call a raising `delete` / `revert` *unguarded* inside `except` — if it raises, the original error
-   is lost. When the undo is called often enough to deserve a first-class name, model a `*_best_effort`
-   method; until then the call-site swallow is correct and needs no new protocol method.
+3. **The undo must never let its own failure mask the original error.** The undo is the port's plain
+   reversing method (`delete`, `retract`), which raises like any other call. The handler's `except` —
+   the scope that caught the original failure — wraps it in its own `try`, catches the undo's failure,
+   logs exactly one `warning` event named for the undo with the undo's inputs as fields and the undo's
+   exception attached, and then the bare `raise` re-raises the *original* failure unchanged. That is
+   `exception-catalog`'s best-effort compensation rule, the only swallow it sanctions; the event's
+   shape is `python-style`'s. Never call the undo *unguarded* inside `except` (if it raises, the
+   original error is lost), never swallow it with a bare `pass`, and never push the swallow into a
+   dedicated `*_best_effort` method on the port or the adapter.
 4. **Bare `raise` at the end of `except`.** Never `raise NewException(...)`, never `raise ... from exc`.
    The original exception propagates unchanged.
-5. **No logging inside `except`.** The central error handler logs once.
+5. **The original failure is not logged inside `except`.** The central error handler logs it once. The
+   one event logged here is a failed undo (rule 3), which is a different occurrence.
 6. **The side effect runs *outside* the `try`.** Only the fallible *next* step goes inside.
 7. **Pre-side-effect validation runs *before* the side effect.** Fail fast without compensation whenever
    possible.
@@ -380,8 +430,11 @@ corresponding query handler and result type from `hex-application`.
 - A flat service needs its run-function template → stop, use `flat-entrypoint` (`pyhouse-flat`).
 
 - The capability protocol has no cleanup method to call in the undo → stop, add it to the protocol first.
-- The undo method can itself raise non-trivially — it calls a flaky third-party DELETE, say → stop, the
-  protocol contract is wrong; the method must swallow its own errors internally.
+- The undo is called unguarded inside `except`, or its failure is swallowed with no event logged → stop,
+  route it through the handler's guard (compensation rule 3).
+- The undo's failure is being swallowed inside a dedicated `*_best_effort` method → stop, the undo
+  raises like any other call; only the handler's `except` that caught the original may swallow it, and
+  it logs the one warning (`exception-catalog`).
 - Compensation would span two unrelated backends in both directions → stop, that is a saga, not a
   compensating transaction, and it is out of scope here.
 - Only one repository participates in the "atomic group" → stop, this is not a unit-of-work case; keep
@@ -389,9 +442,8 @@ corresponding query handler and result type from `hex-application`.
 - The atomic group spans two backends → stop, that is compensation, not a unit of work.
 - A unit of work is being named per aggregate (`IFooUnitOfWork`) → stop, wrong shape; one shared unit of
   work for the scope.
-- The implementation dereferences its transactional-handle attribute without narrowing → stop, it is
-  optional outside `__aenter__`/`__aexit__`; bind a local first, or a reuse after exit crashes at the
-  call site.
-- The implementation assigns its repository attributes only inside `__aenter__` with no class-level
-  declaration → stop, nothing reading the class can see the attributes, so the injection site has no
-  contract to check against.
+- The protocol declares a repository member as a settable attribute → stop, make it a read-only
+  property; a settable protocol member is invariant, so no implementation exposing a concrete
+  repository satisfies it.
+- The implementation's `__aexit__` signature differs from the protocol's → stop, match the three
+  parameters exactly; a near-match fails where the factory is bound.

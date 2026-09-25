@@ -13,7 +13,8 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 
 - Aggregate-root data access — CRUD plus aggregate-specific reads → **repository protocol** (`IFooRepository`), in this skill.
 - A single action that does IO or talks to an external system — file rendering, token verification, blob storage, a third-party gateway call → **capability protocol** (`ICan<Verb>`), in this skill.
-- A pure-CPU operation such as JWT signature verification or URL canonicalization → **capability protocol**, with a sync method instead of async.
+- A pure-CPU operation a third-party library performs — JWT signature verification, IDNA-aware URL canonicalization → **capability protocol**, with a sync method instead of async; the domain cannot import the library, and the port is how it uses one.
+- Pure-CPU logic the standard library can do — trimming, case-folding, a stdlib URL normalization → no port; a value object's construction (`hex-domain-model`) or a pure domain service (`hex-domain-service`).
 - The entity, value object, enum or filter record the signatures mention → `hex-domain-model`.
 - A rule needing cross-aggregate state, which *consumes* these protocols → `hex-domain-service`.
 - A concrete repository implementation → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store). The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
@@ -23,7 +24,7 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 - The token-verifier port, its adapter and the route dependency that resolves it → `hex-restapi-auth`; it is the sync shape below, bound to auth, and exists only in an app whose entrypoint authenticates.
 - The `i_` and `i_can_` filename prefixes and the rest of the identifier derivation → `naming`.
 - The command or query handler that consumes one of these protocols → `hex-application`.
-- The `*_best_effort` cleanup method a compensating handler calls on one of these ports → its contract is `hex-patterns`'; this skill only says such a method is a port method like any other.
+- The reversing method a compensating handler calls on one of these ports (`delete` beside `upload`) → a port method like any other, which raises on failure; the handler-side guard that tolerates its failure is `hex-patterns`'.
 
 ## Template(s) — stdlib `typing.Protocol`
 
@@ -84,8 +85,10 @@ one aggregate root, a **capability** is a single action the domain needs but can
 - Aggregate-root data access — CRUD plus aggregate-specific reads → **repository protocol**.
 - A single action that does IO or talks to an external system — file rendering, blob storage, a
   third-party gateway call → **capability protocol**.
-- A pure-CPU operation such as canonicalizing a string or rendering in-memory bytes → **capability
-  protocol**, with a sync method instead of async.
+- A pure-CPU operation that needs a third-party library — IDNA-encoding a host, rendering in-memory
+  bytes through a document library → **capability protocol**, with a sync method instead of async.
+  Pure-CPU logic the standard library can do is not a port at all: it lives in the domain, as a value
+  object's construction or a pure domain service.
 
 The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
 
