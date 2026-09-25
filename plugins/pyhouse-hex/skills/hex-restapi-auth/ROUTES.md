@@ -38,10 +38,8 @@ query or body — that would let a client choose another tenant's scope. The DTO
 
 ```python
 # read — no caller_id needed
-# _MAX_PAGE_SIZE / _DEFAULT_PAGE_SIZE are the router's own module constants
-# (hex-restapi-endpoint owns them; the bounds are the app's decision, not auth's).
 async def list_foos(
-    request: Request,
+    handler: FromDishka[ListFoosHandler],
     limit: Annotated[int, Query(ge=1, le=_MAX_PAGE_SIZE)] = _DEFAULT_PAGE_SIZE,
     offset: Annotated[int, Query(ge=0)] = 0,
     _: CurrentUser = Depends(get_current_user),
@@ -50,12 +48,18 @@ async def list_foos(
 # mutation — caller_id flows into the command
 async def create_foo(
     body: FooCreateRequest,
-    request: Request,
+    handler: FromDishka[CreateFooHandler],
+    get_handler: FromDishka[GetFooHandler],
     user: CurrentUser = Depends(require_role(Role.<MIN_RANK>)),
 ) -> FooResponse:
+    new_id = await handler.execute(CreateFooCommand(caller_id=user.id, name=body.name))
     ...
-    await handler.execute(CreateFooCommand(caller_id=user.id, ...))
 ```
+
+Both are `hex-restapi-endpoint`'s templates with the auth parameter added last: the handlers arrive as
+`FromDishka[...]` parameters through the router's route class, and `_MAX_PAGE_SIZE` /
+`_DEFAULT_PAGE_SIZE` are that router's own module constants — the bounds are the app's decision, not
+auth's.
 
 ### Deriving the authenticated form of a route
 
