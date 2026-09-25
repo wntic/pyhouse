@@ -58,8 +58,16 @@ The skill defers two things to the repository, and this command finds both out b
 
 ## 5. Commit
 
+Pass the message on standard input through a quoted heredoc, never `-m "<message>"`: inside double
+quotes the shell expands `$` and backticks, both common in a body, and a multi-line message is easy to
+mangle. The quoted delimiter makes every character literal:
+
 ```
-git commit -m "<message>"
+git commit -F - <<'EOF'
+<type>(<scope>): <description>
+
+<body>
+EOF
 ```
 
 Then report the hash, the subject, and the files and line counts:

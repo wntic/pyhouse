@@ -107,8 +107,15 @@ what it does.
 
 ### 5. Commit
 
+Pass the message through a quoted heredoc, never `-m "<message>"`: inside double quotes the shell
+expands the backticks and `$` a body here routinely carries:
+
 ```
-git commit -m "<message>"
+git commit -F - <<'EOF'
+<type>(<scope>): <description>
+
+<body>
+EOF
 ```
 
 Output the commit hash to the user after committing:
