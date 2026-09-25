@@ -40,7 +40,8 @@ log.info(f"created foo {foo.id}")
 ## Never log and re-raise the same event
 
 `log.x(...)` immediately followed by `raise` in the same scope is two entries for one event, and there is
-**no sanctioned exception**. A scope that re-raises is not the scope that will explain the failure: the
+**no sanctioned exception** — a swallowed undo failure, below, logs a different event from the one it
+re-raises. A scope that re-raises is not the scope that will explain the failure: the
 detail belongs in the exception it raises — the fields in `context`, the original error in `__cause__`
 through `from exc` (`exception-catalog`) — where the scope that stops it will find both.
 
@@ -64,6 +65,31 @@ Level guide, for the scope that does log: `warning` for an expected rule violati
 boundary — uniqueness, a foreign key; `error` for an unexpected failure — a network timeout, a
 third-party 5xx, malformed data.
 
+## A swallowed undo failure
+
+Best-effort compensation (`exception-catalog`) is the one place a failure is swallowed, and it is also
+the one place a scope that re-raises logs. The two are different events, which is why it does not break
+the rule above: the **undo's** failure stops in this scope and is logged here, once; the **original**
+failure is re-raised unlogged and is logged by whoever stops it.
+
+- **The scope that runs the compensation logs it** — the one that caught the original failure and
+  will re-raise it — in the `except` around the undo call, and nowhere else. The undo it called stays
+  silent, like any scope that raises.
+- **At `warning`, exactly one event**, named for the undo that failed (`foo_blob_undo_failed`), with the
+  undo's identifying inputs as fields and the undo's error attached (`exc_info=` under `structlog`).
+  Not `error`: the operation's failure is the error, and it is logged where it stops.
+- It carries what a person needs to clean up by hand — the key, the id, the reservation — because the
+  event is the only record that an effect outlived the operation that made it.
+
+```python
+except Exception:
+    try:
+        await self._blobs.delete(blob_key)
+    except Exception as undo_exc:
+        log.warning("foo_blob_undo_failed", blob_key=blob_key, exc_info=undo_exc)
+    raise
+```
+
 ## Who logs an error
 
 **An error is logged once, by the scope that can add context and will not re-raise it.** That is the
@@ -84,7 +110,7 @@ re-raise is the entrypoint:
 |---|---|
 | `domain/` | **Nothing.** Zero IO includes the log socket; raise an exception carrying `context` instead. |
 | `infrastructure/` | **Nothing.** An adapter translates and re-raises, so it is never the layer that stops; the low-level detail goes into the translated exception's `context`, where the layer that does log will find it. |
-| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. |
+| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a swallowed undo failure under best-effort compensation, which the handler running the compensation logs at `warning` (above). |
 | entrypoints | Errors, once, at the central handler, with request context attached. |
 
 **A central handler takes the same guide**, plus one case only it sees: an exception that is not a
