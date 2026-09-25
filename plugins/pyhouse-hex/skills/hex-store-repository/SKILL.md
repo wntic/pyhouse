@@ -1,6 +1,6 @@
 ---
 name: hex-store-repository
-description: Use when an aggregate is persisted on a nonrelational store — key-value, document or wide-column (redis, mongo, dynamo) — reached through an injected SDK client, or a derived index is kept beside the authoritative store. Produces the repository adapter satisfying the narrower port such a store answers, its container token and namespace keys, record mapping, and SDK-error translation. Not a relational `Table` and its migration (`hex-persistence`), and not a single-action `ICan<Verb>` port (`hex-capability-adapter`).
+description: Use when an aggregate is persisted on a nonrelational store — key-value, document or wide-column (redis, mongo, dynamo) — reached through an injected SDK client, or a derived index is kept beside the authoritative store. Produces the repository adapter satisfying the narrower port such a store answers, the store's settings class, its container token and namespace keys, record mapping, and SDK-error translation. Not a relational `Table` and its migration (`hex-persistence`), and not a single-action `ICan<Verb>` port (`hex-capability-adapter`).
 paths: ["**/infrastructure/**"]
 ---
 
@@ -15,7 +15,7 @@ Produces one repository class that adapts a domain repository protocol to a clie
 - The aggregate's store is the relational bootstrap store (SQLAlchemy/Postgres) → `hex-persistence`.
 - The protocol file (`i_foo_repository.py`) → `hex-domain-ports`.
 - A single-action `ICan<Verb>` port (not an aggregate's collection) → `hex-capability-adapter`.
-- The settings class the store's connection factory consumes → `hex-wiring`.
+- The obligations a settings class meets (env namespace, secrets, construction only at a composition root) → `hex-wiring`; the store's own settings class is shown here, beside the adapter that reads it.
 - The DI provider that constructs this repository → `hex-wiring`.
 - Which store profile a datastore is, and the client factory that profile names → `hex-conventions`.
 - The catalogue exception an SDK error is translated into → `exception-catalog`.
@@ -91,6 +91,23 @@ class FooRepository:
             raise NotFoundError("Foo not found", {"id": str(id)})
 ```
 
+The settings class the adapter and the store's connection factory (`hex-conventions` block B) read, in
+`infrastructure/redis/settings.py`. It follows `hex-wiring`'s settings rules; the URL is a secret
+because it carries the password, and the key prefix is the adapter's container token.
+
+```python
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["RedisSettings"]
+
+class RedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_REDIS_", extra="ignore")
+
+    url: SecretStr
+    foos_key_prefix: str
+```
+
 ## Other bindings
 
 The key-value form is the one worked binding; every other client-style store is the same two files with
@@ -121,7 +138,7 @@ second copy of this skill.
 src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra groups by tech
 ├── __init__.py
 ├── connection.py          # create_<store>_client(settings) — the datastore's factory, not this skill
-├── settings.py            # hex-wiring
+├── settings.py            # the store's settings class — shown in the template above
 └── repositories/
     ├── __init__.py        # package wiring — python-packaging
     └── foo_archive.py     # this skill writes this file — the stem is the port's (`hex-conventions`)

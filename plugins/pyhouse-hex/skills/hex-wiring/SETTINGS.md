@@ -1,7 +1,9 @@
 # hex-wiring — the settings classes
 
 Topic file of `hex-wiring`. The mechanism-free obligations are `### Rules — settings` in
-`SKILL.md`; what follows is the **pydantic-settings** binding that satisfies them.
+`SKILL.md`; what follows is the **pydantic-settings** binding that satisfies them, worked on two
+classes: the relational engine's and one non-engine integration's. Every other settings class the
+templates read sits beside the adapter that reads it (settings rule 12), listed at the end.
 
 ## Template — pydantic-settings, relational database
 
@@ -50,43 +52,14 @@ connection ceiling. `port` defaults to the driver's own well-known port; `pool_p
 to connections the server closed underneath the pool, and `echo=True` in production writes every
 statement, parameters included, into the log. Set the sizes from the deployment; keep the last two.
 
-## Template — pydantic-settings, generic integration (API key, blob store, key-value store, observability)
+## Template — pydantic-settings, a non-engine integration (S3-compatible blob store)
 
-Most integrations need a credential plus an endpoint or model name and maybe a knob or two — no pool, no
-port, no DSN. This is the shape for everything that is not a relational engine:
-
-```python
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["FooApiSettings"]
-
-class FooApiSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="MYAPP_FOO_",
-        env_file=".env",
-        extra="ignore",
-    )
-
-    api_key: SecretStr
-    base_url: str = "https://api.foo.example"
-    timeout_seconds: int = 30
-```
-
-**A timeout is a per-integration decision.** It is set from the
-integration's own observed latency plus headroom, and bounded above by what the caller can wait for — a
-request-path adapter whose timeout exceeds the app's own request timeout can never fire usefully. What
-the template does fix is that the timeout is a **settings field**, read once by the composition root and
-injected — never a constant hardcoded inside the adapter. Whether it carries a default at all is rule 1
-and rule 2's question: default it only if one value is safe for every deployment, and make it required
-otherwise.
-
-## Template — pydantic-settings, S3-compatible blob store
-
-The settings class the S3 adapter (`hex-capability-adapter`) consumes, in `infrastructure/s3/settings.py`
-(`hex-conventions` derives the path and the name). The endpoint is required, so the same class reaches
-a hosted store and an S3-compatible one; the adapter reads `bucket` and `endpoint_url`, and the
-composition root builds the SDK session from the two credential fields.
+Most integrations need a credential plus an endpoint or a resource name and maybe a knob or two — no
+pool, no port, no DSN. This is that shape, worked on the settings class the S3 adapter
+(`hex-capability-adapter`) consumes, in `infrastructure/s3/settings.py` (`hex-conventions` derives the
+path and the name). The endpoint is required, so the same class reaches a hosted store and an
+S3-compatible one; the adapter reads `bucket` and `endpoint_url`, and the composition root builds the SDK
+session from the two credential fields.
 
 ```python
 from pydantic import SecretStr
@@ -107,65 +80,17 @@ class S3Settings(BaseSettings):
     bucket: str
 ```
 
-## Template — pydantic-settings, the other classes the adapter templates read
+## Where the other settings classes are
 
-One class per consuming technology, each in that technology's `settings.py`, with the fields the
-adapter or the composition root reads and nothing else. Each sets the settings-file key in its
-`model_config` exactly as `DbSettings` does, beside the prefix shown.
+Each is written in the same form — the three `model_config` keys above, its own prefix, the fields its
+consumer reads and nothing else — and each is shown beside what reads it:
 
-```python
-# src/myapp/infrastructure/idna/settings.py
-from pydantic_settings import BaseSettings, SettingsConfigDict
+- `BarGatewaySettings` and `IdnaSettings` — beside the HTTP gateway and the idna canonicalizer in
+  `hex-capability-adapter`.
+- `RedisSettings` — beside the key-value repository in `hex-store-repository`.
+- `JwtSettings` — beside the token verifier in `hex-restapi-auth`.
+- `ExportSettings` — in `CONTAINER.md`, beside the provider of the tunable value object that is its one
+  consumer.
 
-__all__ = ["IdnaSettings"]
-
-class IdnaSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_IDNA_", extra="ignore")
-
-    allowed_schemes: frozenset[str]
-```
-
-```python
-# src/myapp/infrastructure/http/settings.py
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["BarGatewaySettings"]
-
-class BarGatewaySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_BAR_", extra="ignore")
-
-    base_url: str
-    api_key: SecretStr
-    timeout_seconds: float
-```
-
-```python
-# src/myapp/infrastructure/redis/settings.py
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["RedisSettings"]
-
-class RedisSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_REDIS_", extra="ignore")
-
-    url: SecretStr
-    foos_key_prefix: str
-```
-
-```python
-# src/myapp/infrastructure/export/settings.py
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["ExportSettings"]
-
-class ExportSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_EXPORT_", extra="ignore")
-
-    max_rows: int
-```
-
-`IdnaSettings.allowed_schemes` is read from a JSON list (`MYAPP_IDNA_ALLOWED_SCHEMES='["http","https"]'`).
-The Redis URL is a secret because it carries the password. `ExportSettings` has no adapter behind it — its one consumer is the factory
-of `FooExportTunable` (`hex-domain-model`) — so its package is named for itself (`hex-conventions`).
+Every one of them has its factory in the composition root — in `CONTAINER.md`, or for `JwtSettings`
+in the binding `hex-restapi-auth` adds to it.

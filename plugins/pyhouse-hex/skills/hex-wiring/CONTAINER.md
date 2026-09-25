@@ -157,6 +157,21 @@ Add `FastapiProvider()` to that list **only** when a factory takes `fastapi.Requ
 `fastapi.WebSocket` as a parameter; the default composition root above takes neither and stays free of
 transport imports.
 
+`ExportSettings` has no adapter behind it — its one consumer is the tunable's factory above, which reads
+its single field (`hex-domain-model`) — so it sits in a package named for itself
+(`infrastructure/export/settings.py`, `hex-conventions`) and is shown here, beside that consumer:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["ExportSettings"]
+
+class ExportSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_EXPORT_", extra="ignore")
+
+    max_rows: int
+```
+
 ## The unit-of-work factory
 
 A handler that uses a unit of work receives `Callable[[], IUnitOfWork]` and opens a fresh one per

@@ -16,7 +16,7 @@ here, into the classes `exception-catalog` owns.
 - Aggregate-root CRUD over a relational store → `hex-persistence`, not this skill.
 - Aggregate-root persistence on a key-value or document store, or an index kept beside it → `hex-store-repository`; an injected SDK client alone does not make something a capability.
 - The `ICan<Verb>` protocol file this adapter satisfies → `hex-domain-ports`.
-- The settings class (`<Tech>Settings`) the adapter consumes → `hex-wiring`.
+- The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `hex-wiring`, which also shows the S3 adapter's `S3Settings`; the HTTP gateway's and the canonicalizer's classes are shown here, beside their adapters.
 - The binding that constructs this adapter (almost always process-lifetime) → `hex-wiring`.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
 - The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-patterns`'.
@@ -32,6 +32,7 @@ here, into the classes `exception-catalog` owns.
 ```
 src/myapp/infrastructure/<adapter>/    # <adapter> = the external tech: s3, jwt, openai, …
 ├── __init__.py            # see python-packaging
+├── settings.py            # the adapter's settings class — hex-wiring's settings rules
 └── s3_foo_storage.py      # this skill writes this file
 ```
 
@@ -174,6 +175,31 @@ A `200` is not a result until its body has been read: a body that is not JSON, o
 the domain type needs, raises from the parse, and the parse sits inside a translated scope of its own so
 that failure arrives as `UpstreamError` like any other upstream fault (rule 9).
 
+Its settings class, in `infrastructure/http/settings.py` beside it. The adapter reads the base URL and
+the key; the composition root reads the timeout when it builds the shared `httpx.AsyncClient`
+(`hex-wiring`).
+
+```python
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["BarGatewaySettings"]
+
+class BarGatewaySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_BAR_", extra="ignore")
+
+    base_url: str
+    api_key: SecretStr
+    timeout_seconds: float
+```
+
+**A timeout is a per-integration decision.** It is set from the integration's own observed latency plus
+headroom, and bounded above by what the caller can wait for — a request-path adapter whose timeout
+exceeds the app's own request timeout can never fire usefully. What the template does fix is that the
+timeout is a **settings field**, read once by the composition root and injected — never a constant
+hardcoded inside the adapter. Whether it carries a default at all is `hex-wiring` settings rules 1 and
+2: default it only if one value is safe for every deployment, and make it required otherwise.
+
 ### Template — sync pure CPU (stdlib plus a parsing library)
 
 For canonicalizers / renderers / verifiers with no IO that need a third-party library — work the
@@ -219,6 +245,20 @@ class IdnaBarUrlCanonicalizer:
 A pure-CPU adapter has no client to inject — only its settings. It is still an adapter: it translates the
 library's own failure (`IDNAError`) into a catalogue exception at the boundary, and it returns a domain
 type rather than a raw string.
+
+Its settings class, in `infrastructure/idna/settings.py` beside it. `allowed_schemes` is read from a
+JSON list (`MYAPP_IDNA_ALLOWED_SCHEMES='["http","https"]'`).
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["IdnaSettings"]
+
+class IdnaSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MYAPP_IDNA_", extra="ignore")
+
+    allowed_schemes: frozenset[str]
+```
 
 ## Other bindings
 

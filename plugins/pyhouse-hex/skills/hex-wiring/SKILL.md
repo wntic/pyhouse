@@ -28,9 +28,9 @@ them. The two meet at one rule: a settings class is instantiated **only** at a c
 ## Settings
 
 **Read `SETTINGS.md`** in this skill's directory before writing or extending a settings class. It
-carries the pydantic-settings templates — the relational database, a generic integration, the
-S3-compatible blob store and the other classes the adapter templates read — with their notes on pool
-sizing and timeouts; only `SKILL.md` is loaded automatically.
+carries the pydantic-settings templates — the relational database and one non-engine integration (the
+S3-compatible blob store) — with the note on pool sizing, and says where every other settings class the
+templates read is shown: beside the adapter that reads it; only `SKILL.md` is loaded automatically.
 
 ### How this binding spells the settings obligations
 
