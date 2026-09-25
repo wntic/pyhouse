@@ -29,7 +29,7 @@ src/myapp/restapi/schemas/foos.py        # the resource's schemas
 src/myapp/restapi/schemas/__init__.py        # update to re-export
 ```
 
-Sub-resource schemas live **in the same file as the parent** when they are only used through the parent router (e.g. `BarResponse` in `foos.py` if `bars` are nested under `/foos/{id}/bars`).
+The module holds several classes on purpose: one resource's request and response models are a closed set of declarations that change together, the case `python-packaging` lets share a module named for the set. Sub-resource schemas live **in the same file as the parent** when they are only used through the parent router (e.g. `BarResponse` in `foos.py` if `bars` are nested under `/foos/{id}/bars`).
 
 ### Schema module
 
@@ -136,7 +136,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 
 ### What never goes in a schema file
 
-- **No domain types beyond enums.** `FooResponse` does not import the `Foo` entity.
+- **No domain types beyond enums.** `FooResponse` does not import the `Foo` entity, and a value object crosses as its primitive fields, mapped in the route.
 - **No business logic, computed properties, or `@validator`s that encode rules.** Use Pydantic's built-in `Field` constraints for shape; domain rules go elsewhere.
 - **No persistence concerns.** Nothing that builds a schema straight from a stored row or mapped object — no ORM mode, no from-row constructor, no storage library's column types. A schema that can construct itself from the database has tied the wire format to the table, and the two then have to move together.
 - **No shared base class beyond the model library's own** (rule 1).
@@ -150,8 +150,8 @@ A cross-cutting request schema that **already exists** elsewhere (e.g. an auth l
 
 See `python-style` and `python-packaging` for the shared typing and import rules.
 
-- **Allowed:** `pydantic`, stdlib (`uuid`, `collections.abc`, `datetime`, `decimal`, `typing`), and **domain enums or value-object types only** (`FooCategory`, `Role`).
-- **Forbidden:** domain entities, dataclasses, repositories, application handlers, infrastructure types. Routers map field-by-field; the schema must not know about `Foo` the entity.
+- **Allowed:** `pydantic`, stdlib (`uuid`, `collections.abc`, `datetime`, `decimal`, `typing`), and **domain enums only** (`FooCategory`, `Role`).
+- **Forbidden:** domain entities, value objects and other dataclasses, repositories, application handlers, infrastructure types. Routers map field-by-field; the schema must not know about `Foo` the entity.
 - **No `from __future__ import annotations`** (`python-style` — the model library reads annotations at runtime).
 - **No `Optional[...]`** — `T | None` (`python-style`).
 
