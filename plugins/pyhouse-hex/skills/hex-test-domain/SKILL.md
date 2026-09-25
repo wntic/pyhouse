@@ -1,30 +1,23 @@
 ---
 name: hex-test-domain
-description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` alone — no IO, no fixtures, no fakes, no container. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a canonicalization rule gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
+description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` — no IO, no fixtures, no container, and an orchestrator service run on the in-memory fake of its port. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a canonicalization rule gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
 ---
 
 # Hex Test — Domain
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-The four kinds of test the domain layer takes: stdlib plus `pytest` plus `myapp.domain.*` and nothing
-else. Consult `test-principles` for the testing constitution.
+The four kinds of test the domain layer takes: stdlib plus `pytest` plus `myapp.domain.*`, and for an
+orchestrator service the hand-written fake of its port.
 
 ## When to use vs. neighbours
 
-Inside this skill, by what is under test:
-
-- A `@dataclass` entity with UUID identity → the **Entity** template.
-- A frozen value object **with** `__post_init__` invariants or a canonicalization rule → the **Value object** template. With neither, **write no file at all** — Python's data model already guarantees frozen-dataclass equality, and a test for it is maintenance with no defect-detection value.
-- A `StrEnum` / `Enum` member set → the **Enum** template.
-- A domain service, with injected protocols or without → the **Domain service** template.
-
-Outside it:
+Inside this skill, by what is under test — the four templates under `## Template(s)`. Outside it:
 
 - An application command or query handler → `hex-test-application-handler`.
 - An in-memory fake under `tests/unit/fakes/` → `hex-test-application-handler`.
 - A grep-firewall architectural rule → `test-architecture-rule`.
-- The infrastructure adapter implementing a protocol a service depends on → `hex-test-repository-contract` (repository) or `hex-test-capability-adapter` (capability).
+- The infrastructure adapter implementing a protocol a service depends on → `hex-test-repository-contract` (repository) or `hex-test-capability-adapter` (capability). A canonicalizer is tested here when it is pure domain logic with no library behind it; one that delegates to an external library sits behind a capability port, and its adapter is `hex-test-capability-adapter`'s.
 - The handler that *uses* a service, end to end → `hex-test-restapi-endpoint`.
 - The domain object itself rather than its test → `hex-domain-model` (entity, value object, enum) or `hex-domain-service`.
 - Anything that needs a fixture, a container or a database — "add a testcontainer fixture for Postgres" included → `hex-test-integration-setup`; nothing in this skill takes a fixture.
@@ -41,15 +34,11 @@ Inside this skill, by what is under test:
 - A `StrEnum` / `Enum` member set → **Enum**.
 - A domain service, with injected protocols or without → **Domain service**.
 
-File placement, and note the two suffix asymmetries:
-
-| Under test | File |
-|---|---|
-| Entity | `tests/unit/domain/<subdomain>/test_<entity_snake>_entity.py` |
-| Value object | `tests/unit/domain/<subdomain>/test_<vo_snake>.py` — no `_value_object` suffix |
-| Enum | `tests/unit/domain/<subdomain>/test_<enum_snake>_enum.py` |
-| Domain service — orchestrator | `tests/unit/domain/<subdomain>/test_<service_snake>_service.py` |
-| Domain service — pure logic | `tests/unit/domain/<subdomain>/test_<service_snake>.py` — no `_service` suffix |
+File placement mirrors the source file (`test-principles`): the test for
+`domain/<subdomain>/<module>.py` is `tests/unit/domain/<subdomain>/test_<module>.py`, whatever kind of
+object the module holds — `foo.py` → `test_foo.py`, `foo_status.py` → `test_foo_status.py`,
+`foo_uniqueness_service.py` → `test_foo_uniqueness_service.py`. The file name adds no suffix the
+module name does not already carry.
 
 ### Entity — standard
 
@@ -61,19 +50,16 @@ import pytest
 from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import Foo
 
-def _make_foo(**overrides) -> Foo:
-    defaults: dict[str, object] = dict(
-        id=uuid.uuid4(),
-        name="Test",
-    )
-    defaults.update(overrides)
-    return Foo(**defaults)
+def _make_foo(
+    *, id: uuid.UUID | None = None, name: str = "Test", bar_id: uuid.UUID | None = None
+) -> Foo:
+    return Foo(id=id or uuid.uuid4(), name=name, bar_id=bar_id or uuid.uuid4())
 
 def test_equality_by_id() -> None:
     shared_id = uuid.uuid4()
-    a = Foo(id=shared_id, name="alpha")
-    b = Foo(id=shared_id, name="beta")
-    c = Foo(id=uuid.uuid4(), name="alpha")
+    a = _make_foo(id=shared_id, name="alpha")
+    b = _make_foo(id=shared_id, name="beta")
+    c = _make_foo(name="alpha")
 
     assert a == b
     assert a != c
@@ -89,7 +75,7 @@ def test_name_must_be_non_empty() -> None:
 The builder spreads **only the entity's real declared fields** — `id` plus its domain fields — because a
 domain test constructs the subject the way the domain layer declares it and knows nothing of what a
 store adds around it. Two things it must therefore not carry: `created_at` / `updated_at`, which are not
-entity fields at all (`hex-domain-model` rule 6 — the audit timestamps are a DB-managed table
+entity fields at all (`hex-domain-model`, Entity rule 6 — the audit timestamps are a DB-managed table
 convention), so `Foo(created_at=...)` fails; and any `import datetime` that exists only to feed them.
 `datetime` enters the file **only** when the entity genuinely declares a datetime domain field.
 
@@ -105,11 +91,12 @@ from myapp.domain.foos import Foo
 
 def test_equality_by_id() -> None:
     shared_id = uuid.uuid4()
-    assert Foo(id=shared_id, name="a") == Foo(id=shared_id, name="b")
+    bar_id = uuid.uuid4()
+    assert Foo(id=shared_id, name="a", bar_id=bar_id) == Foo(id=shared_id, name="b", bar_id=bar_id)
 
 def test_name_must_be_non_empty() -> None:
     with pytest.raises(ValidationError) as exc:
-        Foo(id=uuid.uuid4(), name="")
+        Foo(id=uuid.uuid4(), name="", bar_id=uuid.uuid4())
     assert exc.value.context["field"] == "name"
 ```
 
@@ -194,32 +181,30 @@ The rank ladder is this example enum's own. Test every member's value, the rejec
 and the method at, above and below the bar — `satisfies` is the rank-ordered `StrEnum` shape from
 `hex-domain-model`, whatever the enum ranks.
 
-### Domain service — orchestrator, with a minimal inline stub
+### Domain service — orchestrator, on the fake of its port
 
 ```python
+import uuid
+
 import pytest
 
 from myapp.domain.exceptions import FooConflictError
-from myapp.domain.foos import FooUniquenessService
+from myapp.domain.foos import Foo, FooUniquenessService
+from tests.unit.fakes import FakeFooRepository
 
-def _service(existing_keys: list[str] | None = None) -> FooUniquenessService:
-    class _MinimalRepo:
-        def __init__(self, keys: list[str]) -> None:
-            self._keys = set(keys)
+def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
+    foos = [Foo(id=uuid.uuid4(), name=n, bar_id=uuid.uuid4()) for n in existing_names or []]
+    return FooUniquenessService(repo=FakeFooRepository(items=foos))
 
-        async def exists_by_canonical_key(self, canonical_key: str) -> bool:
-            return canonical_key in self._keys
+async def test_assert_name_available_raises_when_taken() -> None:
+    service = _service(["alpha"])
+    with pytest.raises(FooConflictError) as exc:
+        await service.assert_name_available("alpha")
+    assert exc.value.context["field"] == "name"
 
-    return FooUniquenessService(repo=_MinimalRepo(existing_keys or []))
-
-async def test_assert_available_raises_when_present() -> None:
-    service = _service(["abc"])
-    with pytest.raises(FooConflictError):
-        await service.assert_available("abc")
-
-async def test_assert_available_passes_when_absent() -> None:
+async def test_assert_name_available_passes_when_free() -> None:
     service = _service([])
-    await service.assert_available("abc")  # does not raise
+    await service.assert_name_available("alpha")  # does not raise
 ```
 
 ### Domain service — pure logic
@@ -238,15 +223,22 @@ def test_strips_trailing_slash() -> None:
 def test_drops_default_port() -> None:
     assert c.canonicalize("https://example.com:443/path") == "https://example.com/path"
 
-def test_idempotent() -> None:
-    samples = ["https://example.com/", "https://example.com/path/?b=2&a=1"]
-    for s in samples:
-        assert c.canonicalize(c.canonicalize(s)) == c.canonicalize(s)
+@pytest.mark.parametrize(
+    "raw", ["https://example.com/", "https://example.com/path/?b=2&a=1"]
+)
+def test_idempotent(raw: str) -> None:
+    once = c.canonicalize(raw)
+    assert c.canonicalize(once) == once
 
 def test_rejects_non_http() -> None:
     with pytest.raises(ValidationError) as exc:
         c.canonicalize("ftp://example.com")
+    assert exc.value.context["field"] == "scheme"
 ```
+
+The canonicalizer here is a domain service because it is pure logic over the standard library. One
+that delegates to an external library (an IDNA or URL-parsing package) sits behind a capability port
+instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 
 ## Rules
 
@@ -256,8 +248,8 @@ def test_rejects_non_http() -> None:
    method is declared async; making the rest async buys nothing and hides which subjects do IO-shaped
    work. Async configuration and markers → `test-principles`.
 2. The no-mocks contract → `test-principles`. The domain has no IO to stub, and where
-   a stub is needed (a service's injected protocol) it is hand-written so the dependency surface stays
-   visible.
+   a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
+   class for a narrow protocol (rule 17).
 3. Fixture-versus-builder rules → `test-principles`.
 4. **Assert against literal expected values.** Never re-implement the rule under test to compute the
    expected value — that hides the defect where both sides make the same mistake.
@@ -276,8 +268,9 @@ def test_rejects_non_http() -> None:
 
 7. **The four-line identity-equality block is the contract**: equality by id only, and `hash` agreeing
    with `eq`. Do not paraphrase it.
-8. **`_make_<entity>(**overrides)` is a module-level `def`** whose defaults are valid, so construction
-   with no overrides succeeds. **No conditional logic in it** — it is a dumb spreader, and computation
+8. **`_make_<entity>(*, <field>: <type> = <valid default>, …)` is a module-level `def`** with one
+   keyword-only, annotated parameter per declared field and valid defaults, so construction with no
+   arguments succeeds. **No logic in it beyond a fresh id** — it is a dumb spreader, and computation
    belongs in the tests.
 9. **A computed property or method gets its own `test_*`** named after the rule — but only when the entity
    actually declares one. Do not add a lifecycle or archive test to an entity that has no such property;
@@ -305,51 +298,55 @@ def test_rejects_non_http() -> None:
 
 ### Domain service
 
-17. **An orchestrator uses a minimal inline class, not a fake from `tests/unit/fakes/`.** The class
-    implements only the protocol methods the service actually calls. That makes the true dependency
-    surface visible: a service that "needs the whole repository" is probably an entity method in disguise.
-    The fakes directory exists and is real (`hex-test-application-handler`) — it is for *handler* tests, where the
-    fake stands in for a whole adapter.
-18. **The `_service(...)` factory returns the constructed service**, hiding the inline-class plumbing from
-    each test body.
-19. **One `test_*` per behaviour of each method**, named so the test name *is* the spec line —
-    `test_assert_available_raises_when_present`, `test_assert_available_passes_when_absent`.
+17. **An orchestrator runs on the fake of the port it takes.** A service that takes the whole
+    repository port (`IFooRepository`) is built on `FakeFooRepository` from `tests.unit.fakes`
+    (`hex-test-application-handler`): under a strict type checker a stand-in must satisfy the whole
+    protocol, and that fake already does, with the real adapter's exception contract. A minimal inline
+    class is allowed only when the service's parameter is a protocol declaring exactly the methods it
+    calls — it then implements that protocol and nothing more, which keeps the narrow dependency
+    surface visible.
+18. **The `_service(...)` factory returns the constructed service**, hiding the collaborator plumbing
+    from each test body.
+19. **One `test_*` per behaviour of each method**, named so the test name *is* the behaviour's one-line statement —
+    `test_assert_name_available_raises_when_taken`, `test_assert_name_available_passes_when_free`.
 20. **A pure-logic service constructs one instance at module scope.** It is stateless; per-test
     construction is ceremony.
-21. **A canonicalizer always has `test_idempotent`** — loop a few representative inputs and assert
-    `f(f(x)) == f(x)`. Idempotence is part of the canonicalization contract, and forgetting it is the most
-    common bug in this class of code.
+21. **A canonicalizer always has `test_idempotent`** — parametrized over a few representative inputs,
+    one reported case each, asserting `f(f(x)) == f(x)`. Idempotence is part of the canonicalization
+    contract; a loop inside one test stops at the first failing input and hides the rest.
 22. **Pair every happy path with a rejection test.** Single-direction tests are incomplete.
 
 ## Inlined typing / import rules
 
 Identical for all four kinds:
 
-- Stdlib (`uuid`, and `datetime` only when genuinely needed) plus `pytest` plus `myapp.domain.*`. No
-  infrastructure, no application, no restapi, no Pydantic, no SQLAlchemy.
+- Stdlib (`uuid`, and `datetime` only when genuinely needed) plus `pytest` plus `myapp.domain.*`, and
+  `tests.unit.fakes` for an orchestrator's collaborators. No infrastructure, no application, no restapi,
+  no Pydantic, no SQLAlchemy.
 - Full annotations on a builder or factory and on an inline stub class. Tests are
   `def test_*() -> None` or `async def test_*() -> None`.
 - No `from __future__ import annotations`.
 
 ## Hard stops
 
-- Spec asks a test here to touch a database, an HTTP endpoint or blob storage → stop, use
+- A test here needs a database, an HTTP endpoint or blob storage → stop, use
   `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
-- Spec asks for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
-- Spec asks for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
-- Spec asks to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
-- Spec re-implements the rule in the test to compute the expected value → stop, assert literal values.
-- Spec asserts on log output or captured logs → stop, the domain layer logs nothing at all
+- Asked for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
+- Asked for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
+- Asked to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
+- A test re-implements the rule to compute the expected value → stop, assert literal values.
+- A test asserts on log output or captured logs → stop, the domain layer logs nothing at all
   (`python-style` allocates logging by layer); assert the return value or the raised exception.
 - Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
   entity's own fields and nothing else. `created_at` / `updated_at` are the usual case: the store
-  maintains them, so they are not entity fields (`hex-domain-model` rule 6).
+  maintains them, so they are not entity fields (`hex-domain-model`, Entity rule 6).
 - The value object declares no invariant of its own and no custom equality → stop, produce no file.
-- Spec proposes looping over enum members → stop, write explicit asserts.
-- Spec uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent
+- A test loops over enum members → stop, write explicit asserts.
+- A test uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent
   truthy-but-not-`True` bugs.
-- An enum's members are not enumerated in the spec → stop, list them explicitly.
-- Spec adds methods to a service's inline stub that the service never calls → stop, implement
-  exactly the called surface.
-- Spec adds `@pytest.mark.asyncio` → stop, use `test-principles`.
+- An enum's members are not known → stop, list them explicitly.
+- An inline stub stands in for a full port, or implements methods beyond the narrow protocol the
+  service's parameter declares → stop, use the port's fake from `tests.unit.fakes`, or the narrow
+  protocol exactly.
+- A test adds `@pytest.mark.asyncio` → stop, use `test-principles`.
 - A pure-logic canonicalizer's test omits `test_idempotent` → stop, add `test_idempotent`; idempotence is part of the contract.
