@@ -64,6 +64,18 @@ class ICanExportFoosXlsx(Protocol):
     async def export(self, rows: Sequence[FooExportRow]) -> bytes: ...
 ```
 
+### Capability protocol — a reversible action (the forward operation and its undo)
+
+```python
+from typing import Protocol
+
+__all__ = ["ICanStoreFoos"]
+
+class ICanStoreFoos(Protocol):
+    async def upload(self, key: str, body: bytes) -> None: ...
+    async def delete(self, key: str) -> None: ...
+```
+
 ### Capability protocol — sync (pure CPU only)
 
 ```python

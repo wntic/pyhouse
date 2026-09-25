@@ -54,6 +54,22 @@ Elsewhere:
 
 ## Template — compensation, a single side effect
 
+The command is `hex-application`'s `CreateFooCommand` plus the bytes this handler uploads:
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+__all__ = ["CreateFooCommand"]
+
+@dataclass(frozen=True)
+class CreateFooCommand:
+    caller_id: UUID
+    name: str
+    bar_id: UUID
+    data: bytes
+```
+
 ```python
 import uuid
 
