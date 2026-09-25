@@ -124,8 +124,8 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
    name, …) is the caller's to pass via `extra_claims`, pinned only when a test must share it with a
    fixture row (don't reuse such a value across unrelated tests). Never hardcode one app's identity
    model into the factory, and never name a claim key outside the binding files.
-9. **The keypair and the verifier settings are session-scoped.** Generating an RSA key is expensive
-   (~100 ms); generating per test would dominate suite wall time. The client factory stays
+9. **The keypair and the verifier settings are session-scoped.** Generating an RSA key is the one
+   expensive step here, and generating it per test would dominate suite wall time. The client factory stays
    function-scoped — each test's transport must be closed at teardown.
 10. **The credential the fixture mints is produced the way production's is verified**, off the same
     settings object the fixture built — same algorithm, same issuer, same audience. Substituting a
@@ -136,8 +136,8 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     traffic in a CI log — and indistinguishable from a test that accidentally does reach the network.
 12. **No mocking of verification.** The verifier in `real_app` validates the token end-to-end against the
     public key these fixtures provided — that *is* the integration contract under test.
-13. **No global token cache.** Per-test mint is fast (~1 ms) and avoids "this test passed because the
-    previous test's token was still cached" failures.
+13. **No global token cache.** Signing with a key already generated is cheap, and a per-test mint
+    avoids "this test passed because the previous test's token was still cached" failures.
 14. **Helpers live in `tests/helpers/`, not in `conftest.py`.** A test that needs `sign_token(...)` for
     an edge case (expired token, invalid issuer) imports the helper directly. The helper is a plain
     function — no fixtures wrap it.
@@ -148,10 +148,14 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     itself resolved — never a hand-maintained list, and never a path assembled by hand from a router
     prefix and a decorator argument — and probe each one under the path a client must actually request.
     Identify the auth dependency by **callable identity**, importing it, rather than by matching its
-    function name as a string: a renamed dependency then breaks the import, which is loud, where a name
-    match would silently stop finding it. *FastAPI binding:* the resolved operations are `app.routes`
-    filtered to `APIRoute` — `include_router` expands its router onto the app at include time, prefix,
-    router-level dependencies and all — and the requestable path is each route's `path_format`.
+    function name as a string or reading an attribute off it: a renamed dependency then breaks the
+    import, which is loud, where a name match would silently stop finding it. Search the **whole**
+    dependency tree, not its first level — a role gate reaches the identity dependency through its own
+    dependency, and a first-level check misses every route gated that way. *FastAPI binding:* the resolved operations are
+    `fastapi.routing.iter_route_contexts(app.routes)` filtered to contexts whose original route is an
+    `APIRoute` (FastAPI 0.138 and later) — `include_router` keeps each included router as one entry in
+    `app.routes`, and the context resolves its prefix and router-level dependencies onto each operation
+    — and the requestable path is each context's `path_format`.
 16. **The probe substitutes path placeholders with valid-shaped dummies, by pattern and never by a
     name list.** A test for `GET /foos/{id}` with literal `{id}` in the URL hits the router as 404
     instead of triggering auth. UUID-shaped placeholders (`00000000-...`) route correctly and the
@@ -232,7 +236,7 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 - Spec writes the probe against a hardcoded URL with literal placeholders (`/foos/{id}`) → stop,
   substitute UUID-shaped dummies so the route resolves before the auth dependency runs.
 - Spec uses string matching to identify "protected" routes (`if "auth" in route.name`) → stop, walk the
-  resolved routes and compare `route.dependant.dependencies` callables by identity.
+  resolved operations and compare the callables of each one's whole dependency tree by identity.
 - Spec asks to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
   returns 401 unauth") → stop, the parametrized probe already covers it via discovery; add the endpoint
   and it joins the suite automatically.
