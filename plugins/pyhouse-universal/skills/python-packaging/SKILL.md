@@ -218,7 +218,8 @@ __all__ = command.__all__ + handler.__all__
 
 **A package re-exports its immediate children — direct modules *and* child subpackages** — except the
 carve-outs below. A package with children and an empty `__init__.py` is wrong; re-export them so
-`from <pkg> import X` resolves.
+`from <pkg> import X` resolves. The two empty `__init__.py` files that are right are an application's
+distribution root (carve-out 1) and a package whose modules may not be wildcarded (carve-out 2).
 
 Adding a module to a re-exporting package is **four edits**: declare `__all__` in the module, add it to
 the `from . import …` line, add its `from .<module> import *`, and append `<module>.__all__` to the
@@ -363,7 +364,8 @@ hand-written imports land in the right block.
 ## Hard stops
 
 - A class with behaviour — state, an injected collaborator, a lifecycle — sharing its module with any
-  other public class → stop, split it; a class with behaviour always has its own module.
+  other public class, or with a private class that has behaviour of its own → stop, split it; a class
+  with behaviour always has its own module, and the private allowance covers declarations only.
 - Several declarations in one module that do not change as one unit, or a set module named after one
   of its members → stop, split it or name the module for the set; the allowance is for one closed set,
   not for any classes that happen to be small.
@@ -385,7 +387,8 @@ hand-written imports land in the right block.
 - An `__init__.py` holding class definitions, constants or logic → stop, imports and `__all__` only.
 - An `__init__.py` referencing `module.__all__` with no matching `from . import module` line → stop, add
   the explicit submodule import; the wildcard alone does not bind the name for the type checker.
-- A package with children and an empty `__init__.py` → stop, re-export them.
+- A package with children and an empty `__init__.py` → stop, re-export them — unless it is an
+  application's distribution root (carve-out 1) or a package kept empty under carve-out 2.
 - An application's distribution root `__init__.py` wildcarding its subpackages → stop, nothing outside
   imports that root, and every importer would pay for the dependencies it drags in; it stays empty.
 - A library or SDK root re-exporting whatever sits beneath it rather than the names it publishes → stop,
