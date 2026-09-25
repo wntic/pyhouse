@@ -148,9 +148,11 @@ absent — `pyhouse-universal` has to be installable alone. Hex↔flat reference
 `git-*` → `pyhouse-git`, which stands outside that graph: it depends on nothing and nothing depends on
 it, because it is installed in repositories of any language. A `git-*` skill may name a catalogue skill
 only as an example and must read correctly with it absent. Since neither side can require the other, a
-rule both need is stated in both, worded to agree — the one instance is that a commit which is not a
+rule both need is stated in both, worded to agree. There are two instances: a commit which is not a
 release does not touch the version, stated by `git-commit-message` from the commit's side and by
-`python-versioning` from the number's. That is not a duplicate to delete.
+`python-versioning` from the number's; and below 1.0.0 a break bumps the minor, stated by
+`git-commit-message` beside its type table and by `python-versioning` rule 9. Neither is a duplicate
+to delete.
 
 **Principle and binding stay separate.** `## Rules` states obligations that survive swapping the
 library ("translate the driver's integrity error at the repository boundary"), never mechanisms
