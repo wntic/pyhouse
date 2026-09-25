@@ -40,7 +40,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface.
 - `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler.
 - `hex-capability-adapter` — Implements an external action; aggregate persistence belongs to a repository skill.
-- `hex-store-repository` — Use for client-style storage, key-value (bound to redis) or collection-shaped (bound to Qdrant); relational tables and Alembic revisions belong to the persistence skill.
+- `hex-store-repository` — Use for client-style storage, bound to redis, other stores under Other bindings; relational tables and Alembic revisions belong to the persistence skill.
 
 ### Hex REST API (4)
 

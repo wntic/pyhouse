@@ -120,7 +120,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-application` | CQRS commands, queries, handlers, and read-result forms |
 | `hex-wiring` | Integration settings, DI providers, lifetimes, and container declaration order |
 | `hex-capability-adapter` | Concrete capability implementations using SDKs, HTTP, or CPU work |
-| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis and Qdrant |
+| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis; other stores under Other bindings |
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
 rules the layer split imposes on top of `python-packaging`; `python-style` carries the per-layer
