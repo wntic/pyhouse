@@ -271,9 +271,8 @@ async def get_current_user(
 
 class _RoleDependency:
     """A role-gated route dependency. A callable CLASS, not a closure, so the gated role is a
-    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute —
-    hex-test-restapi-auth detects a role-gated route by reading `required_role` off the
-    dependency. FastAPI inspects `__call__` like any callable."""
+    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute.
+    FastAPI inspects `__call__` like any callable."""
 
     def __init__(self, required: Role) -> None:
         self.required_role = required
