@@ -105,6 +105,32 @@ injected — never a constant hardcoded inside the adapter. Whether it carries a
 and rule 2's question: default it only if one value is safe for every deployment, and make it required
 otherwise.
 
+### Template — pydantic-settings, S3-compatible blob store
+
+The settings class the S3 adapter (`hex-capability-adapter`) consumes, in `infrastructure/s3/settings.py`
+(`hex-conventions` derives the path and the name). The endpoint is required, so the same class reaches
+a hosted store and an S3-compatible one; the adapter reads `bucket` and `endpoint_url`, and the
+composition root builds the SDK session from the two credential fields.
+
+```python
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["S3Settings"]
+
+class S3Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_S3_",
+        env_file=".env",
+        extra="ignore",
+    )
+
+    endpoint_url: str
+    access_key: str
+    secret_key: SecretStr
+    bucket: str
+```
+
 ### How this binding spells the settings obligations
 
 Three `model_config` keys are mandatory **under pydantic-settings**, and each is one obligation from
@@ -131,6 +157,7 @@ no binding is reached by its attribute name, so renaming a class cannot silently
 ```python
 from collections.abc import AsyncIterator
 
+import aioboto3
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -180,6 +207,14 @@ class InfrastructureProvider(Provider):
     @provide
     def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return create_session_factory(engine=engine)
+
+    @provide
+    def s3_session(self, settings: S3Settings) -> aioboto3.Session:
+        # A session holds credentials, not connections; the adapter opens a client per call.
+        return aioboto3.Session(
+            aws_access_key_id=settings.access_key,
+            aws_secret_access_key=settings.secret_key.get_secret_value(),
+        )
 
     bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
 
@@ -464,23 +499,24 @@ Settings re-exports → `python-packaging`; composition-root location → `hex-a
 
 `containers.py` needs no package wiring at all: it is `src/myapp/containers.py`, a module of the
 distribution's root package, and the root `__init__.py` does not re-export it — that file stays empty
-(`hex-architecture`). For the classes it imports, follow `python-packaging`.
+(`python-packaging`'s carve-out for an application's root). For the classes it imports, follow
+`python-packaging`.
 
 ## Hard stops
 
-- Spec asks for an env read outside a settings class → stop, route it through a settings field.
-- Spec wants two unrelated integrations under one prefix → stop, split into two classes.
-- Spec asks an adapter to take individual fields instead of the settings object → stop, pass the
+- Asked for an env read outside a settings class → stop, route it through a settings field.
+- Two unrelated integrations share one prefix → stop, split into two classes.
+- An adapter is asked to take individual fields instead of the settings object → stop, pass the
   whole object. A single field is extracted only by the factory of a tunable value object.
-- Spec asks to add a binding whose dependency is not yet declared → stop, that dependency's own skill
+- Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill
   runs first.
-- Spec asks to bind a repository at process lifetime → stop, repositories are per-operation.
-- Spec asks for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
+- Asked to bind a repository at process lifetime → stop, repositories are per-operation.
+- Asked for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
   problem.
-- Spec asks to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
-- Spec asks the composition root to hand out a unit of work → stop, it hands out the factory callable;
+- Asked to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
+- The composition root is asked to hand out a unit of work → stop, it hands out the factory callable;
   the unit of work's lifetime is the handler's `async with` (`hex-patterns`).
-- Spec asks the composition root to bind a store connection or transaction handle per operation, so a
+- The composition root is asked to bind a store connection or transaction handle per operation, so a
   repository can be injected with one outside a unit of work → stop, nothing would then own the commit;
   use the standalone repository form, which opens and owns its own (`hex-persistence` for a relational
   store, `hex-store-repository` for a client-style one), or a unit of work (`hex-patterns`). A store

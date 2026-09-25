@@ -64,6 +64,18 @@ class ICanExportFoosXlsx(Protocol):
     async def export(self, rows: Sequence[FooExportRow]) -> bytes: ...
 ```
 
+### Capability protocol — a reversible action (the forward operation and its undo)
+
+```python
+from typing import Protocol
+
+__all__ = ["ICanStoreFoos"]
+
+class ICanStoreFoos(Protocol):
+    async def upload(self, key: str, body: bytes) -> None: ...
+    async def delete(self, key: str) -> None: ...
+```
+
 ### Capability protocol — sync (pure CPU only)
 
 ```python
@@ -170,8 +182,8 @@ Follow `python-packaging` for package exports and `hex-architecture` for layer p
 
 ## Hard stops
 
-- Spec lists more than about three single-action methods that share no collection mental model → stop, that is one or more capability protocols, not a repository.
+- A protocol lists more than about three single-action methods that share no collection mental model → stop, that is one or more capability protocols, not a repository.
 - A capability's method count would grow past two → stop, split the protocol or model it as a repository.
-- Spec asks for SQL, SDK or framework types on a signature → stop, those are infrastructure concerns.
-- Spec asks the protocol to inherit from an `ABC` or a concrete base → stop, it is a `Protocol` — see this skill's own typing slice above.
-- Spec asks for a default implementation on the protocol → stop, that is behaviour leaking into a domain interface; it belongs in the adapter.
+- Asked for SQL, SDK or framework types on a signature → stop, those are infrastructure concerns.
+- The protocol is asked to inherit from an `ABC` or a concrete base → stop, it is a `Protocol` — see this skill's own typing slice above.
+- Asked for a default implementation on the protocol → stop, that is behaviour leaking into a domain interface; it belongs in the adapter.

@@ -173,7 +173,7 @@ See `python-packaging` for package re-exports and `__all__` composition.
 
 ## Hard stops
 
-- Spec asks `*Response` to validate input → stop, responses don't validate. The data already passed domain invariants.
-- Spec asks `*CreateRequest` to allow all fields as `None` → stop, that's a `*UpdateRequest`.
-- Spec asks for a shared base class to deduplicate fields across resources → stop, schemas are wire contracts; repetition is intentional.
-- Spec asks to import a domain entity into the schema file → stop, mapping happens in the route.
+- `*Response` is asked to validate input → stop, responses don't validate. The data already passed domain invariants.
+- `*CreateRequest` is asked to allow all fields as `None` → stop, that's a `*UpdateRequest`.
+- Asked for a shared base class to deduplicate fields across resources → stop, schemas are wire contracts; repetition is intentional.
+- Asked to import a domain entity into the schema file → stop, mapping happens in the route.

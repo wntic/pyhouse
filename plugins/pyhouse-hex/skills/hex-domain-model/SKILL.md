@@ -206,6 +206,23 @@ class Foo(Enum):
     C = 3
 ```
 
+### Filter sort enum
+
+`domain/foos/foo_sort.py`, beside the filter that imports it (`hex-conventions`). One member per ordering
+the list read offers, each naming a column and a direction; the repository maps every member to its
+ordered column (`hex-persistence`).
+
+```python
+from enum import StrEnum
+
+__all__ = ["FooSort"]
+
+class FooSort(StrEnum):
+    CREATED_AT_DESC = "created_at_desc"
+    CREATED_AT_ASC = "created_at_asc"
+    NAME_ASC = "name_asc"
+```
+
 ### Filter record
 
 ```python
@@ -355,13 +372,13 @@ and imports, including the module-level predicate function above.
 
 ## Hard stops
 
-- Spec asks for a frozen object defined by its content, with no identity → stop, model it as a value object; `id: UUID` plus mutation over time → stop, model it as an entity.
-- Spec puts a constraint, a unit or a format rule on a bare `str`, `int` or `Decimal` field and checks it at the call site → stop, model the value as a value object and check the invariant in its `__post_init__`.
-- Spec asks for behaviour that needs another aggregate's state → stop, use `hex-domain-service`.
-- Spec asks for repository methods or persistence on any of these → stop, use `hex-domain-ports` for the interface and `hex-persistence` for the adapter.
-- Spec asks for runtime-extensible "enum" values loaded from config or a database → stop, model it as a value object plus a lookup repository.
-- Spec asks for a filter-record method that translates the filter to SQL → stop, use `hex-persistence`.
-- Spec asks a filter record to validate cross-aggregate state, or to range-check its own fields → stop, use `hex-application`.
-- Spec needs both `limit`/`offset` and `cursor` on one filter → stop, pick one with the user.
-- Spec puts `created_at` / `updated_at` on an entity → stop, project the DB-managed audit timestamps into a read-model DTO instead.
-- Spec asks for enum values persisted to a SQL column → stop, use `hex-persistence` for the column type and its mapping; the enum still belongs here.
+- Asked for a frozen object defined by its content, with no identity → stop, model it as a value object; `id: UUID` plus mutation over time → stop, model it as an entity.
+- A constraint, a unit or a format rule sits on a bare `str`, `int` or `Decimal` field and is checked at the call site → stop, model the value as a value object and check the invariant in its `__post_init__`.
+- Asked for behaviour that needs another aggregate's state → stop, use `hex-domain-service`.
+- Asked for repository methods or persistence on any of these → stop, use `hex-domain-ports` for the interface and `hex-persistence` for the adapter.
+- Asked for runtime-extensible "enum" values loaded from config or a database → stop, model it as a value object plus a lookup repository.
+- Asked for a filter-record method that translates the filter to SQL → stop, use `hex-persistence`.
+- A filter record is asked to validate cross-aggregate state, or to range-check its own fields → stop, use `hex-application`.
+- One filter needs both `limit`/`offset` and `cursor` → stop, pick one with the user.
+- `created_at` / `updated_at` are put on an entity → stop, project the DB-managed audit timestamps into a read-model DTO instead.
+- Asked for enum values persisted to a SQL column → stop, use `hex-persistence` for the column type and its mapping; the enum still belongs here.

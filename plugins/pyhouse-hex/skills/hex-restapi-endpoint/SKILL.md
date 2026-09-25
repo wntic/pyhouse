@@ -480,17 +480,17 @@ app.include_router(foos_router)
 
 ## Hard stops
 
-- Spec asks the route to reach a composition root off `request.app.state`, or to name a binding rather than a type → stop, declare the handler as a `FromDishka[<Handler>]` parameter.
-- Spec asks the route to log → stop, use `python-style` for logging ownership.
-- Spec asks for a `try/except` in the route body → stop, use the mixed multipart+JSON template only for that sanctioned case.
-- Spec asks the route to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
+- The route is asked to reach a composition root off `request.app.state`, or to name a binding rather than a type → stop, declare the handler as a `FromDishka[<Handler>]` parameter.
+- The route is asked to log → stop, use `python-style` for logging ownership.
+- Asked for a `try/except` in the route body → stop, use the mixed multipart+JSON template only for that sanctioned case.
+- The route is asked to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
 - Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
 
-- Spec asks for a `try/except` other than the mixed multipart + JSON one → stop, no other `try/except` belongs in a route body.
-- Spec wants the route to compute file size limits → stop, that's the middleware's job.
-- Spec wants the route to parse the file content → stop, that's the handler's job; the route passes bytes.
-- Spec adds a download response header beyond `Content-Disposition` without updating CORS `expose_headers` (when CORS is configured) → stop, update both in the same change.
-- Spec asks a route to catch a domain exception and translate it → stop, use `exception-catalog`.
-- Spec advertises `401` or `403` on a route that attaches no auth dependency → stop, those codes follow the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
-- Spec proposes a third auth dependency type, or any other auth machinery → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.
-- Spec omits the input-validation status on a route that takes a path param, query param, filter or body → stop. Where the framework publishes that response itself — FastAPI does — its entry describes the framework's error body rather than the app's, so the decorator names it too; where the framework publishes nothing of its own, the decorator is the only thing documenting the status at all.
+- Asked for a `try/except` other than the mixed multipart + JSON one → stop, no other `try/except` belongs in a route body.
+- The route is asked to compute file size limits → stop, that's the middleware's job.
+- The route is asked to parse the file content → stop, that's the handler's job; the route passes bytes.
+- A download response header beyond `Content-Disposition` is added without updating CORS `expose_headers` (when CORS is configured) → stop, update both in the same change.
+- A route is asked to catch a domain exception and translate it → stop, use `exception-catalog`.
+- A route that attaches no auth dependency advertises `401` or `403` → stop, those codes follow the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
+- A third auth dependency type, or any other auth machinery, is proposed → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.
+- The input-validation status is omitted on a route that takes a path param, query param, filter or body → stop. Where the framework publishes that response itself — FastAPI does — its entry describes the framework's error body rather than the app's, so the decorator names it too; where the framework publishes nothing of its own, the decorator is the only thing documenting the status at all.

@@ -59,13 +59,13 @@ once rather than throughout — before the family is known:
 | Skill | Owns |
 |---|---|
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
-| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families, renaming |
+| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families and the role suffixes an architecture defines, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
-| `python-style` | Typing forms, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
-| `python-packaging` | Whether a module wants a class at all and the one-class cap, `__all__`, the `__init__.py` re-export contract, import rules |
+| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
+| `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
-| `exception-catalog` | The single error-catalog file and translation of library exceptions at the boundary |
+| `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, and best-effort compensation |
 | `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
@@ -120,7 +120,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-application` | CQRS commands, queries, handlers, and read-result forms |
 | `hex-wiring` | Integration settings, DI providers, lifetimes, and container declaration order |
 | `hex-capability-adapter` | Concrete capability implementations using SDKs, HTTP, or CPU work |
-| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings |
+| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis and Qdrant |
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
 rules the layer split imposes on top of `python-packaging`; `python-style` carries the per-layer
@@ -157,7 +157,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
 | `flat-persistence` | One package owning a service's data access over a SQL store — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
+| `flat-entrypoint` | Trigger choice — loop, schedule, stream, a thin HTTP wrapper or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
 | `flat-project-setup` | The one-time project setup — `pyproject.toml`, toolchain configuration, dependency floors, and the migration bootstrap; per-change revisions are `flat-persistence`'s |
 
 ## Flat tests (4)

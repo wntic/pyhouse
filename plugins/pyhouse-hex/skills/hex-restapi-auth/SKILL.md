@@ -227,15 +227,15 @@ attaches are **this scheme's own** — an opaque token, a session cookie and a g
 the three — so these stops sit with the template that names the stack, and they stop wherever this
 binding is in use.
 
-- Spec takes the algorithm from the token's `alg` header, or widens the allowlist to include `none` or a
+- The algorithm is taken from the token's `alg` header, or the allowlist is widened to include `none` or a
   symmetric algorithm against a published public key → stop, the accepted set is configuration and is
   validated at startup.
-- Spec asks a route to read the `Authorization` header directly → stop, that is what the bearer scheme
+- A route is asked to read the `Authorization` header directly → stop, that is what the bearer scheme
   is for.
-- Spec asks to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
+- Asked to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
   manual header parsing.
-- Spec asks for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
-- Spec freezes a literal realm (`Bearer realm="myapp"`) as the contract → stop, only the scheme is
+- Asked for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
+- A literal realm (`Bearer realm="myapp"`) is frozen as the contract → stop, only the scheme is
   load-bearing; the realm is app-specific and comes from settings, or is omitted.
 
 ## The route dependencies
@@ -271,9 +271,8 @@ async def get_current_user(
 
 class _RoleDependency:
     """A role-gated route dependency. A callable CLASS, not a closure, so the gated role is a
-    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute —
-    hex-test-restapi-auth detects a role-gated route by reading `required_role` off the
-    dependency. FastAPI inspects `__call__` like any callable."""
+    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute.
+    FastAPI inspects `__call__` like any callable."""
 
     def __init__(self, required: Role) -> None:
         self.required_role = required
@@ -458,22 +457,22 @@ in `hex-architecture`. `restapi/dependencies.py` sits in the entrypoint package 
   auth-free by construction.
 - `domain/exceptions.py` has no `UnauthorizedError` / `ForbiddenError` → stop, use `exception-catalog`
   first; both classes are its to define.
-- Spec proposes a **third** auth dependency type → stop, the two above are exhaustive; express a
+- A **third** auth dependency type is proposed → stop, the two above are exhaustive; express a
   finer-grained rule in the handler instead.
 - A role-gated route advertises `401` but not `403` → stop, the advertised codes must match the chosen
   dependency.
-- Spec asks a route to inline a role check after `get_current_user` → stop, use `require_role(...)`.
-- Spec asks for a custom verifier per route → stop, the verifier is bound in `containers.py`; routes use
+- A route is asked to inline a role check after `get_current_user` → stop, use `require_role(...)`.
+- Asked for a custom verifier per route → stop, the verifier is bound in `containers.py`; routes use
   the standard dependency.
-- Spec mints a second exception class for the credential case under any name → stop, use
+- A second exception class is minted for the credential case under any name → stop, use
   `exception-catalog`'s single unauthorized class; the challenge branch keys on it.
-- Spec asks the translator to branch on more than the unauthorized class → stop, encode new behaviour
+- The translator is asked to branch on more than the unauthorized class → stop, encode new behaviour
   via subclass `code` / `http_status` (`hex-restapi-app` rule 3 caps it at one branch).
-- Spec asks the verifier to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
-- Spec asks to omit auth on a non-public route of an app that **does** have auth → stop, authenticated is
+- The verifier is asked to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
+- Asked to omit auth on a non-public route of an app that **does** have auth → stop, authenticated is
   the default and only routes the app declares public skip it.
-- Spec asks for authorization finer than a single role rank — per-row ownership, a policy matrix → stop,
+- Asked for authorization finer than a single role rank — per-row ownership, a policy matrix → stop,
   use `hex-application`; the handler raises `ForbiddenError`.
-- Spec puts the tenant id in the path, query or body → stop, stamp it from the resolved identity.
+- The tenant id is put in the path, query or body → stop, stamp it from the resolved identity.
 - The composition root binds no verifier → stop, use `hex-wiring` to declare it before the dependency
   asks for it.

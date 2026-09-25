@@ -289,7 +289,7 @@ Each line below is one obligation from `## Rules` in this stack's spelling; none
 obligation of its own.
 
 - **Raw ASGI callable, never a `starlette.middleware.base.BaseHTTPMiddleware` subclass** — that class
-  buffers the whole body, which breaks streaming and the size cap. Spec reaches for
+  buffers the whole body, which breaks streaming and the size cap. Reaching for
   `BaseHTTPMiddleware` → stop, write the raw ASGI class.
 - **Exact shape** (rule 7). `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on
   `self`; `async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None`. Configuration
@@ -437,12 +437,12 @@ For `restapi/__init__.py` and `restapi/middleware/__init__.py`, follow `python-p
 
 ## Hard stops
 
-- The spec asks to add `domain/error_catalog.py` → stop, reject as obsolete; the catalog is dynamic.
+- Asked to add `domain/error_catalog.py` → stop, reject as obsolete; the catalog is dynamic.
 - Asked to attach business logic to lifespan → stop, reserve lifespan for infrastructure teardown only: disposing the resources the app's datastores opened.
 - Asked to make the translator branch on a second exception class → stop, encode new behavior via subclass `code`/`http_status` instead; the one sanctioned branch is the auth challenge (`hex-restapi-auth`). The request-validation handler in the template is not such a branch: it translates the framework's input rejection into the catalogue's `ValidationError` and hands it to the domain handler, so it stays.
 - `domain/exceptions.py` does not exist yet → stop, use `exception-catalog` bootstrap first.
 - `myapp/containers.py` does not exist yet → stop, use `hex-wiring` first.
-- Spec asks `lifespan` to dispose a named engine or client → stop, declare that release beside the resource's construction in `hex-wiring`; `lifespan` closes the composition root and nothing else.
+- `lifespan` is asked to dispose a named engine or client → stop, declare that release beside the resource's construction in `hex-wiring`; `lifespan` closes the composition root and nothing else.
 - A concern is for one route rather than all → stop, use `hex-restapi-endpoint` plus a handler.
 - A middleware needs a domain entity, a repository or an application handler → stop, use `hex-application` for application logic.
 - A middleware authenticates or authorizes → stop, use `hex-restapi-auth`; caller authentication is a route dependency, not a middleware.

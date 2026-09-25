@@ -8,7 +8,7 @@ paths: ["**/infrastructure/**"]
 
 Produces one repository class that adapts a domain repository protocol to a client-style datastore — any store reached through an injected SDK client rather than the shared relational bootstrap. That sentence is the whole selection rule: **the store profile, not the vendor, decides that this skill applies.** The adapter does not inherit from the protocol — structural subtyping at the DI injection site is the contract.
 
-**A new vendor is a store-profile row plus its package — never a fork of this skill** (Rule 12). The pattern is fixed here (client injection, container token from settings, record↔entity mapping, boundary translation via `exception-catalog`); the vendor rides in through three things and nothing else: the injected client type, the store's settings class, and the SDK semantics the spec's notes name. Key-value, document, wide-column, search-index and vector stores are all one profile under that rule, which is why one skill serves them.
+**A new vendor is a store-profile row plus its package — never a fork of this skill** (Rule 12). The pattern is fixed here (client injection, container token from settings, record↔entity mapping, boundary translation via `exception-catalog`); the vendor rides in through three things and nothing else: the injected client type, the store's settings class, and the SDK semantics that store documents. Key-value, document, wide-column, search-index and vector stores are all one profile under that rule, which is why one skill serves them.
 
 ## When to use vs. neighbours
 
@@ -250,7 +250,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 ### Records ↔ entities
 
 6. **Private, pure mapping helpers** (`_record_to_entity` / `_point_to_entity` / `_entity_to_record`): no IO; logging follows `python-style`. IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore in an adapter body is a hard stop in `hex-project-setup` and is "never sanctioned" in `hex-capability-adapter`; an adapter is the one place the vendor type is allowed, so there is nothing to silence.
-7. **The record shape is a design decision, not a transcription.** What becomes the key, what goes into the payload, what the store indexes — the client-store analogue of "column types are judgment" in `hex-persistence`. The spec's notes guide it.
+7. **The record shape is a design decision, not a transcription.** What becomes the key, what goes into the payload, what the store indexes — the client-store analogue of "column types are judgment" in `hex-persistence`. The aggregate's access patterns and the store's semantics guide it.
 8. **An entity is reconstructed from its own stored data.** Never substitute query-side values for stored ones (e.g. a search result's vector is the point's own, not the query's); when the read path doesn't consume a stored field, omit it explicitly rather than faking it.
 
 ### Exception translation
@@ -285,8 +285,8 @@ For `repositories/__init__.py`, follow `python-packaging`; package placement fol
 ## Hard stops
 
 - The aggregate's store is the relational bootstrap store — reached through a shared engine rather than an injected client → stop, use `hex-persistence`.
-- Spec asks for SQL, SQLAlchemy, or a `Table` for this aggregate → stop, use `hex-persistence`.
-- Spec asks the repository to create or migrate the collection/index/bucket → stop, provisioning is not the repository's concern.
-- Spec asks for atomicity across this store and another (two stores in one transaction) → stop, use `hex-patterns` for handler compensation; there is no cross-store transaction.
-- Spec asks the repository to log → stop, use `python-style`.
+- Asked for SQL, SQLAlchemy, or a `Table` for this aggregate → stop, use `hex-persistence`.
+- The repository is asked to create or migrate the collection/index/bucket → stop, provisioning is not the repository's concern.
+- Asked for atomicity across this store and another (two stores in one transaction) → stop, use `hex-patterns` for handler compensation; there is no cross-store transaction.
+- The repository is asked to log → stop, use `python-style`.
 - The port is a single-action capability (`ICan<Verb>`), not an aggregate's collection → stop, use `hex-capability-adapter`.

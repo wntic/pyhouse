@@ -48,11 +48,27 @@ Elsewhere:
 - A flat service's run function and trigger wrappers → `flat-entrypoint`, in the `pyhouse-flat` plugin.
 - Layer boundaries and the injection site → `hex-architecture`.
 - The repository that joins a unit of work → `hex-persistence`.
-- The reversing method a compensation calls (`delete`, `retract`) → declared on a port beside its forward operation by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`; the guard that lets the handler swallow its failure is stated here, as `exception-catalog`'s best-effort compensation exception.
+- The reversing method a compensation calls (`delete`, `retract`) → declared on a port beside its forward operation by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`; the guard that lets the handler stop its failure is stated here, as `exception-catalog`'s best-effort compensation exception.
 - The composition-root declarations both patterns need — the `IUnitOfWork` binding and its scope → `hex-wiring`.
 - What the handler may log → `python-style`.
 
 ## Template — compensation, a single side effect
+
+The command is `hex-application`'s `CreateFooCommand` plus the bytes this handler uploads:
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+__all__ = ["CreateFooCommand"]
+
+@dataclass(frozen=True)
+class CreateFooCommand:
+    caller_id: UUID
+    name: str
+    bar_id: UUID
+    data: bytes
+```
 
 ```python
 import uuid
@@ -376,10 +392,10 @@ corresponding query handler and result type from `hex-application`.
    the scope that caught the original failure — wraps it in its own `try`, catches the undo's failure,
    logs exactly one `warning` event named for the undo with the undo's inputs as fields and the undo's
    exception attached, and then the bare `raise` re-raises the *original* failure unchanged. That is
-   `exception-catalog`'s best-effort compensation rule, the only swallow it sanctions; the event's
-   shape is `python-style`'s. Never call the undo *unguarded* inside `except` (if it raises, the
-   original error is lost), never swallow it with a bare `pass`, and never push the swallow into a
-   dedicated `*_best_effort` method on the port or the adapter.
+   `exception-catalog`'s best-effort compensation rule: the undo's failure is stopped and logged, not
+   swallowed; the event's shape is `python-style`'s. Never call the undo *unguarded* inside `except`
+   (if it raises, the original error is lost), never swallow it with a bare `pass`, and never push the
+   stop into a dedicated `*_best_effort` method on the port or the adapter.
 4. **Bare `raise` at the end of `except`.** Never `raise NewException(...)`, never `raise ... from exc`.
    The original exception propagates unchanged.
 5. **The original failure is not logged inside `except`.** The central error handler logs it once. The
@@ -432,8 +448,8 @@ corresponding query handler and result type from `hex-application`.
 - The capability protocol has no cleanup method to call in the undo → stop, add it to the protocol first.
 - The undo is called unguarded inside `except`, or its failure is swallowed with no event logged → stop,
   route it through the handler's guard (compensation rule 3).
-- The undo's failure is being swallowed inside a dedicated `*_best_effort` method → stop, the undo
-  raises like any other call; only the handler's `except` that caught the original may swallow it, and
+- The undo's failure is being stopped inside a dedicated `*_best_effort` method → stop, the undo
+  raises like any other call; only the handler's `except` that caught the original may stop it, and
   it logs the one warning (`exception-catalog`).
 - Compensation would span two unrelated backends in both directions → stop, that is a saga, not a
   compensating transaction, and it is out of scope here.

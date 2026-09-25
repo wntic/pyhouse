@@ -56,7 +56,7 @@ infrastructure adapter needs.
 
 **No versions in the substrate.** This list carries names only. The lock file is the only home for a
 concrete pin, so nothing rots. A pinned `>=` on a substrate library under eternal manual bump is the
-disease this avoids.
+disease this avoids. A floor at a known breaking boundary, below, is the one exception.
 
 **Floors on an SDK — the lone, disciplined exception.** An adapter's SDK *may* carry a `>=` floor, but
 only when it marks a **known breaking-version boundary** — an API the code relies on landed or changed
@@ -68,6 +68,21 @@ floor: a library whose 2.0 changed a return type from `bytes` to `str` gets `>=2
 client merged in at 4.2, having been a separate package before, gets `>=4.2`; a library whose API has
 been stable for years gets **no floor at all**. Symmetry lives in the *rule*, not in pinning every
 library.
+
+**A substrate library takes a floor on the same terms and no others** — only where code the project
+carries relies on an API that landed at a known release. Under the FastAPI binding that case is real:
+the app-invariant and auth-probe tests (`hex-test-app-invariants`, `hex-test-restapi-auth`) walk the
+app's resolved operations through `fastapi.routing.iter_route_contexts`, which first ships in 0.137.2,
+and from 0.137.0 an included router is a single `_IncludedRouter` entry in `app.routes`, so a walk over
+`app.routes` alone no longer reaches the operations. Below 1.0 a release's minor is its breaking segment,
+so the floor names the release that shipped the API rather than a major:
+
+```toml
+[project]
+dependencies = [
+    "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the app-invariant tests rely on
+]
+```
 
 **Dev dependencies live under `[dependency-groups]` (PEP 735).** Write `[dependency-groups]` with
 `dev = [...]`, which the package manager installs by default. Do not write a deprecated
@@ -255,7 +270,8 @@ names `src tests` and does not.
 
 1. Select dependencies by block A's core substrate plus its entrypoint, store and feature triggers;
    include an SDK only with its adapter.
-2. Keep substrate declarations unversioned; justify any SDK floor with the documented breaking boundary.
+2. Keep substrate declarations unversioned; justify any floor — an SDK's, or a substrate library's under
+   block A's same terms — with the documented breaking boundary.
 3. Declare development dependencies in the group table the package manager installs by default, never a
    deprecated tool-specific one, and lay the project down in the packaged `src/` layout from the first
    commit — a flat single-module tree matches nothing else in this style. Under the binding above that
@@ -278,8 +294,9 @@ names `src tests` and does not.
 
 ## Hard stops
 
-- A substrate library is being pinned with a version → stop, names only; the lock file owns pins.
-- An SDK floor is being written from a recollection of what version is "recent" → stop, a floor states a
+- A substrate library is being pinned with a version → stop, names only; the lock file owns pins, and a
+  floor is written only at a known breaking boundary (block A).
+- A floor is being written from a recollection of what version is "recent" → stop, a floor states a
   known breaking boundary or it does not exist.
 - A feature-triggered package is being added to an app that has no such feature → stop, a dependency
   nothing imports is a stray package.

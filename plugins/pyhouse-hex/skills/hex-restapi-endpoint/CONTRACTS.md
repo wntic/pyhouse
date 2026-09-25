@@ -104,7 +104,7 @@ The catalog is dynamic; nothing further is registered.
 
 ## Hard stops
 
-- Spec lists a status no `DomainError` subclass produces and that is not in `MIDDLEWARE_ERRORS` → stop,
+- A route lists a status no `DomainError` subclass produces and that is not in `MIDDLEWARE_ERRORS` → stop,
   define the exception first or take the middleware path.
-- Spec asks to add branching logic to `restapi/error_handler.py` → stop, the translator stays minimal;
+- Asked to add branching logic to `restapi/error_handler.py` → stop, the translator stays minimal;
   new behaviour is encoded by subclassing, or by `http_status` / `code` on the new class.

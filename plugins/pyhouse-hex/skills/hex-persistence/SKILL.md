@@ -34,7 +34,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - The integration test that drives this adapter against a real database → `hex-test-repository-contract`.
 - A data-only migration (`backfill_*`, `seed_*`) with no DDL → its own revision file; this skill covers
   DDL only.
-- The spec asks for an ORM, a declarative base or relationships → still this skill: the templates here
+- Asked for an ORM, a declarative base or relationships → still this skill: the templates here
   are Core, and an ORM project satisfies rules 1–14 through the ORM bullet under `## Other bindings`;
   do not copy a Core template into a mapped class.
 
@@ -166,14 +166,14 @@ class with the usual `from . import foo_repository` + wildcard. Mechanics: `pyth
 
 ## Hard stops
 
-- Spec asks for a database `ENUM` type → stop, use a text column plus a check constraint (rule 4).
-- Spec asks for length-bounded varchars → stop, use unbounded text plus the domain's own length rule
+- Asked for a database `ENUM` type → stop, use a text column plus a check constraint (rule 4).
+- Asked for length-bounded varchars → stop, use unbounded text plus the domain's own length rule
   (rule 4).
-- Spec changes a constraint name → stop, that is a breaking change; the table, the repository's
+- A constraint name changes → stop, that is a breaking change; the table, the repository's
   translator and the revision all change in the same commit.
-- Spec asks the repository to commit inside the unit-of-work-managed form → stop, that breaks atomicity.
-- Spec asks the repository to log → stop, a repository never logs; the central error handler or the
+- The repository is asked to commit inside the unit-of-work-managed form → stop, that breaks atomicity.
+- The repository is asked to log → stop, a repository never logs; the central error handler or the
   calling handler owns that (`python-style`).
-- Spec asks for id generation inside the repository → stop, the application handler generates ids.
-- Spec includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision file; this
+- Asked for id generation inside the repository → stop, the application handler generates ids.
+- The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision file; this
   skill covers DDL only.

@@ -351,7 +351,9 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
     that implement it are in `hex-restapi-app`, in the `pyhouse-hex` plugin.
 14. **One class for every credential rejection, and a second for the distinct permission case.** A bad,
     missing, expired or unverifiable credential raises `UnauthorizedError`, wherever the verification
-    happens; a caller who is known and is not permitted raises `ForbiddenError`. Do not mint a second,
+    happens; a caller who is known and is not permitted raises `ForbiddenError`. The credential is the
+    one the project's own caller presented: a dependency rejecting the project's own credential is an
+    upstream failure, not the caller's, and is translated as one. Do not mint a second,
     parallel class for the credential case under any name — everything the project does with that
     condition is written once against one class, and a second spelling silently skips all of it. The
     HTTP binding is the visible instance of that cost, not its reason: a central handler's RFC-7235

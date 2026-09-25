@@ -13,13 +13,13 @@ too. The counts in every heading are the number of directories on disk.
 ### Universal (10)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
-- `naming` — Load first when porting or generating code, before inherited names become project vocabulary.
+- `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
-- `python-style` — Owns the declared-type-over-bare-`dict` rule and the logging allocation that keeps every re-raising scope silent, whatever the project's layering.
-- `python-packaging` — Decides whether a module wants a class at all before capping it at one, and keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
+- `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, and the logging allocation that keeps every re-raising scope silent, whatever the project's layering.
+- `python-packaging` — Decides whether a module wants a class at all before capping it at one — a closed set of declarations may share a module by test, and a module a framework dictates follows the framework — and keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
 - `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
-- `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; transport rendering stays at the boundary.
+- `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; transport rendering stays at the boundary.
 - `test-principles` — Takes precedence whenever an artifact-specific test skill contradicts the shared constitution.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
@@ -40,7 +40,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface.
 - `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler.
 - `hex-capability-adapter` — Implements an external action; aggregate persistence belongs to a repository skill.
-- `hex-store-repository` — Use for client-style storage; relational tables and Alembic revisions belong to the persistence skill.
+- `hex-store-repository` — Use for client-style storage, key-value (bound to redis) or collection-shaped (bound to Qdrant); relational tables and Alembic revisions belong to the persistence skill.
 
 ### Hex REST API (4)
 
@@ -64,7 +64,7 @@ too. The counts in every heading are the number of directories on disk.
 
 - `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; one distribution on its own is the default.
 - `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
-- `flat-entrypoint` — Changing the trigger wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
+- `flat-entrypoint` — Changing the trigger — loop, schedule, stream, a thin HTTP wrapper or durable execution — wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
 - `flat-project-setup` — Lay a flat service down once — pyproject, toolchain, dependency floors and the migration bootstrap; per-change revisions are `flat-persistence`'s.
 
 ### Flat tests (4)
