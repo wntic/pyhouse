@@ -82,7 +82,8 @@ def build_app(client: FooClient, storage: FooStorage) -> FastAPI:
 
 **The catalogue is rendered in one place, in one shape.** Once the service answers HTTP its catalogue
 root carries `http_status`, and every failure leaves as `code`, message and `context` read off an
-exception (`exception-catalog`): a catalogue error as itself, the framework's validation failure as the
+exception (`exception-catalog`; the classes and their statuses are in `flat-layered`'s `CATALOG.md`): a
+catalogue error as itself, the framework's validation failure as the
 catalogue's validation error, and anything else as the catalogue root with status 500. The level follows
 the kind (`python-style`): `warning` for a rejection the client caused, `error` for a 5xx — an upstream
 failure or a crash.
