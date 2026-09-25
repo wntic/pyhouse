@@ -60,9 +60,9 @@ git log --no-merges --format='%h %s%n%b%n--' <tag>..HEAD
 git log --no-merges -E --grep='^BREAKING[ -]CHANGE:' --format='%h %s' <tag>..HEAD
 ```
 
-The second is the cross-check: every commit it lists is a break, whatever its subject says. Git
-writes merge commits itself and the convention skips them. An empty range → nothing to release; say so
-and stop.
+The second is the cross-check: every commit it lists is a break, whatever its subject says. Merge
+commits are left out because `git-commit-message` rule 9 exempts the ones git writes. An empty range →
+nothing to release; say so and stop.
 
 ## 4. Classify every commit
 

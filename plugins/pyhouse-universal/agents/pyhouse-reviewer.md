@@ -124,12 +124,10 @@ diff or a set of paths has none. And `git-commit-message` loads. `pyhouse-git` d
 nothing requires it, so when it is absent say so in the header and review no message: a convention held
 from memory is no better than a family held from memory.
 
-**Whose messages survive.** Read the range with `git log --no-merges`; git writes merge commits itself
-and the convention skips them. The merge strategy decides which messages are the history (rule 9): the
-platform's setting where you can read it, otherwise the mainline's shape — merge commits on it mean
-every branch commit lands; single-parent commits carrying request numbers mean squashing. Under
-squashing the surviving message is the request's title, which a local range does not hold, so review
-no branch commit and say so on the `Commits:` line.
+**Whose messages survive.** Read the range with `git log --no-merges`: rule 9 exempts the merge
+commits git writes. The merge strategy decides which messages are the history, and rule 9 also says how
+to read it where nothing records it. Under squashing the surviving message is the request's title,
+which a local range does not hold, so review no branch commit and say so on the `Commits:` line.
 
 **Judge each commit by the practice in force when it was written.** Rule 7 defers to what the
 repository already does, so a range is not its own precedent — except that a commit which adopts or

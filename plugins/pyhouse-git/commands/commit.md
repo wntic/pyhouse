@@ -52,10 +52,9 @@ The skill defers two things to the repository, and this command finds both out b
 
 - **Its existing practice.** Read `git log --oneline -20` for the scopes and casing in use, and
   `git log -5` for whether bodies and trailers appear. The skill follows what is there.
-- **Its merge strategy**, when this commit will land on a branch. The platform's merge setting is the
-  authority; failing that, a mainline with no merge commits is squashing. When it is genuinely unclear,
-  ask — the skill puts the convention on the request title under one strategy and on every commit
-  under the other, so the answer changes what is being written.
+- **Its merge strategy**, when this commit will land on a branch. The skill's rule 9 says how to read
+  it where nothing records it, and when to ask — it puts the convention on the request title under one
+  strategy and on every commit under the other, so the answer changes what is being written.
 
 ## 5. Commit
 
