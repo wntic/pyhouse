@@ -32,12 +32,12 @@ class FooUniquenessService:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
 
-    async def assert_available(self, canonical_key: str) -> None:
-        if await self._repo.exists_by_canonical_key(canonical_key):
-            raise FooConflictError("foo key already exists", {"field": "canonical_key"})
+    async def assert_name_available(self, name: str) -> None:
+        if await self._repo.get_by_name(name) is not None:
+            raise FooConflictError("foo name already exists", {"field": "name"})
 
-    async def is_taken(self, canonical_key: str) -> bool:
-        return await self._repo.exists_by_canonical_key(canonical_key)
+    async def is_name_taken(self, name: str) -> bool:
+        return await self._repo.get_by_name(name) is not None
 ```
 
 **Two forms.** An *orchestrator* service has collaborators: injected protocols on `__init__`, async
@@ -78,8 +78,9 @@ Path: `src/myapp/domain/foos/<class_snake>.py`. Follow `naming` for file and cla
    is what lets the service run against hand-written stubs with no infrastructure present.
 9. **A uniqueness rule this service asserts is not a guarantee.** A check that reads and then writes
    admits the second concurrent writer — nothing between the read and the write stops it. So the
-   `assert_*` method goes in paired with a unique constraint on the same key in the store, which is what
-   actually holds the rule (`hex-persistence`). The repository translates that constraint's rejection
+   `assert_*` method goes in paired with a unique constraint on the same key in the store — the
+   template's `name`, held by `uq_foos_name` — which is what actually holds the rule
+   (`hex-persistence`). The repository translates that constraint's rejection
    into **the same catalogue class this service raises** — `FooConflictError` here, not the generic
    `ConflictError` — so the caller sees one error, one `code`, whichever side refused (`exception-catalog`
    owns the class). What the service contributes is the earlier refusal with a legible message, not the
