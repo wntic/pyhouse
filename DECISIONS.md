@@ -863,8 +863,39 @@ break, the Alembic bootstrap); the catalogue is 45 skills.
 ### D78 — Templates name the vendor they bind, and one aggregate has one shape
 The client-style store template used a `store_sdk` that was Qdrant with the name removed, down to its
 port — unrunnable, and a vendor disguised as generic. It now binds `qdrant-client` under a heading that
-says so; key-value stores get their own narrower port (`IFooArchive`) because they cannot answer the
+says so *(superseded by D79: the vector-store binding is removed)*; key-value stores get their own narrower port (`IFooArchive`, now `IBazRepository` — D79) because they cannot answer the
 aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template, every
 settings class a template constructs has a body and a provider, and settings are constructed at exactly
 three composition roots (the container, the migration environment, the test infrastructure).
 **Reverse by:** not advisable — each of these was a template that did not run as copied.
+
+### D79 — The vector store leaves, and optional adapters stop spreading through the base
+D78 answered a disguised vector store by naming it. That fixed the disguise and kept the thing
+disguised: a vector index is a workload most services never have, and naming it honestly made it
+spread — a template, a port, settings, a container binding, session fixtures and contract tests across
+the hex family. It was the durable-execution engine's mistake again, one level down. The reason it
+survived two rounds of review is the lesson worth keeping: the reviewers flagged the disguise; the fix
+plan decided to bind the vendor; every later verifier then checked the work **against the plan**, so
+each round made the vendor more complete and none asked whether it belonged. **A plan's decisions
+are held to the portability gate themselves, not only the text that carries them out** — a later
+verification re-gated every decision and found two more to narrow.
+
+- `hex-store-repository` keeps one non-relational binding: the Redis key-value form. A search index,
+  vector or full-text, is a bullet under its `## Other bindings`.
+- The key-value example holds a third placeholder aggregate, `Baz`, behind a narrower
+  `IBazRepository` — `Foo` and `Bar` are relational in every other template, and one aggregate in two
+  stores is what `hex-store-repository` rule 1 forbids. `Baz` is a new row in `CONVENTIONS.md`.
+- The same spread came through the two files every hex project copies. `hex-wiring`'s container
+  template bound every adapter the catalogue defines, and the root integration conftest wired a blob
+  store into `real_app`. Both are now a relational **base**; each optional adapter carries its own
+  binding and its own fixtures in the skill that owns it, as JWT already did.
+- Settings are constructed at composition roots named by role — the process's container, any tool that
+  loads configuration outside it, test infrastructure — with the migration environment as the usual
+  example, because a hex service need not have a relational store at all.
+- The 3.13 floor is a house choice for new projects. The claim that templates stop being correct below
+  it was false (they type-check and lint under 3.12), and an existing project below it is no longer a
+  violation; a floor is raised deliberately, never lowered.
+
+**Reverse by:** reinstating a vector binding would need a workload that most projects share, which is
+the bar it failed; the base/add-on split reverses by folding the add-on snippets back into
+`CONTAINER.md` and `CONFTEST.md`.
