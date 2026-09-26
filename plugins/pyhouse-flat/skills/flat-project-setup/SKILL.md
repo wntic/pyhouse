@@ -307,7 +307,8 @@ than as it stood when the revision was written — and each existing database is
    `noqa` in the migration environment.** A missing-stub override is per package in the config, never an
    inline ignore on a content module.
 7. **The line length and the interpreter floor are written explicitly and settled here.** The floor is
-   named identically in all three places, at or above `python-style`'s house floor.
+   named identically in all three places — for a new service at or above `python-style`'s house floor;
+   an existing service below it keeps its own and raises it deliberately, never lowers it.
 8. **The migration environment reads the connection string through the data-access component's own
    settings factory, and only there among migration files.** It is the migration run's process
    definition; `alembic.ini` names no database, and the variable the environment reads is the one the

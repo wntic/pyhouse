@@ -124,9 +124,10 @@ once, at the root, and inherited.** A member never restates them — a second `l
 `line-length = 120` is the value this catalogue's templates are written to; **88** is the linter's and
 the wider ecosystem's default, and the argument between them turns on whether there is an existing
 tree to reformat. Pick either, write it at the root, and stop arguing. The interpreter floor is
-settled at the root the same way, and `python-style` owns it: the house floor is 3.13, a workspace may
-raise it and never lower it, and the three settings that name it — `requires-python`, the linter's
-`target-version` and the type checker's `python_version` — stay in step here and nowhere else.
+settled at the root the same way, and `python-style` owns it: a new workspace starts at the house floor
+of 3.13, an existing one keeps its own, a floor is raised deliberately and never lowered, and the three
+settings that name it — `requires-python`, the linter's `target-version` and the type checker's
+`python_version` — stay in step here and nowhere else.
 
 Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 
