@@ -42,10 +42,15 @@ neighbouring variable in it crashes startup. `SecretStr` is this binding's non-p
 `.get_secret_value()` its unwrap; a plain `@property` is where a derived value is computed on
 the object; `@field_validator` is where normalization and rejection are written.
 
+The composition roots rule 13 names are, in this catalogue's layout, `src/myapp/containers.py` (the
+process's container), `migrations/env.py` (the migration environment, `hex-project-setup`) and
+`TestInfraProvider` with its fixtures in `tests/integration/conftest.py` (the test infrastructure,
+`hex-test-integration-setup`).
+
 ### Explicit settings values for tests
 
-Settings test construction → `test-principles`. The test infrastructure provider and its fixtures are
-one of the three composition roots rule 13 names, so they construct settings with explicit values:
+Settings test construction → `test-principles`. The test infrastructure is a composition root (rule
+13), so it constructs settings with explicit values:
 
 `DbSettings(host="localhost", user="t", password=SecretStr("t"), name="t")`.
 
@@ -186,10 +191,10 @@ not, so one class serves both without a branch.
 11. **One settings class per infrastructure subpackage.** Bundling unrelated config under one prefix is
     forbidden.
 12. **Settings live next to the adapter they configure.** There is no top-level central settings module.
-13. **Settings are constructed only at a composition root, and there are exactly three:** the DI
-    container module (`containers.py`), the migration environment (`migrations/env.py`), and the test
-    infrastructure provider and its fixtures. Nowhere else — never `DbSettings()` in a handler, an
-    adapter, an entrypoint module or another settings class.
+13. **Settings are constructed only at a composition root** — the process's container, any tool that
+    loads configuration outside it (the migration environment is the usual one), and the test
+    infrastructure. Nowhere else — never in a handler, an adapter, an entrypoint module or another
+    settings class.
 14. **Adapters depend on the settings type**, never on `os.environ` or `os.getenv`. No `os.getenv`
     anywhere outside a settings class.
 15. Settings test construction → `test-principles`.
