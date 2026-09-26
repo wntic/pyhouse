@@ -1,8 +1,9 @@
 # python-style — logging
 
-Topic file of `python-style`. The mechanism-free obligations are rules 10, 11, 12 and 13 in `SKILL.md`,
-together with the four bullets and the allocation rule under its `## Logging` heading; what follows is
-the **structlog** binding that satisfies them, and the alternative that satisfies them differently.
+Topic file of `python-style`. The mechanism-free obligations are rules 10–13, 17 and 18 in `SKILL.md`,
+together with the bullets and the allocation rule under its `## Logging` heading; what follows is the
+**structlog** binding that satisfies them in an application, and the stdlib binding a distributed package
+uses.
 
 ## Binding — `structlog`
 
@@ -12,7 +13,7 @@ import structlog
 log = structlog.get_logger()
 
 # inline fields
-log.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
+log.info("foo_created", foo_id=str(foo.id), bar_count=len(foo.bar_ids))
 
 # bound context for a sequence of calls
 log_ctx = log.bind(import_id=str(import_id))
@@ -98,42 +99,25 @@ to log rides in the exception instead, the fields in `context` and the cause thr
 the scope that stops the exception is the only one that logs.
 
 To apply it, trace the exception outward to the first scope that handles it rather than re-raising.
-A project that funnels every failure into one handler makes that handler the scope; where nothing above
-a failure is obliged to re-raise, the scope is usually the point of failure itself; where the exception
+A project that funnels every failure into one handler makes that handler the scope; a process that
+contains each run's failure and carries on makes its guard the scope; where the exception
 leaves the codebase entirely — a distributed package handing it to its caller — no scope inside
-qualifies and nothing inside logs. Each family fixes that answer once; the two this catalogue covers:
-
-**Hexagonal projects** propagate every error to a single central handler, so the scope that does not
-re-raise is the entrypoint:
-
-| Layer | May log |
-|---|---|
-| `domain/` | **Nothing.** Zero IO includes the log socket; raise an exception carrying `context` instead. |
-| `infrastructure/` | **Nothing.** An adapter translates and re-raises, so it is never the layer that stops; the low-level detail goes into the translated exception's `context`, where the layer that does log will find it. |
-| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a failed undo stopped under best-effort compensation, which the handler running the compensation logs at `warning` (above). |
-| entrypoints | Errors, once, at the central handler, with request context attached. |
-
-**A central handler takes the same guide**, plus one case only it sees: an exception that is not a
-catalogue class → `error`, logged *before* the framework turns it into a 500, or it is never seen.
-
-This skill owns the level rule; the **call** that implements it belongs to the entrypoint template with
-a central handler — `error_handler.py` in `hex-restapi-app`, in the `pyhouse-hex` plugin. The rule
-outlives any one framework; the call is framework-shaped.
-
-**Flat-layered services** funnel nothing — nothing above a failure is obliged to re-raise — so the scope
-is usually the point of failure itself: **log the failure there, with its context**. A scope that does
-re-raise (a client translating an SDK error) stays silent; whoever stops the exception logs.
+qualifies and nothing inside logs. Each architecture family fixes where that scope is, in its own
+architecture skill — e.g. `hex-architecture`, in the `pyhouse-hex` plugin, or `flat-layered`, in
+`pyhouse-flat`.
 
 ## Other bindings
 
 The structured logger is the one library this skill binds; typing and comments bind none.
 
-- **Stdlib `logging` plus a structured adapter** — `logging` configured once with a JSON formatter, the
+- **Stdlib `logging` plus a structured adapter** — the binding for a distributed package (`SKILL.md`
+  rule 18), which calls `logging.getLogger(__name__)` and stops there, and an alternative for an
+  application, whose entry point configures `logging` once with a JSON formatter, the
   event name as the record's message and the fields passed through `extra=` or a `LoggerAdapter` (or the
   whole module kept behind a thin structured wrapper). What changes: how the logger is obtained and
   configured, and how fields reach the record. What does not: one event per occurrence, the
   `<subject>_<past_tense_verb>` name and its never-rename contract, identifiers and counts as fields
-  rather than interpolated text, the never-log-and-re-raise rule, and the allocation table.
+  rather than interpolated text, the never-log-and-re-raise rule, and the allocation rule.
 - **What that binding buys**, so it reads as a choice rather than a fallback: third-party libraries log
   through `logging`, so on this binding their records land in the same stream with no bridge to
   configure. What it costs is that nothing in the library enforces the field discipline — the obligations

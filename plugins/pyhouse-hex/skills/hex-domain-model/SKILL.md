@@ -431,8 +431,7 @@ One case is neither a shape here nor a neighbour's:
 4. **Methods only when pure.** Anything touching another aggregate, IO or external state is not an enum
    method. Methods receive `self` and other enum values only.
 5. **No custom base class.** Inherit from `StrEnum` or `Enum` directly; no "abstract enum" hierarchies.
-6. **No constants pretending to be enums.** `class Status: ACTIVE = "active"` is banned everywhere, not
-   just in the domain.
+6. **No constants pretending to be enums** (`python-style`).
 
 ### Filter record
 

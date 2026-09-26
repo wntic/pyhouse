@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 house interpreter floor for new projects, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, one structured event per occurrence, and which scope logs an error. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 house interpreter floor for a new deployable project, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, a closed set of constants as an `Enum`, one structured event per occurrence, which scope logs an error, and logging configured once at the entry point and never inside a distributed package, whose interpreter floor is its consumers'. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -81,6 +81,12 @@ deliberately, never lowered.** Raising it is a decision — reaching the house f
 minimum sits higher, or a form the project wants from a newer interpreter — taken once, for the whole
 project, as its own change, never in half the code.
 
+**The house floor binds what the project deploys; a distributed package's floor is its consumers'.** A
+service or a CLI tool runs on an interpreter the project chooses, so it takes the house floor. A library
+or SDK others install runs on whatever interpreter each consumer has, so its floor is the oldest one its
+consumers run — which may sit below the house floor — and it writes the few newer forms above in their
+older spellings. Everything else here applies to it unchanged.
+
 **The floor is chosen once, at setup, and written down in three settings that must stay in step:**
 `requires-python` in the root `pyproject.toml` (`>=3.13`), the linter's `target-version` (`py313`), and
 the type checker's `python_version` (`3.13`). All three name the **oldest** interpreter the project must
@@ -152,10 +158,6 @@ the frozen type stores the frozen form.
 Ordinary procedural code may use mutable collections **internally** — loop accumulators, row building —
 but anything crossing into a frozen type is converted first.
 
-*In a hexagonal project this binds the whole of `domain/`, without exception. In a flat-layered service
-it binds the frozen result and payload records that pass between its packages, wherever the service
-keeps them, and nothing forces it on a local accumulator.*
-
 ### A record that crosses a boundary is a declared type
 
 A value that leaves the scope that built it — returned from a client, handed to a run function, passed
@@ -202,15 +204,25 @@ one that is shortest to write:
 - **An instant is a timezone-aware `datetime`.** A naive one carries no offset, so two of them cannot
   be compared or subtracted correctly once anything runs in a second zone, and every store it passes
   through is free to reinterpret it. A calendar day with no instant in it stays a `date`.
-- **An identifier is `uuid.UUID`, not `str`.** The string form belongs at the edges — a log field, a
-  path parameter, a wire model — and the conversion happens there. Inside, a swapped identifier is then
-  a type error rather than a lookup that quietly returns nothing.
+- **An identifier this project mints is `uuid.UUID`, not `str`.** The string form belongs at the edges
+  — a log field, a path parameter, a wire model — and the conversion happens there. Inside, a swapped
+  identifier is then a type error rather than a lookup that quietly returns nothing. **An identifier
+  issued elsewhere** — a webhook's event id, a broker's message id, an identity provider's subject, a
+  store's own sequence included — keeps its issuer's form, since nothing promises it parses as a UUID,
+  and is a distinct type over that form (a `NewType` over `str` or `int`, say), never the bare builtin.
 
 These are representation rules: they say which builtin holds the value. **Whether a constrained scalar
 also earns a named type of its own** — an amount that must be non-negative, a code that must match a
 pattern — is an architecture question this skill does not answer. The hexagonal family answers it with
 a value object whose invariant is checked at construction (`hex-domain-model`, in the `pyhouse-hex`
 plugin); a service with no domain layer checks it where the value enters and keeps the scalar.
+
+### A closed set of named constants is an enum
+
+A fixed set of named values — a status, a kind, a mode — is an `enum.Enum`, and a `StrEnum` when its
+values are strings (`class Foo(str, Enum)` below 3.11). **Never a class of bare attributes** (`class Status: ACTIVE = "active"`): nothing
+stops a value outside the set, the checker cannot tell a status from any other string, and there is no
+iteration over the members. This holds in every module, whatever layer it sits in.
 
 ### Protocols
 
@@ -256,10 +268,21 @@ sentence with values spliced into it. Four obligations, whichever library provid
 
 - **One logger, obtained at module level.** Not per call, not per instance, and not a second logging
   mechanism running alongside the first — two mechanisms split one event stream in half and neither half
-  is complete. `print()` is not one of them, outside a deliberate entrypoint debug path.
+  is complete. `print()` is not one of them, outside a deliberate entrypoint debug path. **What a
+  program writes to stdout as its result is not a log event** — a CLI's report, a table, the JSON a
+  caller pipes onward is the product, and `print()` or `sys.stdout` is the right way to emit it; this
+  rule is about diagnostics, which never share that stream.
 - **One event per occurrence.** The same occurrence logged twice is two incidents on the dashboard.
 - **The event name is a stable contract** — snake_case, `<subject>_<past_tense_verb>`.
 - **Identifiers and counts ride as fields**, never interpolated into the message.
+
+**The logger is configured once, by the process's entry point, before its first event** — the sink, the
+format, the level, and the routing that brings records from libraries into the same stream. Nothing
+below the entry point configures logging, and a process whose entry point configures nothing emits
+whatever defaults the library happens to have. **A distributed package configures nothing at all**: it
+logs through the stdlib's `logging.getLogger(__name__)`, the one interface every importer already routes,
+adds no handler and sets no level, and leaves every one of those choices to the application that imports
+it.
 
 Plus one allocation rule — **an error is logged once, by the scope that can add context and will not
 re-raise it**, traced outward from the raise to the first scope that handles the exception rather than
@@ -275,9 +298,8 @@ any other failure.
 **Read the sibling `LOGGING.md` before writing a log call, naming an event, or deciding which scope logs
 a failure.** Only this file is loaded automatically, so open it rather than working from the obligations
 above: it carries the `structlog` binding, the event-name and field contract with its worked examples,
-the never-log-and-re-raise case and its level guide, where a failed undo under compensation is logged, how the
-allocation rule resolves in a hexagonal and in a flat-layered project, and the stdlib `logging`
-alternative that satisfies the same obligations.
+the never-log-and-re-raise case and its level guide, where a failed undo under compensation is logged, how
+to trace the allocation rule to its scope, and the stdlib `logging` binding a distributed package uses.
 
 ### What never reaches a log line
 
@@ -294,11 +316,8 @@ Default to **no comments**. Where one is warranted it is a single short line of 
 never *what*, never a multi-line block. The scope of that rule is not uniform across the tree:
 
 - **In source**: the rule as stated, unconditionally.
-- **In migrations**: the same form — a revision is code, not evidence. The *why* worth writing is why
-  this DDL is spelled out by hand rather than read from live metadata; a block retelling what
-  `create_table` does is exactly what the rule is written against. **A revision module's docstring is not
-  a comment, and this rule does not reach it** — a docstring carrying ten lines of *why* is legal there
-  and is not to be cut down.
+- **In migrations**: the same form. A revision module's docstring is not a comment, and this rule does
+  not reach it.
 - **In tests**: the same holds inside a test body. Additionally legal is a **multi-line section banner**
   above a group of tests, when it says *what* the group pins and *why* it is pinned that way — which
   behaviour the group stands as evidence for, that the clock is the real one and not a substituted
@@ -317,7 +336,8 @@ no `# helpers`.
 3. **Settle the interpreter floor once, at setup — for a new project at the house floor of 3.13 or
    above** — and keep `requires-python`, the linter's `target-version` and the type checker's
    `python_version` naming that same oldest supported interpreter. An existing project below the house
-   floor keeps its floor; a floor is raised deliberately, never lowered.
+   floor keeps its floor; a floor is raised deliberately, never lowered. The house floor binds a
+   deployable; a distributed package's floor is the oldest interpreter its consumers run.
 4. Restrict `Any` to the two raw-boundary cases; use the documented heterogeneous-value and repeated-type
    forms after parsing.
 5. Check shared value types against the immutable-collection table and convert at their boundary.
@@ -326,15 +346,16 @@ no `# helpers`.
    keys are data stays a mapping. `TypedDict` describes a shape without creating a type and is for the
    case that must stay a `dict`; `NamedTuple` is not used.
 7. **A scalar takes the builtin that carries its kind** — an exact decimal quantity, an instant with an
-   offset, an identifier as an identifier — and converts to a string form only at the edge that needs
-   one. Whether it also earns a named type of its own is the architecture family's question, not this
+   offset, an identifier this project mints as a `UUID` and one issued elsewhere as a distinct type over
+   its issuer's form — and converts to a string form only at the edge that needs one. Whether it also earns a named type of its own is the architecture family's question, not this
    skill's.
 8. Apply **Protocols** only where the architecture calls for an interface; reserve runtime checking for
    the documented need.
 9. Check validation constraints and abstract collection imports against their dedicated typing sections.
-10. **One logger, obtained at module level, and one structured event per occurrence.** No `print()`
-    outside a deliberate entrypoint debug path, and no second logging mechanism beside the configured one
-    — two mechanisms split the event stream and neither half is complete.
+10. **One logger, obtained at module level, and one structured event per occurrence.** No `print()` for
+    diagnostics outside a deliberate entrypoint debug path, and no second logging mechanism beside the
+    configured one — two mechanisms split the event stream and neither half is complete. Output a program
+    writes to stdout as its result is not a log event, and this rule does not reach it.
 11. **Give every event a stable snake_case `<subject>_<past_tense_verb>` name, and carry its identifiers
     and counts as fields rather than interpolating them into the message.** A value inside a sentence
     cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
@@ -350,6 +371,12 @@ no `# helpers`.
 14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
     their stated limits.
 15. Check casts, untyped variadic arguments and type suppressions against the typing hard stops below.
+16. **A closed set of named constants is an `Enum` — a `StrEnum` for string values (`class Foo(str, Enum)` below 3.11) — never a class of bare
+    attributes**, in any module.
+17. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
+    the entry point configures logging.
+18. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
+    nothing** — no handler, no level, no format; the application importing it owns all three.
 
 ## Hard stops
 
@@ -364,9 +391,10 @@ Typing:
 - `requires-python`, `target-version` and `python_version` naming different interpreters → stop, make
   all three name the project's oldest supported one; three disagreeing settings let a form pass the
   linter that fails at runtime.
-- A floor being lowered, or a new project being laid down below 3.13 → stop, keep the floor where it is
-  or start at the house floor. An existing project already below it is not a violation; it raises its
-  floor as its own change when it decides to.
+- A floor being lowered, or a new deployable being laid down below 3.13 → stop, keep the floor where it
+  is or start at the house floor. An existing project already below it is not a violation; it raises its
+  floor as its own change when it decides to. A distributed package whose consumers run an older
+  interpreter is not this case; its floor is theirs.
 - Bare `Any` outside the documented external-boundary cases → stop, introduce a `type` alias or a small
   dataclass; do not let `Any` spread.
 - Untyped `**kwargs` / `*args` in business logic → stop, a dataclass is missing.
@@ -382,6 +410,8 @@ Typing:
   runtime guard the checker cannot follow, which is rare.
 - A type-ignore comment with no reason → stop, name the specific rule and give a brief explanation.
 - A mutable collection on a frozen dataclass field → stop, use the immutable equivalent.
+- A class of bare attributes standing in for a closed set of values (`class Status: ACTIVE = "active"`)
+  → stop, declare an `Enum` or `StrEnum`.
 
 Logging:
 
@@ -394,16 +424,18 @@ Logging:
 - A log call emitting an interpolated sentence — no event name, no fields (`log.info(f"created foo
   {foo.id}")`) → stop, nothing in that line can be filtered, grouped or alerted on; emit an event name
   plus the identifiers as fields. This fires on every binding, the stdlib one included.
-- `print()` outside an entrypoint debug path behind a flag → stop, use the structured logger.
+- `print()` used for diagnostics outside an entrypoint debug path behind a flag → stop, use the
+  structured logger. A program's result written to stdout is not a diagnostic.
+- Logging configured — a handler added, a level or format set — anywhere but the process's entry point,
+  or inside a distributed package at all → stop, the entry point configures once and a package's
+  importer owns every one of those choices.
 - A second logging mechanism introduced beside the one already configured → stop, one logger everywhere;
   two split the event stream and neither half is complete.
 - An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
   `foo_created`. Once shipped, never rename — dashboards depend on the string.
 - Logging a full body, a secret, or a bare `UUID` object → stop.
 - A scope that re-raises the failure logs it as well → stop, it is not the scope that explains it; the
-  detail goes into the translated exception's `context` and whoever stops the exception logs. In a
-  hexagonal project that fires on any log call in `domain/` or `infrastructure/`, and on an error logged
-  in `application/` other than a failed undo stopped under compensation.
+  detail goes into the translated exception's `context` and whoever stops the exception logs.
 
 Comments:
 

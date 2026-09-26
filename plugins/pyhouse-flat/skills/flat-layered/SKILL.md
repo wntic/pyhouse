@@ -84,9 +84,14 @@ family (`hex-patterns`, in `pyhouse-hex`), and one word for two unrelated things
 identifying anything. What one is called is `naming`'s decision and it names the work done; `run_once` in
 the templates names *one* run function whose work genuinely is one pass, not a convention to copy.
 
-Rule 9 is enforced by a repository-wide grep (`test-architecture-rule`); its one exempt module, the
-framework-guarded helper that exists only once an engine is earned, is `flat-entrypoint`'s durable
-obligation 10, and the grep's allow-list names it by path.
+**Rule 9 is enforced by a firewall of `test-architecture-rule`'s standard form** — the framework's
+import is forbidden outside the declared wrapper package, whatever the framework. Only once a
+durable-execution engine is earned does its allow-list gain one entry, the framework-guarded helper
+(`flat-entrypoint` durable obligation 10). The other invariants worth a firewall in a flat service: no
+statement or table constructed outside a data-access package (rule 4), no module-level engine
+(`python-packaging` rule 8), no engine in a unit test and no mock or sleep in any test
+(`test-principles`), and in a repository of several members no runnable member importing another
+(`python-workspace` rule 7).
 
 ### The package names
 

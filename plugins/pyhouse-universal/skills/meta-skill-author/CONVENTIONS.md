@@ -15,7 +15,7 @@ too. The counts in every heading are the number of directories on disk.
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
-- `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, and the logging allocation that keeps every re-raising scope silent, whatever the project's layering.
+- `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, the logging allocation that keeps every re-raising scope silent, whatever the project's layering, and a closed set of constants as an `Enum`, with logging configured only at the entry point.
 - `python-packaging` — Decides whether a module wants a class at all before capping it at one — a closed set of declarations may share a module by test, and a module a framework dictates follows the framework — and keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
 - `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
@@ -25,7 +25,7 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Meta (1)
 
-- `meta-skill-author` — Consult this sibling's vocabulary and index before adding a skill so its scope fits the existing catalogue; a template is copied verbatim, shows a house pattern rather than a vendor's manual, and a skeleton shows the common variants.
+- `meta-skill-author` — Consult this sibling's vocabulary and index before adding a skill so its scope fits the existing catalogue; a template is copied verbatim, shows a house pattern rather than a vendor's manual, and a skeleton carries only lines most services of its family have, a variant marked with its condition.
 
 ### Hex core (12)
 
@@ -137,8 +137,6 @@ One vocabulary for the whole catalogue.
 | `myschema` | a **shared library several distributions depend on** — imported by them, owned by none of them |
 | `myframework` | a **third-party framework** a rule is about *wrapping*, where naming a real one would make the rule that framework's |
 | `myrepo` | the repository root |
-| `Role.LOWER` / `Role.HIGHER` | the **placeholder rank ladder** — two positional members, lower first; a project substitutes its own members and however many it has |
-| `tenant_id` | the **placeholder tenant or scope identifier** an authenticated identity carries |
 
 `myapp` and `myschema` are two names because they are two roles. One name for both is what broke the
 flat family's worked examples: a reader cannot tell a distribution's own package from a library it
@@ -148,15 +146,22 @@ needs a library that more than one distribution imports, and it says nothing abo
 holds — a database schema is one thing shared code can be, not the definition. Environment prefixes
 follow the package: `MYAPP_` for a distribution's own settings, `MYSCHEMA_` for a shared library's.
 
-Names derived from them:
+Names derived from them: module `foo.py`, table `foos`; a repository of several distributions groups
+them as it chose — `myrepo/<group>/myapp/` for one distribution, `myrepo/<group>/myschema/` for a
+library they share.
 
-- Module `foo.py`; subdomain packages `domain/foos/`, `application/foos/`
-- Table `foos_table` in `infrastructure/postgres/tables/foos.py`
+### Hex family
+
+Vocabulary only the `hex-*` skills use:
+
+- Subdomain packages `domain/foos/`, `application/foos/`; table `foos_table` in
+  `infrastructure/postgres/tables/foos.py`
 - Protocol `IFooRepository` in `i_foo_repository.py`; capability `ICan<Verb>` in `i_can_<verb>.py`
 - Commands/queries `CreateFooCommand`, `ListFoosQuery`, `CreateFooHandler`, `ListFoosResult`
 - REST `FooResponse`, `FooListResponse`, `FooCreateRequest`, `FooUpdateRequest`, router `restapi/routers/foos.py`
-- A repository of several distributions groups them as it chose — `myrepo/<group>/myapp/` for one
-  distribution, `myrepo/<group>/myschema/` for a library they share
+- Auth `Role.LOWER` / `Role.HIGHER` — the placeholder rank ladder, two positional members, lower first,
+  which a project replaces with its own; `tenant_id` — the placeholder tenant or scope identifier an
+  authenticated identity carries
 
 ## Banned vocabulary
 
@@ -189,18 +194,3 @@ travel into a path, a package, an env-var prefix or a shipped identifier.
 - Process-only skills (brainstorming, retrospective notes). If reintroduced they belong under a separate
   prefix, e.g. `process-brainstorm`.
 - Use-case authoring belongs to the spec-driven workflow plugin, not to this catalogue.
-
-## Read models — guidance for a future skill
-
-The catalog deliberately does **not** split repositories into write-side and read-side protocols. The
-CQRS guarantee that matters — commands mutate, queries read — is carried by the handler split
-(a command mutates, a query reads); partitioning every `IFooRepository` into read and write
-halves would double the protocol, DI and test surface across all aggregates for a benefit that only
-materializes with event sourcing, async projections, or a separate read store, none of which apply here
-today.
-
-Add a read-model skill the first time a query handler genuinely needs a denormalized, join-flattened DTO
-that is not "an aggregate read" — for example foos with author name, tag count and last-modified-by name
-joining three tables. Model it as an additive component with its own protocol, adapter and flat DTO, not
-as a partition of the existing repository. Until that case appears, the unified `IFooRepository` with
-both reads and writes is the canonical shape.

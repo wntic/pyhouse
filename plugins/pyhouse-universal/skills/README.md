@@ -61,7 +61,7 @@ once rather than throughout — before the family is known:
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
 | `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms — `Repository` whether or not a port stands in front), the vague-noun families and the role suffixes an architecture defines, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
-| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
+| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, closed constant sets as an `Enum`, structured logging configured once at the entry point, comments |
 | `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
@@ -84,7 +84,7 @@ this set, because nothing ever fails to make you fix it.
 
 | Skill | Owns |
 |---|---|
-| `meta-skill-author` | Skill format, frontmatter and its real limits, the two-layer principle/binding anatomy, templates copied verbatim — a house pattern rather than a vendor's manual, a skeleton showing the common variants — section order, naming scheme, rule ownership, packaging, and shared catalogue conventions |
+| `meta-skill-author` | Skill format, frontmatter and its real limits, the two-layer principle/binding anatomy, templates copied verbatim — a house pattern rather than a vendor's manual, a skeleton carrying only lines most services have — section order, naming scheme, rule ownership, packaging, and shared catalogue conventions |
 
 ## Pick a style first
 
@@ -123,8 +123,8 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis; other stores under Other bindings |
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
-rules the layer split imposes on top of `python-packaging`; `python-style` carries the per-layer
-logging allocation (domain never logs, application logs successes only).
+rules the layer split imposes on top of `python-packaging`; `hex-architecture` allocates logging by layer
+(domain never logs, application logs successes only) under `python-style`'s log-once rule.
 
 ## Hex REST API (4)
 
@@ -218,11 +218,9 @@ rule is about wrapping), `foos`/`bars`, and `Foo`/`Bar`. These stand in for what
 actually calls things, and the environment prefixes `MYAPP_` and `MYSCHEMA_` follow their packages.
 None of them asserts a repository shape — one distribution and no `myschema` is the ordinary case.
 
-**Structural names — replace when the role does not exist.** `ingest/`, `jobs/`,
-`entrypoints/`, `services/` in the flat-layered set are *role names from a worked example*, not
-a required vocabulary; `flat-layered` opens with the rule. Create the packages your service's roles
-require, named for those roles, and no others. The canonical hexagonal names — `domain/`,
-`application/`, `infrastructure/` — are the exception: those are the style's own terms and stay.
+**Structural names — keep the style's own.** The hexagonal layer names — `domain/`, `application/`,
+`infrastructure/` — are the style's terms and stay; a flat service names its packages for the roles it
+has (`flat-layered`).
 
 **Technology names — keep.** `postgres`, `redis`, `s3`, `jwt` — a flat service's data-access package
 included, named `postgres/` for its store. Abstracting these would
@@ -239,18 +237,10 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
 - **A hex entrypoint skill other than REST** (CLI, worker). `hex-patterns` carries the framework-free
   run function such an entrypoint calls, and `hex-restapi-app` is the only worked entrypoint; a CLI or
   queue-consumer skill would own the shell around that run function.
-- **A read-model skill**, the first time a query handler genuinely needs a denormalized, join-flattened
-  DTO rather than an aggregate read. The condition and the shape it should take are recorded in
-  `meta-skill-author/CONVENTIONS.md`.
 - **`flat-service-client` as its own skill** — *not currently needed*. `flat-layered` carries the
   external-system client template, its constructor-argument rule and its alternatives, and
   `flat-test-service-client` carries the test. Split it out only if the client family grows past one
   template.
-
-Two entries that stood here are closed. `hex-persistence` is no longer oversized — its templates sit in
-`TABLE.md`, `REPOSITORY.md` and `REVISION.md` beside it. Flat-side exception translation is genuinely
-covered: `exception-catalog` carries one family-neutral catalog template, the translation section and
-the mandatory-fallback rule, and `flat-layered` routes to it.
 
 ## Licence
 

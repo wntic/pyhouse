@@ -283,7 +283,8 @@ for rule 9.
    that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is
    normally a per-deployment value and then belongs with the rest of the process's settings
    (`flat-layered` rule 8); where the platform makes the schedule itself code in the same repository, the
-   name is a module constant both the schedule and the process serving it import. What is never
+   name is a module constant both the schedule and the process serving it import, and a firewall rule
+   pins that both read the one source. What is never
    acceptable is two sources — a schedule resolving the name from one environment and the process
    serving it from another — because the disagreement surfaces as work that silently goes nowhere, with
    nothing to catch it.
@@ -380,7 +381,7 @@ separately from the rules and cited elsewhere as *durable obligation N*.
     no framework context — the guard is what lets the body keep one shape under every trigger. **The
     helper is one named module at the root of the distribution's own package**, and it is the one module
     outside the framework-wrapper package allowed to import the framework, which is why the architecture
-    firewall's allow-list names it (`flat-layered` rule 9, `test-architecture-rule`). Where several
+    firewall's allow-list names it (the firewall is `flat-layered` rule 9's). Where several
     distributions share one repository it is promoted to a library they both depend on, and the
     exemption is the same one.
 11. **A healthcheck declares no retries.** Its whole job is to turn red the moment the thing it watches
