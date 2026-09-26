@@ -66,6 +66,32 @@ the `pyhouse-reviewer` subagent, which decides which skills apply and applies th
 overlap — running the review command on this repository finds no architecture family and nothing to
 review, which is correct.
 
+`/review-skills` (in `.claude/commands/`) reviews **this repository's skills**. It runs the
+`catalogue-reviewer` subagent (`.claude/agents/`) once per lens and merges the findings; the questions
+are in `.claude/review/QUESTIONS.md`.
+
+## Reviewing a change to the catalogue
+
+Every change to a skill is reviewed with `/review-skills` before it is committed, and every agent that
+writes or verifies skills is given `.claude/review/QUESTIONS.md`. Earlier rounds checked the skills
+against their own format rules and against one sample application, passed skills that were a copy of
+that application, and only ever added. So:
+
+- **Generality comes first.** The question is whether most services of the family would have a line —
+  judged against the test services in QUESTIONS.md, never against the application a skill came from or
+  the one a test generation produced. Format conformance is the last lens, not the review.
+- **Deletion is a finding.** A template, tree line or example class most services would not have is
+  removed or reduced to a sentence of prose, with the same weight as a fix.
+- **A defect becomes a rule, not a template.** When a generated service shows a failure, state the
+  obligation without the mechanism. A template is added only when every test service would have that
+  file.
+- **Templates are checked one at a time.** They are never assembled into one runnable application:
+  making them work together is what pulls them into one sample app.
+- **Language-level concerns live in universal skills.** Exceptions, typing, logging, packaging and
+  naming hold in any Python project; a family skill uses them and never defines a family-wide instance.
+- **What is optional is shown as optional.** An HTTP status, a second store, a framework — the template
+  shows the obligation and marks the one line that exists only when the option does.
+
 ## Releasing
 
 The catalogue is subject to `python-versioning` like anything else it ships, and its five version
@@ -128,6 +154,9 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 .claude-plugin/marketplace.json          lists the four plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 tools/check_template_imports.py          resolves every import in every template (see above)
+.claude/review/QUESTIONS.md              the questions a review of a skill answers
+.claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
+.claude/commands/                        /commit and /review-skills, this repository's own
 plugins/pyhouse-universal/               11 skills (10 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
