@@ -118,6 +118,9 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 - A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
   rebase-merge.
 - History on `main` is never rewritten, and a branch is deleted once it has landed.
+- `integration/<name>` is a short-lived branch that combines several fix branches so they are verified
+  together before they reach `main`. It lands with a merge commit like any branch, and it and the
+  branches it combined are deleted once merged.
 
 ## Layout
 
