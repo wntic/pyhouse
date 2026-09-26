@@ -227,12 +227,6 @@ filter drops, and a body without the key is malformed and fails the parse. `labe
 because the upstream omits it when there are none. `src/myapp/schemas/__init__.py` re-exports all three
 modules (`python-packaging`).
 
-### Template — the exception catalog
-
-**Read `CATALOG.md`** in this skill's directory before writing `exceptions.py`, raising from any flat
-template, or asserting a code or a status in a flat test — it holds the catalog the family's templates
-raise and is the one place their codes and statuses are stated.
-
 ### Template — settings, on pydantic-settings
 
 `src/myapp/services/foo_api/settings.py` — the external system's own configuration, inside the package
@@ -286,8 +280,6 @@ once, so add it only where a second caller genuinely exists — a web framework 
 `src/myapp/services/foo_api/foo_client.py` — one concrete class, no Protocol:
 
 ```python
-from collections.abc import AsyncIterator
-
 import httpx
 from pydantic import BaseModel, ValidationError
 
@@ -297,47 +289,30 @@ from myapp.schemas import FooPayload
 __all__ = ["FooClient"]
 
 
-class _FooPage(BaseModel):
+class _FooList(BaseModel):
     items: tuple[FooPayload, ...]
-    next: str | None = None
 
 
 class FooClient:
     def __init__(self, http: httpx.AsyncClient) -> None:
         self._http = http
 
-    async def fetch(self, foo_id: str) -> FooPayload:
+    async def fetch_foos(self) -> tuple[FooPayload, ...]:
         try:
-            response = await self._http.get(f"/foos/{foo_id}")
+            response = await self._http.get("/foos")
             response.raise_for_status()
-            return FooPayload.model_validate_json(response.content)
+            return _FooList.model_validate_json(response.content).items
         except (httpx.HTTPError, ValidationError) as exc:
-            raise FooClientError("failed to fetch a foo", {"foo_id": foo_id}) from exc
-
-    async def fetch_pages(self) -> AsyncIterator[tuple[FooPayload, ...]]:
-        cursor: str | None = None
-        while True:
-            params = {"cursor": cursor} if cursor is not None else {}
-            try:
-                response = await self._http.get("/foos", params=params)
-                response.raise_for_status()
-                page = _FooPage.model_validate_json(response.content)
-            except (httpx.HTTPError, ValidationError) as exc:
-                raise FooClientError("failed to fetch a page of foos", {"cursor": cursor}) from exc
-            yield page.items
-            if page.next is None:
-                return
-            cursor = page.next
+            raise FooClientError("failed to fetch foos") from exc
 ```
 
-**A paged source is yielded a page at a time, never collected** (`flat-entrypoint` rule 10). The caller
-writes each page before asking for the next, so the process holds one page however large the upstream
-grows; a method that returns every page as one list is the unbounded read that rule forbids.
+`FooClientError` is the one class this client raises, from the service's own catalogue; what its
+`context` carries when a method takes an input is `exception-catalog`'s.
 
 **The client is handed its transport; it never builds one** (rule 14). The process-definition package
 builds the pooled HTTP client once from the system's settings — `httpx.AsyncClient(base_url=settings.url,
 timeout=settings.timeout_seconds)`, entered with `async with` for the life of the process so it closes
-when the process ends (`flat-entrypoint`, the shared wiring) — and passes it to `FooClient`. A test
+when the process ends (`flat-entrypoint`) — and passes it to `FooClient`. A test
 builds the same client against a stub base URL and hands that in, without touching the environment.
 
 **An upstream that issues an expiring token keeps the refresh on the transport** (rule 15). Under httpx
@@ -349,8 +324,8 @@ refusal.
 **Parsing sits inside the translated scope.** A 200 whose body is not JSON, or is JSON of the wrong
 shape, is as much an upstream failure as a 503, so decode and validation run inside the request's `try`
 and leave as the catalogue's error, input in `context`, original chained (`exception-catalog`); a parse
-after the `try` lets a malformed 200 escape as the validation library's own exception. The page model
-is private: it describes the upstream's envelope and never leaves this file (`python-packaging`).
+after the `try` lets a malformed 200 escape as the validation library's own exception. The envelope
+model is private: it describes the upstream's envelope and never leaves this file (`python-packaging`).
 
 The client returns a declared type, never the parsed `dict` (`python-style`).
 

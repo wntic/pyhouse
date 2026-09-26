@@ -70,6 +70,7 @@ async def foo_client(foo_api: respx.MockRouter) -> AsyncIterator[FooClient]:
 
 ```python
 import httpx
+import pydantic
 import pytest
 import respx
 
@@ -78,74 +79,58 @@ from myapp.schemas import FooPayload
 from myapp.services.foo_api import FooClient
 
 
-async def test_fetch_returns_the_parsed_payload(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    foo_api.get("/foos/f1").mock(return_value=httpx.Response(200, json={"ref": "f1", "name": "alpha"}))
+async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]}))
 
-    result = await foo_client.fetch("f1")
+    result = await foo_client.fetch_foos()
 
-    assert result == FooPayload(ref="f1", name="alpha")
+    assert result == (FooPayload(ref="f1", name="alpha"),)
 
 
-async def test_fetch_sends_the_id_in_the_path(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    route = foo_api.get("/foos/f1").mock(return_value=httpx.Response(200, json={"ref": "f1", "name": "alpha"}))
+async def test_fetch_foos_sends_a_get_to_the_collection(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
+    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": []}))
 
-    await foo_client.fetch("f1")
+    await foo_client.fetch_foos()
 
-    assert route.calls.last.request.url.path == "/foos/f1"
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/foos"
 
 
 @pytest.mark.parametrize("status", [400, 404, 500, 503])
 async def test_non_2xx_becomes_a_foo_client_error(
     foo_api: respx.MockRouter, foo_client: FooClient, status: int
 ) -> None:
-    foo_api.get("/foos/f1").mock(return_value=httpx.Response(status))
+    foo_api.get("/foos").mock(return_value=httpx.Response(status))
 
     with pytest.raises(FooClientError) as exc_info:
-        await foo_client.fetch("f1")
+        await foo_client.fetch_foos()
 
-    assert exc_info.value.context == {"foo_id": "f1"}
     assert isinstance(exc_info.value.__cause__, httpx.HTTPStatusError)
 
 
 async def test_a_timeout_becomes_a_foo_client_error(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    foo_api.get("/foos/f1").mock(side_effect=httpx.ConnectTimeout("timed out"))
+    foo_api.get("/foos").mock(side_effect=httpx.ConnectTimeout("timed out"))
 
     with pytest.raises(FooClientError) as exc_info:
-        await foo_client.fetch("f1")
+        await foo_client.fetch_foos()
 
     assert isinstance(exc_info.value.__cause__, httpx.TimeoutException)
 
 
 @pytest.mark.parametrize(
     "body",
-    [b"<html>not json</html>", b'{"name": "alpha"}'],
+    [b"<html>not json</html>", b'{"items": [{"name": "alpha"}]}'],
     ids=["not-json", "missing-field"],
 )
 async def test_a_200_with_a_malformed_body_becomes_a_foo_client_error(
     foo_api: respx.MockRouter, foo_client: FooClient, body: bytes
 ) -> None:
-    foo_api.get("/foos/f1").mock(return_value=httpx.Response(200, content=body))
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, content=body))
 
     with pytest.raises(FooClientError) as exc_info:
-        await foo_client.fetch("f1")
+        await foo_client.fetch_foos()
 
-    assert exc_info.value.context == {"foo_id": "f1"}
-
-
-async def test_fetch_pages_yields_each_page_and_follows_the_cursor(
-    foo_api: respx.MockRouter, foo_client: FooClient
-) -> None:
-    route = foo_api.get("/foos").mock(
-        side_effect=[
-            httpx.Response(200, json={"items": [{"ref": "f1", "name": "a"}], "next": "cursor-2"}),
-            httpx.Response(200, json={"items": [{"ref": "f2", "name": "b"}], "next": None}),
-        ]
-    )
-
-    pages = [page async for page in foo_client.fetch_pages()]
-
-    assert [[payload.ref for payload in page] for page in pages] == [["f1"], ["f2"]]
-    assert route.calls.last.request.url.params["cursor"] == "cursor-2"
+    assert isinstance(exc_info.value.__cause__, pydantic.ValidationError)
 ```
 
 The stub and the client are fixtures, not module-level builders, because each has an end — the stub's
@@ -155,12 +140,9 @@ its `httpx.AsyncClient` exactly as the process definition does — base URL and 
 place of settings — and **requests the stub**, so no test can hold the client without the interception
 under it (rule 8). `assert_all_called=False` is rule 7, stated where the stub is made.
 
-The paging test asserts the pages as they were yielded, not a flattened list: the method's contract is
-that it hands back one page at a time (`flat-layered`), and a version that collected every page first
-would pass a flattened assertion.
-
-The error tests assert the translated exception's `context` — the key set the raise site and its test
-agree on — and never the message text, which is free to change (`exception-catalog`). The malformed-body
+The error tests assert the translated class and its chained cause. `fetch_foos` takes no input, so its
+`context` is empty; a method that takes one also asserts the `context` key set the raise site and its
+test agree on — never the message text, which is free to change (`exception-catalog`). The malformed-body
 cases cover both halves of parsing: a body that is not JSON, and JSON that does not fit the payload.
 
 ## Template — failure injection for the client's *callers*
@@ -170,14 +152,12 @@ caller's test module, not here — it is included so both halves of the pattern 
 
 ```python
 class _RaiseFooClient(FooClient):
-    def fetch_pages(self) -> AsyncIterator[tuple[FooPayload, ...]]:
-        raise FooClientError("upstream down", {"cursor": None})
+    async def fetch_foos(self) -> tuple[FooPayload, ...]:
+        raise FooClientError("upstream down")
 ```
 
 It is constructed like the real client, over an `httpx.AsyncClient` the caller's test builds and closes
-— `_RaiseFooClient(http)` — which the overridden method never uses. The override is a plain `def`
-returning the iterator type, so it raises as the caller's `async for` starts, with no unreachable `yield`
-to make it a generator.
+— `_RaiseFooClient(http)` — which the overridden method never uses.
 
 Override exactly the one method that must fail, and nothing else — the rest of the real client stays in
 the object, so a signature change breaks the test at call time instead of passing silently.
@@ -200,13 +180,13 @@ the object, so a signature change breaks the test at call time instead of passin
 
 ## Rules
 
-1. **The transport is stubbed, never the client.** A test that patches `FooClient.fetch` is testing
+1. **The transport is stubbed, never the client.** A test that patches `FooClient.fetch_foos` is testing
    nothing; the parsing and translation under test live inside that method.
 2. **Assert the translation, not just the type.** Every error status and every transport failure must
-   surface as the service's own catalog exception carrying the identifying input in its `context`, and
-   the original must still be reachable as that exception's cause — that is what raising *from* the
-   original at the boundary buys, and it is the thing a careless refactor drops. Assert on `context`,
-   never on the message text.
+   surface as the service's own catalog exception — carrying the identifying input in its `context`
+   where the call takes one — and the original must still be reachable as that exception's cause: that
+   is what raising *from* the original at the boundary buys, and it is the thing a careless refactor
+   drops. Assert on `context`, never on the message text.
 3. **Pin the request, not only the response.** At least one test asserts what the client actually sent —
    path, query, headers, body — read back from what the stub recorded (`route.calls.last.request` here).
    A client that parses a canned response correctly while requesting the wrong URL passes every

@@ -79,10 +79,10 @@ def build_app(client: FooClient, repository: FooRepository) -> FastAPI:
 ```
 
 **The catalogue is rendered in one place, in one shape.** Once the service answers HTTP its catalogue
-root carries `http_status`, and every failure leaves as `code`, message and `context` read off an
-exception (`exception-catalog`; the classes and their statuses are in `flat-layered`'s `CATALOG.md`): a
-catalogue error as itself, the framework's validation failure as the
-catalogue's validation error, and anything else as the catalogue root with status 500. The level follows
+root carries the optional `http_status` field and each class sets its own (`exception-catalog`); this
+module is the only reader of it. Every failure leaves as `code`, message and `context` read off an
+exception: a catalogue error as itself, the framework's validation failure as the catalogue's
+validation error, and anything else as the catalogue root with its status. The level follows
 the kind (`python-style`): `warning` for a rejection the client caused, `error` for a 5xx — an upstream
 failure or a crash.
 
@@ -128,32 +128,37 @@ like every other tunable (`flat-layered` rule 10): `http_host: str` and `http_po
 `MYAPP_HTTP_HOST` and `MYAPP_HTTP_PORT`. It is one class; add the two lines to it rather than writing a
 second one.
 
-`src/myapp/entrypoints/foo_http.py` — it reads the process's own settings and takes the client and the
-repository from the same wiring module the loop imports (`SKILL.md`, rule 14):
+`src/myapp/entrypoints/foo_http.py`:
 
 ```python
 import asyncio
 
+import httpx
 import uvicorn
 
-from myapp.entrypoints.wiring import open_foo_client, open_foo_repository
+from myapp.postgres import FooRepository, get_engine, get_postgres_settings
+from myapp.services.foo_api import FooClient, get_foo_api_settings
 from myapp.settings import get_settings
 from myapp.web import build_app
 
 
 async def main() -> None:
-    settings = get_settings()
-    async with open_foo_client() as client, open_foo_repository() as repository:
-        app = build_app(client, repository)
-        server = uvicorn.Server(uvicorn.Config(app, host=settings.http_host, port=settings.http_port))
-        await server.serve()
+    settings, api = get_settings(), get_foo_api_settings()
+    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
+    try:
+        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:
+            app = build_app(FooClient(http), FooRepository(engine))
+            server = uvicorn.Server(uvicorn.Config(app, host=settings.http_host, port=settings.http_port))
+            await server.serve()
+    finally:
+        await engine.dispose()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-The server is served on the process's own event loop, inside the `async with` that owns the upstream
+The server is served on the process's own event loop, inside the block that owns the upstream
 transport and the engine, rather than through `uvicorn.run`, which starts a loop of its own: the pooled
 client and the engine are then opened and closed on the loop the app's requests run on, once for the
 life of the server (`flat-layered` rule 14).

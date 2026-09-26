@@ -30,8 +30,8 @@ nothing here assumes a sibling distribution or a repository above it.
   once rule 1 has earned an engine. Nothing else in this file depends on it.
 - The scheduling needs are met by a loop, a cron entry or a timer — the default → none of those
   obligations apply; do not add orchestration modules "for later".
-- The named exceptions a wrapper translates → `exception-catalog`, with the classes this family raises in
-  `flat-layered`'s `CATALOG.md`; the one place they are rendered is this skill's HTTP shape (`HTTP.md`).
+- The named exceptions a wrapper translates → `exception-catalog`; the one place they are rendered is
+  this skill's HTTP shape (`HTTP.md`).
 - The service answers HTTP but has business invariants, or several entrypoints share its rules → not
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
@@ -88,33 +88,24 @@ def to_foo(payload: FooPayload, observed_at: datetime) -> Foo | None:
 
 
 async def run_once(client: FooClient, repository: FooRepository) -> IngestResult:
-    fetched = kept = 0
-    async for payloads in client.fetch_pages():
-        observed_at = datetime.now(UTC)
-        foos = [foo for foo in (to_foo(payload, observed_at) for payload in payloads) if foo is not None]
-        await repository.record_batch(foos)
-        fetched += len(payloads)
-        kept += len(foos)
+    payloads = await client.fetch_foos()
+    observed_at = datetime.now(UTC)
+    foos = [foo for foo in (to_foo(payload, observed_at) for payload in payloads) if foo is not None]
+    await repository.record_batch(foos)
 
-    logger.info("foo_ingest_completed", fetched=fetched, kept=kept)
-    return IngestResult(fetched=fetched, kept=kept)
+    logger.info("foo_ingest_completed", fetched=len(payloads), kept=len(foos))
+    return IngestResult(fetched=len(payloads), kept=len(foos))
 ```
 
-`to_foo` is the filter and the mapping in one pure step, so a test covers both without a datastore.
-
-**Each page is written before the next is fetched** (rule 10): the body holds one page, whatever the
-upstream's size, and sums its counts into the aggregate as it goes. A run that resumes from a stored
-cursor writes it inside the same iteration, after `record_batch` returns — never before (rule 11).
+`to_foo` is the filter and the mapping in one pure step, so a test covers both without a datastore. The
+body writes what one call returns; a source whose size the service does not control is read and written
+in bounded batches instead (rule 10).
 
 **The run function opens no transaction.** The repository class owns its own (`flat-persistence` rule
 3); a run function that opens a connection has moved data access out of the one package allowed it.
 
 It returns an **aggregate**, not the rows (rule 5): the rows are in the datastore, and a trigger that
 serializes the return value into a durable history makes this load-bearing rather than merely tidy.
-
-**Read `FANOUT.md`** in this skill's directory before writing a run function over several independent
-units — it carries the template for rules 11 and 13: each unit's whole body inside its own containment,
-and the run failing only after every unit has finished, with each failed unit named.
 
 ## Shape 1 — the self-scheduling loop, on asyncio (the default)
 
@@ -140,55 +131,32 @@ async def guarded(run_name: str, run: Callable[[], Awaitable[object]]) -> bool:
     return True
 ```
 
-`src/myapp/entrypoints/wiring.py` — the construction every process definition shares, written once
-(rule 14). Each builder reads its component's settings, builds the dependency, and closes what it built
-when the process leaves the block:
-
-```python
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-
-import httpx
-
-from myapp.postgres import FooRepository, get_engine, get_postgres_settings
-from myapp.services.foo_api import FooClient, get_foo_api_settings
-
-__all__ = ["open_foo_client", "open_foo_repository"]
-
-
-@asynccontextmanager
-async def open_foo_client() -> AsyncIterator[FooClient]:
-    settings = get_foo_api_settings()
-    async with httpx.AsyncClient(base_url=settings.url, timeout=settings.timeout_seconds) as http:
-        yield FooClient(http)
-
-
-@asynccontextmanager
-async def open_foo_repository() -> AsyncIterator[FooRepository]:
-    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
-    try:
-        yield FooRepository(engine)
-    finally:
-        await engine.dispose()
-```
-
 `src/myapp/entrypoints/foo_loop.py`:
 
 ```python
 import asyncio
 
+import httpx
+
 from myapp.entrypoints.containment import guarded
-from myapp.entrypoints.wiring import open_foo_client, open_foo_repository
 from myapp.ingest.foo_ingest import run_once
+from myapp.postgres import FooRepository, get_engine, get_postgres_settings
+from myapp.services.foo_api import FooClient, get_foo_api_settings
 
 _POLL_INTERVAL_SECONDS = 30
 
 
 async def main() -> None:
-    async with open_foo_client() as client, open_foo_repository() as repository:
-        while True:
-            await guarded("foo_ingest", lambda: run_once(client, repository))
-            await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+    api = get_foo_api_settings()
+    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
+    try:
+        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:
+            client, repository = FooClient(http), FooRepository(engine)
+            while True:
+                await guarded("foo_ingest", lambda: run_once(client, repository))
+                await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+    finally:
+        await engine.dispose()
 
 
 if __name__ == "__main__":
@@ -199,15 +167,16 @@ if __name__ == "__main__":
 name collides stays out of its package's re-export and is reached by explicit import where it is
 consumed (`python-packaging`). A run function with a name of its own is re-exported like any other.
 
-**The process-definition package is the only place a settings factory is called** — its wiring module
-reads each configured component's settings, and the process's own where it declares any, and hands
+**The process-definition package is the only place a settings factory is called** — it reads each
+configured component's settings, and the process's own where it declares any, and hands
 concrete values down. A component owning its settings class does not give a module inside it licence to
 call that factory (`flat-layered` rules 7 and 8).
 
-**The transport and the engine are built once and wrap the whole loop.** The `async with` opens one
-pooled `httpx.AsyncClient` and one engine before the first run; every run reuses their connections, and
+**The transport and the engine are built once and wrap the whole loop.** One pooled
+`httpx.AsyncClient` and one engine exist before the first run; every run reuses their connections, and
 both are closed when the process ends, the engine disposed even when the loop leaves by an exception
-(`flat-layered` rule 14).
+(`flat-layered` rule 14). A second process definition building the same things takes them from one
+builder in this package rather than a copy (rule 14).
 
 **The `try/except` is extracted into `guarded`, written once** (rule 8). It returns whether the run
 succeeded, so a test asserts the containment on a value rather than on what was logged, and the run's
@@ -246,7 +215,6 @@ So a service can end up with two entrypoint modules:
 ```text
 entrypoints/
 ├── containment.py
-├── wiring.py
 ├── foo_ingest_durable.py
 └── foo_stream.py
 ```
@@ -466,9 +434,9 @@ separately from the rules and cited elsewhere as *durable obligation N*.
   failures → stop, await every unit, collect the failures, and fail the run on a non-empty list.
 - `guarded` is copied into a second process definition → stop, import the one module every process
   definition shares.
-- A process definition builds a client, a pool or an engine inline that another process definition also
-  builds, or builds one it never closes → stop, move the construction into the shared wiring module as a
-  builder that closes what it built, and import it (rule 14).
+- A process definition copies construction another process definition also performs, or builds a
+  client, a pool or an engine it never closes → stop, write the construction once in the
+  process-definition package, closing what it built, and import it (rule 14).
 
 ### Under a durable-execution engine
 

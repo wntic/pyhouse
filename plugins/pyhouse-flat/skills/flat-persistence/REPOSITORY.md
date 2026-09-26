@@ -210,8 +210,8 @@ a write. It matches on the constraint name and the SQLSTATE the driver reports â
 text, and never on SQLAlchemy's subclass, which its asyncpg adapter assigns to only some SQLSTATEs â€” and
 puts the name or the SQLSTATE, not the stringified error, into `context`. SQLAlchemy wraps the asyncpg
 exception in an adapter, and the adapter chains asyncpg's own exception as its `__cause__`, so both are
-read off that. The classes and their statuses are the service's catalogue, stated once in
-`flat-layered`'s `CATALOG.md`.
+read off that. The three classes are the service's own, declared in its one catalogue
+(`exception-catalog`).
 
 **A second repository class in the package shares the driver-error tuple and the fallback rather than
 copying them.** Only the constraint branches belong to one class; the tuple, the SQLSTATE classes and

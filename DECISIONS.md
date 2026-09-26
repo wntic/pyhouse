@@ -1040,3 +1040,34 @@ are collapsed by it before the statement: Postgres refuses to update one row twi
 pins it. The "no conflict clause" bullet no longer offers lock-and-check, a read-before-write rule 18
 forbids; such a store carries rule 12 as a `MERGE` or leaves resolution to merge time.
 **Reverse by:** deleting rules 18 and 19, `list_after` and its test.
+
+## Generality pass — templates reduced to what most services have
+
+### D91 — No family-wide exception catalogue; one generic template in `exception-catalog`
+`flat-layered`'s `CATALOG.md` defined six classes with hard-coded `http_status` for a family where an
+HTTP entrypoint is optional, and `exception-catalog` carried a flat template and a hexagonal one with
+eight example classes — a universal skill holding family material. Exceptions are a language-level
+concern: `exception-catalog` now shows one stdlib template (the root with `code` and `context`, two
+bare subclasses) and `http_status` as an optional field added where the service has an HTTP
+entrypoint. Every family template imports only the class it raises from the reader's own
+`exceptions.py`; the one reader of `http_status` is the HTTP boundary. Every rule is kept; rule 6 now
+speaks of any added field, and rule 13's worked example follows the new subclass.
+**Reverse by:** restoring `CATALOG.md` and its pointers in `flat-layered`, `flat-entrypoint`,
+`HTTP.md` and `REPOSITORY.md`, and the two templates in `exception-catalog`.
+
+### D92 — The fan-out and shared-wiring templates are rules only
+`FANOUT.md`, its test template in `flat-test-run-function` and `entrypoints/wiring.py` were each added
+as a template for one defect a generated service showed; most flat services fan out over nothing and
+run one process definition. `flat-entrypoint` rules 13 and 14 stay as written; `flat-test-run-function`
+rule 7 is one sentence, and its fan-out hard stop is deleted. The loop and the HTTP process definition
+build their client and engine directly and dispose the engine in a `finally`.
+**Reverse by:** restoring `FANOUT.md`, the fan-out test template and hard stop, and the `wiring.py`
+template with the loop and HTTP process definitions importing from it.
+
+### D93 — The client template is one call, with no pagination loop
+`FooClient` had a cursor-paging generator beside its single fetch — one upstream's shape. It is now one
+method, `fetch_foos`, translating transport and parse failures at the boundary, and `run_once` writes
+what that one call returns. Bounded memory stays `flat-entrypoint` rule 10, stated in one sentence
+beside the run function; the template no longer accumulates, so it no longer needs to show how.
+`flat-test-service-client` and `flat-test-run-function` test that one call and nothing more.
+**Reverse by:** restoring `fetch_pages` and the per-page loop in `run_once`, with the paging tests.

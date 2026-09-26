@@ -56,12 +56,10 @@ earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely
 from collections.abc import Sequence
 
 import httpx
-import pytest
 import respx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.exceptions import FooClientError
 from myapp.ingest.foo_ingest import run_once
 from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import bar_table, foo_table
@@ -110,35 +108,16 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
     assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
 
 
-async def test_a_run_reports_what_it_fetched_and_kept_across_pages(
+async def test_a_run_reports_what_it_fetched_and_kept(
     foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine
 ) -> None:
     foo_api.get("/foos").mock(
-        side_effect=[
-            httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}], "next": "cursor-2"}),
-            httpx.Response(200, json={"items": [{"ref": None, "name": "b"}], "next": None}),
-        ]
+        return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}, {"ref": None, "name": "b"}]})
     )
 
     result = await run_once(foo_client, FooRepository(engine))
 
     assert (result.fetched, result.kept) == (2, 1)
-
-
-async def test_an_upstream_failure_propagates_after_the_pages_before_it_landed(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
-) -> None:
-    foo_api.get("/foos").mock(
-        side_effect=[
-            httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}], "next": "cursor-2"}),
-            httpx.Response(503),
-        ]
-    )
-
-    with pytest.raises(FooClientError):
-        await run_once(foo_client, FooRepository(engine))
-
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
 ```
 
 The filter test seeds one item that must survive beside the one that must go, so a body that drops
@@ -150,59 +129,7 @@ is the one a wrong conflict-column list breaks.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
-fails silently everywhere a human is looking. It spans two pages, so a body that reports only the last
-page's counts fails it.
-
-The failure test fails the *second* page, and asserts that the first page's row is kept: that is the
-body writing each page before fetching the next (`flat-entrypoint` rule 10), and the idempotence test is
-what makes the retry after it safe.
-
-## Template — a fan-out's partial failure (pytest, real Postgres)
-
-`tests/integration/test_foo_refresh.py` — one unit's repository write fails for real, on the schema's own
-declared width (`flat-persistence`), while its neighbours succeed:
-
-```python
-from collections.abc import Sequence
-
-import httpx
-import pytest
-import respx
-from sqlalchemy import String, select
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
-
-from myapp.exceptions import MyappError
-from myapp.ingest.foo_refresh import refresh_foos
-from myapp.postgres import FooRepository
-from myapp.postgres.foo_table import bar_table, foo_table
-from myapp.services.foo_api import FooClient
-
-
-async def test_one_failed_unit_leaves_the_others_written_and_is_named(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
-) -> None:
-    label_type = bar_table.c.label.type
-    assert isinstance(label_type, String) and label_type.length is not None
-    over_long = ["l" * (label_type.length + 1)]
-    for foo_id in ("f1", "f2", "f3"):
-        body = {"ref": foo_id, "name": foo_id, "labels": over_long if foo_id == "f2" else []}
-        foo_api.get(f"/foos/{foo_id}").mock(return_value=httpx.Response(200, json=body))
-
-    with pytest.raises(MyappError) as exc_info:
-        await refresh_foos(foo_client, FooRepository(engine), ["f1", "f2", "f3"], concurrency=2)
-
-    stored: Sequence[str] = (
-        (await conn.execute(select(foo_table.c.reference).order_by(foo_table.c.reference))).scalars().all()
-    )
-    assert stored == ["f1", "f3"]
-    assert exc_info.value.context == {"failed": ["f2"]}
-```
-
-The failure is the store's own refusal, not an injected one, so the unit fails where a real one would —
-inside its write — and the assertion on `context` is what separates the run's aggregate failure from
-the unit's own error escaping uncontained, which `pytest.raises` alone would also accept. The units
-outnumber `concurrency`, so one waits for a slot another frees. Where each unit also writes a progress
-marker, the test asserts the survivors' markers beside their rows, and the failed unit's absent.
+fails silently everywhere a human is looking.
 
 ## Template — the loop's failure containment (pytest)
 
@@ -342,10 +269,9 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
 6. **The wrapper body never diverges from the run function** — it calls it and holds no logic of its own.
    A divergence means two triggers of the same work are drifting apart, and the tests must not paper
    over it.
-7. **A run that fans out over independent units is tested with one unit failing inside its write.** The
-   test asserts that every other unit's rows — and markers, where units write them — landed, and that
-   the run's failure names the failed unit. A primitive that propagates the first failure, or a
-   containment around only part of a unit's body, fails it (`flat-entrypoint` rules 11 and 13).
+7. **A run that fans out over independent units is tested with one unit failing inside its write**,
+   asserting that the other units' rows landed and that the run's failure names the failed unit
+   (`flat-entrypoint` rules 11 and 13).
 
 ### Once a durable-execution engine is earned
 
@@ -394,8 +320,6 @@ change under any engine, because the body never imports one.
   logic.
 - A test of the run function substitutes the datastore → stop, that removes the only thing this level can
   prove; substitute the upstream transport and keep the real store.
-- A fan-out's test fails a unit before its write, or asserts only that the run raised → stop, fail it
-  inside the write and assert the other units' rows and the named failure (rule 7).
 - An orchestration, a continuation or a declared retry policy is about to be tested with no engine in
   the service → stop, that level exists only once an engine has been earned (`flat-entrypoint` rule 1).
 
