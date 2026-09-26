@@ -137,7 +137,7 @@ decided by someone.
 
 | Kind | Rule | Not | But |
 |---|---|---|---|
-| Package | the role it holds, one word where possible | `utils/`, `common/` | `ingest/`, `billing/` |
+| Package | the role it holds, one word where possible | `utils/`, `common/` | `billing/`, `pricing/` |
 | Module | matches its class in snake_case (`python-packaging`) | `helpers.py` | `retry_policy.py` |
 | Class | a noun phrase for the thing itself | `FooManager` | `FooValidator` |
 | Protocol | a port takes the `I` prefix — see **Port names carry the `I` prefix** below; a published protocol of a distributed library follows `typing`'s naming | `FooRepository` as the port's own name | `IFooRepository`, `ICanExportFoos`; `SupportsFoo` in a library |

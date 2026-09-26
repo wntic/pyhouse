@@ -385,7 +385,9 @@ no `# helpers`.
 16. **A closed set of named constants is an `Enum` — a `StrEnum` for string values (`class Foo(str, Enum)` below 3.11) — never a class of bare
     attributes**, in any module.
 17. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
-    the entry point configures logging.
+    the entry point configures logging, and that one configuration renders every event in one
+    machine-readable format and routes the standard library's loggers (the server's, the drivers')
+    through it.
 18. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
     nothing** — no handler, no level, no format; the application importing it owns all three.
 

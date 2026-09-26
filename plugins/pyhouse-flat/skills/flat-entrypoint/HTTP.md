@@ -1,8 +1,8 @@
 # flat-entrypoint — the HTTP trigger
 
 Topic file of `flat-entrypoint`. The obligations are rule 9 and the HTTP hard stops in `SKILL.md`; what
-follows is the **FastAPI + uvicorn** binding that satisfies them, for the worked example's run
-functions.
+follows is the **FastAPI + uvicorn** binding that satisfies them, for one route receiving a body and
+handing it to one run function.
 
 ## The app factory — FastAPI
 
@@ -11,25 +11,20 @@ dependencies the process definition built and closes the routes over them:
 
 ```python
 from collections.abc import Awaitable, Callable
-from typing import Annotated
 
 import structlog
-from fastapi import FastAPI, Path, Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from myapp.exceptions import MyappError, ValidationError
-from myapp.ingest.foo_ingest import run_once
-from myapp.jobs import find_foo
+from myapp.exceptions import InvalidPayloadError, MyappError
+from myapp.foo_record import record_foo
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, IngestResult
-from myapp.services.foo_api import FooClient
+from myapp.schemas import FooPayload, RunResult
 
 __all__ = ["build_app"]
 
 logger = structlog.get_logger()
-
-_REFERENCE_MAX_LENGTH = 256
 
 
 def _response(exc: MyappError) -> JSONResponse:
@@ -47,7 +42,7 @@ def _log_and_render(exc: MyappError) -> JSONResponse:
     return _response(exc)
 
 
-def build_app(client: FooClient, repository: FooRepository) -> FastAPI:
+def build_app(repository: FooRepository) -> FastAPI:
     app = FastAPI()
 
     @app.middleware("http")
@@ -65,26 +60,22 @@ def build_app(client: FooClient, repository: FooRepository) -> FastAPI:
     @app.exception_handler(RequestValidationError)
     async def _on_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
         fields = sorted({".".join(map(str, error["loc"])) for error in exc.errors()})
-        return _log_and_render(ValidationError("the request is invalid", {"fields": fields}))
+        return _log_and_render(InvalidPayloadError("the request is invalid", {"fields": fields}))
 
-    @app.post("/runs")
-    async def trigger_run() -> IngestResult:
-        return await run_once(client, repository)
-
-    @app.get("/foos/{reference}")
-    async def read_foo(reference: Annotated[str, Path(max_length=_REFERENCE_MAX_LENGTH)]) -> Foo:
-        return await find_foo(repository, reference)
+    @app.post("/foos")
+    async def receive_foo(payload: FooPayload) -> RunResult:
+        return await record_foo(repository, payload)
 
     return app
 ```
 
 **The catalogue is rendered in one place, in one shape.** Once the service answers HTTP its catalogue
-root carries the optional `http_status` field and each class sets its own (`exception-catalog`); this
-module is the only reader of it. Every failure leaves as `code`, message and `context` read off an
-exception: a catalogue error as itself, the framework's validation failure as the catalogue's
-validation error, and anything else as the catalogue root with its status. The level follows
-the kind (`python-style`): `warning` for a rejection the client caused, `error` for a 5xx — an upstream
-failure or a crash.
+root carries the optional `http_status` field and each class sets its own (`exception-catalog`);
+the catalogue declares `class InvalidPayloadError(MyappError)` with `code = "INVALID_PAYLOAD"` and
+`http_status = 422` for a request body the client got wrong. This module is the only reader of the field. Every failure leaves as `code`,
+message and `context` read off an exception: a catalogue error as itself, the framework's validation
+failure as `InvalidPayloadError`, and anything else as the catalogue root with its status. The level
+follows the kind (`python-style`): `warning` for a rejection the client caused, `error` for a 5xx.
 
 **The unexpected failure is contained by a middleware, not an exception handler.** FastAPI's handler for
 bare `Exception` answers and then re-raises to the server, which logs the same failure a second time; the
@@ -92,76 +83,76 @@ middleware stops it, so the one event it logs is the only one.
 
 **The app is built once, by a factory the process definition calls**, never as a module-level `app`:
 a module-level app builds its dependencies at import, which is the global wiring rule 3 forbids, and a
-test could not hand it a test container's engine.
+test could not hand it a test container's engine. A route whose run function calls an upstream is handed
+that client the same way, as one more argument of `build_app`.
 
-## The read's run function
+A request from a third party is verified in the wrapper (rule 9). Such a route takes the raw request,
+verifies it, then validates the body with the payload model; the parsed-parameter signature above is for
+a caller the network already trusts.
 
-`src/myapp/jobs/foo_lookup.py` — in the work-unit package for already-stored data:
+## The route's run function
+
+`src/myapp/foo_record.py` — framework-free like every run function:
 
 ```python
+from datetime import UTC, datetime
+
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo
+from myapp.schemas import Foo, FooPayload, FooReference, RunResult
 
-__all__ = ["find_foo"]
+__all__ = ["record_foo"]
 
 
-async def find_foo(repository: FooRepository, reference: str) -> Foo:
-    return await repository.get_by_reference(reference)
-```
-
-`src/myapp/jobs/__init__.py` re-exports it, because its name is its own. A module whose run function
-shares a name with another's — two `run_once`s — stays out of the re-export and is imported from its own
-module (`python-packaging`):
-
-```python
-from . import foo_lookup
-from .foo_lookup import *
-
-__all__ = foo_lookup.__all__
+async def record_foo(repository: FooRepository, payload: FooPayload) -> RunResult:
+    foo = Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=datetime.now(UTC))
+    await repository.record_batch([foo])
+    return RunResult(recorded=1)
 ```
 
 ## The process definition — uvicorn
 
-`src/myapp/settings.py` — the process's own `Settings` class in the shape `flat-layered` shows, created
-here if the process had no fields of its own before — gains the two fields the server binds to, required
-like every other tunable (`flat-layered` rule 10): `http_host: str` and `http_port: int`, read from
-`MYAPP_HTTP_HOST` and `MYAPP_HTTP_PORT`. It is one class; add the two lines to it rather than writing a
-second one.
+`src/myapp/settings.py` — the process's own `Settings` class in the shape `flat-layered` shows — holds the
+two fields the server binds to, required like every other tunable (`flat-layered` rule 10):
+`http_host: str` and `http_port: int`, read from `MYAPP_HTTP_HOST` and `MYAPP_HTTP_PORT`.
 
-`src/myapp/entrypoints/foo_http.py`:
+`src/myapp/__main__.py` where the server is the service's one process — in `entrypoints/`, beside
+others, the same module without its last two lines, `main()` being what its console script calls:
 
 ```python
 import asyncio
 
-import httpx
 import uvicorn
 
+from myapp.logging import configure_logging
 from myapp.postgres import FooRepository, get_engine, get_postgres_settings
-from myapp.services.foo_api import FooClient, get_foo_api_settings
 from myapp.settings import get_settings
 from myapp.web import build_app
 
 
-async def main() -> None:
-    settings, api = get_settings(), get_foo_api_settings()
+async def _serve() -> None:
+    settings = get_settings()
     engine = get_engine(get_postgres_settings().dsn.get_secret_value())
     try:
-        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:
-            app = build_app(FooClient(http), FooRepository(engine))
-            server = uvicorn.Server(uvicorn.Config(app, host=settings.http_host, port=settings.http_port))
-            await server.serve()
+        app = build_app(FooRepository(engine))
+        config = uvicorn.Config(app, host=settings.http_host, port=settings.http_port, log_config=None)
+        await uvicorn.Server(config).serve()
     finally:
         await engine.dispose()
 
 
+def main() -> None:
+    configure_logging()
+    asyncio.run(_serve())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
 ```
 
-The server is served on the process's own event loop, inside the block that owns the upstream
-transport and the engine, rather than through `uvicorn.run`, which starts a loop of its own: the pooled
-client and the engine are then opened and closed on the loop the app's requests run on, once for the
-life of the server (`flat-layered` rule 14).
+The server is served on the process's own event loop, inside the block that owns the engine, rather than
+through `uvicorn.run`, which starts a loop of its own: the engine is then opened and closed on the loop
+the app's requests run on, once for the life of the server (`flat-layered` rule 14). `log_config=None`
+keeps the server from configuring logging a second time (`python-style` rule 17).
 
-`src/myapp/web/__init__.py` re-exports `build_app` the same way, and the project adds `fastapi` and
-`uvicorn` to its dependencies (`flat-project-setup`).
+`src/myapp/web/__init__.py` re-exports `build_app`, and the project adds `fastapi` and `uvicorn` to its
+dependencies (`flat-project-setup`).

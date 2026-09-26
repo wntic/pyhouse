@@ -157,19 +157,19 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 
 | Skill | Owns |
 |---|---|
-| `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; a package and settings class per configured component, built by the process definition, and the one-implementation client over one pooled transport with a refreshable credential |
-| `flat-persistence` | One package per store, named for its technology, owning a service's data access — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked writes, deduplication left to the store, cursor reads over a total order, and one migration directory per store |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream, a thin HTTP wrapper or durable execution — and the framework-free run function every trigger wraps: bounded memory, progress markers after their data, atomic local state, fan-out failure containment, and the obligations an engine adds once one is earned |
+| `flat-layered` | The four role kinds and the import contract between them, with a skeleton of only what most flat services have — packages at the package root, each named for a role the service has; a package and settings class per configured component, a directory written for another reader included, built by the process definition, and the one-implementation client over one pooled transport with a refreshable credential |
+| `flat-persistence` | One package per store, named for its technology, owning a service's data access — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked writes, deduplication left to the store, cursor reads over a total order, one migration directory per store, and none for a store another project owns |
+| `flat-entrypoint` | Trigger choice — one run per process by default, a loop, a stream or queue consumer, a thin HTTP wrapper receiving a body, or durable execution — and the framework-free run function every trigger wraps: bounded memory, progress markers after their data, atomic writes of files another reader collects, containment only in a process that outlives one run, bounded redelivery with a dead letter, fan-out failure containment, and the obligations an engine adds once one is earned |
 | `flat-project-setup` | The one-time project setup — which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap under `migrations/postgres/` with a baseline only over an existing schema; the toolchain is `python-toolchain`'s, per-change revisions `flat-persistence`'s |
 
 ## Flat tests (4)
 
 | Skill | Owns |
 |---|---|
-| `flat-test-integration-setup` | The container, the safety guard, and the isolation fixture each declared transaction owner needs |
-| `flat-test-persistence` | The data-access package's contract against a real datastore |
+| `flat-test-integration-setup` | The suite-owned container, the safety guard any database the suite did not start must pass, and the isolation fixture each declared transaction owner needs |
+| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
 | `flat-test-service-client` | One client class's test |
-| `flat-test-run-function` | What a trigger runs — the body, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
+| `flat-test-run-function` | What a trigger runs — the body end to end with an idempotence test wherever a run can repeat, the containment test only where a process outlives one run, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 
 ## Git (2)
 

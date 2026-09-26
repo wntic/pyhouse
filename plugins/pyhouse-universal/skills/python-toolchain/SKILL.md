@@ -87,8 +87,9 @@ plugins = ["pydantic.mypy"]  # only with pydantic
 
 The test runner's `[tool.pytest.ini_options]` block follows in the same file. At a workspace root the
 same tables are written once; mypy's `files` and `mypy_path` name the member directories instead of
-`src`. A CLI tool declares its console script in `[project.scripts]`; a service or library removes the
-`main` stub and script `uv init` generates.
+`src`. A library, and a service that runs a single process, remove the `main` stub and script `uv init`
+generates; a CLI tool, and a service with several processes, declare one console script per command or
+process in `[project.scripts]`.
 
 `E` and `F` are the error and pyflakes families, `I` import sorting; `B904` is raise-without-from and
 `B006` the mutable default argument; `F403` and `F405` are the two wildcard-import warnings. `C901` is

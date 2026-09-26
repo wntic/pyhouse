@@ -54,10 +54,11 @@ myapp/                    # the distribution's root — the repository root when
 ## A. Dependencies by role — uv
 
 `pyproject.toml` is `python-toolchain`'s template, taken as written; `uv init --package --build-backend
-hatch myapp` lays it. Then, unless the distribution is a CLI tool, delete the `main` it writes into
-`src/myapp/__init__.py` and the `[project.scripts]` entry that points at it — the package root stays
-empty and the process starts from `__main__.py` (`flat-layered`). What this family adds is which libraries arrive, each with `uv add` or
-`uv add --dev`, and the floors its own templates rely on.
+hatch myapp` lays it. Then delete the `main` it writes into `src/myapp/__init__.py` and the
+`[project.scripts]` entry that points at it. A service that runs a single process starts it from
+`__main__.py`; a service with several processes, or a CLI tool, declares one console script per process
+or command in their place (`flat-layered`). What this family adds is which libraries arrive, each with
+`uv add` or `uv add --dev`, and the floors its own templates rely on.
 
 **Dependencies are chosen by the roles the service actually has.** The settings library and the
 structured logger are always present — every process reads configuration and logs. The rest arrive with
