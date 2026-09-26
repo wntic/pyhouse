@@ -26,10 +26,13 @@ Produces one repository class that adapts a domain repository protocol to a clie
 ## Template — redis-py, key-value form
 
 One vendor is worked end to end so the shape is concrete; a document store (mongo, dynamo, a
-key-value cache) differs only in the SDK's call names and its exception root. A key-value store answers
-only reads by key, so this adapter satisfies `IFooArchive` — create, fetch by id, delete — rather than
-the full `IFooRepository` (`hex-domain-ports`), and lives in `redis/repositories/foo_archive.py`
-(`hex-conventions`' protocol-derived stem).
+key-value cache) differs only in the SDK's call names and its exception root. The worked aggregate is
+`Bar` (`hex-domain-model`), whose one authoritative store is the key-value store (rule 1). A key-value
+store answers only reads by key, so the adapter satisfies an `IBarRepository` that declares create,
+fetch by id and delete and nothing else (`hex-domain-ports`), and lives in
+`redis/repositories/bar_repository.py` (`hex-conventions`' protocol-derived stem). The relational
+templates (`hex-persistence`) take the other case — `Bar` in the relational store, which `Foo`'s
+foreign key to it needs; a project keeps `Bar` in one of the two, never both.
 
 ```python
 import json
@@ -38,36 +41,38 @@ from uuid import UUID
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
+from myapp.domain.bars import Bar
 from myapp.domain.exceptions import NotFoundError, UpstreamError
-from myapp.domain.foos import Foo
 
 from ..settings import RedisSettings
 
-__all__ = ["FooRepository"]
+__all__ = ["BarRepository"]
 
 
-class FooRepository:
+class BarRepository:
     def __init__(self, client: Redis, settings: RedisSettings) -> None:
         self._client = client
-        self._prefix = settings.foos_key_prefix
+        self._prefix = settings.bars_key_prefix
 
     def _key(self, id: UUID) -> str:
         return f"{self._prefix}:{id}"
 
-    def _record_to_entity(self, record: dict[str, str]) -> Foo:
-        return Foo(id=UUID(record["id"]), name=record["name"], bar_id=UUID(record["bar_id"]))
+    def _entity_to_record(self, bar: Bar) -> dict[str, str]:
+        return {"id": str(bar.id), "name": bar.name}
 
-    async def create(self, foo: Foo) -> None:
-        record = {"id": str(foo.id), "name": foo.name, "bar_id": str(foo.bar_id)}
+    def _record_to_entity(self, record: dict[str, str]) -> Bar:
+        return Bar(id=UUID(record["id"]), name=record["name"])
+
+    async def create(self, bar: Bar) -> None:
         try:
-            await self._client.set(self._key(foo.id), json.dumps(record))
+            await self._client.set(self._key(bar.id), json.dumps(self._entity_to_record(bar)))
         except RedisError as exc:
             raise UpstreamError(
                 "store write failed",
-                {"key": self._key(foo.id), "reason": exc.__class__.__name__},
+                {"key": self._key(bar.id), "reason": exc.__class__.__name__},
             ) from exc
 
-    async def get_by_id(self, id: UUID) -> Foo:
+    async def get_by_id(self, id: UUID) -> Bar:
         try:
             raw = await self._client.get(self._key(id))
         except RedisError as exc:
@@ -76,7 +81,7 @@ class FooRepository:
                 {"key": self._key(id), "reason": exc.__class__.__name__},
             ) from exc
         if raw is None:
-            raise NotFoundError("Foo not found", {"id": str(id)})
+            raise NotFoundError("Bar not found", {"id": str(id)})
         return self._record_to_entity(json.loads(raw))
 
     async def delete(self, id: UUID) -> None:
@@ -88,7 +93,7 @@ class FooRepository:
                 {"key": self._key(id), "reason": exc.__class__.__name__},
             ) from exc
         if removed == 0:
-            raise NotFoundError("Foo not found", {"id": str(id)})
+            raise NotFoundError("Bar not found", {"id": str(id)})
 ```
 
 The settings class the adapter and the store's connection factory (`hex-conventions` block B) read, in
@@ -109,7 +114,7 @@ class RedisSettings(BaseSettings):
     )
 
     url: SecretStr
-    foos_key_prefix: str
+    bars_key_prefix: str
 ```
 
 ## Other bindings
@@ -145,14 +150,14 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 ├── settings.py            # the store's settings class — shown in the template above
 └── repositories/
     ├── __init__.py        # package wiring — python-packaging
-    └── foo_archive.py     # this skill writes this file — the stem is the port's (`hex-conventions`)
+    └── bar_repository.py  # this skill writes this file — the stem is the port's (`hex-conventions`)
 ```
 
 ### Form
 
 1. **Names and module structure** follow `naming` and `python-packaging`; technology placement follows `hex-architecture` and `hex-conventions`. An aggregate has exactly one **authoritative** store — the one its writes go to — unlike a capability port that several vendors may implement. A second store may hold a derived projection of the same aggregate (an index over `Foo`, see `## Other bindings`), which is why the repository file stem is protocol-derived for client stores; see `hex-conventions`. Two stores both accepting writes for one aggregate is the thing this forbids.
 2. **No explicit `(IFooRepository)` inheritance.** Structural subtyping.
-3. **Method signatures match the protocol exactly**, including async mode, keyword-only markers, and compound return shapes (a `tuple[tuple[Foo, float], ...]` of scored pairs is returned as pairs — never flattened to bare entities with the second element discarded).
+3. **Method signatures match the protocol exactly**, including async mode, keyword-only markers, and compound return shapes — a compound return is returned whole, never reduced to the entity with the rest discarded.
 
 ### Client & settings
 
@@ -175,7 +180,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching, consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` binds aioboto3, httpx and idna in one skill).
 13. **No provisioning.** The repository never creates collections, indexes, buckets, or schemas — provisioning is a deployment/bootstrap concern.
-14. **Ordering is explicit.** A `list`, `scan` or query that promises an order must produce it deliberately (an explicit sort key, the store's documented result order) — never rely on insertion accident.
+14. **Ordering is explicit.** A read that promises an order must produce it deliberately (an explicit sort key, the store's documented result order) — never rely on insertion accident.
 15. **No retries, no caching, no domain reasoning.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules). Logging follows `python-style`.
 
 ### Testing neighbours
@@ -185,7 +190,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.foos import Foo`); the sibling settings module relative (`from ..settings import RedisSettings`). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
+- Domain imports absolute (`from myapp.domain.bars import Bar`); the sibling settings module relative (`from ..settings import RedisSettings`). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - Raw SDK payloads may be `dict[str, Any]` / `object` at the immediate boundary — convert to the domain type in the mapping helper, never return them.
 - No `from __future__ import annotations`. Full annotations on every method.

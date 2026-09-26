@@ -15,7 +15,7 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 - A single action that does IO or talks to an external system — file rendering, token verification, blob storage, a third-party gateway call → **capability protocol** (`ICan<Verb>`), in this skill.
 - A pure-CPU operation a third-party library performs — JWT signature verification, IDNA-aware URL canonicalization → **capability protocol**, with a sync method instead of async; the domain cannot import the library, and the port is how it uses one.
 - Pure-CPU logic the standard library can do — trimming, case-folding, a stdlib URL normalization → no port; a value object's construction (`hex-domain-model`) or a module-level domain function (`hex-domain-service`).
-- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`, which also shows the value objects the ports below name (`CanonicalBarUrl`, `BarToken`, `FooExportRow`, `AuditEvent`).
+- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`, which also shows the `Bar` entity and the value objects the ports below name (`CanonicalBarUrl`, `BarToken`, `FooExportRow`, `AuditEvent`).
 - A rule needing cross-aggregate state, which *consumes* these protocols → `hex-domain-service`.
 - A concrete repository implementation → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store). The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
 - A concrete capability implementation → `hex-capability-adapter`.
@@ -53,22 +53,22 @@ class IFooRepository(Protocol):
 ### Repository protocol — a store that answers only some reads
 
 A port declares what its store can answer, never more. A key-value store reaches a record by its key and
-nothing else, so a `Foo` kept there is created, fetched by id and deleted — `list`, `count` and
-`get_by_name` would need a secondary index the store does not keep. It gets a narrower port of its own,
-named for what it holds, and a handler that needs the full read set depends on `IFooRepository` on a
-store that can serve it:
+nothing else, so a `Bar` kept there is created, fetched by id and deleted — a `list`, a `count` or a
+`get_by_name` would need a secondary index the store does not keep. Its repository port is still
+`IBarRepository`, and simply declares those three: a repository port may be narrower than full CRUD, and
+a handler that needs a read the port lacks needs the aggregate on a store that can answer it:
 
 ```python
 from typing import Protocol
 from uuid import UUID
 
-from .foo import Foo
+from .bar import Bar
 
-__all__ = ["IFooArchive"]
+__all__ = ["IBarRepository"]
 
-class IFooArchive(Protocol):
-    async def create(self, foo: Foo) -> None: ...
-    async def get_by_id(self, id: UUID) -> Foo: ...
+class IBarRepository(Protocol):
+    async def create(self, bar: Bar) -> None: ...
+    async def get_by_id(self, id: UUID) -> Bar: ...
     async def delete(self, id: UUID) -> None: ...
 ```
 

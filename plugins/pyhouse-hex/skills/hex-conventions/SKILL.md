@@ -115,16 +115,18 @@ derivable from the verb.
 
 **Repository file stem — aggregate-derived for a relational store, protocol-derived for a client store.**
 The class is always `<Aggregate>Repository` (backs `Foo` → `FooRepository`), but its **file stem** depends
-on the store profile (block B), because polyglot persistence lets two repositories back ONE aggregate:
+on the store profile (block B), because an aggregate's one authoritative store may have a derived
+projection beside it — an index over the same aggregate, on a second store, behind a narrower port of its
+own (`hex-store-repository` rule 1):
 
 - a **relational store** repo → `<snake(aggregate)>_repository.py` (`Foo` on `main` →
   `foo_repository.py`).
 - a **client-style store** repo → the **protocol-derived** stem: the implemented protocol name minus its
-  leading `I`, snaked (`IFooArchive` on `archive` → `foo_archive.py`).
+  leading `I`, snaked (`IBarRepository` on `archive` → `bar_repository.py`).
 
-So a `Foo` backed by both a relational `IFooRepository` and a key-value `IFooArchive` lands two
-distinct files — `<relational-kind>/repositories/foo_repository.py` and
-`<store-kind>/repositories/foo_archive.py`. An aggregate-only stem would collide.
+So a `Foo` stored relationally behind `IFooRepository`, with a search index beside it behind an
+`IFooSearchIndex`, lands two distinct files — `<relational-kind>/repositories/foo_repository.py` and
+`<index-kind>/repositories/foo_search_index.py`. An aggregate-only stem would collide.
 
 **Which repository form applies is decided by the store profile, not the vendor.** A relational store →
 the SQLAlchemy Core form in `hex-persistence`. **Any** client-style store → a vendor-agnostic

@@ -19,13 +19,12 @@ from myapp.application.foos import (
     ListFoosHandler,
     UpdateFooHandler,
 )
-from myapp.domain.bars import ICanCanonicalizeBarUrl, ICanFetchBarToken
+from myapp.domain.bars import IBarRepository, ICanCanonicalizeBarUrl, ICanFetchBarToken
 from myapp.domain.foos import (
     FooExportTunable,
     FooUniquenessService,
     ICanFetchFoos,
     ICanStoreFoos,
-    IFooArchive,
     IFooRepository,
 )
 from myapp.infrastructure.export import ExportSettings
@@ -34,7 +33,7 @@ from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
 from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
 from myapp.infrastructure.postgres.repositories import FooRepository
 from myapp.infrastructure.redis import RedisSettings, create_archive_client
-from myapp.infrastructure.redis.repositories import FooRepository as RedisFooRepository
+from myapp.infrastructure.redis.repositories import BarRepository
 from myapp.infrastructure.s3 import S3FooStorage, S3Settings
 
 __all__ = ["create_container"]
@@ -109,6 +108,12 @@ class InfrastructureProvider(Provider):
     bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
 
 
+class BarsProvider(Provider):
+    scope = Scope.REQUEST
+
+    bar_repository = provide(BarRepository, provides=IBarRepository)
+
+
 class FoosProvider(Provider):
     """4. One provider class per subdomain: repository, then the services that use it,
     then the handlers that use them. `provides=` is what binds the adapter to the port;
@@ -118,7 +123,6 @@ class FoosProvider(Provider):
     scope = Scope.REQUEST
 
     foo_repository = provide(FooRepository, provides=IFooRepository)
-    foo_archive = provide(RedisFooRepository, provides=IFooArchive)
     foo_uniqueness_service = provide(FooUniquenessService)
 
     create_foo_handler = provide(CreateFooHandler)
@@ -139,17 +143,16 @@ def create_container(*overrides: Provider) -> AsyncContainer:
     return make_async_container(
         SettingsProvider(),
         InfrastructureProvider(),
+        BarsProvider(),
         FoosProvider(),
         *overrides,
     )
 ```
 
-Two repositories back `Foo` from two stores, and both classes are `FooRepository` in their own packages
-(`hex-conventions`), so the second is imported under an alias naming its store; the alias lives in this
-file only. The template binds both only because it binds every adapter the catalogue defines: an
-aggregate has one authoritative store (`hex-store-repository` rule 1), so a real app binds the one its
-`Foo` is written to, plus at most a projection derived from it. One adapter satisfying two ports is bound once, to both (`AnyOf`), so the two ports share the
-one instance. A client-style store is bound in three steps, the Redis archive (`hex-store-repository`)
+The template binds every adapter the catalogue defines, so it binds `Bar`'s key-value repository
+beside `Foo`'s relational one — each aggregate on its one authoritative store (`hex-store-repository`
+rule 1). One adapter satisfying two ports is bound once, to both (`AnyOf`), so the two ports share the
+one instance. A client-style store is bound in three steps, the Redis repository (`hex-store-repository`)
 being the worked one: a settings factory, a client factory that closes the client after its yield, and
 the repository bound to its port.
 

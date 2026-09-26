@@ -67,6 +67,35 @@ class Foo:
         return hash(self.id)
 ```
 
+`Bar`, the second aggregate the templates name, is the same form with its own fields, in
+`domain/bars/bar.py`:
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+from ..exceptions import ValidationError
+
+__all__ = ["Bar"]
+
+@dataclass
+class Bar:
+    id: UUID
+    name: str
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValidationError("name must be non-empty", {"field": "name"})
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Bar):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+```
+
 ### Value object — standard case (value equality across all fields)
 
 ```python
