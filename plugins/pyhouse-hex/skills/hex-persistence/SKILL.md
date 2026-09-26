@@ -30,7 +30,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
   directly rather than through a port → `flat-persistence`, in the `pyhouse-flat` plugin.
 - The store's settings class and its container binding → `REPOSITORY.md`; what a settings class
   declares → `python-settings`; lifetimes, declaration order and the base they merge into → `hex-wiring`.
-- The engine and session factories the binding calls → `hex-conventions` block B.
+- The engine and session factories the binding calls → `REPOSITORY.md`, beside the settings class.
 - The unit-of-work protocol and implementation, when the repository joins multi-repository transactions →
   `hex-patterns`.
 - The exception classes the translator raises → `exception-catalog`.
@@ -46,7 +46,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 ```
 src/myapp/infrastructure/postgres/
 ├── settings.py                    # DbSettings
-├── engine.py                      # engine and session factories — hex-conventions block B
+├── engine.py                      # engine and session factories — REPOSITORY.md
 ├── metadata.py                    # the shared MetaData with naming_convention
 ├── tables/
 │   ├── __init__.py                # import the new module and name it in __all__ (no wildcard)
@@ -56,7 +56,7 @@ src/myapp/infrastructure/postgres/
     └── foo_repository.py          # the adapter
 
 migrations/versions/
-└── 0042_create_foos.py            # authored via `alembic revision`, hand-edited to the rules below
+└── <revision>_create_foos.py      # authored via `alembic revision`, hand-edited to the rules below
 ```
 
 The full file templates live in three topic files, one per artifact in that layout. **Read the topic
@@ -66,7 +66,7 @@ file for the artifact before writing or changing it** — only this file is load
   constraint, child-table and default rules.
 - **`REPOSITORY.md`** — the two constructor forms, the session, read, mutation,
   translation and mapping rules, the shared-mapper extraction threshold, and the store's settings class
-  with its container binding.
+  with its engine factories and container binding.
 - **`REVISION.md`** — the revision template, the drift check and the downgrade rule.
 
 ## Other bindings
@@ -113,14 +113,11 @@ file for the artifact before writing or changing it** — only this file is load
    secondary lookup may return an optional, a list returns a sequence ordered by *the caller's* chosen
    sort, a count returns an integer. A hardcoded default order that ignores the filter's sort is a bug,
    not a default.
-9. **Every driver error is translated before it escapes the adapter, and the fallback is mandatory.** The
-   translator ends by returning a catalogue exception when no specific case matched; it never returns or
-   re-raises the driver's own type. Letting it leak breaks the no-framework-exceptions-across-layers rule
-   and turns what should be a conflict response into a 500.
-10. **Pick the most specific catalogue exception, and give it identifying context.** A domain subclass
-    beats a generic conflict, and "still referenced" beats "conflict" for a foreign key on delete. The
-    context carries the offending field and the full constraint name, because the entrypoint and the
-    tests both assert on them.
+9. **Every driver error is translated before it escapes the adapter.** Translation, its mandatory
+   fallback and the choice of the most specific class are `exception-catalog`'s (rules 8–10); for a
+   foreign key on delete, "still referenced" is that most specific class.
+10. **The context carries the offending field and the full constraint name.** The constraint name is the
+    one the convention generated, because the entrypoint and the tests both assert on it.
 11. **Row-to-entity mapping is a pure function** — no IO, no logging — and it normalizes what the driver
     hands back, including giving a naive timestamp its offset. A helper lives at module level when more
     than one method or helper uses it, and as a private method when exactly one does.

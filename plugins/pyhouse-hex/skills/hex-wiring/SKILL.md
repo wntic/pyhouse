@@ -28,9 +28,8 @@ it is constructed and bound — at a composition root and nowhere else (`python-
 ## Settings in the composition root
 
 A settings class follows `python-settings`, and each one is shown beside the adapter that reads it: the
-relational store's `DbSettings` in `hex-persistence`, `S3Settings`, `BarGatewaySettings` and
-`IdnaSettings` in `hex-capability-adapter`, `RedisSettings` in `hex-store-repository`, `JwtSettings` in
-`hex-restapi-auth`. What is this skill's is where they are built. The composition roots of
+relational store's `DbSettings` in `hex-persistence`, `BarGatewaySettings` in `hex-capability-adapter`,
+`RedisSettings` in `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. What is this skill's is where they are built. The composition roots of
 `python-settings` rule 13 are, in this catalogue's layout, `src/myapp/containers.py` (the process's
 container), `migrations/env.py` (the migration environment, `hex-project-setup`) and
 `TestInfraProvider` with its fixtures in `tests/integration/conftest.py` (the test infrastructure,
@@ -43,10 +42,9 @@ by layer and by subdomain; `create_container` assembles them. **Every dependency
 no binding is reached by its attribute name, so renaming a class cannot silently break a call site. The
 template is the **base** a project extends — the provider classes and the handlers — and binds no
 store, no optional adapter and no feature. **A store's or an add-on's binding lives with what it
-binds**: the relational engine, session factory and repository in `hex-persistence`, the S3 storage,
-the HTTP gateway and the idna canonicalizer in `hex-capability-adapter`, the Redis repository in
-`hex-store-repository`, the token verifier in `hex-restapi-auth`, the tunable in `hex-domain-model`,
-the unit-of-work factory in `hex-patterns`; a project merges the ones it has.
+binds**: the relational engine, session factory and repository in `hex-persistence`, the HTTP gateway
+in `hex-capability-adapter`, the Redis repository in `hex-store-repository`, the token verifier in
+`hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-patterns`; a project merges the ones it has.
 
 **Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
 carries the base composition root — the provider classes in declaration order and `create_container` —
@@ -116,7 +114,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 
 | Lifetime | Use for | Examples |
 |---|---|---|
-| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a library-backed canonicalizer adapter, **tunable value objects**, a stateless factory callable. |
+| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a stateless library-backed adapter, **tunable value objects**, a stateless factory callable. |
 | **Per operation** | Instances meant to be fresh for each request or each job, cheap to construct. | Every `*Handler`, every `*Repository`, **domain services** that compose them, a stateful adapter bound to per-request state. |
 
 **Default to per-operation for application and domain artifacts. Reserve process lifetime for objects
@@ -132,7 +130,7 @@ Group bindings in dependency order and keep them in that order:
 
 1. **Settings first** — everything else may depend on them.
 2. **Long-lived infrastructure** — engine, session factory, verifiers.
-3. **Cross-cutting helpers** — canonicalizers, storage adapters needed by several subdomains.
+3. **Cross-cutting helpers** — capability adapters needed by several subdomains.
 4. **Per-subdomain block:** repository → services that use it → handlers that use them.
 5. **Cross-subdomain dependencies come first.** If subdomain A's repository is consumed by subdomain B's
    handlers, declare it before B's block.

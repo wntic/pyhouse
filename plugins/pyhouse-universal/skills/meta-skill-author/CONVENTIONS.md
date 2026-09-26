@@ -32,34 +32,34 @@ too. The counts in every heading are the number of directories on disk.
 ### Hex core (12)
 
 - `hex-architecture` — Once the family is hexagonal, decides which layer a module belongs in and which way an import may cross; whether hexagonal fits at all is `architecture-choice`'s.
-- `hex-conventions` — Resolve artifact locations and context ownership before applying an artifact's file template.
+- `hex-conventions` — Resolve artifact locations and context ownership before applying an artifact's file template; it names each store profile's connection factory, while the factory itself is written by the store's own skill.
 - `hex-project-setup` — Run the bootstrap once — which libraries each role brings with the floors this family's templates rely on, and migrations with a baseline only over an existing schema; the toolchain itself is `python-toolchain`'s, later table changes the persistence skill's paired revision.
-- `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together.
-- `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction; the relational store's settings class and its engine and repository binding sit beside the adapter.
-- `hex-domain-model` — Decides when a constrained primitive becomes a value object, on a stdlib-only substrate separate from transport models.
-- `hex-domain-ports` — Defines the signatures that adapters satisfy without inheriting or importing the protocol.
-- `hex-domain-service` — Place rules beside their primary aggregate; use an entity for rules enforceable from its own fields.
+- `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together; it carries no entrypoint or run function.
+- `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction; the relational store's settings class, its engine and session factories, and its container binding sit beside the adapter.
+- `hex-domain-model` — Decides when a constrained primitive becomes a value object, on a stdlib-only substrate separate from transport models; a tunable threshold carries no default.
+- `hex-domain-ports` — Defines the signatures that adapters satisfy without inheriting or importing the protocol; a capability is async unless it is pure CPU, and a reversible action declares its undo beside it.
+- `hex-domain-service` — Place rules beside their primary aggregate; use an entity for rules enforceable from its own fields, and a module function for a transformation with nothing to inject.
 - `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface.
 - `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler; it builds and binds settings classes, whose contents are `python-settings`'s.
-- `hex-capability-adapter` — Implements an external action; aggregate persistence belongs to a repository skill.
-- `hex-store-repository` — Use for client-style storage, bound to redis, other stores under Other bindings; relational tables and Alembic revisions belong to the persistence skill.
+- `hex-capability-adapter` — Implements an external action, templated once as an HTTP gateway with the SDK-client and pure-CPU forms in prose; aggregate persistence belongs to a repository skill.
+- `hex-store-repository` — Use for client-style storage, bound to redis, other stores under Other bindings; it writes the store's connection factory and fixes the key prefix in code, while relational tables and Alembic revisions belong to the persistence skill.
 
 ### Hex REST API (4)
 
-- `hex-restapi-app` — Establish the shared shell before adding resource routers; the shell it lays presumes no authentication.
-- `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body, and keeps the errors the route advertises aligned with what it can actually produce.
+- `hex-restapi-app` — Establish the shared shell before adding resource routers; the shell it lays presumes no authentication and no middleware, CORS included, and a status a middleware emits is registered here.
+- `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body, and keeps the errors the route advertises aligned with what it can actually produce; file-transfer routes are read from its sibling file.
 - `hex-restapi-schema` — Match the domain filter's chosen pagination shape and the command DTO's partial-update contract.
-- `hex-restapi-auth` — Add only when the entrypoint itself authenticates; a gateway- or mTLS-fronted service declares no auth and skips it.
+- `hex-restapi-auth` — Add only when the entrypoint itself authenticates; a gateway- or mTLS-fronted service declares no auth and skips it. The caller is an opaque subject, and a rank exists only where a route gates on one.
 
 ### Hex tests (8)
 
-- `hex-test-integration-setup` — Establish shared infrastructure fixtures before repository, adapter, or API integration tests, and map the whole hex suite tree, naming the skill that writes each file in it.
-- `hex-test-domain` — Choose the template for the domain shape, using a minimal inline stub when a service needs a collaborator.
-- `hex-test-application-handler` — Keeps in-memory collaborator behavior and failure injection beside the handler contracts they support.
+- `hex-test-integration-setup` — Establish shared infrastructure fixtures before repository, adapter, or API integration tests, and map the whole hex suite tree, naming the skill that writes each file in it; the base ends framework-free at the `container` fixture, and `real_app` is the REST add-on.
+- `hex-test-domain` — Choose the template for the domain shape, running a service on the in-memory fake of its port.
+- `hex-test-application-handler` — Keeps in-memory collaborator behavior and failure injection beside the handler contracts they support, and owns every fake.
 - `hex-test-repository-contract` — Exercise the same aggregate contract across adapters while selecting isolation for the actual store.
-- `hex-test-capability-adapter` — Select the backend-specific flavor; a pure-CPU implementation runs directly without a container.
+- `hex-test-capability-adapter` — Select the backend-specific flavor; the HTTP gateway is templated, and a pure-CPU implementation runs directly without a container.
 - `hex-test-restapi-endpoint` — Reuse the shared integration setup and keep resource-specific fixture preparation in the sibling conftest.
-- `hex-test-app-invariants` — Pins properties of the assembled app that adding or removing an endpoint must never oblige anyone to edit.
+- `hex-test-app-invariants` — Pins properties of the assembled app that adding or removing an endpoint must never oblige anyone to edit; the CORS and request-size checks exist only where the app configures them.
 - `hex-test-restapi-auth` — Layer the auth fixtures over the shared integration setup; produced only for an app whose entrypoint authenticates.
 
 ### Flat core (4)

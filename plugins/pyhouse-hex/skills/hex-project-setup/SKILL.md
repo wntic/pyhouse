@@ -144,43 +144,16 @@ one (`hex-persistence` rule 12), and Alembic gives it no parent — `alembic upg
 database replays forever, and there is exactly one way a table enters the schema.
 
 **Over a database that already holds objects, the root is a baseline**, and it is **write-once** —
-create `migrations/versions/0001_baseline.py` only when `migrations/versions/` carries no `*.py` yet.
-Never clobber a chain that already has deltas:
-
-```python
-# migrations/versions/0001_baseline.py
-"""baseline — the schema as it stood before the chain began"""
-
-from collections.abc import Sequence
-
-import sqlalchemy as sa
-from alembic import op
-
-revision: str = "0001"
-down_revision: str | None = None
-branch_labels: Sequence[str] | None = None
-depends_on: Sequence[str] | None = None
-
-
-def upgrade() -> None:
-    op.create_table(
-        "foos",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("name", sa.String(), nullable=False),
-        sa.PrimaryKeyConstraint("id", name="pk_foos"),
-    )
-
-
-def downgrade() -> None:
-    op.drop_table("foos")
-```
+create the baseline revision only when `migrations/versions/` carries no `*.py` yet, with no parent.
+Never clobber a chain that already has deltas.
 
 The baseline holds only the pre-existing objects, and it **freezes** them as they stood the day it was
 written — every column, type and constraint spelled out by hand, nothing read from the live metadata at
 run time, because `metadata.create_all` would build whatever the tables have become by the time the
 revision runs, and the chain would stop being replayable from zero. It imports neither the project's
-metadata nor its table registrar. Each existing database is marked with `alembic stamp 0001` rather than
-upgraded through it; a fresh one — the integration suite's — runs it like any revision.
+metadata nor its table registrar. Each existing database is marked with
+`alembic stamp <baseline revision>` rather than upgraded through it; a fresh one — the integration
+suite's — runs it like any revision.
 
 **Every subsequent migration is a real revision** (`uv run alembic revision --autogenerate -m "<change>"`)
 — see `hex-persistence` for the per-change form.

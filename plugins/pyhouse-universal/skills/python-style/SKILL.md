@@ -156,11 +156,11 @@ it cannot be mutated by a holder that was only meant to read it.
 @dataclass(frozen=True)
 class Foo:
     id: UUID
-    bar_ids: frozenset[UUID]
+    tags: frozenset[str]
     items: tuple[Item, ...]
 ```
 
-Conversion happens at the boundary: the caller converts — `bar_ids=frozenset(payload.bar_ids)`,
+Conversion happens at the boundary: the caller converts — `tags=frozenset(payload.tags)`,
 `items=tuple(item_inputs)`. A wire schema may hold `list[...]`, the validation library's natural shape;
 the frozen type stores the frozen form.
 

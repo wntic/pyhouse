@@ -1,6 +1,6 @@
 ---
 name: hex-restapi-endpoint
-description: Use when adding or changing one REST route, or creating a resource's router file `restapi/routers/<resource>.py` — thin JSON routes, multipart upload, streaming download, dishka handler injection, route ordering, and which error codes the route advertises. Owns the per-operation code sets, advertise-only-what-you-produce, and the registry for a status a middleware introduces. The pydantic models are `hex-restapi-schema`; the auth dependency and the `401` / `403` that follow it are `hex-restapi-auth`.
+description: Use when adding or changing one REST route, or creating a resource's router file `restapi/routers/<resource>.py` — thin JSON routes, multipart upload, streaming download, dishka handler injection, route ordering, and which error codes the route advertises. Owns the per-operation code sets and advertise-only-what-you-produce. The pydantic models are `hex-restapi-schema`; the auth dependency and the `401` / `403` that follow it are `hex-restapi-auth`.
 paths: ["**/restapi/**", "**/api/**"]
 ---
 
@@ -9,9 +9,8 @@ paths: ["**/restapi/**", "**/api/**"]
 Produces one HTTP endpoint for one resource. Routers grow incrementally — this skill adds one route at a time. A "router file" exists once per resource; subsequent endpoint additions extend it.
 
 **Read the sibling `CONTRACTS.md` in this skill's own directory before choosing what a route advertises
-in `responses=error_responses(...)`.** It carries the per-operation code sets, the two symbols the
-decorator draws on, and the procedure for a status a middleware introduces; only `SKILL.md` is loaded
-automatically.
+in `responses=error_responses(...)`.** It carries the per-operation code sets and the two symbols the
+decorator draws on; only `SKILL.md` is loaded automatically.
 
 ## When to use vs. neighbours
 
@@ -20,11 +19,11 @@ automatically.
 - The `responses=error_responses(...)` declaration and which codes belong in it → this skill, in the sibling `CONTRACTS.md`.
 - Defining a new error class whose status then becomes valid for `error_responses(...)`, and boundary translation → `exception-catalog`.
 - Attaching an auth dependency to a route, and the `401` / `403` that follow it → `hex-restapi-auth`.
-- The shell this router registers into — `restapi/main.py`, the CORS `expose_headers` list a download route extends, the request-size middleware behind a `413` → `hex-restapi-app`.
+- The shell this router registers into — `restapi/main.py`, its middleware, and the registry for a status a middleware introduces → `hex-restapi-app`.
 - The composition root that binds the handler this route injects → `hex-wiring`.
 - Application handlers that consume upload bytes or produce download content → `hex-application`; storage capability protocols → `hex-domain-ports`.
 - Testing this route through the real app → `hex-test-restapi-endpoint`; the OpenAPI and app-construction properties discovered across all routes → `hex-test-app-invariants`.
-- Route, module and helper identifiers → `naming`; `__all__`, the private `_export_filename` helper and the router export → `python-packaging`.
+- Route, module and helper identifiers → `naming`; `__all__` and the router export → `python-packaging`.
 
 ## Template(s) — FastAPI router, dishka-injected
 
@@ -72,76 +71,40 @@ from ..schemas import (
 
 __all__ = ["router"]
 
+_MAX_PAGE_SIZE = 100
+
 router = APIRouter(prefix="/foos", tags=["foos"], route_class=DishkaRoute)
 ```
 
-The skeleton imports what the CRUD routes below use; a file-transfer or collection-action route adds
-the names its own template shows.
+The skeleton imports what the CRUD routes below use; a file-transfer route adds the names its own
+template shows.
 
-
-**The route templates below are the primary, auth-free form** — every route in an app that declares
-no auth, and the public routes of an app that does. Whether an app has auth at all follows from its
-routes. An authenticated route adds exactly four things to one of these templates — the auth-dependency
-parameter last in the signature, the `domain.auth` + `..dependencies` imports and `Depends`, the `401`
-(and `403` when role-gated) codes, and the `caller_id=user.id` argument where the DTO carries it — and
-nothing else. The
-derivation, the dependency choice and the code join are `hex-restapi-auth`'s; one worked authenticated
-variant is kept in `TRANSFER.md`, under `mixed multipart + JSON`. The commands these routes build are therefore
-`hex-application`'s in their auth-free form, without `caller_id` — its auth-derived-fields rule drops
-the field, and the handler's `caller_id` log argument with it, in an app with no caller to thread.
+**The route templates below are auth-free** — every route in an app that declares no auth, and the
+public routes of one that does. An authenticated route is derived by `hex-restapi-auth`'s `ROUTES.md`.
 
 ### `list` (paginated read) — pagination shape mirrors `hex-domain-model`
 
-Use the **`limit`/`offset`** template when the matching `hex-domain-model` uses limit/offset paging. Use the **`cursor`** template when it uses a cursor. The two forms are mutually exclusive — never both.
-
-**A page size is always bounded and always defaulted** — an unbounded `limit` lets one request ask for the whole table. The *ceiling* and the *default* are the app's decision, not this skill's, so they are named module-level constants in the router file rather than literals in a signature: `Query(...)` bounds are evaluated when the route function is defined, so they cannot be injected per request, and a named constant is what lets one app state its number once and reuse it across every paginated route. An app picks a ceiling its list query can serve in one round trip. `ge=1` on the page size and `ge=0` on the offset are not tunable — a zero-row page and a negative offset are meaningless at any ceiling.
-
-```python
-# In the router file, beside `router = APIRouter(...)`:
-_MAX_PAGE_SIZE = 100
-_DEFAULT_PAGE_SIZE = 50
-```
-
-`limit`/`offset`:
+**A page size is always bounded and always defaulted** — an unbounded `limit` lets one request ask for the whole table. The *ceiling* is the app's decision and a named module-level constant in the router file (`_MAX_PAGE_SIZE` in the skeleton), because `Query(...)` bounds are evaluated when the route function is defined and cannot be injected per request; an app picks a ceiling its list query can serve in one round trip. The *default* is the filter's (`hex-domain-model`), read off `FooListFilter.limit` so the number is stated once, and the route passes `limit` to the filter explicitly. `ge=1` on the page size and `ge=0` on the offset are not tunable — a zero-row page and a negative offset are meaningless at any ceiling.
 
 ```python
 @router.get("", response_model=FooListResponse, responses=error_responses(422))
 async def list_foos(
     handler: FromDishka[ListFoosHandler],
-    limit: Annotated[int, Query(ge=1, le=_MAX_PAGE_SIZE)] = _DEFAULT_PAGE_SIZE,
+    limit: Annotated[int, Query(ge=1, le=_MAX_PAGE_SIZE)] = FooListFilter.limit,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> FooListResponse:
     result = await handler.execute(
         ListFoosQuery(filter=FooListFilter(limit=limit, offset=offset)),
     )
     return FooListResponse(
-        items=[FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id) for foo in result.items],
+        items=[FooResponse(id=foo.id, name=foo.name, note=foo.note) for foo in result.items],
         total=result.total,
         limit=limit,
         offset=offset,
     )
 ```
 
-`cursor`:
-
-```python
-@router.get("", response_model=FooListResponse, responses=error_responses(422))
-async def list_foos(
-    handler: FromDishka[ListFoosHandler],
-    cursor: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=_MAX_PAGE_SIZE)] = _DEFAULT_PAGE_SIZE,
-) -> FooListResponse:
-    result = await handler.execute(
-        ListFoosQuery(filter=FooListFilter(cursor=cursor, limit=limit)),
-    )
-    return FooListResponse(
-        items=[FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id) for foo in result.items],
-        next_cursor=result.next_cursor,
-        limit=limit,
-    )
-```
-
-The `hex-restapi-schema`-produced `FooListResponse` must match the chosen pagination shape (either `total/limit/offset` or `next_cursor/limit`).
+A filter that pages by cursor instead (`hex-domain-model`, filter rule 5) takes a `cursor` query parameter in place of `offset`, passes it into the filter, and returns `next_cursor` in place of `total`/`offset`; `FooListResponse` (`hex-restapi-schema`) matches whichever shape the filter uses.
 
 ### `get` (single read)
 
@@ -152,7 +115,7 @@ async def get_foo(
     handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     foo = await handler.execute(GetFooQuery(id=id))
-    return FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id)
+    return FooResponse(id=foo.id, name=foo.name, note=foo.note)
 ```
 
 ### `create` (with post-write read-back)
@@ -162,7 +125,7 @@ async def get_foo(
     "",
     response_model=FooResponse,
     status_code=201,
-    responses=error_responses(404, 409, 422),
+    responses=error_responses(409, 422),  # 409 only because Foo's name is unique
 )
 async def create_foo(
     body: FooCreateRequest,
@@ -170,15 +133,14 @@ async def create_foo(
     get_handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     new_id = await handler.execute(
-        CreateFooCommand(name=body.name, bar_id=body.bar_id),
+        CreateFooCommand(name=body.name, note=body.note),
     )
     foo = await get_handler.execute(GetFooQuery(id=new_id))
-    return FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id)
+    return FooResponse(id=foo.id, name=foo.name, note=foo.note)
 ```
 
-The `404` is the body's `bar_id` naming a `Bar` that does not exist: the repository translates that
-foreign-key rejection into the catalogue's not-found class (`hex-persistence`), so create advertises it
-(`CONTRACTS.md`).
+The code sets follow `CONTRACTS.md`: `422` always, and `409` because `Foo` carries a uniqueness
+constraint — a resource with none drops it.
 
 ### `update` (PATCH with read-back)
 
@@ -186,7 +148,7 @@ foreign-key rejection into the catalogue's not-found class (`hex-persistence`), 
 @router.patch(
     "/{id}",
     response_model=FooResponse,
-    responses=error_responses(404, 409, 422),
+    responses=error_responses(404, 409, 422),  # 409 only because Foo's name is unique
 )
 async def update_foo(
     id: UUID,
@@ -195,10 +157,10 @@ async def update_foo(
     get_handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     await handler.execute(
-        UpdateFooCommand(id=id, name=body.name, bar_id=body.bar_id),
+        UpdateFooCommand(id=id, name=body.name, note=body.note),
     )
     foo = await get_handler.execute(GetFooQuery(id=id))
-    return FooResponse(id=foo.id, name=foo.name, bar_id=foo.bar_id)
+    return FooResponse(id=foo.id, name=foo.name, note=foo.note)
 ```
 
 ### `delete` (204)
@@ -207,7 +169,7 @@ async def update_foo(
 @router.delete(
     "/{id}",
     status_code=204,
-    responses=error_responses(404, 409, 422),
+    responses=error_responses(404, 422),  # + 409 where another aggregate can reference a Foo
 )
 async def delete_foo(
     id: UUID,
@@ -217,51 +179,29 @@ async def delete_foo(
     return Response(status_code=204)
 ```
 
-### Static collection path — a collection-level action (204)
-
-A route whose path segment is a **literal, not a parameter**: a bulk update, a reorder, a nested-collection read. Which action a resource has is the resource's own business; this template fixes only the shape, and the load-bearing part of it is the route's **position in the file** — see the ordering note below. `/bulk` below is the example's action.
-
-```python
-@router.patch(
-    "/bulk",
-    status_code=204,
-    responses=error_responses(422),
-)
-async def bulk_update_foos(
-    body: FooBulkUpdateRequest,
-    handler: FromDishka[BulkUpdateFoosHandler],
-) -> Response:
-    await handler.execute(BulkUpdateFoosCommand(updates=body.updates))
-    return Response(status_code=204)
-```
-
 ### Route ordering — FastAPI declaration order
 
 FastAPI resolves a request against the routes **in declaration order**, which makes the reachability
-obligation (rule 18) a property of where a route sits in the file. `/bulk` is captured by `/{id}` if
-`/{id}` was declared first — `"bulk"` matches the `{id}` path, fails its UUID validation, and the
-request answers `422` before any handler runs; the static route is never reached.
+obligation (rule 18) a property of where a route sits in the file. A literal sibling of `/{id}` —
+`/import`, `/export`, any collection-level action — declared after `/{id}` is captured by it: the
+literal matches `{id}`, fails its UUID validation, and the request answers `422` before any handler
+runs; the literal route is never reached.
 
-**Declare every static collection-level path (`/bulk`, `/export`, `/bars`) above the `/{id}` route** —
-any non-parameterized sibling of `/{id}`, whatever the method. When extending an existing router file,
-place a new static endpoint **above** the `update` / `get_by_id` / `delete` routes for `/{id}`.
+**Declare every literal collection-level path above the `/{id}` routes**, whatever its method. When
+extending an existing router file, place a new literal route **above** the `get` / `update` / `delete`
+routes for `/{id}`.
 
-- Static collection path would be declared after `/{id}` in the file → stop, reorder.
+- A literal collection path would be declared after `/{id}` in the file → stop, reorder.
 
 A framework that resolves by specificity instead has no such stop: the obligation is unchanged, and
 nothing in the file's layout can violate it.
 
-File transfer breaks the otherwise-uniform CRUD shape: routes accept multipart bodies or return raw bytes. The conventions in `TRANSFER.md` must be repeated verbatim in any new file-transfer route — they encode several non-obvious rules and the single route-body `try/except` exemption.
-
-**Auth follows the idiom above:** the upload and download templates in `TRANSFER.md` are the auth-free form, and the
-mixed multipart + JSON one is kept as this skill's single worked **authenticated** variant, so the
-interaction between a gated route and its advertised codes has somewhere to be read. The auth dependency
-is never a frozen role; it is the slot `hex-restapi-auth` fills.
+### File transfer
 
 **Read `TRANSFER.md`** in this skill's directory before writing an upload or a download route. It
-carries the multipart upload templates — one file, several optional files, and mixed multipart + JSON
-with the one sanctioned `try/except` — and the streaming download with its filename helper and the CORS
-`expose_headers` note; only `SKILL.md` is loaded automatically.
+carries the multipart upload template, the streaming download with its filename helper, the one
+sanctioned route-body `try/except` for a mixed multipart + JSON body, and rules 24–32 with the hard
+stops that hold for file-transfer routes only; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
 
@@ -276,7 +216,7 @@ with the one sanctioned `try/except` — and the streaming download with its fil
 2. **Only `router` is public**; export mechanics follow `python-packaging`.
 3. **`prefix` matches the file name's resource**; casing follows `naming`.
 4. **`tags=[...]` echoes the resource word.**
-5. **The auth imports are conditional.** `from myapp.domain.auth import CurrentUser, Role` and `from ..dependencies import get_current_user, require_role` appear **only** when the app declares auth (`hex-restapi-auth`) and this resource has ≥1 authenticated route. An auth-less app — or a router whose every route is public — omits both imports entirely; importing them would reference a `domain/auth` module and a `dependencies.py` that an auth-less app does not have. The skeleton above is the auth-free form.
+5. **Auth is not presumed.** A router imports nothing from the auth layer unless the resource has an authenticated route, and that route is derived by `hex-restapi-auth`'s `ROUTES.md`.
 
 ### Parameter order (load-bearing for readability, not FastAPI)
 
@@ -292,14 +232,13 @@ with the one sanctioned `try/except` — and the streaming download with its fil
 | `GET` single | default 200 | `FooResponse` |
 | `POST` create | `status_code=201` | `FooResponse` (read-back) |
 | `PATCH` update | default 200 | `FooResponse` (read-back) |
-| `PATCH` collection action (`/bulk`, …) | `status_code=204` | `Response(status_code=204)` |
 | `DELETE` | `status_code=204` | `Response(status_code=204)` |
 
 For 204 endpoints, the function return annotation is `-> Response` and the body is `return Response(status_code=204)`. **Do not return `None`** — the 204 then lives in the decorator alone, and a decorator that loses its `status_code=204` answers 200 with a JSON `null` body instead of failing visibly.
 
 ### What the route advertises
 
-The per-operation code sets, the helper and the middleware registry are in the sibling `CONTRACTS.md`.
+The per-operation code sets and the helper are in the sibling `CONTRACTS.md`; registering a middleware's status is `hex-restapi-app`'s.
 
 8. **Routes only advertise.** A route never builds an error response itself: one translator owns the error body's shape, and a hand-built body is the copy that drifts from it. The error catalogue and boundary translation are `exception-catalog`'s; logging is `python-style`'s.
 9. **Advertise exactly what the route can produce.** The set follows from the operation — which domain exceptions its handler can raise, which middleware sits in front of it, and whether it takes any validated input. A code that cannot occur is removed; a code that can occur and is missing makes the published document wrong in the direction clients notice last.
@@ -331,29 +270,17 @@ handler: FromDishka[ListFoosHandler],
 22. **No infrastructure imports.** Only `application/*` and `domain/*` types.
 23. **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
 
-### Handler contract for downloads
+### File-transfer routes
 
-24. **The handler returns raw bytes** (or an `AsyncIterator[bytes]` for true streaming). It does not return a Pydantic model, a Response, or a file path.
-25. **The route does not transform the bytes** — it only wraps them in `StreamingResponse` and attaches the filename / `Content-Disposition`.
-26. **Authorization, filtering, and content generation all live in the handler.** The route is a transport adapter.
-
-### What never goes in a file-transfer route
-
-27. **Writing the upload to disk inside the route.** Pass bytes (or an `UploadFile`) to the handler; storage is an infrastructure concern (`hex-capability-adapter`).
-28. **Computing or enforcing a per-route size limit.** `MaxRequestSizeMiddleware` is the single chokepoint. If a specific route needs a tighter cap, add it as an application-layer rule that raises `ValidationError` after parsing.
-29. **Streaming without `media_type`.** Browsers and clients rely on it.
-30. **Catching exceptions other than the one sanctioned `PydanticValidationError → ValidationError` translation in the mixed multipart + JSON route.** Do not extend the `try/except`.
-31. **Returning `FileResponse` from a path on disk.** All file content originates from the handler's bytes. The API does not serve filesystem paths.
-32. **`response_model` on a streaming route.** Meaningless and confuses OpenAPI.
+Rules 24–32 are stated in `TRANSFER.md`, beside the templates they govern; they hold for upload and download routes only.
 
 ## Inlined typing / import rules
 
-- `Annotated` from `typing`; `UUID` from `uuid`; `datetime`, `UTC` from `datetime` for download filenames.
+- `Annotated` from `typing`; `UUID` from `uuid`.
 - `DishkaRoute`, `FromDishka` from `dishka.integrations.fastapi`. `Request` is **not** imported unless a route genuinely reads the raw request; reaching the composition root is not such a reason.
-- `APIRouter`, `Depends`, `Query`, `UploadFile`, `Form` from `fastapi`; `Response`, `StreamingResponse` from `fastapi.responses`.
+- `APIRouter`, `Query` from `fastapi`; `Response` from `fastapi.responses`. A file-transfer route's own imports are in `TRANSFER.md`.
 - Application handlers imported through the subpackage (`from myapp.application.foos import ...`) — see `python-packaging` for the collapsed-import convention.
-- `error_responses` from `..schemas`. On an authenticated route only, `get_current_user` / `require_role` from `..dependencies` (`hex-restapi-auth`).
-- `from pydantic import ValidationError as PydanticValidationError` — alias so the import doesn't shadow the domain `ValidationError`.
+- `error_responses` from `..schemas`.
 - Full annotations on every parameter and on the return type; no `from __future__ import annotations` (`python-style`).
 
 ## Package wiring
@@ -372,14 +299,9 @@ app.include_router(foos_router)
 
 - The route is asked to reach a composition root off `request.app.state`, or to name a binding rather than a type → stop, declare the handler as a `FromDishka[<Handler>]` parameter.
 - The route is asked to log → stop, use `python-style` for logging ownership.
-- Asked for a `try/except` in the route body → stop, use the mixed multipart+JSON template only for that sanctioned case.
 - The route is asked to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
 - Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
-
-- Asked for a `try/except` other than the mixed multipart + JSON one → stop, no other `try/except` belongs in a route body.
-- The route is asked to compute file size limits → stop, that's the middleware's job.
-- The route is asked to parse the file content → stop, that's the handler's job; the route passes bytes.
-- A download response header beyond `Content-Disposition` is added without updating CORS `expose_headers` (when CORS is configured) → stop, update both in the same change.
+- Asked for a `try/except` in a route body → stop; the one sanctioned case is the mixed multipart + JSON parse in `TRANSFER.md`, and nothing else is.
 - A route is asked to catch a domain exception and translate it → stop, use `exception-catalog`.
 - A route that attaches no auth dependency advertises `401` or `403` → stop, those codes follow the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
 - A third auth dependency type, or any other auth machinery, is proposed → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.

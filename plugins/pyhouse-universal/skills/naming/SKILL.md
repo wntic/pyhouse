@@ -217,7 +217,7 @@ suffix names a role the architecture defines, which the next section exempts.
 | `…Manager`, `…Processor`, `…Handler` | names an unbounded responsibility | the one job: `ScheduleBuilder`, `RetryPolicy` |
 | `…Service` as a bare class name | a layer word, not a thing | what it talks to or does: `StripeClient`, `InvoiceRenderer` |
 | `…Helper`, `…Utils`, `…Common`, `…Misc` | a bin, so it grows without limit | split by responsibility and name each part |
-| `…Item`, `…Entry`, `…Object` | the element of *what*? | `CartLine`, `AuditEvent` |
+| `…Item`, `…Entry`, `…Object` | the element of *what*? | `CartLine`, `PriceChange` |
 | `…Config`, `…Params`, `…Options` | fine for a settings class, wrong for arguments | `RetrySettings` if it *is* settings; otherwise pass the fields |
 | `check_…`, `process_…`, `do_…`, `handle_…` | the verb is a placeholder | the real verb: `score_`, `resolve_`, `upsert_`, `fetch_` |
 | `…2`, `…New`, `…V2`, `…Impl`, `…Base` with no subject | marks that the first one was never named | name both for what distinguishes them |
@@ -249,8 +249,8 @@ above applies to it. Conversely, `FooStorage`, `FooStore` or `FooDao` on the cla
 record's data access is a second word for the concept `Repository` already names — one concept, one
 word (**Porting names in from another project**). The ban stops there: a class that is not a repository
 but an adapter for one external capability takes the role noun of what that capability does — under
-hexagonal, `S3FooStorage` implementing a port for storing blobs (`ICanStoreFoos`) is named for the
-storing, and owns no record's data access.
+hexagonal, an adapter implementing a port for storing blobs (`ICanStoreFoos`) is named for the storing —
+its technology token plus `FooStorage` — and owns no record's data access.
 
 ### Other exceptions
 

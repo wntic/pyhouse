@@ -14,10 +14,9 @@ Produces one resource's schema module — the declared HTTP wire format for that
 - The route that consumes these schemas and maps them field by field → `hex-restapi-endpoint`.
 - The entity, value object, enum or filter record these models mirror — never imported here beyond enums → `hex-domain-model`.
 - Cross-cutting `ErrorResponse` / `error_responses()` in `restapi/schemas/errors.py` → `hex-restapi-app`; which of those codes a route advertises → `hex-restapi-endpoint`.
-- An auth login schema (`restapi/schemas/auth.py`) or any other auth-shaped wire type → `hex-restapi-auth`; reuse it, don't re-declare it per resource.
 - The handlers beneath this delivery layer, and the command DTO carrying the same partial-update contract → `hex-application`.
 - The container beneath this delivery layer → `hex-wiring`.
-- The five schema names and any field name → `naming`; `__all__` and the wildcard re-export into `schemas/__init__.py` → `python-packaging`.
+- The four schema names and any field name → `naming`; `__all__` and the wildcard re-export into `schemas/__init__.py` → `python-packaging`.
 - Validating a successful response against its schema in a test → `hex-test-restapi-endpoint`.
 
 ## Template — pydantic
@@ -29,7 +28,7 @@ src/myapp/restapi/schemas/foos.py        # the resource's schemas
 src/myapp/restapi/schemas/__init__.py        # update to re-export
 ```
 
-The module holds several classes on purpose: one resource's request and response models are a closed set of declarations that change together, the case `python-packaging` lets share a module named for the set. Sub-resource schemas live **in the same file as the parent** when they are only used through the parent router (e.g. `BarResponse` in `foos.py` if `bars` are nested under `/foos/{id}/bars`).
+The module holds several classes on purpose: one resource's request and response models are a closed set of declarations that change together, the case `python-packaging` lets share a module named for the set. A nested model used only by this resource's bodies lives in the same file.
 
 ### Schema module
 
@@ -51,7 +50,7 @@ __all__ = [
 class FooResponse(BaseModel):
     id: UUID
     name: str
-    bar_id: UUID
+    note: str | None
 
 
 # Offset paging; a filter that pages by cursor makes this `items`, `next_cursor`, `limit` (Rule 7).
@@ -64,19 +63,19 @@ class FooListResponse(BaseModel):
 
 class FooCreateRequest(BaseModel):
     name: Annotated[str, Field(min_length=1)]  # mirrors Foo's non-empty-name invariant
-    bar_id: UUID
+    note: str | None = None
 
 
 class FooUpdateRequest(BaseModel):
     name: Annotated[str | None, Field(min_length=1)] = None
-    bar_id: UUID | None = None
+    note: str | None = None
 ```
 
 ## Other bindings
 
 - **msgspec `Struct`, or attrs with a conversion layer.** The declarations and the constraint spelling
   change — a `Meta` annotation or a validator argument instead of `Field`, an explicit decode step
-  instead of model construction. Unchanged: the five names, the in-file order, the partial-update
+  instead of model construction. Unchanged: the four names, the in-file order, the partial-update
   contract, the one-pagination-shape rule, and the ban on domain types crossing into the module.
 - **A plain dataclass plus an explicit validation step.** Honest only with the validation step actually
   written: something must reject a wrong shape *before* the handler sees it and must feed the published
@@ -98,14 +97,13 @@ See `naming` for the shared naming rules.
 | `FooListResponse` | List GET response — `items` + the resource's pagination fields (offset: `total`/`limit`/`offset`; cursor: `next_cursor`/`limit`), matching `hex-domain-model` |
 | `FooCreateRequest` | POST body |
 | `FooUpdateRequest` | PATCH body — every field `T \| None = None` |
-| `FooWithBarResponse` | Single-entity response that embeds a sub-resource collection |
 
-Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names above cover the wire surface.
+Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The four names above cover a resource's wire surface; a body that embeds a nested object declares that object as its own model in the same file (see *What never goes in a schema file*).
 
 ### Class form
 
 1. **Each schema is a flat, self-contained declaration of one wire shape.** No shared base carrying "common fields" across resources — repetition is intentional. The file must read top to bottom as the JSON a client will see, with no field inherited from out of frame.
-2. **Order in the file:** `Response`, `ListResponse`, `CreateRequest`, `UpdateRequest`, then sub-resource variants. Reads above writes; single above list.
+2. **Order in the file:** `Response`, `ListResponse`, `CreateRequest`, `UpdateRequest`, then any nested model. Reads above writes; single above list.
 
 ### Validation
 
@@ -115,7 +113,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 
 ### PATCH semantics
 
-5. **Every field on `*UpdateRequest` is `T | None = None`.** The handler interprets `None` as "leave unchanged"; an explicit value as "set to this". Non-negotiable — the command DTO encodes the same partial-update contract.
+5. **Every field on `*UpdateRequest` is `T | None = None`.** The handler interprets `None` as "leave unchanged"; an explicit value as "set to this". Non-negotiable — the command DTO encodes the same partial-update contract. A field the client may clear distinguishes absent from null: the request reads which fields were sent and the command carries that distinction; `None` alone cannot mean both.
 6. **`*CreateRequest` lists required fields without `None`**, and gives a default only to an input that is genuinely optional.
 
 ### `*ListResponse`
@@ -139,7 +137,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The five names a
 
 ### Existing cross-cutting request schemas
 
-A cross-cutting request schema that **already exists** elsewhere (e.g. an auth login schema in `restapi/schemas/auth.py` when the app has auth, or a shared body for a collection-level action several resources expose) → reuse it, don't re-declare it per resource. These are **feature-conditional**, not always present: an app with no auth has no `auth.py`, and an app whose resources have no such action has no shared body — don't assume either exists.
+A request schema several resources share that **already exists** in its own module → reuse it, don't re-declare it per resource. None is presumed: most apps have none, so don't assume one exists.
 
 ## Inlined typing / import rules
 

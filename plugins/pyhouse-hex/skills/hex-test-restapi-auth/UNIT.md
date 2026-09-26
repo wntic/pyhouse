@@ -12,12 +12,10 @@ and **one test per `raise` site**. Real crypto — a real keypair, real signatur
 token string the library never produced.
 
 ```python
-from uuid import UUID
-
 import pytest
 from pydantic import SecretStr
 
-from myapp.domain.auth import CurrentUser, Role
+from myapp.domain.auth import CurrentUser
 from myapp.domain.exceptions import UnauthorizedError
 from myapp.infrastructure.jwt import JwtSettings, PyJwtTokenVerifier
 from tests.helpers.jwt import generate_rsa_keypair, sign_token
@@ -31,7 +29,7 @@ _SETTINGS = JwtSettings(
     audience="test-audience",
 )
 
-_CALLER_ID = "11111111-1111-1111-1111-111111111111"
+_SUBJECT = "test-subject"
 
 
 def _token(
@@ -42,7 +40,7 @@ def _token(
     ttl_seconds: int = 300,
 ) -> str:
     return sign_token(
-        {"sub": _CALLER_ID, "role": Role.HIGHER.value} if claims is None else claims,
+        {"sub": _SUBJECT} if claims is None else claims,
         private_pem=_KEYPAIR.private_pem,
         issuer=issuer or _SETTINGS.issuer,
         audience=audience or _SETTINGS.audience,
@@ -56,7 +54,7 @@ def test_verify_valid_token_returns_current_user() -> None:
 
     result = verifier.verify(_token())
 
-    assert result == CurrentUser(id=UUID(_CALLER_ID), role=Role.HIGHER)
+    assert result == CurrentUser(id=_SUBJECT)
 
 
 def test_verify_expired_token_raises_unauthorized_error() -> None:
@@ -98,37 +96,46 @@ def test_verify_tampered_signature_raises_unauthorized_error() -> None:
     }
 
 
+def test_verify_token_missing_subject_raises_unauthorized_error() -> None:
+    verifier = PyJwtTokenVerifier(settings=_SETTINGS)
+
+    with pytest.raises(UnauthorizedError) as exc:
+        verifier.verify(_token(claims={}))
+
+    assert exc.value.context["reason"] == "MissingRequiredClaimError"
+```
+
+The subject is the issuer's opaque string and the verifier passes it through unparsed, so there is no
+subject-format case to test. An absent claim lands on the library's own invalid-token arm: a token can
+carry a valid signature and still not describe a caller.
+
+### Rank apps only — the role claim
+
+Where a route gates on rank (`hex-restapi-auth`), the verifier also requires and parses `role`, which
+adds a raise site of its own. `_token`'s default claims and the happy-path expectation grow the role
+(`{"sub": _SUBJECT, "role": Role.HIGHER.value}`, `CurrentUser(id=_SUBJECT, role=Role.HIGHER)`, with
+`Role` imported beside `CurrentUser`), and two cases join the module:
+
+```python
 def test_verify_token_missing_role_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
     with pytest.raises(UnauthorizedError) as exc:
-        verifier.verify(_token(claims={"sub": _CALLER_ID}))
+        verifier.verify(_token(claims={"sub": _SUBJECT}))
 
     assert exc.value.context["reason"] == "MissingRequiredClaimError"
-
-
-def test_verify_non_uuid_subject_raises_unauthorized_error() -> None:
-    verifier = PyJwtTokenVerifier(settings=_SETTINGS)
-
-    with pytest.raises(UnauthorizedError) as exc:
-        verifier.verify(_token(claims={"sub": "not-a-uuid", "role": Role.HIGHER.value}))
-
-    assert exc.value.context == {"reason": "invalid_claims"}
 
 
 def test_verify_undeclared_role_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
     with pytest.raises(UnauthorizedError) as exc:
-        verifier.verify(_token(claims={"sub": _CALLER_ID, "role": "NOT_A_ROLE"}))
+        verifier.verify(_token(claims={"sub": _SUBJECT, "role": "NOT_A_ROLE"}))
 
     assert exc.value.context == {"reason": "invalid_claims"}
 ```
 
-The last three are the identity-building arms: a token can carry a valid signature and still not
-describe a caller. An absent claim lands on the library's own invalid-token arm; a subject that is not
-an identifier and a role the app does not declare land on the claim-parsing arm. Both value cases are
-kept because each is a different parse that could be moved outside the translated scope on its own.
+A role the app does not declare lands on the claim-parsing arm, which an app without rank does not have.
 
 `sign_token` is the same helper the integration fixtures use — one signer for the whole suite, so a
 change to the claim shape cannot leave the unit and integration paths minting different tokens. `_token`
