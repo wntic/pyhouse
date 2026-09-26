@@ -69,7 +69,10 @@ PEP 695 `type` aliases and generic syntax, `AsyncGenerator[None]` with its defau
 none of them needs 3.13 itself; they type-check and lint clean against 3.12 as well.
 
 **The house floor applies to a new project. An existing project below it is not a violation.** It keeps
-the floor it has, and the catalogue's rules and templates apply to it unchanged. **A floor is raised
+the floor it has, and the catalogue's rules apply to it unchanged. The templates type-check and lint
+from 3.12 up; a project below 3.12 adapts the few newer forms they use — PEP 695 `type` aliases and
+generic syntax (`def f[T](…)`) become `TypeAlias` and `TypeVar`, and below 3.11 `enum.StrEnum` and
+`datetime.UTC` become their older spellings — and keeps everything else as written. **A floor is raised
 deliberately, never lowered.** Raising it is a decision — reaching the house floor, a library whose own
 minimum sits higher, or a form the project wants from a newer interpreter — taken once, for the whole
 project, as its own change, never in half the code.
