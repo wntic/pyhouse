@@ -1,6 +1,6 @@
 ---
 name: flat-project-setup
-description: Use when laying a flat-layered service down once — the `pyproject.toml` with its src layout and dependency groups by role, the ruff and mypy configuration, the interpreter floor, version floors on the libraries it consumes, and the migration bootstrap (`alembic.ini`, the migration environment that reads the connection string at its own composition root, the revision template and the baseline revision). Never per feature — each later schema revision is `flat-persistence`'s, and the package layout inside `src/` is `flat-layered`'s. A hexagonal project's setup is `hex-project-setup`, in the `pyhouse-hex` plugin.
+description: Use when laying a flat-layered service down once — the `pyproject.toml` with its src layout and dependency groups by role, the ruff configuration that bounds function size and complexity, the mypy configuration, the interpreter floor, version floors on the libraries it consumes, and the relational migration bootstrap (`alembic.ini`, the environment under `migrations/postgres/` that reads the connection string at its own composition root, the revision template, and a baseline only over a schema that already exists). Never per feature — each later schema revision is `flat-persistence`'s, and the package layout inside `src/` is `flat-layered`'s. A hexagonal project's setup is `hex-project-setup`, in the `pyhouse-hex` plugin.
 when_to_use: Also when asked to start a new worker, pipeline or ETL service, to add a dependency or justify a version floor, to configure the linter or type checker for one, or to add migrations to a flat service that has none.
 ---
 
@@ -15,11 +15,11 @@ schema change looks like after the bootstrap is `flat-persistence`.
 myapp/                    # the distribution's root — the repository root when it stands alone
 ├── pyproject.toml
 ├── alembic.ini           # only with a relational store
-├── migrations/           # only with a relational store
-│   ├── env.py
-│   ├── script.py.mako
-│   └── versions/
-│       └── 0001_baseline.py
+├── migrations/           # one directory per store — `flat-persistence`
+│   └── postgres/
+│       ├── env.py
+│       ├── script.py.mako
+│       └── versions/     # empty until the first table's revision
 ├── src/
 │   └── myapp/            # the package — `flat-layered`
 └── tests/
@@ -34,6 +34,8 @@ myapp/                    # the distribution's root — the repository root when
 - Laying migrations on a service that has none → block C, once; this skill is one-shot, and
   `flat-persistence`'s revisions and `flat-test-integration-setup`'s migration fixture both depend on it
   having run.
+- A second store's migration directory beside `migrations/postgres/`, and the tool that applies it →
+  `flat-persistence`, which owns where every store's history lives.
 - The per-change revision that pairs with a table edit, and what a deploy obliges of it →
   `flat-persistence`.
 - The packages inside `src/myapp/`, the settings class each component owns, and the entry point →
@@ -67,9 +69,9 @@ dependencies = [
     "alembic",
     "asyncpg",
     "httpx",
-    "pydantic>=2",  # 2.0 is where model_validate_json and ConfigDict arrived
+    "pydantic>=2",  # 2.0: model_validate_json, ConfigDict
     "pydantic-settings",
-    "sqlalchemy[asyncio]>=2",  # 2.0 is the first release with inline type annotations
+    "sqlalchemy[asyncio]>=2",  # 2.0: inline type annotations under mypy --strict
     "structlog",
     "uuid6",
 ]
@@ -78,10 +80,10 @@ dependencies = [
 dev = [
     "mypy",
     "pytest",
-    "pytest-asyncio>=0.26",  # 0.26 is where asyncio_default_test_loop_scope arrived
+    "pytest-asyncio>=0.26",  # 0.26: asyncio_default_test_loop_scope
     "respx",
     "ruff",
-    "testcontainers[postgres]>=4.15",  # 4.15 is where testcontainers.community arrived
+    "testcontainers[postgres]>=4.15",  # 4.15: testcontainers.community
 ]
 
 [build-system]
@@ -93,16 +95,29 @@ line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B006", "B904"]
+select = ["E", "F", "I", "B006", "B904", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 7
+max-positional-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
+"migrations/**/versions/*.py" = ["PLR0915"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["src", "tests"]
+explicit_package_bases = true
+mypy_path = ["src", "."]
 ```
 
 The `[tool.pytest.ini_options]` block follows these tables in the same file; its contents are
@@ -124,22 +139,42 @@ the role that needs them and not before:
 A service with no datastore carries no Core library, no driver and no migration tool; one with no HTTP
 trigger carries no web framework. A dependency nothing imports is a stray package.
 
+**Each floor's comment names the API the code relies on, and the floor lasts only as long as the code
+calls it.** The four above are there because this family's templates call exactly those names — the
+parse, the settings configuration, the strictly typed engine, the session-scoped test loop, the
+container module. A service whose own code calls none of a floor's names drops the floor and its comment
+together; one that relies on something newer raises the floor and names that instead.
+
 ## B. Toolchain configuration — ruff and mypy
 
 The tables above are the whole of it; what they settle:
 
 - **Lint and type-check hold `src` and `tests` at parity**, and lint reaches one directory further: ruff
   runs with no paths and so covers `migrations/`, while mypy names `src` and `tests` and stops there.
-  Every fixture and helper under `tests/` is annotated, so the parity holds (`python-style`).
-- **The lint selection is narrow**: the error and pyflakes families, import sorting, and two bugbear
-  rules — a bare `raise` inside `except` without `from` (B904) and a mutable default argument (B006).
-  `__init__.py` alone ignores the two wildcard-import warnings, because `python-packaging`'s re-export
-  contract requires wildcards there.
-- **Two suppressions are sanctioned, and no others.** The per-file wildcard ignore above, and the
-  `# noqa: F401` on the migration environment's table imports (block C), which exist only for their
-  registration side effect — without it the linter deletes them and autogenerate stops seeing the
-  schema. A package that ships no type information gets one `[[tool.mypy.overrides]]` block with
-  `ignore_missing_imports = true`; none of the libraries above needs one.
+  Every fixture and helper under `tests/` is annotated, so the parity holds (`python-style`). `tests/`
+  is not a package, so mypy is told the source roots (`explicit_package_bases`, with `src` and the tree
+  root as `mypy_path`); without it, a `conftest.py` at two levels is two modules with one name.
+- **The correctness selection is narrow**: the error and pyflakes families, import sorting, and two
+  bugbear rules — a bare `raise` inside `except` without `from` (B904) and a mutable default argument
+  (B006). `__init__.py` alone ignores the two wildcard-import warnings, because `python-packaging`'s
+  re-export contract requires wildcards there.
+- **Function size and complexity are bounded by the linter, with every threshold written down.**
+  Cyclomatic complexity (C901) stops at 10, McCabe's own published ceiling; branches (PLR0912) at 12,
+  return statements (PLR0911) at 6 and statements (PLR0915) at 50, pylint's long-standing defaults.
+  Arguments are capped twice: positional ones (PLR0917) at 5, and all of them (PLR0913) at 7, because a
+  keyword-only argument names itself at every call site — this family's bulk write helper takes three
+  positional and four keyword-only. The numbers are written even where they equal the tool's default,
+  for the reason the line length is: an unwritten threshold moves when the tool's default does. The
+  linter has no module-length rule, so a module's size stays `flat-layered`'s one-responsibility rule,
+  held in review.
+- **Three suppressions are sanctioned, and no others.** The per-file wildcard ignore above; the per-file
+  statement-count ignore on migration revisions, because a revision's body is generated DDL — one
+  statement per column and constraint — not authored logic, and a wide table is not a function to split;
+  and the `# noqa: F401` on the migration environment's table imports (block C), which exist only for
+  their registration side effect — without it the linter deletes them and autogenerate stops seeing the
+  schema. A function that trips a size or complexity bound is split, never suppressed. A package that
+  ships no type information gets one `[[tool.mypy.overrides]]` block with `ignore_missing_imports =
+  true`; none of the libraries above needs one.
 - **The line length is written down once, and the number is the project's.** `120` is the width this
   catalogue's templates are written to; `88` is the formatter's default. Either is compliant once it is
   written; a change on an established tree reformats it and travels as its own commit.
@@ -151,17 +186,19 @@ The tables above are the whole of it; what they settle:
 ## C. The migration bootstrap — Alembic over SQLAlchemy async
 
 Laid only when the service has a relational store, and once. `alembic upgrade head` — and the
-integration suite that replays it — cannot run without the config, the environment and a first revision
-to anchor the chain.
+integration suite that replays it — cannot run without the config and the environment. The history
+lives in `migrations/postgres/`, the directory named for the store it versions, because a second store's
+history would sit beside it (`flat-persistence`); `alembic.ini` stays at the distribution root, beside
+`pyproject.toml`, where every `alembic` command and the integration suite run from.
 
 ### `alembic.ini`
 
 ```ini
 [alembic]
-script_location = %(here)s/migrations
+script_location = %(here)s/migrations/postgres
 ```
 
-### `migrations/env.py`
+### `migrations/postgres/env.py`
 
 ```python
 import asyncio
@@ -169,9 +206,9 @@ import asyncio
 from alembic import context
 from sqlalchemy.engine import Connection
 
-import myapp.storage.foo_table  # noqa: F401 — registers its tables on the metadata
-from myapp.storage import get_engine, get_storage_settings
-from myapp.storage.metadata import metadata
+import myapp.postgres.foo_table  # noqa: F401 — registers its tables on the metadata
+from myapp.postgres import get_engine, get_postgres_settings
+from myapp.postgres.metadata import metadata
 
 
 def _run_migrations(connection: Connection) -> None:
@@ -181,7 +218,7 @@ def _run_migrations(connection: Connection) -> None:
 
 
 async def _run_online() -> None:
-    engine = get_engine(get_storage_settings().dsn.get_secret_value())
+    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
     try:
         async with engine.connect() as connection:
             await connection.run_sync(_run_migrations)
@@ -196,14 +233,14 @@ asyncio.run(_run_online())
 
 **The migration environment is the migration run's process definition**, so it is the one place outside
 the service's own entrypoints that calls the data-access component's settings factory: it reads the
-connection string from the variable that component owns (`MYAPP_STORAGE_DSN`), unwraps it where the
+connection string from the variable that component owns (`MYAPP_POSTGRES_DSN`), unwraps it where the
 engine is built, and disposes of the engine when the run ends (`flat-layered` rules 7 and 8). Nothing in
 `alembic.ini` names a database. **Every table module is imported here, one line each**, because a table
-module's names are bare objects the storage package does not re-export (`python-packaging`); a new table
-module adds its line in the same change that adds the module. Offline SQL generation is refused rather
-than half-supported: every migration runs against a live connection.
+module's names are bare objects the data-access package does not re-export (`python-packaging`); a new
+table module adds its line in the same change that adds the module. Offline SQL generation is refused
+rather than half-supported: every migration runs against a live connection.
 
-### `migrations/script.py.mako`
+### `migrations/postgres/script.py.mako`
 
 The revision template every `alembic revision` renders, in the house's own annotation forms:
 
@@ -234,20 +271,30 @@ def downgrade() -> None:
     ${downgrades if downgrades else "pass"}
 ```
 
-### `migrations/versions/0001_baseline.py`
+### The root of the chain
+
+**Greenfield, `versions/` starts empty and the first real revision is the root.** The first table is
+autogenerated from the metadata and reviewed like every later change
+(`alembic revision --autogenerate -m "create foos" --rev-id 0001`, per `flat-persistence`), and Alembic
+gives it no parent. An empty `upgrade head` and `downgrade base` succeed before it exists, so nothing
+needs a placeholder revision ahead of it — one would be a no-op every database replays forever.
+
+**Over a schema that already exists, the root is a baseline holding that schema as it stood**, written
+once into an empty `versions/` and frozen:
+
+`migrations/postgres/versions/0001_baseline.py`:
 
 ```python
 """baseline
-
-The root of the revision chain. Empty for a schema that starts here; for a schema that
-already exists, it holds those objects as hand-written DDL, and each existing database is
-stamped with it instead of upgraded through it.
 
 Revision ID: 0001
 Revises:
 """
 
 from collections.abc import Sequence
+
+import sqlalchemy as sa
+from alembic import op
 
 revision: str = "0001"
 down_revision: str | Sequence[str] | None = None
@@ -256,20 +303,27 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    pass
+    op.create_table(
+        "foos",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("reference", sa.String(), nullable=False),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("observed_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_foos"),
+        sa.UniqueConstraint("reference", name="uq_foos_reference"),
+    )
 
 
 def downgrade() -> None:
-    pass
+    op.drop_table("foos")
 ```
 
-**The baseline is written once, into an empty `versions/`, and is frozen.** On a greenfield schema it is
-empty and the first table is its own revision, autogenerated from the metadata and reviewed
-(`alembic revision --autogenerate -m "create foos" --rev-id 0002`, per `flat-persistence`). On a service
-adopting migrations over a schema that already exists, the baseline holds those objects as hand-written
-DDL — never `metadata.create_all`, which reads the metadata as it stands when the revision runs rather
-than as it stood when the revision was written — and each existing database is marked with
-`alembic stamp 0001` instead of being upgraded through it.
+Every object is spelled out by hand as it stood the day the baseline was written — never
+`metadata.create_all`, which reads the metadata as it stands when the revision runs rather than as it
+stood when the revision was written, so the chain would stop being replayable. Each existing database is
+marked with `alembic stamp 0001` instead of being upgraded through it; a fresh one — the integration
+suite's — runs it like any revision.
 
 ## Other bindings
 
@@ -280,31 +334,32 @@ than as it stood when the revision was written — and each existing database is
   are unchanged.
 - **Another linter or type checker.** flake8 with its plugins, or pyright in strict mode: the rule codes
   and keys change; the parity of `src` and `tests`, the narrow selection that still refuses an unchained
-  `raise` in `except` and a mutable default, the written line length and the two sanctioned
-  suppressions do not.
+  `raise` in `except` and a mutable default, written bounds on function complexity, branches, returns,
+  statements and arguments, the written line length and the three sanctioned suppressions do not.
 - **Another migration tool.** The config file, the revision template and the autogenerate command
-  change; the environment reading the connection string at its own composition root, the frozen
-  baseline in an empty chain, and a reverse operation in every revision do not.
+  change; the history in `migrations/postgres/` at the distribution root, the environment reading the
+  connection string at its own composition root, a greenfield chain rooted at its first real revision,
+  a frozen baseline only over an existing schema, and a reverse operation in every revision do not.
 
 ## Rules
 
 1. **Laid once, in the src layout, from the first commit.** The package lives under `src/myapp/`, tests
-   under `tests/`, migrations beside them; a single-module or flat tree matches nothing else in the
+   under `tests/`, migrations beside them in one directory per store; a single-module or flat tree matches nothing else in the
    family and has to be moved before the second module.
 2. **Dependencies follow the roles the service has.** The settings library and the structured logger
    always; everything else arrives with the role that imports it, and a package nothing imports is
    removed.
 3. **Dependencies are declared by name; a version floor marks a known break and says which.** The lock
    file is the only home for a pin. A floor sits at the release where an API the code relies on arrived
-   or changed, with that reason beside it — never at a version remembered as recent, which is a guess
-   dressed as a constraint.
+   or changed, with that API named beside it — never at a version remembered as recent, which is a
+   guess dressed as a constraint — and a floor whose API the code no longer calls is removed with it.
 4. **Development dependencies go in the group the package manager installs by default**, never a
    deprecated tool-specific table.
 5. **The linter and the type checker read one configuration, held in `pyproject.toml`, with `src` and
-   `tests` at parity**, the lint selection narrow, and strict type checking with the validation
+   `tests` at parity**, the correctness selection narrow, and strict type checking with the validation
    library's plugin.
-6. **Two suppressions are sanctioned: the wildcard ignore on `__init__.py`, and the registration-import
-   `noqa` in the migration environment.** A missing-stub override is per package in the config, never an
+6. **Three suppressions are sanctioned: the wildcard ignore on `__init__.py`, the statement-count ignore
+   on migration revisions, and the registration-import `noqa` in the migration environment.** A missing-stub override is per package in the config, never an
    inline ignore on a content module.
 7. **The line length and the interpreter floor are written explicitly and settled here.** The floor is
    named identically in all three places — for a new service at or above `python-style`'s house floor;
@@ -315,9 +370,12 @@ than as it stood when the revision was written — and each existing database is
    integration suite sets for it.
 9. **Every table module is imported by the migration environment**, so autogenerate compares the whole
    schema, and a new table module adds its import in the same change.
-10. **The baseline revision is written once, into an empty chain, and never regenerated.** Greenfield,
-    it is empty and the first table is its own reviewed revision; over an existing schema it holds that
-    schema as hand-written DDL, and existing databases are stamped with it.
+10. **A greenfield chain is rooted at its first real revision; a baseline exists only over a schema that
+    already exists.** Greenfield, `versions/` starts empty and the first table's reviewed, autogenerated
+    revision is the root. Over an existing schema the baseline holds that schema as hand-written DDL, is
+    written once into an empty chain, is never regenerated, and existing databases are stamped with it.
+11. **The linter bounds function size and complexity, with each threshold written in the config, so
+    neither is left to review.** A function that trips a bound is split, never suppressed.
 
 ## Hard stops
 
@@ -334,7 +392,14 @@ than as it stood when the revision was written — and each existing database is
   the data-access component's settings → stop, read it at the environment's composition root.
 - A baseline revision is being written into a `versions/` that already holds revisions → stop, the chain
   has started; write a revision (`flat-persistence`).
-- The baseline calls `metadata.create_all` or imports the tables → stop, it is frozen DDL or it is empty.
-- A table is being added in the baseline of a greenfield schema → stop, it is the first autogenerated
-  revision (`flat-persistence`).
+- The baseline calls `metadata.create_all` or imports the tables → stop, it is frozen DDL of what already
+  existed.
+- A baseline, empty or not, is being written for a greenfield schema → stop, the first table's
+  autogenerated revision is the root (`flat-persistence`).
+- The migration environment or its revisions are being placed under `src/`, or directly in `migrations/`
+  with no directory named for the store → stop, they go in `migrations/postgres/` at the distribution
+  root.
+- A size or complexity rule is being dropped from the selection, its threshold raised, or a function
+  exempted with `noqa` to get a large function through → stop, split the function; the bound is the
+  point.
 - The service is hexagonal → stop, use `hex-project-setup`, in the `pyhouse-hex` plugin.

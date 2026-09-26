@@ -1,19 +1,20 @@
 ---
 name: flat-test-persistence
-description: Use when testing a flat-layered service's storage package against the real datastore — its tables, its bulk helpers and the class that owns a multi-statement write — pinning the generated constraint name rather than only the exception type, the declared update set from both sides, an empty update set resolving to a no-op, the rows a read-back returns, a deliberately crossed chunk boundary, the catalogue exception a driver error is translated into, and the atomicity of a write whose last statement fails. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the run function that calls this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
+description: Use when testing a flat-layered service's data-access package against the real datastore — its tables, its bulk helpers and the class that owns a multi-statement write — pinning the generated constraint name rather than only the exception type, the declared update set from both sides, an empty update set resolving to a no-op, the rows a read-back returns, a deliberately crossed chunk boundary, the catalogue exception a driver error is translated into, the atomicity of a write whose last statement fails, a cursor read whose page edge splits rows sharing one timestamp, and a batch holding two inputs that normalize to one key. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the run function that calls this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
 ---
 
-# Flat Test — Storage Contract
+# Flat Test — Data-Access Contract
 
-Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
+Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`,
+the constitution wins.
 
-One integration-test file per table or per storage class, under the distribution's own
+One integration-test file per table or per repository class, under the distribution's own
 `tests/integration/`, driven against the **real** datastore from `flat-test-integration-setup`. This is
-the only level that can catch what the storage package exists to guarantee: that a batch write is a
+the only level that can catch what the data-access package exists to guarantee: that a batch write is a
 handful of round trips, that a conflict updates the columns it claims to, that a driver error arrives as
 the service's own exception, and that a multi-statement write is one transaction.
 
-Where several distributions share one storage library, the files sit with that library's own tests
+Where several distributions share one data-access library, the files sit with that library's own tests
 instead — `myschema/tests/integration/` — and nothing else changes.
 
 **Which isolation fixture applies follows from the declared transaction owner** (`flat-persistence`
@@ -21,22 +22,23 @@ rule 3), never from a guess:
 
 - The callable under test **accepts** a connection — the bulk helpers, and every assertion query → use
   the **`conn`** fixture and pass it in. Rolled back, nothing reaches disk.
-- The callable under test **opens and owns** its transaction — a storage class → pass the **`engine`**
+- The callable under test **opens and owns** its transaction — a repository class → pass the **`engine`**
   fixture to its constructor and let `truncate_all` clean up. Assertions read through `conn`, **except
   where the subject's own rollback is what is under test**: there the assertion opens a fresh connection,
   because `conn` sits in a transaction of its own and cannot observe another connection's rollback.
 
 ## When to use vs. neighbours
 
-- A pure function in the storage package — a connection-string builder, the natural-key normalizer → not
-  this skill; it is a unit test with no fixtures at all.
+- A pure function in the data-access package — a connection-string builder, the natural-key normalizer
+  → not this skill; it is a unit test with no fixtures at all.
 - The container, migration and isolation fixtures themselves → `flat-test-integration-setup`; this skill
   consumes `conn`, `engine` and `truncate_all` and lays none of its own.
-- Writing the tables, helpers, storage class and migrations under test → `flat-persistence`.
+- Writing the tables, helpers, repository class and migrations under test → `flat-persistence`.
 - A run function calling this write path as part of a run → `flat-test-run-function`; this skill tests
   the write path, that one tests the wiring above it.
 - The client feeding these rows → `flat-test-service-client`.
-- A static "no package outside storage constructs a statement" rule → `test-architecture-rule`.
+- A static "no package outside the data-access package constructs a statement" rule →
+  `test-architecture-rule`.
 - The shared groundwork — fixture placement, assertion strength, reliability → `test-principles`.
 - The adapter sits behind a domain repository protocol → `hex-test-repository-contract`, in the
   `pyhouse-hex` plugin.
@@ -55,8 +57,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from myapp.storage import bulk_upsert
-from myapp.storage.foo_table import bar_table, foo_table
+from myapp.postgres import bulk_upsert
+from myapp.postgres.foo_table import bar_table, foo_table
 
 
 def _foo(reference: str = "alpha", **overrides: object) -> dict[str, object]:
@@ -188,11 +190,11 @@ parameterised by the `Table`, so at *that* boundary the keys are data — the sa
 table's columns, and there is no fixed set of named fields for a type to declare. What still binds is the
 annotation: `dict[str, object]`, never a bare `dict`, because the test surface is type-checked at parity
 with source (`python-style`). A builder that constructs the service's **own** type — a `Foo` handed to
-the storage class — returns that type, not a mapping.
+the repository class — returns that type, not a mapping.
 
-## Template — the storage class's contract (pytest, SQLAlchemy async over Postgres)
+## Template — the repository class's contract (pytest, SQLAlchemy async over Postgres)
 
-`tests/integration/test_foo_storage.py`:
+`tests/integration/test_foo_repository.py`:
 
 ```python
 from collections.abc import Sequence
@@ -207,41 +209,55 @@ from myapp.exceptions import (
     StorageUnavailableError,
     StorageWriteRejectedError,
 )
+from myapp.postgres import FooRepository
+from myapp.postgres.foo_table import bar_table, foo_table
 from myapp.schemas import Foo
-from myapp.storage import FooStorage
-from myapp.storage.foo_table import bar_table, foo_table
 
 
-def _a_foo(reference: str = "alpha", labels: tuple[str, ...] = ("amber",)) -> Foo:
+def _a_foo(reference: str = "alpha", labels: tuple[str, ...] = ("amber",), name: str = "first") -> Foo:
     return Foo(
         id=None,
         reference=reference,
-        name="first",
+        name=name,
         observed_at=datetime(2024, 1, 1, tzinfo=UTC),
         labels=labels,
     )
 
 
 async def test_a_batch_lands_its_foos_and_their_labels(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    await FooStorage(engine).record_batch([_a_foo()])
+    await FooRepository(engine).record_batch([_a_foo()])
 
     labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
     assert labels == ["amber"]
 
 
 async def test_a_reference_is_normalized_once_on_the_way_in_and_out(engine: AsyncEngine) -> None:
-    storage = FooStorage(engine)
-    await storage.record_batch([_a_foo(reference="  ALPHA ")])
+    repository = FooRepository(engine)
+    await repository.record_batch([_a_foo(reference="  ALPHA ")])
 
-    assert (await storage.get_by_reference("alpha")).reference == "alpha"
+    assert (await repository.get_by_reference("alpha")).reference == "alpha"
+
+
+async def test_two_foos_sharing_a_key_in_one_batch_land_once_as_the_later(
+    engine: AsyncEngine,
+    conn: AsyncConnection,
+) -> None:
+    earlier = _a_foo(reference="alpha", labels=("amber",))
+    later = _a_foo(reference=" ALPHA ", labels=("blue",), name="second")
+
+    await FooRepository(engine).record_batch([earlier, later])
+
+    names: Sequence[str] = (await conn.execute(select(foo_table.c.name))).scalars().all()
+    labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
+    assert (names, labels) == (["second"], ["blue"])
 
 
 async def test_recording_a_known_reference_as_new_is_refused_by_constraint(engine: AsyncEngine) -> None:
-    storage = FooStorage(engine)
-    await storage.record_new(_a_foo())
+    repository = FooRepository(engine)
+    await repository.record_new(_a_foo())
 
     with pytest.raises(FooAlreadyRecordedError) as exc_info:
-        await storage.record_new(_a_foo(reference=" ALPHA "))
+        await repository.record_new(_a_foo(reference=" ALPHA "))
 
     assert exc_info.value.context == {"field": "reference", "constraint": "uq_foos_reference"}
 
@@ -253,7 +269,7 @@ async def test_a_failing_second_write_leaves_no_foo_behind(engine: AsyncEngine) 
     over_long_label = "l" * (label_type.length + 1)
 
     with pytest.raises(StorageWriteRejectedError):
-        await FooStorage(engine).record_batch([_a_foo(labels=(over_long_label,))])
+        await FooRepository(engine).record_batch([_a_foo(labels=(over_long_label,))])
 
     async with engine.connect() as check:
         count = (await check.execute(select(func.count()).select_from(foo_table))).scalar_one()
@@ -264,9 +280,21 @@ async def test_a_driver_failure_on_a_read_arrives_as_the_catalogue_error(engine:
     unmigrated = engine.execution_options(schema_translate_map={None: "unmigrated"})
 
     with pytest.raises(StorageUnavailableError) as exc_info:
-        await FooStorage(unmigrated).get_by_reference("alpha")
+        await FooRepository(unmigrated).get_by_reference("alpha")
 
     assert exc_info.value.context == {"sqlstate": "42P01"}
+
+
+async def test_paging_by_cursor_neither_skips_nor_repeats_foos_sharing_a_timestamp(
+    engine: AsyncEngine,
+) -> None:
+    repository = FooRepository(engine)
+    await repository.record_batch([_a_foo(reference=f"ref-{i}") for i in range(3)])
+
+    first = await repository.list_after(None, limit=2)
+    second = await repository.list_after(first[-1], limit=2)
+
+    assert sorted(foo.reference for foo in first + second) == ["ref-0", "ref-1", "ref-2"]
 ```
 
 The read-path test forces a driver failure the read cannot avoid — its tables looked up in a schema no
@@ -275,13 +303,19 @@ own engine that shares its pool, so no second engine is built. It is the test th
 translated scope stops at the writes: a read left outside it lets the driver's type through, and nothing
 else in the file reads.
 
+The in-batch duplicate test hands one call two foos whose references differ only in case and
+whitespace, so they collide only after normalization. One statement touching one row twice is refused
+by Postgres (SQLSTATE `21000`), and the translator would report it as the store being unavailable; one
+row carrying the later foo's name and labels is what collapsing the batch by its normalized key first
+guarantees (`flat-persistence` rule 18).
+
 The refusal test drives the translator's named branch through the one write that can reach it, and pins
 the generated constraint name in `context` rather than only the class — the same contract a caller
 matches on.
 
-The atomicity test is the one that justifies the storage class existing at all — without it, nothing pins
-the "one transaction, not two" decision, and a refactor splitting the writes into separate connection
-blocks passes every other test in the file.
+The atomicity test is the one that justifies the repository class existing at all — without it,
+nothing pins the "one transaction, not two" decision, and a refactor splitting the writes into separate
+connection blocks passes every other test in the file.
 
 The failure is forced through **a constraint the schema itself declares** — one character past the
 declared width of `bars.label` — and the width is read off the column, never written as a literal. A
@@ -290,15 +324,20 @@ changes; deriving it means the test follows the schema. Where the failing column
 the failure through whatever constraint that table does declare — a check, a foreign key, a `NOT NULL` —
 never through a value that only happens to be rejected.
 
-The expected error is the **catalogue exception the storage package produces**, not the driver's own
+The expected error is the **catalogue exception the data-access package produces**, not the driver's own
 type: translation is mandatory (`flat-persistence` rule 5), so a test expecting the driver's class would
 be asserting the one thing the package promises never to let out. And never a bare `Exception`, which is
 satisfied by an import error, a typo in a table name or a dropped connection — the test would then stay
 green while proving nothing about the rollback.
 
-The last assertion reads through a **fresh connection**, not the `conn` fixture: `conn` holds an open
-transaction of its own and could not observe another connection's rollback either way, so reading through
-it would make the assertion pass for the wrong reason.
+The paging test writes three foos in one batch, so all three share one `observed_at`, and reads them two
+at a time: a cursor resumed from the timestamp alone returns the first page and then nothing, and one
+that resumes inclusively returns a foo twice. Exactly three distinct references across both pages is what
+a total order with a unique tiebreaker guarantees (`flat-persistence` rule 19).
+
+The atomicity test's last assertion reads through a **fresh connection**, not the `conn` fixture:
+`conn` holds an open transaction of its own and could not observe another connection's rollback either
+way, so reading through it would make the assertion pass for the wrong reason.
 
 ## Other bindings
 
@@ -335,15 +374,15 @@ it would make the assertion pass for the wrong reason.
 6. **Cross a chunk boundary with a deliberately small chunk size and an uneven last chunk**, never with
    production-sized input. Five rows at a chunk size of two crosses it three times; proving the same
    thing at the production size costs thousands of rows on every run.
-7. **A test that forces a driver error asserts the catalogue exception the storage package produces, not
-   the driver's own type.** Translation is mandatory, so the driver's class is precisely what must never
-   escape — a test expecting it pins the defect instead of the contract. A read is forced to fail once
-   too: a translation written only around the writes leaves every read leaking the driver's type, and no
-   write test notices.
+7. **A test that forces a driver error asserts the catalogue exception the data-access package produces,
+   not the driver's own type.** Translation is mandatory, so the driver's class is precisely what must
+   never escape — a test expecting it pins the defect instead of the contract. A read is forced to fail
+   once too: a translation written only around the writes leaves every read leaking the driver's type,
+   and no write test notices.
 8. **A timestamp the store assigns is asserted as `test-principles`' reliability rules state**, never
    by equality and never with a strict inequality; under the rollback-scoped `conn` every write shares
    one transaction, and so one transaction-fixed clock.
-9. **A storage-class test constructs the class with the `engine` fixture**, never with the production
+9. **A repository-class test constructs the class with the `engine` fixture**, never with the production
    engine factory — that builds a second pool the suite never disposes (`flat-test-integration-setup`).
 10. **Ordering is asserted only where the query guarantees it.** Add an explicit order clause to any
     query whose result is compared to a list; a relational store promises no insertion order, and a test
@@ -351,14 +390,20 @@ it would make the assertion pass for the wrong reason.
 11. **The atomicity test forces the failure through a constraint the schema declares, and expects the
     narrowest error that constraint actually produces.** A bare `Exception` passes on an import error, a
     typo or a dropped connection, so the test would stay green while proving nothing about the rollback.
+12. **A read resumed from a cursor is tested across a page edge that splits rows sharing the ordering
+    value.** Rows written in one batch share one timestamp, and a cursor missing its tiebreaker skips them
+    silently; only a page edge falling inside such a group shows it.
+13. **A batch write is tested with two inputs that share one key after normalization, in one call.** The
+    store may refuse to resolve one row twice in a statement, and inputs that differ only before
+    normalization reach it as one key; assert one row holding the later input's values.
 
 ## Hard stops
 
-- A storage-class test asserts a rollback through the `conn` fixture → stop, `conn` sits in its own
+- A repository-class test asserts a rollback through the `conn` fixture → stop, `conn` sits in its own
   transaction and cannot observe another connection's rollback; open a fresh connection for that
   assertion.
 - A test for a multi-statement write only checks the happy path → stop, the atomicity case is the reason
-  the storage class exists; add the failing-last-write test.
+  the repository class exists; add the failing-last-write test.
 - The atomicity test expects a bare `Exception`, or the driver's own exception class → stop; name the
   catalogue exception the translator produces, or the test pins nothing the package promises.
 - The constraint under test does not exist in a migration yet → stop, add the revision first; a test
@@ -369,5 +414,9 @@ it would make the assertion pass for the wrong reason.
   real backend is the only thing that can answer these questions.
 - A test writes raw SQL to set up state a `Table` object could express → stop, use the `Table`;
   hand-written SQL in a test drifts from the schema silently.
+- A read resumed from a cursor has no test whose page edge falls inside rows sharing the ordering value
+  → stop, write one; a cursor missing its tiebreaker passes every other test (rule 12).
+- A batch write has no test handing it two inputs that normalize to one key → stop, write one; the
+  failure only appears when a real batch repeats a key (rule 13).
 - A row builder is annotated with a bare `-> dict` → stop, give it its type parameters; the test surface
   is type-checked at parity with source (`python-style`).

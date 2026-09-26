@@ -23,18 +23,15 @@ nothing here assumes a sibling distribution or a repository above it.
   `architecture-choice` decides hexagonal versus flat first; everything here assumes flat.
 - The service's own settings and logging modules, its client and payload packages → not this skill, use
   `flat-layered`, which owns the role kinds and the import contract between them.
-- The tables, the write path and the storage class the run function calls → `flat-persistence`.
+- The tables, the write path and the repository class the run function calls → `flat-persistence`.
 - Several distributions sharing one repository — the member split, the container profiles, the root task
   runner → `python-workspace`. One distribution on its own needs none of it.
-- **Durable execution, once it is earned** — the obligations that exist only under a workflow engine →
-  still this skill, under `## Rules`, in the subsection that applies once rule 1 has earned an engine.
-  Nothing else in this file depends on them.
+- **Durable execution, once it is earned** → still this skill, in the `## Rules` subsection that applies
+  once rule 1 has earned an engine. Nothing else in this file depends on it.
 - The scheduling needs are met by a loop, a cron entry or a timer — the default → none of those
   obligations apply; do not add orchestration modules "for later".
-- The named exceptions a wrapper translates at the framework boundary → `exception-catalog` owns the
-  catalogue, how a library's exception is translated into it, and its status; the one rendering place is
-  this skill's HTTP shape (`HTTP.md`). `flat-layered` rule 6 places the translation inside the client
-  that called the library, and its `CATALOG.md` states the classes this family raises.
+- The named exceptions a wrapper translates → `exception-catalog`, with the classes this family raises in
+  `flat-layered`'s `CATALOG.md`; the one place they are rendered is this skill's HTTP shape (`HTTP.md`).
 - The service answers HTTP but has business invariants, or several entrypoints share its rules → not
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
@@ -63,12 +60,9 @@ infrastructure. Start there.
 - **Long-running orchestration** — several steps, with waits, timers or human input between them,
   where the sequence itself is the thing that must survive.
 
-If none of those is true, the engine is the heaviest thing in the deployment and buys nothing. If one of
-them is, a loop will be reinvented badly: a `_state` table, a retry counter, a lease, an at-most-once
-guard, all of it hand-rolled and none of it tested.
-
-Shapes 3 and 4 are outside that choice: a continuous stream and a request are **not** scheduled work,
-and neither scheduling shape applies to them. See below.
+If one of them is true, a loop reinvents the engine badly: a `_state` table, a retry counter, a lease,
+an at-most-once guard, hand-rolled and untested. Shapes 3 and 4 are outside that choice: a continuous
+stream and a request are **not** scheduled work.
 
 ## The run function — shared by every shape (structlog)
 
@@ -80,80 +74,121 @@ from datetime import UTC, datetime
 
 import structlog
 
+from myapp.postgres import FooRepository
 from myapp.schemas import Foo, FooPayload, IngestResult
-from myapp.services import FooClient
-from myapp.storage import FooStorage
+from myapp.services.foo_api import FooClient
 
 logger = structlog.get_logger()
 
 
 def to_foo(payload: FooPayload, observed_at: datetime) -> Foo | None:
-    """The filter and the mapping in one pure step: a payload with no reference is dropped."""
     if payload.ref is None:
         return None
     return Foo(id=None, reference=payload.ref, name=payload.name, observed_at=observed_at, labels=payload.labels)
 
 
-async def run_once(client: FooClient, storage: FooStorage) -> IngestResult:
-    payloads = await client.fetch_batch()
-    observed_at = datetime.now(UTC)
-    foos = [foo for foo in (to_foo(payload, observed_at) for payload in payloads) if foo is not None]
-    await storage.record_batch(foos)
+async def run_once(client: FooClient, repository: FooRepository) -> IngestResult:
+    fetched = kept = 0
+    async for payloads in client.fetch_pages():
+        observed_at = datetime.now(UTC)
+        foos = [foo for foo in (to_foo(payload, observed_at) for payload in payloads) if foo is not None]
+        await repository.record_batch(foos)
+        fetched += len(payloads)
+        kept += len(foos)
 
-    logger.info("foo_ingest_completed", fetched=len(payloads), kept=len(foos))
-    return IngestResult(fetched=len(payloads), kept=len(foos))
+    logger.info("foo_ingest_completed", fetched=fetched, kept=kept)
+    return IngestResult(fetched=fetched, kept=kept)
 ```
 
-`run_once` takes the client and the storage class as **parameters**. A body that reaches for a
-module-level engine or a settings singleton cannot be pointed at a test container, and a test of it
-proves nothing.
+`to_foo` is the filter and the mapping in one pure step, so a test covers both without a datastore.
 
-**The run function opens no transaction.** The storage class is the declared owner of its own
-(`flat-persistence` rule 3), so the body composes calls and counts what came back. A run function that
-opens a connection has moved data access out of the one package that is allowed to hold it.
+**Each page is written before the next is fetched** (rule 10): the body holds one page, whatever the
+upstream's size, and sums its counts into the aggregate as it goes. A run that resumes from a stored
+cursor writes it inside the same iteration, after `record_batch` returns — never before (rule 11).
 
-It returns an **aggregate**, not the rows: the rows are in the datastore, and the caller wants counts. A
-trigger that serializes the return value into a durable history makes this load-bearing rather than
-merely tidy.
+**The run function opens no transaction.** The repository class owns its own (`flat-persistence` rule
+3); a run function that opens a connection has moved data access out of the one package allowed it.
+
+It returns an **aggregate**, not the rows (rule 5): the rows are in the datastore, and a trigger that
+serializes the return value into a durable history makes this load-bearing rather than merely tidy.
+
+**Read `FANOUT.md`** in this skill's directory before writing a run function over several independent
+units — it carries the template for rules 11 and 13: each unit's whole body inside its own containment,
+and the run failing only after every unit has finished, with each failed unit named.
 
 ## Shape 1 — the self-scheduling loop, on asyncio (the default)
+
+`src/myapp/entrypoints/containment.py` — the loop's failure containment, defined **once** for every
+process definition in the package:
+
+```python
+from collections.abc import Awaitable, Callable
+
+import structlog
+
+__all__ = ["guarded"]
+
+logger = structlog.get_logger()
+
+
+async def guarded(run_name: str, run: Callable[[], Awaitable[object]]) -> bool:
+    try:
+        await run()
+    except Exception:
+        logger.exception("run_failed", run=run_name)
+        return False
+    return True
+```
+
+`src/myapp/entrypoints/wiring.py` — the construction every process definition shares, written once
+(rule 14). Each builder reads its component's settings, builds the dependency, and closes what it built
+when the process leaves the block:
+
+```python
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import httpx
+
+from myapp.postgres import FooRepository, get_engine, get_postgres_settings
+from myapp.services.foo_api import FooClient, get_foo_api_settings
+
+__all__ = ["open_foo_client", "open_foo_repository"]
+
+
+@asynccontextmanager
+async def open_foo_client() -> AsyncIterator[FooClient]:
+    settings = get_foo_api_settings()
+    async with httpx.AsyncClient(base_url=settings.url, timeout=settings.timeout_seconds) as http:
+        yield FooClient(http)
+
+
+@asynccontextmanager
+async def open_foo_repository() -> AsyncIterator[FooRepository]:
+    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
+    try:
+        yield FooRepository(engine)
+    finally:
+        await engine.dispose()
+```
 
 `src/myapp/entrypoints/foo_loop.py`:
 
 ```python
 import asyncio
-from collections.abc import Awaitable, Callable
 
-import structlog
-
+from myapp.entrypoints.containment import guarded
+from myapp.entrypoints.wiring import open_foo_client, open_foo_repository
 from myapp.ingest.foo_ingest import run_once
-from myapp.services import FooClient
-from myapp.settings import get_settings
-from myapp.storage import FooStorage, get_engine, get_storage_settings
-
-logger = structlog.get_logger()
 
 _POLL_INTERVAL_SECONDS = 30
 
 
-async def guarded(run: Callable[[], Awaitable[object]]) -> bool:
-    """One run with its failure contained; returns whether the run succeeded."""
-    try:
-        await run()
-    except Exception:
-        logger.exception("foo_ingest_run_failed")
-        return False
-    return True
-
-
 async def main() -> None:
-    settings = get_settings()
-    storage = FooStorage(get_engine(get_storage_settings().dsn.get_secret_value()))
-    client = FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds)
-
-    while True:
-        await guarded(lambda: run_once(client, storage))
-        await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+    async with open_foo_client() as client, open_foo_repository() as repository:
+        while True:
+            await guarded("foo_ingest", lambda: run_once(client, repository))
+            await asyncio.sleep(_POLL_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":
@@ -164,71 +199,72 @@ if __name__ == "__main__":
 name collides stays out of its package's re-export and is reached by explicit import where it is
 consumed (`python-packaging`). A run function with a name of its own is re-exported like any other.
 
-**The process definition is the only place a settings factory is called.** It reads each configured
-component's settings — the process's own and the storage package's — and hands concrete values down to
-the client, the storage class and the run function. A component owning its settings class does not give
-a module inside it licence to call that factory (`flat-layered` rules 7 and 8).
+**The process-definition package is the only place a settings factory is called** — its wiring module
+reads each configured component's settings, and the process's own where it declares any, and hands
+concrete values down. A component owning its settings class does not give a module inside it licence to
+call that factory (`flat-layered` rules 7 and 8).
 
-**Extract the `try/except` into `guarded`.** The loop's contract is "one failed run does not kill the
-process", and that is the only part worth testing. A `try/except` written inline inside `while True`
-can only be tested by driving the loop, which needs an artificial escape — and building the escape
-changes the thing under test. `guarded` returns whether the run succeeded, so a test asserts the
-containment on a value rather than on what was logged.
+**The transport and the engine are built once and wrap the whole loop.** The `async with` opens one
+pooled `httpx.AsyncClient` and one engine before the first run; every run reuses their connections, and
+both are closed when the process ends, the engine disposed even when the loop leaves by an exception
+(`flat-layered` rule 14).
+
+**The `try/except` is extracted into `guarded`, written once** (rule 8). It returns whether the run
+succeeded, so a test asserts the containment on a value rather than on what was logged, and the run's
+name rides on the one event it logs. It is not the framework-guarded progress helper of durable
+obligation 10, which sits at the package root because run functions call it.
 
 **The interval is one named constant, declared beside the loop that sleeps on it.** `30` is this
-example's cadence and means nothing outside it — a project sets the number from how fast upstream
-changes and what the upstream will tolerate. What the rule fixes is the *shape*: a bare
-`asyncio.sleep(30)` buried in the loop body hides the service's cadence from anyone reading the module,
-and a cadence read from the environment can drift out of step with the rate limit it was chosen against.
-If the cadence genuinely has to change per deployment, it becomes a settings field and the entrypoint
-passes it in — the same rule as every other tunable in `flat-layered`.
+example's cadence, set from how fast upstream changes and what it tolerates; a bare `asyncio.sleep(30)`
+hides the cadence from the reader. If it has to change per deployment it becomes a settings field the
+process definition passes in, like every other tunable in `flat-layered`.
 
 ## Shape 2 — durable execution, once it is earned
 
-Reach here only once durability, cross-restart retries or long-running orchestration has earned it, by
-the three conditions above. The shape is **three modules**: an orchestration module that invokes units of
-work and computes nothing, a wrapper class that adapts the run function into the engine's unit of work,
-and a process definition that builds the dependencies once and serves the engine's work. They are the only
-modules in the service that import the engine's SDK (`flat-layered` rule 9). The run function does not
-move, and none of the rules below changes.
+Reach here only once one of the three conditions above has earned it. The shape is **three modules**:
+an orchestration module that invokes units of work and computes nothing, a wrapper class adapting the
+run function into the engine's unit of work, and a process definition that builds the dependencies once
+and serves the engine's work — the only modules importing the engine's SDK (`flat-layered` rule 9). The
+run function does not move, and none of the rules below changes.
 
 Under a managed cloud orchestrator the orchestration definition leaves the repository and the wrapper
 becomes the handler; under an in-process durable-function engine the three roles collapse into a durable
 function plus its host.
 
 **An engine adds obligations of its own** — replay determinism, continuations, progress reporting,
-schedules as code. They are stated under `## Rules` below, in the subsection that applies only once rule
-1 has earned an engine; a service on a loop can neither satisfy nor violate them.
+schedules as code — in the `## Rules` subsection that applies only once rule 1 has earned an engine.
 
 ## Shape 3 — the continuous stream process
 
 A never-ending stream stays a standalone process with its own entrypoint module, whatever else the
-service runs. What it needs is not a trigger but a **liveness check**: something outside the process
-reads the stream's last observation timestamp and alarms if it is too old. A container healthcheck, a
-liveness probe, or a scraped freshness metric with an alert rule all do this, and a service with no
-workflow engine should use one of them.
+service runs. It needs not a trigger but a **liveness check**: something outside the process reads the
+stream's last observation timestamp and alarms if it is too old — a container healthcheck, a liveness
+probe, or a scraped freshness metric with an alert rule.
 
 So a service can end up with two entrypoint modules:
 
 ```text
 entrypoints/
-├── foo_ingest_durable.py   # process: serves the engine's foo-ingest work, where an engine is earned
-└── foo_stream.py           # process: a long-lived continuous stream, stateful
+├── containment.py
+├── wiring.py
+├── foo_ingest_durable.py
+└── foo_stream.py
 ```
 
-Do **not** park the stream inside one long-lived unit of work, and do not model each incoming item as a
-workflow. A workflow per item turns every item into orchestration overhead and history the engine must
-keep, and adds no value; a long-lived unit of work fights the replay model every durable-execution
-engine is built on, and its retries restart a stream that was meant to resume.
+`foo_ingest_durable.py` serves the engine's work where an engine is earned, or is `foo_loop.py` where
+none is; `foo_stream.py` is the long-lived stream, the one process that holds state of its own between
+observations (rule 12).
+
+Never park the stream in one long-lived unit of work or make each item a workflow (rule 7): a workflow
+per item is overhead and history for nothing, and a long-lived unit fights the engine's replay model.
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 
 A service with no invariants of its own that answers requests — an internal CRUD surface, a webhook
 receiver, a proxy — takes the same run functions behind a web framework. The framework is one more
-wrapper: **routes validate their input, call one run function, and hold no logic of their own**, and
-every failure, catalogue or not, leaves in one shape from one place. A route never reaches the storage
-class or the client except to hand them to a run function, and a read is a run function too, however
-thin. The app is built by a factory the process definition calls with the dependencies it built.
+wrapper (rule 9): routes validate, call one run function and hold no logic; every failure leaves in one
+shape from one place; a read is a run function too, however thin; and the app is built by a factory the
+process definition calls with the dependencies it built.
 
 **Read `HTTP.md`** in this skill's directory before writing the app factory, its error handling, the
 read's run function or the server's process definition — it carries the FastAPI and uvicorn templates
@@ -238,9 +274,8 @@ for rule 9.
 
 - **An external scheduler in place of the self-scheduling loop.** Drop the `while True` and the sleep,
   run `main()` once, and the module is a cron entry, a systemd timer or a Kubernetes `CronJob`. Wiring
-  and failure containment are unchanged; the cadence becomes operable without a redeploy and the idle
-  process goes, so prefer it wherever the platform already runs a scheduler. Durability is still not
-  bought — a run killed halfway is still a run lost.
+  and containment are unchanged; the cadence becomes operable without a redeploy and the idle process
+  goes, so prefer it wherever the platform runs a scheduler. A run killed halfway is still a run lost.
 - **A durable-execution engine in place of either.** Restate and DBOS take the durable-function shape
   in-process; Step Functions and Azure Durable Functions are the managed equivalents; Airflow, Dagster
   and Prefect solve the batch-DAG half. The wrapper package and its process appear, every rule below
@@ -262,8 +297,8 @@ for rule 9.
    and any framework wrapper all call one run function from a work-unit package. The wrapper holds the
    trigger and no logic of its own; that is what keeps the shape choice reversible and keeps two
    triggers of the same work from drifting apart.
-3. **A run function takes its dependencies as parameters** — the client, the storage class, whatever
-   connection handle the storage package's declared owner needs — and so does a wrapper that needs any:
+3. **A run function takes its dependencies as parameters** — the client, the repository class, whatever
+   connection handle the data-access package's declared owner needs — and so does a wrapper that needs any:
    the process definition builds them once and hands them in. Never a module-level engine, never a
    settings singleton read from inside the body: a body that reaches for a global cannot be pointed at a
    test container, so a test of it proves nothing, and a wrapper that reaches for one puts the service's
@@ -288,15 +323,47 @@ for rule 9.
    watch it from outside with a liveness check on the freshness of its last observation. Never model
    each incoming item as an orchestration, and never park the stream inside one long-lived unit of
    work — its retries restart a stream that was meant to resume.
-8. **The loop's failure containment is extracted into a named function.** "One failed run does not
-   kill the process" is the loop's only testable contract, and a `try/except` written inline inside
-   `while True` can only be reached by driving the loop — which needs an artificial escape that
-   changes the thing under test.
+8. **The loop's failure containment is extracted into a named function, defined once.** "One failed
+   run does not kill the process" is the loop's only testable contract, and a `try/except` written
+   inline inside `while True` can only be reached by driving the loop — which needs an artificial escape
+   that changes the thing under test. It lives in one module of the process-definition package and
+   every process definition imports it; a copy per entrypoint is one contract per copy, and a test pins
+   only one of them.
 9. **An HTTP route validates its input, calls one run function, and holds no logic.** The app is built
    by a factory from dependencies the process definition hands it, and every failure — a catalogue
    error, the framework's validation failure, an unexpected exception — is rendered in one shape, in
    one place, never per route, and logged once there. A route that branches on the data, reaches the
-   storage class, or catches a catalogue error itself has become a second place the work lives.
+   repository class, or catches a catalogue error itself has become a second place the work lives.
+10. **An input whose size the service does not control is processed in bounded memory.** An upstream
+    file, an export or a feed is streamed — read, transformed and written in bounded batches — and
+    nothing in the process accumulates a whole source: no list of every record, no in-process set of
+    every key seen. Deduplicating an unbounded input is the store's job, by its key and its conflict
+    clause (`flat-persistence`), not a set's. The size that fits today is the size that exhausts the
+    process the day upstream grows.
+11. **A progress marker is written only after the data it confirms is durably written.** A cursor, a
+    watermark or a checkpoint for a unit of work is written after that unit's own writes have returned,
+    never while any of its rows sits in a buffer; and a buffer is never shared across units whose
+    markers are written independently, because one unit's marker then confirms rows another unit's
+    failure loses. A marker ahead of its data is data lost with a record saying it was kept.
+12. **Local process state is written atomically, and read before the process starts its work.** A
+    position or checkpoint kept in a local file is written to a temporary file and moved over the old
+    one in one atomic step (`os.replace` in the standard library), never overwritten in place — a crash
+    mid-write otherwise leaves a file the next start cannot parse. The process definition reads it at
+    startup, outside the guard, and a value that cannot be read stops the process with a message stating
+    the recovery — where the file is and what deleting or resetting it replays — rather than failing
+    every run inside a guard that keeps the process alive and doing nothing.
+13. **A run that fans out over independent units contains each unit's failure and fails as a whole
+    afterwards.** With bounded parallelism, one unit's failure neither cancels nor orphans the others:
+    every unit is awaited to completion, each failure is recorded with the unit it belongs to, and a
+    non-empty list of failed units at the end fails the run, so the guard or the trigger sees it. A
+    concurrency primitive that propagates the first failure — a bare `asyncio.gather`, or a task group
+    whose units raise — leaves the rest unawaited or cancelled, and the run reports one failure of many.
+14. **Construction that several process definitions share is written once, in the process-definition
+    package, and closes what it built.** Reading a component's settings and building its client, pool or
+    engine lives in one builder there that every process definition imports, never copied into each; a
+    copy per process is one wiring per copy, and they drift. The builder owns the thing's end as well as
+    its start — the pool closed, the engine disposed — when the process leaves it, by any exit
+    (`flat-layered` rule 14).
 
 ### Once a durable-execution engine is earned
 
@@ -338,8 +405,8 @@ separately from the rules and cited elsewhere as *durable obligation N*.
 9. **A unit of work that runs for minutes reports progress, and the gap the engine will tolerate is
    declared at the call site.** Without progress reports a dead serving process goes unnoticed until
    the whole close timeout elapses, and the unit can never be cancelled — so cancelling the run and
-   shutting the serving process down gracefully both have to cut it off mid-flight. The tolerated gap must exceed the longest
-   realistic interval between reports, the first one included.
+   shutting the serving process down gracefully both have to cut it off mid-flight. The tolerated gap
+   must exceed the longest realistic interval between reports, the first one included.
 10. **Progress reporting goes through a guarded helper, never the framework call directly.** The same
     body is called from a plain loop and from its own test, where the raw call raises because there is
     no framework context — the guard is what lets the body keep one shape under every trigger. **The
@@ -383,10 +450,25 @@ separately from the rules and cited elsewhere as *durable obligation N*.
   it one source both of them read.
 - Business logic is being written into the wrapper instead of the run function → stop, the wrapper holds
   the trigger; the work stays where a test can call it directly.
-- An HTTP route reaches the storage class or the client itself, or maps a catalogue error to a status of
+- An HTTP route reaches the repository class or the client itself, or maps a catalogue error to a status of
   its own → stop, route through a run function and let the one handler render it.
 - The web app is built at module scope → stop, build it in a factory the process definition calls with
   the dependencies it built.
+- A run reads a whole unbounded source into memory, or deduplicates one with an in-process set → stop,
+  stream it in bounded batches and let the store's key and conflict clause deduplicate.
+- A cursor, watermark or checkpoint is written while the rows it confirms are still buffered, or one
+  buffer is shared by units whose markers are written separately → stop, write each unit's rows, then
+  its marker.
+- Local process state is overwritten in place, or an unreadable position is caught inside the loop's
+  guard → stop, write to a temporary file and replace atomically, and fail at startup with the recovery
+  stated.
+- A fan-out over independent units lets the first failure cancel or orphan the rest, or swallows the
+  failures → stop, await every unit, collect the failures, and fail the run on a non-empty list.
+- `guarded` is copied into a second process definition → stop, import the one module every process
+  definition shares.
+- A process definition builds a client, a pool or an engine inline that another process definition also
+  builds, or builds one it never closes → stop, move the construction into the shared wiring module as a
+  builder that closes what it built, and import it (rule 14).
 
 ### Under a durable-execution engine
 
@@ -402,7 +484,8 @@ These fire only once rule 1 has earned an engine; under every other trigger ther
   a continuation never reaches the statement after the loop, so the real termination condition is
   missing and what stands in its place is dead.
 - A unit of work that runs for minutes declares a close timeout and no progress reporting → stop, add
-  both; otherwise a dead serving process goes unnoticed for the whole timeout and the unit can never be cancelled.
+  both; otherwise a dead serving process goes unnoticed for the whole timeout and the unit can never be
+  cancelled.
 - A run-function body calls the framework's progress function directly → stop, use the guarded helper;
   the unguarded call raises the moment the body runs from a loop or a test.
 - A schedule is created by hand in a console, from inside the process serving the work, or without an

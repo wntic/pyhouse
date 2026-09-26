@@ -903,3 +903,140 @@ verification re-gated every decision and found two more to narrow.
 **Reverse by:** reinstating a vector binding would need a workload that most projects share, which is
 the bar it failed; the base/add-on split reverses by folding each adapter skill's binding snippet back
 into `CONTAINER.md` and the conftest's add-on sections back into its base.
+
+## The flat family, after a service was generated from it
+
+Several of this round's rules were written against defects in a service an agent generated from the
+flat templates. Where the skills spoke, it followed them verbatim; where they were silent — what a
+second store looks like, what a component with settings looks like, what a run may hold while it runs
+— it improvised. This round closes those silences, renames what the catalogue had named against its
+own rules, and records why. The entries describe each failure as the rule states it, not the service.
+
+### D80 — The flat data-access class is `FooRepository`, not `FooStorage`
+`naming` gives the class that owns a record's data access the suffix `Repository`; the flat family
+called it `FooStorage`, and nothing recorded why — D19 used the name without deciding it. The only
+difference from the hex case is that no port stands in front, and the suffix names the role, not the
+port. `naming` now says so: `Repository` with or without a port, the `I` only on a port, and
+`FooStorage`/`FooStore`/`FooDao` a second word for one concept. The module is `foo_repository.py`,
+the topic file `REPOSITORY.md`, the test `test_foo_repository.py`. `StorageUnavailableError` and
+`StorageWriteRejectedError` keep their names: they name a failure of the store, not the class. The ban
+reaches only the class owning a record's data access: an adapter for one capability is named for what
+the capability does, so hex's `S3FooStorage` behind `ICanStoreFoos` stays, and `naming` says so.
+**Reverse by:** renaming the class, module, topic file and test back, and removing the flat sentence
+and the widened table row from `naming`.
+
+### D81 — The data-access package is named for its technology, one per store
+`src/myapp/storage/` answered one store and left the second unanswered, and an unanswered question is
+answered by improvisation (D88) — a second store's settings and connection added to the first's
+package. The package is now named for the
+store — `postgres/` — which makes the second one obvious (`clickhouse/` beside it, with its own
+settings, connection factory and migration history), and `flat-layered` rule 4 and `flat-persistence`
+rule 17 state it. The settings follow: `PostgresSettings`, `get_postgres_settings()`, `MYAPP_POSTGRES_`.
+This supersedes the single-package reading of D18; the settings class inside the package that D18
+moved out came back earlier and stays.
+**Reverse by:** renaming `postgres/` back to a role name and deleting rule 17 and its hard stop; the
+second-store question then has no answer again.
+
+### D82 — A configured external system is a package holding its client and its settings
+The process's `Settings` carried `foo_api_url` and `foo_api_timeout_seconds`, fields of a component
+that is not the process — the thing `flat-layered` rule 8 forbids, in its own template. The client is
+now `services/foo_api/` with `foo_client.py` and `settings.py` (`FooApiSettings`, `MYAPP_FOO_API_`),
+and the process's own class holds only the process's fields, possibly none.
+**Reverse by:** folding the two fields back into the process's `Settings`, which reinstates the
+contradiction with rule 8.
+
+### D83 — The client is handed one pooled transport, and a token is refreshed
+The client built its own HTTP client inside each method: a new connection per call, no pool, and a
+stub reachable only by patching the library. `FooClient` now takes an `httpx.AsyncClient`, which the
+process definition builds once and closes when the process ends (`flat-layered` rule 14); a test
+builds the same client against a stub base URL. A credential with an expiry is refreshed on the
+transport, once, on expiry or rejection (rule 15): a login token cached for the process's life passes
+every short test and fails the first run after it expires.
+**Reverse by:** giving the client `base_url` and `timeout_seconds` again; the pool and the refresh
+obligation go with it.
+
+### D84 — Migrations are data at the distribution root, one directory per store
+Revisions sat under `migrations/versions/`, a layout with no room for a second store's history, which
+leaves the second history to land wherever the author guesses — inside the package under `src/`, run
+by a hand-written loop, among them.
+`alembic.ini` stays at the distribution root with `script_location = %(here)s/migrations/postgres`;
+another store's history goes in `migrations/<store>/`, applied by a tool that speaks it, and a
+hand-written runner is allowed only where no tool fits and must do what one would — record applied
+versions, apply in order, stop at the first failure, never run twice at once (`flat-persistence`
+rule 20). The first wording demanded a lock the store provides, which some stores lack; the exclusion
+may equally come from the tool's own lock or from the deploy — one migration job per deploy, never
+every replica at start-up. It also put the runner in the package and the files at the root, which a
+built wheel does not ship together, so the history now ships with whatever deployable applies it and a
+runner takes the directory as a parameter.
+**Reverse by:** pointing `script_location` back at `migrations` and deleting rule 20; hex keeps its
+own `migrations/versions/` either way, since a hex service's second store is a separate question.
+
+### D85 — No empty baseline on a greenfield chain
+Both setup skills wrote an empty `0001_baseline` so the chain had a root. Alembic needs no such root:
+`upgrade head` and `downgrade base` succeed on an empty chain, and the first real revision gets no
+parent. The empty revision was a no-op every database replays forever. A baseline now exists only over
+a schema that already exists, holds that schema as frozen hand-written DDL, and is stamped on the
+databases that have it. `flat-project-setup` and `hex-project-setup` state it in their own words.
+**Reverse by:** restoring the empty template in both setup skills; nothing else depends on it.
+
+### D86 — The linter bounds function size and complexity, with the thresholds written down
+Nothing in either setup skill measured a function's size, so an oversized one passed every check. Both
+setup skills now select C901 and PLR0911/0912/0913/0915/0917 with every number written: complexity 10
+(McCabe's published ceiling), 12 branches, 6 returns and 50 statements (pylint's long-standing
+defaults), and arguments capped twice — 5 positional, 7 in all — because a keyword-only argument names
+itself at every call site; the flat bulk-write helper takes three positional and four keyword-only,
+which is the shape the split permits. Numbers equal to the tool's default are written anyway, as the
+line length is, so they do not move when the default does. A function over a bound is split, never
+suppressed. Module length has no lint rule and stays a review matter.
+**Reverse by:** dropping the codes and the two tables from both setup skills, with flat rule 11 and
+hex rule 10.
+
+### D87 — Revision files ignore the statement count, and nothing else
+A revision's body is generated DDL — one statement per column and constraint — so a wide table trips
+PLR0915 with no function to split. Both setup skills exempt that one code per file for revisions
+(`migrations/**/versions/*.py` in flat's layout, `migrations/versions/*.py` in hex's). Complexity,
+branches and arguments stay on: a revision with branching logic is still authored code.
+**Reverse by:** deleting the per-file line and the sentence beside it in both skills.
+
+### D88 — Templates are copied, so they show a house pattern and the common variants
+An agent copies a template verbatim — comments, constants and all — and improvises wherever a skeleton
+is silent. `meta-skill-author` now states it three ways. Rule 4: a
+template is copied, not read, so a comment in it must be true in the reader's file; the API a version
+floor relies on qualifies, which is why `flat-project-setup` rule 3 keeps its reason beside the floor,
+and only explanations of the template itself go to prose. Rule 15: a template shows the house pattern
+around a minimal vendor call, never the vendor's manual. Rule 16: a skeleton shows the common variants
+— a second store, a component with its own settings — one line each, because an unasked question gets
+answered by improvisation.
+**Reverse by:** deleting rules 15 and 16 and the comment clause of rule 4; the skeleton lines they
+justified can stay.
+
+### D89 — What a run holds while it runs is bounded, whatever triggers it
+Four failure modes share one cause — the family said what a run is, never what it may hold while it
+runs: a whole upstream source loaded into memory and deduplicated with an in-process set; a progress
+marker written while the rows it confirms still sit in a buffer shared with another unit; a local
+position file overwritten in place, its unreadable remains caught inside the loop's guard so the
+process stays up doing nothing; and a fan-out whose first failure cancels every other unit.
+`flat-entrypoint` rules 10 to 13 state the four obligations — bounded memory, marker after data, atomic local state read at startup, fan-out that awaits every unit and fails after.
+The loop guard moved to its own module, `entrypoints/containment.py`, and names the run it contains.
+`flat-persistence` states where its columnar write floor meets rule 11, since that floor is the pressure
+that pooled units in one buffer: a buffer spans units only if each unit's marker follows its flush.
+**Reverse by:** deleting rules 10 to 13 and their hard stops; the defects they name come back
+unflagged.
+
+### D90 — Deduplication belongs to the store, and a cursor carries a total order
+Two more, both in data access: looking up which rows already exist before writing each chunk — a round
+trip per chunk that still admits the duplicates two concurrent runs write — and paging a table by
+timestamp alone, which silently skips every row sharing a timestamp at a page edge, and a batch shares
+one. `flat-persistence` rule 18 leaves deduplication to
+the store's write-time conflict clause or merge-time engine; rule 19 orders a resumed read by a total
+order and carries all of it in the cursor. `FooRepository.list_after` is the worked case, and
+`flat-test-persistence` pins it across a page edge inside one timestamp.
+Rule 18 then gained two clauses. An earliest, latest or aggregated column (a first-seen time) is
+resolved by the conflict clause's `LEAST`/`GREATEST` or a merge engine that aggregates — a generated
+service had looked rows up before every insert only to keep a first-seen time. And inputs sharing a key
+are collapsed by it before the statement: Postgres refuses to update one row twice in one statement
+(SQLSTATE `21000`), and `record_batch` given `alpha` and ` ALPHA ` failed as `StorageUnavailableError`.
+`record_batch` collapses by the normalized key, last one winning, and `flat-test-persistence` rule 13
+pins it. The "no conflict clause" bullet no longer offers lock-and-check, a read-before-write rule 18
+forbids; such a store carries rule 12 as a `MERGE` or leaves resolution to merge time.
+**Reverse by:** deleting rules 18 and 19, `list_after` and its test.

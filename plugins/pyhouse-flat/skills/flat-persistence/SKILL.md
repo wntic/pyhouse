@@ -1,39 +1,44 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a SQL store — its table definitions, its bulk write helpers, its own component-owned settings class, and the class that owns a multi-statement write. Owns the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, explicit conflict resolution, and application-minted time-ordered keys. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a storage library several distributions share is `python-workspace`.
-when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a storage or repository class in a flat service, a constraint naming convention, a migration for a flat service, or where a service's SQL is allowed to live.
+description: Use when a flat-layered service reads or writes a datastore — its table definitions, its bulk write helpers, its component-owned settings class, the repository class that owns a multi-statement write, and where its migration history lives. Owns one data-access package per store named for the store's technology, the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, conflict resolution left to the store's own write-time or merge-time mechanism, cursor reads over a total order, application-minted time-ordered keys, and one migration directory per store at the distribution root. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a data-access library several distributions share is `python-workspace`.
+when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a repository class in a flat service, a second store beside the first, a constraint naming convention, a migration for a flat service or where its files go, paging through a table by cursor, deduplicating writes, or where a service's SQL is allowed to live.
 ---
 
-# Flat Persistence — one package owns the data access
+# Flat Persistence — one package per store owns the data access
 
 The package a `flat-layered` service keeps its data access in — the *data access* role kind in that
-skill's import contract, whatever this service names the package. It holds the table definitions, the
-write path, the mapping from stored rows back to the service's own types, and the migration history.
-**No other package in the service constructs a statement or opens a connection.**
+skill's import contract — named for the store's technology: `postgres/` for the relational store the
+templates bind. It holds the table definitions, the write path and the mapping from stored rows back to
+the service's own types. **No other package in the service constructs a statement or opens a
+connection.** The store's migration history is data, not code, and sits at the distribution root under
+`migrations/` in a directory named for the same store.
 
-**Precondition — the store speaks SQL.** Which of the rules below bind you then depends on four
-properties of that store, not on its name. Answer these before reading the rules, because a rule whose
-property is absent has nothing to be true about:
+**Which rules below bind depends on four properties of the store, not on its name.** Answer these before
+reading the rules, because a rule whose property is absent has nothing to be true about:
 
 | Does the store have… | If no, these do not apply |
 |---|---|
 | multi-statement transactions | rules 3, 4 — nothing spans statements, so nothing declares an owner |
 | named unique constraints | rule 8 — there is no name for three artifacts to agree on |
-| a conflict clause on write | rule 12 — resolution moves into the table's own engine or a later pass |
+| a conflict clause on write | rule 12, unless the store has a `MERGE` — otherwise resolution is the store's merge-time mechanism (rule 18) |
 | a write readable immediately after it returns | rule 11 — a read-back can only be a separate, later read |
 
-**Rules 1, 2, 5, 6, 7, 9, 13, 14 and 15 hold for any store at all**, SQL or not, and are what carries
-across to a document store, a key-value store or a vendor-managed index; rule 16 holds wherever the
-schema is versioned by migrations at all. Rule 10 holds everywhere but
+**Rules 1, 2, 5, 6, 7, 9, 13, 14, 15, 17, 18 and 19 hold for any store at all**, SQL or not, and are what
+carries across to a columnar store, a document store, a key-value store or a vendor-managed index; rules
+16 and 20 hold wherever the schema is versioned by migrations at all. Rule 10 holds everywhere but
 inverts its reason: where a driver caps bind parameters the constant exists to stay under a ceiling,
 and on a columnar store that penalises small writes it exists to stay above a floor. The number is the
-store's; that it is named once and read by the test is not.
+store's; that it is named once and read by the test is not. The floor never outranks `flat-entrypoint`
+rule 11: a buffer may pool rows from several units of work only if every unit it holds has its progress
+marker written after that buffer's flush — otherwise a unit's tail is flushed, below the floor if need
+be, before its marker is written. A store answering *no* four times is not a
+poor fit for this skill — the rules that lapse lapse because their subject does not exist.
 
-A store answering *no* four times is not a poor fit for this skill — it is ten rules instead of
-sixteen, and the six that lapse lapse because their subject does not exist.
-
-The default subject is **one distribution with its own store**. Where several share one store, the same
-package becomes a library they all depend on and one rule below says what that changes.
+The default subject is **one distribution with one store**. **A service with a second store has a second
+package** (rule 17): a sibling of `postgres/` named for that store's technology, answering the four
+questions above for itself, with its own settings class, connection factory and migration directory.
+Where several distributions share one store, the package becomes a library they all depend on and
+rule 15 says what that changes.
 
 ## When to use vs. neighbours
 
@@ -41,15 +46,16 @@ package becomes a library they all depend on and one rule below says what that c
   package root, the clients, the run functions → `flat-layered`, which owns the import contract this
   package sits inside, the rule that each configured component declares its own settings class, and the
   no-`Protocol` rule this skill applies to the datastore.
-- Several distributions sharing one repository, and where a shared storage library sits inside it →
+- Several distributions sharing one repository, and where a shared data-access library sits inside it →
   `python-workspace`.
 - What triggers a run and hands this package its connection handle → `flat-entrypoint`.
-- Testing these tables, helpers and the storage class against the real datastore →
+- Testing these tables, helpers and the repository class against the real datastore →
   `flat-test-persistence`.
 - The container, migration and isolation fixtures those tests run on → `flat-test-integration-setup`.
-- The project's `pyproject.toml`, toolchain and the migration environment laid once, before the first
-  revision → `flat-project-setup`.
+- The project's `pyproject.toml`, toolchain and the relational migration environment laid once, before
+  the first revision → `flat-project-setup`.
 - The exception classes the translator produces, and what context they carry → `exception-catalog`.
+- What the repository class is called → `naming`, whose data-access suffix is `Repository`.
 - Module layout, `__all__`, and the `__init__.py` re-exports every table module needs →
   `python-packaging`.
 - The declared type a row is mapped into before it leaves this package → `python-style` owns the rule
@@ -61,27 +67,42 @@ package becomes a library they all depend on and one rule below says what that c
 ## Template(s) — SQLAlchemy Core, asyncpg, Alembic
 
 ```
-src/myapp/storage/
-├── __init__.py        # re-exports the storage class, the settings and the engine helpers
-├── metadata.py        # the one MetaData, carrying the naming convention
-├── settings.py        # this package's own settings class and its factory
-├── engine.py          # the engine factory and the chunked bulk write helpers
-├── foo_table.py       # the Table definitions
-└── foo_storage.py     # the class that owns a multi-statement write
+src/myapp/postgres/
+├── __init__.py            # re-exports the repository class, the settings and the engine helpers
+├── metadata.py            # the one MetaData, carrying the naming convention
+├── settings.py            # this package's own settings class and its factory
+├── engine.py              # the engine factory and the chunked bulk write helpers
+├── foo_table.py           # the Table definitions
+└── foo_repository.py      # the class that owns a multi-statement write
 
+alembic.ini                # at the distribution root — `flat-project-setup`
 migrations/
-├── env.py             # laid once — `flat-project-setup`
-└── versions/          # one revision per schema change
+└── postgres/
+    ├── env.py             # laid once — `flat-project-setup`
+    ├── script.py.mako
+    └── versions/          # one revision per schema change
+```
+
+A second store adds one sibling package and one sibling migration directory, and edits neither of the
+first's. `<store>` is that store's technology name — `clickhouse`, `mongodb`, `opensearch`:
+
+```
+src/myapp/
+├── postgres/
+└── <store>/               # its settings class, its connection factory, its repository classes
+migrations/
+├── postgres/
+└── <store>/               # its history, in the format its own migration tool reads
 ```
 
 The full file templates live in three topic files beside this one, one per group of artifacts in that
 layout. Only this file is loaded automatically, so open the one you need:
 
 - **Read `SETUP.md`** before writing the metadata module, the settings class, the engine factory, a bulk
-  write helper or a migration revision — it binds rules 8, 9, 10, 11, 12, 14, 15 and 16.
+  write helper or a migration revision — it binds rules 8, 9, 10, 11, 12, 14, 15, 16, 17, 18 and 20.
 - **Read `TABLE.md`** before defining a table, a column or a key — it binds rules 8 and 13.
-- **Read `STORAGE.md`** before writing the class that owns a write, its error translator or its row
-  mapper — it binds rules 2, 3, 4, 5, 6 and 7.
+- **Read `REPOSITORY.md`** before writing the repository class, its error translator, its row mapper or a
+  read resumed from a cursor — it binds rules 2, 3, 4, 5, 6, 7, 18 and 19.
 
 ## Other bindings
 
@@ -96,23 +117,28 @@ layout. Only this file is loaded automatically, so open the one you need:
   is computed against, the driver exception the translator matches on and the read-back clause all change
   together; which rules bind at all is the precondition's four questions, not this bullet's. Conflict
   resolution is the one that is not mechanical. A backend with no conflict clause carries rule 12 as a
-  `MERGE` or as a lock-and-check where it has either — and where it has neither, resolution is not the
-  writer's to do: a columnar store that deduplicates at merge time takes the write as it comes and
-  settles it later, so the rule lapses and what replaces it is a table-engine choice made once in the
-  schema, not a clause chosen per call. "Nothing to update" must still be a no-op wherever the rule
-  applies at all.
+  `MERGE` where it has one — never as a lock-and-check, which is the read-before-write rule 18 forbids —
+  and where it has none, resolution is not the writer's to do: a columnar store that deduplicates at
+  merge time takes the write as it comes and settles it later, so rule 12 lapses and rule 18 is met by
+  a table-engine choice made once in the schema, not a clause chosen per call. "Nothing to update" must
+  still be a no-op wherever rule 12 applies at all.
+- **Another store's migration tool.** A store whose schema is versioned keeps its history in
+  `migrations/<store>/` and applies it with a tool that already speaks that store — a multi-database
+  runner such as `golang-migrate` or Flyway, or the store's own — as a deploy step beside
+  `alembic upgrade head`. The directory, the deploy-step ordering and the expand-then-contract discipline
+  of rule 16 are unchanged; only the file format and the command differ.
 - **This package as a separate distribution, shared by several others.** The templates are unchanged,
-  the settings class in `SETUP.md` included — it is already this component's own. What changes is where its
-  prefix comes from: no longer one service's stem but the shared package's own (`MYSCHEMA_`), because
-  every dependant now reads the same variables and none of them owns the component. It also gains its own
-  migration command run from its own directory, and a standing restriction that the distributions
-  importing it define no table of their own (`python-workspace`).
+  the settings class in `SETUP.md` included — it is already this component's own. What changes is where
+  its prefix comes from: no longer one service's stem but the shared package's own
+  (`MYSCHEMA_POSTGRES_`), because every dependant now reads the same variables and none of them owns the
+  component. It also gains its own migration command run from its own directory, and a standing
+  restriction that the distributions importing it define no table of their own (`python-workspace`).
 
 ## Rules
 
-1. **One package owns a service's data access, and nothing outside it constructs a statement or opens a
-   connection.** A service's SQL is findable in one place or it is everywhere. This is the positive form
-   of `flat-layered` rule 4.
+1. **One package per store owns a service's data access to it, and nothing outside that package
+   constructs a statement or opens a connection.** A service's SQL is findable in one place or it is
+   everywhere. This is the positive form of `flat-layered` rule 4.
 2. **No `Protocol` over the datastore, and that is a decision rather than an omission.** The main
    datastore is a sticky dependency with no nameable alternative the business would plausibly adopt, so
    it never qualifies for an interface however generic it looks (`flat-layered` rule 5). Test doubles come
@@ -181,6 +207,44 @@ layout. Only this file is loaded automatically, so open the one you need:
     field), contract in a later release once nothing reads what is being removed. Each change is one
     revision whose `downgrade()` reverses its `upgrade()`; the migration round trip the integration suite
     replays is what proves that it does (`flat-test-integration-setup`).
+17. **A service with more than one store keeps one data-access package per store, each named for its
+    store's technology, with its own settings class and prefix, its own connection factory and its own
+    migration directory.** Two stores never share a package, a settings class or a history: they differ
+    in which rules above bind, in their drivers' failure types and in how their schema changes, and one
+    package holding both turns every one of those differences into a branch inside it. A run function
+    that writes to both is handed both packages' objects by the process definition, like any other
+    dependency.
+18. **Deduplication and conflict resolution belong to the store's own write-time or merge-time
+    mechanism, never to an application read-before-write per row.** Where the write can resolve a
+    conflict, rule 12 says how; where the store deduplicates at merge time, the table's engine is chosen
+    for it once, in the schema, and a read that must see one row per key before the merge asks the store
+    for its deduplicated view. Looking up which rows already exist before inserting each chunk costs a
+    round trip the store never needed, and it still admits the duplicates two concurrent runs write
+    between one run's read and its write. **A column kept as an aggregate across writes** — the earliest
+    time a key was first seen, the latest, a running count — **is resolved the same way**: by the conflict
+    clause (`LEAST` or `GREATEST` of the stored and the incoming value) or by a merge engine that
+    aggregates (a min-aggregating one, for instance), never by reading the stored value first to decide
+    what to write. **Inputs sharing one key are collapsed by that key before the statement is built** —
+    the last one winning, or aggregated as the conflict clause would — because a store resolving
+    conflicts per statement may refuse to touch one row twice within it (Postgres fails the whole
+    statement). Collapsing a batch already in memory reads nothing from the store and is bounded by the
+    batch, so it is not the read-before-write this rule forbids.
+19. **A read resumed from a cursor orders by a total order, and the cursor carries every column of it.**
+    A limited read resumed from the last row's value of a column that is not unique skips every row
+    sharing that value beyond the page's edge — rows written in one batch share one timestamp, so a single
+    boundary drops thousands of them with no error. Order by the column plus a unique tiebreaker and
+    resume strictly after the pair (keyset pagination), or do not limit the read.
+20. **A store's migration history is data at the distribution root, one directory per store named for
+    it — never inside the package under `src/` — and it ships with whatever applies it.** A built
+    distribution carries the package and not the root, so the deployable that runs migrations carries the
+    directory itself: an image copies `migrations/` beside the installed package, or the migration job
+    runs from the source tree. It is applied by an existing migration tool for that store wherever one
+    exists. A hand-written runner is written only where none fits; it then lives in that store's
+    data-access package, takes the migration directory as a parameter rather than finding it through the
+    package's import path, and does what a tool would — records each applied version in the store itself,
+    applies in order, stops at the first failure, and never runs twice at once. That exclusion is a lock
+    the store provides where it has one, the migration tool's own where it takes one, or else the deploy
+    mechanism's: migrations run as one dedicated job per deploy, never from every replica at start-up.
 
 ## Hard stops
 
@@ -207,12 +271,30 @@ layout. Only this file is loaded automatically, so open the one you need:
 - A module-level `engine = create_async_engine(...)` is being added → stop, use the factory; the bare
   object makes importing the module fail wherever the environment is incomplete, and it is the object
   every test skill forbids importing.
+- A second store's connection, settings or tables are being added to the first store's package or
+  settings class → stop, give it a package of its own named for its technology, with its own settings
+  class, factory and migration directory (rule 17).
+- Rows that already exist are being looked up so the application can skip or merge them before writing,
+  or to keep an earliest or aggregated value → stop, resolve it in the write (rule 12, with `LEAST` or
+  `GREATEST` for an aggregate) or in the store's merge-time engine (rule 18).
+- One statement is built from a batch that can hold two inputs with the same key → stop, collapse the
+  batch by that key first; Postgres refuses to update one row twice in a statement (rule 18).
+- A limited read resumes from the last row's value of a column that is not unique → stop, add a unique
+  tiebreaker to the order and to the cursor, or drop the limit (rule 19).
+- Migration files are being placed under `src/`, or in `migrations/` without a directory named for their
+  store → stop, the history is data at the distribution root in `migrations/<store>/` (rule 20).
+- A migration runner is being hand-written for a store that has a migration tool, or one without an
+  applied-version record, or one that every replica runs at start-up with nothing excluding the others →
+  stop, use the tool; where none fits, the runner does all four things rule 20 names and runs as one job.
+- A runner finds its migration files through the package's import path, or the image that runs
+  migrations does not carry `migrations/` → stop, pass the directory in and ship it with the deployable
+  (rule 20).
 - One revision drops or renames something the running release still reads → stop, split it: expand in
   this release, contract in a later one.
 - A revision ships without a `downgrade()`, or with one that does not reverse its `upgrade()` → stop,
   write it; the migration round trip fails on it, and that test is the reason it exists.
-- The migration environment or the baseline revision is being laid → stop, use `flat-project-setup`;
-  this skill owns the revisions that follow it.
+- The relational migration environment or a baseline revision is being laid → stop, use
+  `flat-project-setup`; this skill owns the revisions that follow it.
 - The service has business invariants that must outlive a change of datastore → stop, this family is the
   wrong one; `architecture-choice` decides, and the repository goes behind a port (`hex-persistence`, in
   the `pyhouse-hex` plugin).

@@ -1,6 +1,6 @@
 ---
 name: flat-test-integration-setup
-description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration round trip, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the storage package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
+description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration round trip, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the data-access package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
 when_to_use: Also when asked where a flat service's test fixtures live, how integration tests get a real database, why a test suite must never truncate a developer's database, or why a session-scoped engine needs a session-scoped event loop.
 ---
 
@@ -13,13 +13,13 @@ the suite runs against, the migration history replayed onto it, the engine every
 isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.**
 
 **Two isolation fixtures, and which one a test uses follows from the declared transaction owner.** Every
-callable in the storage package either *accepts* a live connection and never commits, or *opens and owns*
+callable in the data-access package either *accepts* a live connection and never commits, or *opens and owns*
 one for the whole of its work (`flat-persistence` rule 3). That declaration decides the fixture:
 
 - **`conn`** — a rollback-scoped connection, for anything that *accepts* one: the bulk write helpers, and
   every assertion query. Fast, nothing reaches disk.
 - **`truncate_all`** — wipes every table after each test, for anything that *opens and owns* its
-  transaction: storage classes, run functions, and the wrappers above them. A test's outer transaction
+  transaction: repository classes, run functions, and the wrappers above them. A test's outer transaction
   can neither see nor roll back a connection the code under test opened for itself.
 
 Both are always present, and neither is a workaround. A hexagonal service whose adapter owns its
@@ -30,14 +30,14 @@ The split is about ownership, not about which family the service is in.
 
 - Laying or changing the fixtures themselves, or the pytest configuration block that loads them → this
   skill.
-- A test of a table, a bulk helper or the storage class → `flat-test-persistence`, which consumes both
+- A test of a table, a bulk helper or the repository class → `flat-test-persistence`, which consumes both
   `conn` and `truncate_all` and lays none of its own.
 - A run function, a trigger wrapper or the orchestration above them → `flat-test-run-function`; its code
   owns its transactions, so it takes the wipe.
 - An external-system client's own test → `flat-test-service-client`; it needs no datastore and must not
   live under `tests/integration/`.
 - Row builders → not this skill; they are module-level `def`s in the test file using them.
-- What the storage package under test contains, and which callables own their transactions →
+- What the data-access package under test contains, and which callables own their transactions →
   `flat-persistence`.
 - Where members sit when several distributions share one repository, and the root configuration that
   registers a shared fixture module → `python-workspace`.
@@ -63,7 +63,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 _EXTERNAL_FLAG = "MYAPP_TEST_USE_EXTERNAL"
-_REQUIRED_EXTERNAL_VARS = ("MYAPP_STORAGE_DSN",)
+_REQUIRED_EXTERNAL_VARS = ("MYAPP_POSTGRES_DSN",)
 _CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
 _ALLOWED_TEST_DATABASES = frozenset({"test"})
 _DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
@@ -76,7 +76,7 @@ def db_dsn() -> Iterator[str]:
         missing = [name for name in _REQUIRED_EXTERNAL_VARS if not os.getenv(name)]
         if missing:
             raise RuntimeError(f"{_EXTERNAL_FLAG}=1 but these are unset: {', '.join(missing)}")
-        dsn = os.environ["MYAPP_STORAGE_DSN"]
+        dsn = os.environ["MYAPP_POSTGRES_DSN"]
         _refuse_if_not_a_test_database(dsn)
         yield dsn
         return
@@ -102,7 +102,7 @@ def _alembic(dsn: str, *args: str) -> None:
         capture_output=True,
         text=True,
         cwd=_DISTRIBUTION_ROOT,
-        env={**os.environ, "MYAPP_STORAGE_DSN": dsn},
+        env={**os.environ, "MYAPP_POSTGRES_DSN": dsn},
     )
     assert result.returncode == 0, result.stderr
 
@@ -139,7 +139,7 @@ async def conn(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
 @pytest.fixture(autouse=True)
 async def truncate_all(engine: AsyncEngine) -> AsyncIterator[None]:
     """For code that opens and owns its own transaction; wipes every table afterwards."""
-    from myapp.storage.metadata import metadata
+    from myapp.postgres.metadata import metadata
 
     yield
     tables = ", ".join(f'"{t.name}"' for t in metadata.sorted_tables)
@@ -164,7 +164,7 @@ floating tag moves the schema under the suite between runs.
 what proves every revision's `downgrade()` reverses its `upgrade()` (`flat-persistence`), and the suite
 then runs against the schema the history produces. The subprocess runs from the distribution root, where
 `alembic.ini` sits, and hands the container's DSN to the migration environment under the variable that
-environment reads — the data-access component's own, `MYAPP_STORAGE_DSN` (`flat-project-setup`).
+environment reads — the data-access component's own, `MYAPP_POSTGRES_DSN` (`flat-project-setup`).
 
 `truncate_all` is autouse **here** because this conftest is scoped to one directory of integration tests,
 all of which reach code that commits. Its teardown ordering is what keeps it safe: `TRUNCATE` takes an
@@ -189,7 +189,7 @@ filterwarnings = ["error"]
 Both loop-scope lines are load-bearing, not decoration. The `engine` fixture is session-scoped, so every
 test and fixture must share **one** event loop. Under pytest-asyncio's default function loop scope, the
 session engine's connections outlive the loop they were opened on, and the first test running a
-statement that *errors* — a constraint violation through the storage class, the ordinary contract case —
+statement that *errors* — a constraint violation through the repository class, the ordinary contract case —
 crashes at teardown with `RuntimeError: Event loop is closed`, because the driver cannot cancel the
 aborted command on a closed loop.
 
@@ -218,7 +218,7 @@ pure-unit collection pays nothing for it.
 - **An in-process or file-backed engine** (SQLite through an async driver). Cheapest to start, and it
   costs what this level buys: upsert semantics, generated constraint names and transaction behaviour are
   no longer production's, so `flat-test-persistence`'s constraint-name and conflict-path assertions stop
-  meaning anything. Never for the storage package's own suite.
+  meaning anything. Never for the data-access package's own suite.
 - **Creating the schema from the metadata instead of replaying the migration history.** Faster, and it
   stops testing that the migrations produce the schema the code expects — which is the drift the history
   exists to prevent. Keep the history wherever the migrations are themselves an artifact the project
@@ -267,7 +267,7 @@ pure-unit collection pays nothing for it.
   it as autouse where the tests actually commit.
 - The body of `truncate_all` is being copied into a second conftest → stop, depend on the shared fixture
   and add `autouse=True` in the wrapper; one body, one place.
-- A savepoint-rollback fixture is being added so the storage class's tests can avoid the wipe → stop, that
+- A savepoint-rollback fixture is being added so the repository class's tests can avoid the wipe → stop, that
   class is the declared owner of its transaction and opens its own connection (`flat-persistence`
   rule 3); the savepoint would isolate a connection nothing under test uses, and the test would pass
   while asserting nothing.

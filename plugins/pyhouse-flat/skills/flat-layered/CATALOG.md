@@ -60,11 +60,11 @@ class ValidationError(MyappError):
 
 | Class | Status | Raised by |
 |---|---|---|
-| `FooClientError` | 502 | the client, on a transport, status or parse failure (`SKILL.md`, the client template) |
-| `FooNotFoundError` | 404 | the storage class's read, when no row matches (`flat-persistence`) |
-| `FooAlreadyRecordedError` | 409 | the storage class's refusing write, on the reference's unique constraint |
-| `StorageWriteRejectedError` | 500, the root's | the storage translator, for any other refusal of the data — a defect of this service |
-| `StorageUnavailableError` | 503 | the storage translator's fallback — a failed connection, transaction or read |
+| `FooClientError` | 502 | the client, on a transport, status or parse failure, including a credential the upstream still rejects after one re-authentication (`SKILL.md`, the client template) |
+| `FooNotFoundError` | 404 | the repository's read, when no row matches (`flat-persistence`) |
+| `FooAlreadyRecordedError` | 409 | the repository's refusing write, on the reference's unique constraint |
+| `StorageWriteRejectedError` | 500, the root's | the data-access package's translator, for any other refusal of the data — a defect of this service |
+| `StorageUnavailableError` | 503 | that translator's fallback — a failed connection, transaction or read |
 | `ValidationError` | 422 | the HTTP wrapper, for a request the framework rejected (`flat-entrypoint`) |
 
 `http_status` is there because the HTTP shape renders it. A service with no HTTP trigger drops the root's

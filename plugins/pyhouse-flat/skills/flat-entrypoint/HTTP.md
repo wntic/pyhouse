@@ -21,9 +21,9 @@ from fastapi.responses import JSONResponse
 from myapp.exceptions import MyappError, ValidationError
 from myapp.ingest.foo_ingest import run_once
 from myapp.jobs import find_foo
+from myapp.postgres import FooRepository
 from myapp.schemas import Foo, IngestResult
-from myapp.services import FooClient
-from myapp.storage import FooStorage
+from myapp.services.foo_api import FooClient
 
 __all__ = ["build_app"]
 
@@ -47,7 +47,7 @@ def _log_and_render(exc: MyappError) -> JSONResponse:
     return _response(exc)
 
 
-def build_app(client: FooClient, storage: FooStorage) -> FastAPI:
+def build_app(client: FooClient, repository: FooRepository) -> FastAPI:
     app = FastAPI()
 
     @app.middleware("http")
@@ -69,11 +69,11 @@ def build_app(client: FooClient, storage: FooStorage) -> FastAPI:
 
     @app.post("/runs")
     async def trigger_run() -> IngestResult:
-        return await run_once(client, storage)
+        return await run_once(client, repository)
 
     @app.get("/foos/{reference}")
     async def read_foo(reference: Annotated[str, Path(max_length=_REFERENCE_MAX_LENGTH)]) -> Foo:
-        return await find_foo(storage, reference)
+        return await find_foo(repository, reference)
 
     return app
 ```
@@ -99,14 +99,14 @@ test could not hand it a test container's engine.
 `src/myapp/jobs/foo_lookup.py` — in the work-unit package for already-stored data:
 
 ```python
+from myapp.postgres import FooRepository
 from myapp.schemas import Foo
-from myapp.storage import FooStorage
 
 __all__ = ["find_foo"]
 
 
-async def find_foo(storage: FooStorage, reference: str) -> Foo:
-    return await storage.get_by_reference(reference)
+async def find_foo(repository: FooRepository, reference: str) -> Foo:
+    return await repository.get_by_reference(reference)
 ```
 
 `src/myapp/jobs/__init__.py` re-exports it, because its name is its own. A module whose run function
@@ -122,36 +122,41 @@ __all__ = foo_lookup.__all__
 
 ## The process definition — uvicorn
 
-`src/myapp/settings.py` — the `Settings` class `flat-layered` shows, unchanged in every other line —
-gains the two fields the server binds to, below the fields it already declares and required like every
-other tunable (`flat-layered` rule 10): `http_host: str` and `http_port: int`, read from
+`src/myapp/settings.py` — the process's own `Settings` class in the shape `flat-layered` shows, created
+here if the process had no fields of its own before — gains the two fields the server binds to, required
+like every other tunable (`flat-layered` rule 10): `http_host: str` and `http_port: int`, read from
 `MYAPP_HTTP_HOST` and `MYAPP_HTTP_PORT`. It is one class; add the two lines to it rather than writing a
 second one.
 
-`src/myapp/entrypoints/foo_http.py` — the only place a settings factory is called, exactly as for the
-loop:
+`src/myapp/entrypoints/foo_http.py` — it reads the process's own settings and takes the client and the
+repository from the same wiring module the loop imports (`SKILL.md`, rule 14):
 
 ```python
+import asyncio
+
 import uvicorn
 
-from myapp.services import FooClient
+from myapp.entrypoints.wiring import open_foo_client, open_foo_repository
 from myapp.settings import get_settings
-from myapp.storage import FooStorage, get_engine, get_storage_settings
 from myapp.web import build_app
 
 
-def main() -> None:
+async def main() -> None:
     settings = get_settings()
-    storage = FooStorage(get_engine(get_storage_settings().dsn.get_secret_value()))
-    client = FooClient(settings.foo_api_url, settings.foo_api_timeout_seconds)
-    app = build_app(client, storage)
-
-    uvicorn.run(app, host=settings.http_host, port=settings.http_port)
+    async with open_foo_client() as client, open_foo_repository() as repository:
+        app = build_app(client, repository)
+        server = uvicorn.Server(uvicorn.Config(app, host=settings.http_host, port=settings.http_port))
+        await server.serve()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 ```
+
+The server is served on the process's own event loop, inside the `async with` that owns the upstream
+transport and the engine, rather than through `uvicorn.run`, which starts a loop of its own: the pooled
+client and the engine are then opened and closed on the loop the app's requests run on, once for the
+life of the server (`flat-layered` rule 14).
 
 `src/myapp/web/__init__.py` re-exports `build_app` the same way, and the project adds `fastapi` and
 `uvicorn` to its dependencies (`flat-project-setup`).

@@ -1,6 +1,6 @@
 ---
 name: flat-test-run-function
-description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test every time, the loop's failure-containment contract, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the storage package's write path, which is `flat-test-persistence`.
+description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test every time, the loop's failure-containment contract, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the data-access package's write path, which is `flat-test-persistence`.
 when_to_use: Also when asked to test a `run_once` body, a polling loop's error handling, a wrapper class, an HTTP route in front of a run function, a workflow's retry policy, a batch loop's termination, or what a continuation carries across runs.
 ---
 
@@ -9,7 +9,7 @@ when_to_use: Also when asked to test a `run_once` body, a polling loop's error h
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 A run function is where a flat-layered service composes everything, so its test is the one that catches
-wiring: the client's payload actually fits what the storage class stores, the filter drops what it
+wiring: the client's payload actually fits what the repository class stores, the filter drops what it
 should, the aggregate counts what happened. **This skill covers the levels of wrapping around that one
 call, tested at each.** They are one subject because they are layers of the same invocation.
 
@@ -33,7 +33,7 @@ earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely
 
 - The HTTP client the body calls → `flat-test-service-client`; this level substitutes that client's
   transport, never the client object itself.
-- The tables, helpers and storage class the body writes through → `flat-test-persistence`.
+- The tables, helpers and repository class the body writes through → `flat-test-persistence`.
 - The container and isolation fixtures → `flat-test-integration-setup`; the code here owns its
   transactions, so it takes the whole-schema wipe.
 - Writing the run function, the `guarded` wrapper or the trigger, rather than testing it →
@@ -49,7 +49,8 @@ earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely
 
 ## Template — the run function end to end (pytest, `respx` over `httpx`, real Postgres)
 
-`tests/integration/test_foo_ingest.py`:
+`tests/integration/test_foo_ingest.py` — the upstream stub `foo_api` and the client over it,
+`foo_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`):
 
 ```python
 from collections.abc import Sequence
@@ -62,24 +63,19 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from myapp.exceptions import FooClientError
 from myapp.ingest.foo_ingest import run_once
-from myapp.services import FooClient
-from myapp.storage import FooStorage
-from myapp.storage.foo_table import bar_table, foo_table
-
-_BASE_URL = "https://foo.test"
+from myapp.postgres import FooRepository
+from myapp.postgres.foo_table import bar_table, foo_table
+from myapp.services.foo_api import FooClient
 
 
-def _client() -> FooClient:
-    return FooClient(base_url=_BASE_URL, timeout_seconds=1.0)
-
-
-@respx.mock
-async def test_a_run_lands_its_foos_and_their_labels(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
+async def test_a_run_lands_its_foos_and_their_labels(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+) -> None:
+    foo_api.get("/foos").mock(
         return_value=httpx.Response(200, json={"items": [{"ref": " ALPHA ", "name": "a", "labels": ["amber"]}]})
     )
 
-    await run_once(_client(), FooStorage(engine))
+    await run_once(foo_client, FooRepository(engine))
 
     reference: str = (await conn.execute(select(foo_table.c.reference))).scalar_one()
     labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
@@ -87,57 +83,62 @@ async def test_a_run_lands_its_foos_and_their_labels(engine: AsyncEngine, conn: 
     assert labels == ["amber"]
 
 
-@respx.mock
-async def test_items_the_filter_rejects_are_not_stored(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
+async def test_items_the_filter_rejects_are_not_stored(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+) -> None:
+    foo_api.get("/foos").mock(
         return_value=httpx.Response(
             200,
             json={"items": [{"ref": "alpha", "name": "a"}, {"ref": None, "name": "b"}]},
         )
     )
 
-    await run_once(_client(), FooStorage(engine))
+    await run_once(foo_client, FooRepository(engine))
 
     names: Sequence[str] = (await conn.execute(select(foo_table.c.name))).scalars().all()
     assert names == ["a"]
 
 
-@respx.mock
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
-    engine: AsyncEngine, conn: AsyncConnection
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]})
-    )
-    await run_once(_client(), FooStorage(engine))
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]}))
+    await run_once(foo_client, FooRepository(engine))
 
-    await run_once(_client(), FooStorage(engine))
+    await run_once(foo_client, FooRepository(engine))
 
     assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
 
 
-@respx.mock
-async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(
-            200,
-            json={"items": [{"ref": "alpha", "name": "a"}, {"ref": None, "name": "b"}]},
-        )
+async def test_a_run_reports_what_it_fetched_and_kept_across_pages(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine
+) -> None:
+    foo_api.get("/foos").mock(
+        side_effect=[
+            httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}], "next": "cursor-2"}),
+            httpx.Response(200, json={"items": [{"ref": None, "name": "b"}], "next": None}),
+        ]
     )
 
-    result = await run_once(_client(), FooStorage(engine))
+    result = await run_once(foo_client, FooRepository(engine))
 
     assert (result.fetched, result.kept) == (2, 1)
 
 
-@respx.mock
-async def test_an_upstream_failure_propagates_and_writes_nothing(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(return_value=httpx.Response(503))
+async def test_an_upstream_failure_propagates_after_the_pages_before_it_landed(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+) -> None:
+    foo_api.get("/foos").mock(
+        side_effect=[
+            httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}], "next": "cursor-2"}),
+            httpx.Response(503),
+        ]
+    )
 
     with pytest.raises(FooClientError):
-        await run_once(_client(), FooStorage(engine))
+        await run_once(foo_client, FooRepository(engine))
 
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 0
+    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
 ```
 
 The filter test seeds one item that must survive beside the one that must go, so a body that drops
@@ -149,18 +150,70 @@ is the one a wrong conflict-column list breaks.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
-fails silently everywhere a human is looking.
+fails silently everywhere a human is looking. It spans two pages, so a body that reports only the last
+page's counts fails it.
+
+The failure test fails the *second* page, and asserts that the first page's row is kept: that is the
+body writing each page before fetching the next (`flat-entrypoint` rule 10), and the idempotence test is
+what makes the retry after it safe.
+
+## Template — a fan-out's partial failure (pytest, real Postgres)
+
+`tests/integration/test_foo_refresh.py` — one unit's repository write fails for real, on the schema's own
+declared width (`flat-persistence`), while its neighbours succeed:
+
+```python
+from collections.abc import Sequence
+
+import httpx
+import pytest
+import respx
+from sqlalchemy import String, select
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+
+from myapp.exceptions import MyappError
+from myapp.ingest.foo_refresh import refresh_foos
+from myapp.postgres import FooRepository
+from myapp.postgres.foo_table import bar_table, foo_table
+from myapp.services.foo_api import FooClient
+
+
+async def test_one_failed_unit_leaves_the_others_written_and_is_named(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+) -> None:
+    label_type = bar_table.c.label.type
+    assert isinstance(label_type, String) and label_type.length is not None
+    over_long = ["l" * (label_type.length + 1)]
+    for foo_id in ("f1", "f2", "f3"):
+        body = {"ref": foo_id, "name": foo_id, "labels": over_long if foo_id == "f2" else []}
+        foo_api.get(f"/foos/{foo_id}").mock(return_value=httpx.Response(200, json=body))
+
+    with pytest.raises(MyappError) as exc_info:
+        await refresh_foos(foo_client, FooRepository(engine), ["f1", "f2", "f3"], concurrency=2)
+
+    stored: Sequence[str] = (
+        (await conn.execute(select(foo_table.c.reference).order_by(foo_table.c.reference))).scalars().all()
+    )
+    assert stored == ["f1", "f3"]
+    assert exc_info.value.context == {"failed": ["f2"]}
+```
+
+The failure is the store's own refusal, not an injected one, so the unit fails where a real one would —
+inside its write — and the assertion on `context` is what separates the run's aggregate failure from
+the unit's own error escaping uncontained, which `pytest.raises` alone would also accept. The units
+outnumber `concurrency`, so one waits for a slot another frees. Where each unit also writes a progress
+marker, the test asserts the survivors' markers beside their rows, and the failed unit's absent.
 
 ## Template — the loop's failure containment (pytest)
 
 The loop entrypoint's contract is that one failed run does not kill the process. Test the containment,
 not the loop — a `while True` under test needs an escape, and building one changes the thing being
-tested. This is why `guarded` is a named function (`flat-entrypoint`), and why it returns whether the
-run succeeded: the assertion is on that value, never on what was logged. It needs no datastore, so it
-lives in `tests/unit/test_foo_loop.py`:
+tested. This is why `guarded` is a named function in a module of its own (`flat-entrypoint`), and why it
+returns whether the run succeeded: the assertion is on that value, never on what was logged. It needs no
+datastore, so it lives in `tests/unit/test_containment.py`, one file for the one guard every loop shares:
 
 ```python
-from myapp.entrypoints.foo_loop import guarded
+from myapp.entrypoints.containment import guarded
 from myapp.exceptions import FooClientError
 
 
@@ -168,14 +221,14 @@ async def test_a_failing_run_is_contained() -> None:
     async def _boom() -> None:
         raise FooClientError("upstream down")
 
-    assert await guarded(_boom) is False
+    assert await guarded("foo_ingest", _boom) is False
 
 
 async def test_a_succeeding_run_is_reported_as_such() -> None:
     async def _ok() -> None:
         return None
 
-    assert await guarded(_ok) is True
+    assert await guarded("foo_ingest", _ok) is True
 ```
 
 The failing case returning at all is the containment; `False` pins that the guard saw the failure
@@ -207,37 +260,35 @@ work in-process, and the typed-failure assertion is what its history makes neces
 over the suite's own engine, driven on the test's event loop:
 
 ```python
+from collections.abc import AsyncIterator
+
 import httpx
+import pytest
 import respx
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from myapp.services import FooClient
-from myapp.storage import FooStorage
+from myapp.postgres import FooRepository
+from myapp.services.foo_api import FooClient
 from myapp.web import build_app
 
-_BASE_URL = "https://foo.test"
+
+@pytest.fixture
+async def http(foo_client: FooClient, engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
+    app = build_app(foo_client, FooRepository(engine))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app") as client:
+        yield client
 
 
-def _http(engine: AsyncEngine) -> httpx.AsyncClient:
-    app = build_app(FooClient(base_url=_BASE_URL, timeout_seconds=1.0), FooStorage(engine))
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app")
+async def test_a_run_request_reaches_the_run_function(foo_api: respx.MockRouter, http: httpx.AsyncClient) -> None:
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]}))
 
-
-@respx.mock
-async def test_a_run_request_reaches_the_run_function(engine: AsyncEngine) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]})
-    )
-
-    async with _http(engine) as http:
-        response = await http.post("/runs")
+    response = await http.post("/runs")
 
     assert response.json() == {"fetched": 1, "kept": 1}
 
 
-async def test_a_catalogue_error_arrives_as_its_status_and_code(engine: AsyncEngine) -> None:
-    async with _http(engine) as http:
-        response = await http.get("/foos/unknown")
+async def test_a_catalogue_error_arrives_as_its_status_and_code(http: httpx.AsyncClient) -> None:
+    response = await http.get("/foos/unknown")
 
     assert response.status_code == 404
     assert response.json()["code"] == "FOO_NOT_FOUND"
@@ -269,7 +320,7 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
 
 ## Rules
 
-1. **A run function takes what it needs as parameters** — the client, the storage class. A body reaching
+1. **A run function takes what it needs as parameters** — the client, the repository class. A body reaching
    for a module-level engine or a settings value cannot be pointed at the test container, and no test of
    it means anything.
 2. **The upstream is substituted at its transport; the datastore is not substituted at all.** That
@@ -291,6 +342,10 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
 6. **The wrapper body never diverges from the run function** — it calls it and holds no logic of its own.
    A divergence means two triggers of the same work are drifting apart, and the tests must not paper
    over it.
+7. **A run that fans out over independent units is tested with one unit failing inside its write.** The
+   test asserts that every other unit's rows — and markers, where units write them — landed, and that
+   the run's failure names the failed unit. A primitive that propagates the first failure, or a
+   containment around only part of a unit's body, fails it (`flat-entrypoint` rules 11 and 13).
 
 ### Once a durable-execution engine is earned
 
@@ -339,6 +394,8 @@ change under any engine, because the body never imports one.
   logic.
 - A test of the run function substitutes the datastore → stop, that removes the only thing this level can
   prove; substitute the upstream transport and keep the real store.
+- A fan-out's test fails a unit before its write, or asserts only that the run raised → stop, fail it
+  inside the write and assert the other units' rows and the named failure (rule 7).
 - An orchestration, a continuation or a declared retry policy is about to be tested with no engine in
   the service → stop, that level exists only once an engine has been earned (`flat-entrypoint` rule 1).
 
