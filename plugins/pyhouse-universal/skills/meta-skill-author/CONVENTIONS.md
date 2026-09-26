@@ -132,6 +132,7 @@ One vocabulary for the whole catalogue.
 |---|---|
 | `Foo` | the primary aggregate |
 | `Bar` | the secondary aggregate |
+| `Baz` | a third aggregate, used where an example needs one held by a different kind of store than `Foo` and `Bar` — module `baz.py`, package `domain/bazs/`, port `IBazRepository` |
 | `myapp` | a distribution's **own root package** |
 | `myschema` | a **shared library several distributions depend on** — imported by them, owned by none of them |
 | `myframework` | a **third-party framework** a rule is about *wrapping*, where naming a real one would make the rule that framework's |
