@@ -82,18 +82,14 @@ class FooRepository:
 
     async def get_by_id(self, id: UUID) -> Foo:
         async with self._sf() as session:
-            row = (
-                await session.execute(select(foos_table).where(foos_table.c.id == id))
-            ).mappings().one_or_none()
+            row = (await session.execute(select(foos_table).where(foos_table.c.id == id))).mappings().one_or_none()
         if row is None:
             raise NotFoundError("Foo not found", {"id": str(id)})
         return self._row_to_entity(row)
 
     async def get_by_name(self, name: str) -> Foo | None:
         async with self._sf() as session:
-            row = (
-                await session.execute(select(foos_table).where(foos_table.c.name == name))
-            ).mappings().one_or_none()
+            row = (await session.execute(select(foos_table).where(foos_table.c.name == name))).mappings().one_or_none()
         return self._row_to_entity(row) if row is not None else None
 
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
@@ -112,9 +108,7 @@ class FooRepository:
     async def create(self, foo: Foo) -> None:
         try:
             async with self._sf() as session:
-                await session.execute(
-                    foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id)
-                )
+                await session.execute(foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id))
                 await session.commit()
         except IntegrityError as exc:
             raise _map_integrity_error(exc) from exc
@@ -141,9 +135,7 @@ class FooRepository:
             async with self._sf() as session:
                 result = cast(
                     CursorResult[object],
-                    await session.execute(
-                        foos_table.delete().where(foos_table.c.id == id)
-                    ),
+                    await session.execute(foos_table.delete().where(foos_table.c.id == id)),
                 )
                 if result.rowcount == 0:
                     raise NotFoundError("Foo not found", {"id": str(id)})
@@ -185,9 +177,7 @@ class FooSessionRepository:
 
     async def create(self, foo: Foo) -> None:
         try:
-            await self._session.execute(
-                foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id)
-            )
+            await self._session.execute(foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id))
         except IntegrityError as exc:
             raise _map_integrity_error(exc) from exc
 ```

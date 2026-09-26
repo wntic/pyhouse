@@ -53,9 +53,7 @@ from myapp.restapi.schemas import FooResponse
 async def test_create_foo_happy_path(real_app: FastAPI, bar_id: uuid.UUID) -> None:
     transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post(
-            "/foos", json={"name": "alpha", "bar_id": str(bar_id)}
-        )
+        response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
 
     assert response.status_code == 201
     body = FooResponse.model_validate(response.json())
@@ -63,9 +61,7 @@ async def test_create_foo_happy_path(real_app: FastAPI, bar_id: uuid.UUID) -> No
     assert body.bar_id == bar_id
 
 
-async def test_create_foo_duplicate_name_returns_409(
-    real_app: FastAPI, bar_id: uuid.UUID
-) -> None:
+async def test_create_foo_duplicate_name_returns_409(real_app: FastAPI, bar_id: uuid.UUID) -> None:
     transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         payload = {"name": "alpha", "bar_id": str(bar_id)}
@@ -81,9 +77,7 @@ async def test_create_foo_duplicate_name_returns_409(
 async def test_create_foo_unknown_bar_returns_404(real_app: FastAPI) -> None:
     transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post(
-            "/foos", json={"name": "alpha", "bar_id": str(uuid.uuid4())}
-        )
+        response = await client.post("/foos", json={"name": "alpha", "bar_id": str(uuid.uuid4())})
 
     assert response.status_code == 404
     assert response.json()["code"] == NotFoundError.code
@@ -117,10 +111,9 @@ async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
         await session.commit()
     return bid
 
+
 @pytest.fixture
-def make_foo(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> Callable[..., Awaitable[uuid.UUID]]:
+def make_foo(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> Callable[..., Awaitable[uuid.UUID]]:
     async def _make(*, name: str | None = None) -> uuid.UUID:
         fid = uuid.uuid4()
         async with sf() as session:
@@ -133,7 +126,9 @@ def make_foo(
             )
             await session.commit()
         return fid
+
     return _make
+
 
 @pytest.fixture
 async def foo_id(make_foo: Callable[..., Awaitable[uuid.UUID]]) -> uuid.UUID:
@@ -152,9 +147,8 @@ from myapp.restapi.schemas import AttachmentResponse
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 
-async def test_upload_attachment_returns_201(
-    real_app: FastAPI, foo_id: uuid.UUID
-) -> None:
+
+async def test_upload_attachment_returns_201(real_app: FastAPI, foo_id: uuid.UUID) -> None:
     transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(

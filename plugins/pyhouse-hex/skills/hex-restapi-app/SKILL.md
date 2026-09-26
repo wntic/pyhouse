@@ -57,10 +57,12 @@ from .error_handler import register_error_handlers
 
 __all__ = ["create_app"]
 
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     yield
     await app.state.dishka_container.close()
+
 
 def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app = FastAPI(title="Foo Service", lifespan=_lifespan)
@@ -112,6 +114,7 @@ __all__ = ["register_error_handlers"]
 
 log = structlog.get_logger()
 
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
@@ -134,9 +137,7 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def _handle_invalid_request(
-        request: Request, exc: RequestValidationError
-    ) -> JSONResponse:
+    async def _handle_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
         fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
         translated = ValidationError("request validation failed", {"fields": fields})
         return await _handle_domain_error(request, translated)
@@ -205,16 +206,19 @@ from myapp.domain.exceptions import DomainError
 
 __all__ = ["DESCRIPTION_OVERRIDES", "ErrorResponse", "MIDDLEWARE_ERRORS", "error_responses"]
 
+
 class ErrorResponse(BaseModel):
     code: str
     message: str
     context: dict[str, object] = Field(default_factory=dict)
+
 
 # Codes no DomainError class produces; INTERNAL_ERROR is the unhandled-exception code.
 MIDDLEWARE_ERRORS: dict[str, int] = {"INTERNAL_ERROR": 500}
 
 # Only the statuses whose OpenAPI wording this app overrides; empty by default.
 DESCRIPTION_OVERRIDES: dict[int, str] = {}
+
 
 def _describe(code: int) -> str:
     if code in DESCRIPTION_OVERRIDES:
@@ -225,6 +229,7 @@ def _describe(code: int) -> str:
         # A vendor-specific status the stdlib does not know: the number, not invented wording.
         return str(code)
 
+
 def _all_known_statuses() -> set[int]:
     domain_statuses: set[int] = set()
     for name in _domain_exceptions.__all__:
@@ -233,18 +238,14 @@ def _all_known_statuses() -> set[int]:
             domain_statuses.add(cls.http_status)
     return domain_statuses | set(MIDDLEWARE_ERRORS.values())
 
+
 def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
     known = _all_known_statuses()
     unknown = [c for c in codes if c not in known]
     if unknown:
-        raise ValueError(
-            f"HTTP statuses not produced by any DomainError or middleware: {unknown}"
-        )
+        raise ValueError(f"HTTP statuses not produced by any DomainError or middleware: {unknown}")
     # Exactly FastAPI's `responses=` type; a narrower value type fails strict mypy at the decorator.
-    out: dict[int | str, dict[str, Any]] = {
-        c: {"model": ErrorResponse, "description": _describe(c)}
-        for c in codes
-    }
+    out: dict[int | str, dict[str, Any]] = {c: {"model": ErrorResponse, "description": _describe(c)} for c in codes}
     return out
 ```
 
@@ -364,10 +365,7 @@ class MaxRequestSizeMiddleware:
 
 async def _send_error(send: Send, status: int, code: str, message: str) -> None:
     body = ErrorResponse(code=code, message=message).model_dump_json().encode()
-    await send(
-        {"type": "http.response.start", "status": status,
-         "headers": [(b"content-type", b"application/json")]}
-    )
+    await send({"type": "http.response.start", "status": status, "headers": [(b"content-type", b"application/json")]})
     await send({"type": "http.response.body", "body": body})
 ```
 

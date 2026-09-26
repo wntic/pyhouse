@@ -36,8 +36,10 @@ class _PgConn(TypedDict):
     password: str
     name: str
 
+
 # A dedicated opt-in variable, never an ambient one like `CI`: this suite wipes what it reaches.
 _EXTERNAL_DB_FLAG = "MYAPP_TEST_USE_EXTERNAL_DB"
+
 
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[_PgConn]:
@@ -65,6 +67,7 @@ def postgres_container() -> Iterator[_PgConn]:
             "name": pg.dbname,
         }
 
+
 @pytest.fixture(scope="session")
 def db_settings(postgres_container: _PgConn) -> DbSettings:
     return DbSettings(
@@ -76,6 +79,7 @@ def db_settings(postgres_container: _PgConn) -> DbSettings:
         # A session-long container never idles a pooled connection stale.
         pool_pre_ping=False,
     )
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _guard_against_real_db(db_settings: DbSettings) -> None:
@@ -97,6 +101,7 @@ def _guard_against_real_db(db_settings: DbSettings) -> None:
             "is created for the test run and destroyed with it."
         )
 
+
 def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedProcess[str]:
     env = {
         **os.environ,
@@ -113,17 +118,20 @@ def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedPro
         env=env,
     )
 
+
 @pytest.fixture(scope="session", autouse=True)
 def _migrated_db(_guard_against_real_db: None, db_settings: DbSettings) -> DbSettings:
     result = _run_alembic(db_settings, "upgrade", "head")
     assert result.returncode == 0, result.stderr
     return db_settings
 
+
 @pytest.fixture(scope="session")
 def run_alembic(_migrated_db: DbSettings) -> Callable[..., subprocess.CompletedProcess[str]]:
     """The migration runner, for the migration tests that move the schema
     themselves (`hex-test-repository-contract`)."""
     return partial(_run_alembic, _migrated_db)
+
 
 @pytest.fixture(scope="session")
 async def _engine(_migrated_db: DbSettings) -> AsyncIterator[AsyncEngine]:
@@ -132,6 +140,7 @@ async def _engine(_migrated_db: DbSettings) -> AsyncIterator[AsyncEngine]:
         yield engine
     finally:
         await engine.dispose()
+
 
 @pytest.fixture
 async def _outer_connection(_engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
@@ -145,6 +154,7 @@ async def _outer_connection(_engine: AsyncEngine) -> AsyncIterator[AsyncConnecti
             yield conn
         finally:
             await trans.rollback()
+
 
 @pytest.fixture
 def sf(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
@@ -160,6 +170,7 @@ def sf(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
         expire_on_commit=False,
         join_transaction_mode="create_savepoint",
     )
+
 
 class TestInfraProvider(Provider):
     """Replaces the infrastructure bindings of the real composition root with the
@@ -253,7 +264,9 @@ class _BlobStoreConn(TypedDict):
     access_key: str
     secret_key: str
 
+
 _EXTERNAL_STORAGE_FLAG = "MYAPP_TEST_USE_EXTERNAL_STORAGE"
+
 
 @pytest.fixture(scope="session")
 def minio_container() -> Iterator[_BlobStoreConn]:
@@ -275,6 +288,7 @@ def minio_container() -> Iterator[_BlobStoreConn]:
             "secret_key": minio.secret_key,
         }
 
+
 @pytest.fixture(scope="session")
 def s3_session(minio_container: _BlobStoreConn) -> aioboto3.Session:
     return aioboto3.Session(
@@ -282,10 +296,9 @@ def s3_session(minio_container: _BlobStoreConn) -> aioboto3.Session:
         aws_secret_access_key=minio_container["secret_key"],
     )
 
+
 @pytest.fixture
-async def s3_settings(
-    minio_container: _BlobStoreConn, s3_session: aioboto3.Session
-) -> AsyncIterator[S3Settings]:
+async def s3_settings(minio_container: _BlobStoreConn, s3_session: aioboto3.Session) -> AsyncIterator[S3Settings]:
     """A fresh bucket per test — the blob store's namespace isolation, since it
     has nothing to roll back. Created before the test, emptied and dropped
     after it, so no test can see or depend on another's objects."""
@@ -359,6 +372,7 @@ def redis_url() -> Iterator[str]:
     with RedisContainer("<key-value-image>:<pinned-tag>") as redis:
         yield f"redis://{redis.get_container_host_ip()}:{redis.get_exposed_port(6379)}/0"
 
+
 @pytest.fixture(scope="session")
 async def redis_client(redis_url: str) -> AsyncIterator[Redis]:
     client = Redis.from_url(redis_url)
@@ -366,6 +380,7 @@ async def redis_client(redis_url: str) -> AsyncIterator[Redis]:
         yield client
     finally:
         await client.aclose()
+
 
 @pytest.fixture
 async def redis_settings(redis_url: str, redis_client: Redis) -> AsyncIterator[RedisSettings]:

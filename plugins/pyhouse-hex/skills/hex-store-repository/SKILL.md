@@ -104,6 +104,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["RedisSettings"]
 
+
 class RedisSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_REDIS_",

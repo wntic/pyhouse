@@ -18,10 +18,12 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 __all__ = ["RsaKeypair", "generate_rsa_keypair", "sign_token"]
 
+
 @dataclass(frozen=True)
 class RsaKeypair:
     private_pem: str
     public_pem: str
+
 
 def generate_rsa_keypair() -> RsaKeypair:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -31,11 +33,14 @@ def generate_rsa_keypair() -> RsaKeypair:
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption(),
         ).decode(),
-        public_pem=key.public_key().public_bytes(
+        public_pem=key.public_key()
+        .public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        ).decode(),
+        )
+        .decode(),
     )
+
 
 def sign_token(
     claims: dict[str, object],
@@ -78,6 +83,7 @@ from tests.helpers.jwt import RsaKeypair, generate_rsa_keypair, sign_token
 def rsa_keypair() -> RsaKeypair:
     return generate_rsa_keypair()
 
+
 @pytest.fixture(scope="session")
 def jwt_settings(rsa_keypair: RsaKeypair) -> JwtSettings:
     return JwtSettings(
@@ -86,6 +92,7 @@ def jwt_settings(rsa_keypair: RsaKeypair) -> JwtSettings:
         issuer="test-issuer",
         audience="test-audience",
     )
+
 
 @pytest.fixture
 def authed_client(
@@ -192,10 +199,8 @@ def _api_operations(app: FastAPI) -> list[RouteContext]:
     stripped), and the dependency tree with whatever
     `include_router(..., dependencies=[...])` added — so router-level auth is
     seen here."""
-    return [
-        context for context in iter_route_contexts(app.routes)
-        if isinstance(context.original_route, APIRoute)
-    ]
+    return [context for context in iter_route_contexts(app.routes) if isinstance(context.original_route, APIRoute)]
+
 
 def _depends_on(dependant: object, target: object) -> bool:
     """True iff `target` is called anywhere in the dependency tree, at any
@@ -205,6 +210,7 @@ def _depends_on(dependant: object, target: object) -> bool:
         if dep.call is target or _depends_on(dep, target):
             return True
     return False
+
 
 def _is_protected(route: RouteContext) -> bool:
     """A route is protected iff `get_current_user` is in its dependency tree —
@@ -217,6 +223,7 @@ def _is_protected(route: RouteContext) -> bool:
     dependencies included."""
     return _depends_on(route.dependant, get_current_user)
 
+
 def _protected_routes(app: FastAPI) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for route in _api_operations(app):
@@ -227,6 +234,7 @@ def _protected_routes(app: FastAPI) -> list[tuple[str, str]]:
                 continue
             out.append((method, route.path_format or ""))
     return out
+
 
 async def test_the_walk_found_protected_routes_to_probe(real_app: FastAPI) -> None:
     """The net under the parametrized probe below, and the reason it is a test
@@ -242,9 +250,8 @@ async def test_the_walk_found_protected_routes_to_probe(real_app: FastAPI) -> No
         "declares auth — either the auth dependency is not wired or the walk missed it"
     )
 
-async def test_protected_route_returns_401_without_token(
-    method: str, path: str, real_app: FastAPI
-) -> None:
+
+async def test_protected_route_returns_401_without_token(method: str, path: str, real_app: FastAPI) -> None:
     # `method` / `path` are parametrized by `pytest_generate_tests` below.
     async with AsyncClient(
         transport=ASGITransport(app=real_app),
@@ -258,6 +265,7 @@ async def test_protected_route_returns_401_without_token(
     body = response.json()
     assert body["code"] == UnauthorizedError.code
     assert response.headers.get("WWW-Authenticate", "").startswith("Bearer")
+
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     """Discover protected routes at collection time by importing `create_app`
@@ -290,9 +298,7 @@ from myapp.domain.auth import Role
 from myapp.restapi.schemas import FooResponse
 
 
-async def test_create_foo_happy_path(
-    authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID
-) -> None:
+async def test_create_foo_happy_path(authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID) -> None:
     async with authed_client(role=Role.HIGHER) as client:
         response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
 
@@ -300,6 +306,7 @@ async def test_create_foo_happy_path(
     body = FooResponse.model_validate(response.json())
     assert body.name == "alpha"
     assert body.bar_id == bar_id
+
 
 async def test_create_foo_forbidden_for_lower_role(
     authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID
@@ -334,6 +341,7 @@ async def test_get_foo_returns_payload(
 
     assert response.status_code == 200
     FooResponse.model_validate(response.json())
+
 
 async def test_get_foo_in_other_tenant_returns_404(
     authed_client: Callable[..., AsyncClient], foo_id: uuid.UUID

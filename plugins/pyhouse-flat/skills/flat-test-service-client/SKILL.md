@@ -55,9 +55,7 @@ def _client() -> FooClient:
 
 @respx.mock
 async def test_fetch_returns_the_parsed_payload() -> None:
-    respx.get(f"{_BASE_URL}/foos/f1").mock(
-        return_value=httpx.Response(200, json={"ref": "f1", "name": "alpha"})
-    )
+    respx.get(f"{_BASE_URL}/foos/f1").mock(return_value=httpx.Response(200, json={"ref": "f1", "name": "alpha"}))
 
     result = await _client().fetch("f1")
 

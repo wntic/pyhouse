@@ -16,6 +16,7 @@ from myapp.domain.foos import Foo, FooListFilter, FooSort
 
 __all__ = ["FakeFooRepository"]
 
+
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
         # Store DETACHED copies; never alias the caller's instances (Fakes rule 9).
@@ -39,10 +40,7 @@ class FakeFooRepository:
 
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
         # One condition per scoping field the filter declares, as the real WHERE applies it.
-        return [
-            f for f in self._store.values()
-            if not filter.bar_ids or f.bar_id in filter.bar_ids
-        ]
+        return [f for f in self._store.values() if not filter.bar_ids or f.bar_id in filter.bar_ids]
 
     async def get_by_id(self, id: UUID) -> Foo:
         if id not in self._store:
@@ -93,6 +91,7 @@ from myapp.domain.foos import Foo, FooAttachment
 
 __all__ = ["FakeFooRepository"]
 
+
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
         self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
@@ -122,6 +121,7 @@ from myapp.domain.foos import FooExportRow
 
 __all__ = ["FakeExportFoosXlsx"]
 
+
 class FakeExportFoosXlsx:
     def __init__(self, payload: bytes = b"fake-xlsx") -> None:
         self._payload = payload
@@ -140,6 +140,7 @@ A storage fake records what it was asked to do (uploads / deletes) so compensati
 
 ```python
 __all__ = ["FakeFooStorage"]
+
 
 class FakeFooStorage:
     def __init__(self) -> None:

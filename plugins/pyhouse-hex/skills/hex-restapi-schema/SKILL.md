@@ -47,10 +47,12 @@ __all__ = [
     "FooUpdateRequest",
 ]
 
+
 class FooResponse(BaseModel):
     id: UUID
     name: str
     bar_id: UUID
+
 
 # Offset paging; a filter that pages by cursor makes this `items`, `next_cursor`, `limit` (Rule 7).
 class FooListResponse(BaseModel):
@@ -59,9 +61,11 @@ class FooListResponse(BaseModel):
     limit: int
     offset: int
 
+
 class FooCreateRequest(BaseModel):
     name: Annotated[str, Field(min_length=1)]  # mirrors Foo's non-empty-name invariant
     bar_id: UUID
+
 
 class FooUpdateRequest(BaseModel):
     name: Annotated[str | None, Field(min_length=1)] = None

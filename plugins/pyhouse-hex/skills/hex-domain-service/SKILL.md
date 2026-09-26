@@ -28,6 +28,7 @@ from .i_foo_repository import IFooRepository
 
 __all__ = ["FooUniquenessService"]
 
+
 class FooUniquenessService:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
@@ -63,6 +64,7 @@ from ..exceptions import ValidationError
 __all__ = ["canonicalize_url"]
 
 _DEFAULT_PORTS = {"http": 80, "https": 443}
+
 
 def canonicalize_url(raw: str) -> str:
     parts = urlsplit(raw.strip())

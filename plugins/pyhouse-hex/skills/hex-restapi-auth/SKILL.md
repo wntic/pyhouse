@@ -57,6 +57,7 @@ from .role import Role
 
 __all__ = ["CurrentUser"]
 
+
 @dataclass(frozen=True, slots=True)
 class CurrentUser:
     id: UUID
@@ -74,6 +75,7 @@ from enum import StrEnum
 __all__ = ["Role"]
 
 _RANK = {"LOWER": 0, "HIGHER": 1}
+
 
 class Role(StrEnum):
     LOWER = "LOWER"
@@ -104,6 +106,7 @@ from .current_user import CurrentUser
 
 __all__ = ["ICanVerifyToken"]
 
+
 class ICanVerifyToken(Protocol):
     def verify(self, token: str) -> CurrentUser: ...
 ```
@@ -132,6 +135,7 @@ from myapp.domain.exceptions import UnauthorizedError
 from .settings import JwtSettings
 
 __all__ = ["PyJwtTokenVerifier"]
+
 
 class PyJwtTokenVerifier:
     def __init__(self, settings: JwtSettings) -> None:
@@ -185,6 +189,7 @@ __all__ = ["JwtSettings"]
 
 _ALLOWED_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "ES256", "EdDSA"})
 
+
 class JwtSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_JWT_",
@@ -201,9 +206,7 @@ class JwtSettings(BaseSettings):
     @classmethod
     def _reject_unlisted_algorithm(cls, value: str) -> str:
         if value not in _ALLOWED_ALGORITHMS:
-            raise ValueError(
-                f"JWT algorithm {value!r} is not in the allowlist {sorted(_ALLOWED_ALGORITHMS)}"
-            )
+            raise ValueError(f"JWT algorithm {value!r} is not in the allowlist {sorted(_ALLOWED_ALGORITHMS)}")
         return value
 
     @field_validator("public_key")
@@ -262,6 +265,7 @@ __all__ = ["get_current_user", "require_role"]
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
+
 @inject
 async def get_current_user(
     verifier: FromDishka[ICanVerifyToken],
@@ -270,6 +274,7 @@ async def get_current_user(
     if creds is None or creds.scheme.lower() != "bearer":
         raise UnauthorizedError("Missing bearer token", {"reason": "missing_credentials"})
     return verifier.verify(creds.credentials)
+
 
 class _RoleDependency:
     """A role-gated route dependency. A callable CLASS, not a closure, so the gated role is a
@@ -286,6 +291,7 @@ class _RoleDependency:
                 {"required": self.required_role.value, "actual": user.role.value},
             )
         return user
+
 
 def require_role(required: Role) -> _RoleDependency:
     return _RoleDependency(required)

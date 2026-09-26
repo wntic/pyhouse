@@ -62,6 +62,7 @@ from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 _FRAMEWORK_VALIDATION_CODE = 422
 _ERROR_SCHEMA_REF = "#/components/schemas/ErrorResponse"
 
+
 def _api_operations(app: FastAPI) -> list[RouteContext]:
     """Every API operation the app serves, one resolved route context each.
 
@@ -77,10 +78,8 @@ def _api_operations(app: FastAPI) -> list[RouteContext]:
     converter — `/files/{file_path:path}` is published as `/files/{file_path}`.
     Either already carries the include-time prefix; only one of them matches
     the document on every route."""
-    return [
-        context for context in iter_route_contexts(app.routes)
-        if isinstance(context.original_route, APIRoute)
-    ]
+    return [context for context in iter_route_contexts(app.routes) if isinstance(context.original_route, APIRoute)]
+
 
 def _operations(app: FastAPI) -> list[tuple[str, str]]:
     return [
@@ -90,17 +89,19 @@ def _operations(app: FastAPI) -> list[tuple[str, str]]:
         if method != "HEAD"
     ]
 
+
 def _route(app: FastAPI, method: str, path: str) -> RouteContext:
     return next(
-        route for route in _api_operations(app)
-        if route.path_format == path and method in (route.methods or ())
+        route for route in _api_operations(app) if route.path_format == path and method in (route.methods or ())
     )
+
 
 def _declared_codes(route: RouteContext) -> set[int]:
     """The error codes the route's decorator advertised. FastAPI keeps the
     dict `error_responses(...)` produced on the route's `responses`, keyed by
     status code, and the resolved context carries it unchanged."""
     return {code for code in route.responses if isinstance(code, int) and code >= 400}
+
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     """One case per operation, discovered at collection time from the app
@@ -111,15 +112,15 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         cases = _operations(create_app())
         metafunc.parametrize("method,path", cases, ids=[f"{m} {p}" for m, p in cases])
 
+
 async def test_the_walk_found_operations_to_compare(real_app: FastAPI) -> None:
     """The net under the parametrized test below: an empty parameter set is
     reported as skipped, not failed, so a walk that discovers nothing would
     otherwise leave the run green having compared nothing (rule 3)."""
     assert _api_operations(real_app), "no API operation was discovered, so nothing was compared"
 
-async def test_operation_publishes_what_its_decorator_declared(
-    method: str, path: str, real_app: FastAPI
-) -> None:
+
+async def test_operation_publishes_what_its_decorator_declared(method: str, path: str, real_app: FastAPI) -> None:
     declared = _declared_codes(_route(real_app, method, path))
     published_responses = real_app.openapi()["paths"][path][method.lower()]["responses"]
     published = {int(c) for c in published_responses if c.isdigit() and int(c) >= 400}
@@ -127,9 +128,9 @@ async def test_operation_publishes_what_its_decorator_declared(
     assert declared - published == set(), "declared but not published"
     assert published - declared - {_FRAMEWORK_VALIDATION_CODE} == set(), "published undeclared"
     off_shape = {
-        code for code in published
-        if published_responses[str(code)]["content"]["application/json"]["schema"]
-        != {"$ref": _ERROR_SCHEMA_REF}
+        code
+        for code in published
+        if published_responses[str(code)]["content"]["application/json"]["schema"] != {"$ref": _ERROR_SCHEMA_REF}
     }
     assert off_shape == set(), "published without the catalogue's error shape"
 ```

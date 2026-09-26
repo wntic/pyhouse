@@ -32,10 +32,14 @@ project's errors propagate to decides which scope that is. Everything else is un
 ```python
 # yes
 name: str | None = None
+
+
 def find(id: UUID) -> Foo | None: ...
+
 
 # no
 from typing import Optional
+
 name: Optional[str] = None
 ```
 

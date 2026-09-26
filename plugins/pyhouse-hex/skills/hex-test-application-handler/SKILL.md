@@ -47,6 +47,7 @@ from tests.unit.fakes import FakeFooRepository
 _CALLER = uuid.uuid4()
 _BAR_ID = uuid.uuid4()
 
+
 async def test_assigns_uuid_and_stores() -> None:
     repo = FakeFooRepository()
     handler = CreateFooHandler(repo=repo)
@@ -57,6 +58,7 @@ async def test_assigns_uuid_and_stores() -> None:
     stored = await repo.get_by_id(foo_id)
     assert stored.name == "alpha"
     assert stored.id == foo_id
+
 
 async def test_duplicate_name_raises_conflict() -> None:
     repo = FakeFooRepository()
@@ -88,6 +90,7 @@ from tests.unit.fakes import FakeFooRepository
 _CALLER = uuid.uuid4()
 _BAR_ID = uuid.uuid4()
 
+
 async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     repo = FakeFooRepository()
     create_handler = CreateFooHandler(repo=repo)
@@ -103,6 +106,7 @@ async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     stored = await repo.get_by_id(foo_id)
     assert stored.name == "beta"
     assert stored.bar_id == _BAR_ID  # None on the command means "don't touch"
+
 
 async def test_update_unknown_id_raises_not_found() -> None:
     handler = UpdateFooHandler(repo=FakeFooRepository())
@@ -128,6 +132,7 @@ from tests.unit.fakes import FakeFooRepository
 _CALLER = uuid.uuid4()
 _BAR_ID = uuid.uuid4()
 
+
 class _RaiseInUseFooRepo(FakeFooRepository):
     async def delete(self, id: uuid.UUID) -> None:
         raise InUseError(
@@ -135,11 +140,16 @@ class _RaiseInUseFooRepo(FakeFooRepository):
             {"reference_type": "foo", "id": str(id)},
         )
 
+
 async def test_delete_propagates_in_use_error() -> None:
     target_id = uuid.uuid4()
-    handler = DeleteFooHandler(repo=_RaiseInUseFooRepo(items=[
-        Foo(id=target_id, name="alpha", bar_id=_BAR_ID),
-    ]))
+    handler = DeleteFooHandler(
+        repo=_RaiseInUseFooRepo(
+            items=[
+                Foo(id=target_id, name="alpha", bar_id=_BAR_ID),
+            ]
+        )
+    )
 
     with pytest.raises(InUseError) as exc:
         await handler.execute(DeleteFooCommand(caller_id=_CALLER, id=target_id))
@@ -159,12 +169,15 @@ from tests.unit.fakes import FakeFooRepository
 
 _BAR_ID = uuid.uuid4()
 
+
 async def test_sorted_by_name() -> None:
-    repo = FakeFooRepository(items=[
-        Foo(id=uuid.uuid4(), name="b", bar_id=_BAR_ID),
-        Foo(id=uuid.uuid4(), name="c", bar_id=_BAR_ID),
-        Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
-    ])
+    repo = FakeFooRepository(
+        items=[
+            Foo(id=uuid.uuid4(), name="b", bar_id=_BAR_ID),
+            Foo(id=uuid.uuid4(), name="c", bar_id=_BAR_ID),
+            Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
+        ]
+    )
     handler = ListFoosHandler(repo=repo)
 
     result = await handler.execute(
@@ -174,12 +187,15 @@ async def test_sorted_by_name() -> None:
     assert [f.name for f in result.items] == ["a", "b"]
     assert result.total == 3
 
+
 async def test_list_returns_only_the_requested_bars_foos() -> None:
     other_bar = uuid.uuid4()
-    repo = FakeFooRepository(items=[
-        Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
-        Foo(id=uuid.uuid4(), name="b", bar_id=other_bar),
-    ])
+    repo = FakeFooRepository(
+        items=[
+            Foo(id=uuid.uuid4(), name="a", bar_id=_BAR_ID),
+            Foo(id=uuid.uuid4(), name="b", bar_id=other_bar),
+        ]
+    )
     handler = ListFoosHandler(repo=repo)
 
     result = await handler.execute(
@@ -215,14 +231,17 @@ from tests.unit.fakes import FakeFooRepository, FakeFooStorage
 _CALLER = uuid.uuid4()
 _BAR_ID = uuid.uuid4()
 
+
 class _RaiseAfterUploadRepo(FakeFooRepository):
     async def create(self, foo: Foo) -> None:
         raise RuntimeError("simulated DB failure after blob upload")
+
 
 class _RaiseOnDeleteStorage(FakeFooStorage):
     async def delete(self, key: str) -> None:
         await super().delete(key)
         raise UpstreamError("simulated undo failure", {"key": key})
+
 
 async def test_db_failure_after_upload_deletes_blob() -> None:
     storage = FakeFooStorage()
@@ -235,6 +254,7 @@ async def test_db_failure_after_upload_deletes_blob() -> None:
 
     assert len(storage.uploads) == 1
     assert storage.deletes == [storage.uploads[0][0]]
+
 
 async def test_failed_undo_still_raises_the_original_failure() -> None:
     storage = _RaiseOnDeleteStorage()

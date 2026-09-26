@@ -54,7 +54,8 @@ def _grep(pattern: str, *paths: str) -> list[str]:
         return []
     result = subprocess.run(
         [
-            "grep", "-rnE",
+            "grep",
+            "-rnE",
             "--include=*.py",
             "--exclude=test_architecture.py",
             pattern,
@@ -98,32 +99,25 @@ _SRC_OUTSIDE_SCHEMA = [p for p in _SRC_DIRS if p != _SCHEMA_SRC]
 
 # Tests live beside the member they cover, so a repo-wide test rule sweeps every member's tests/
 # tree plus the root one. Splat these into `_grep`: `_grep(pattern, *_TESTS)`.
-_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests")] + [
-    str(_ROOT / "tests")
-]
+_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests")] + [str(_ROOT / "tests")]
 _UNIT_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests/unit")]
 
 # A project may declare that exactly one package wraps a given framework and that nothing else
 # imports it. Both names below are the ones THIS project declared — fill in your own; they are two
 # constants because a project that names the wrapping package for its role rather than for the
 # framework changes one without the other. Neither is inferred from a directory name (rule 9).
-_FRAMEWORK_IMPORT = "myframework"            # the top-level module the framework is imported as
-_FRAMEWORK_WRAPPER_PACKAGE = "myframework"   # the package the declaration allows to import it
+_FRAMEWORK_IMPORT = "myframework"  # the top-level module the framework is imported as
+_FRAMEWORK_WRAPPER_PACKAGE = "myframework"  # the package the declaration allows to import it
 # The one module outside that package the declaration exempts — the shared helper that holds the
 # framework import so its callers stay framework-free. It is exempted by the rule's allow-list
 # below, never by going unswept. A project that declared no such helper drops this constant and the
 # filter that reads it.
-_FRAMEWORK_GUARD_MODULE = str(
-    _ROOT / "packages" / "myschema" / "src" / "myschema" / "myframework.py"
-)
+_FRAMEWORK_GUARD_MODULE = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "myframework.py")
 # Every member's src/ EXCEPT the package holding the wrapper role. Every member directory is
 # swept, and loose top-level modules are kept (no is_dir() filter) — that is what puts the shared
 # helper in front of the allow-list instead of leaving it exempt because nothing looked at it.
 _SRC_OUTSIDE_FRAMEWORK_WRAPPER = [
-    str(p)
-    for d in _MEMBER_DIRS
-    for p in _ROOT.glob(f"{d}/*/src/*/*")
-    if p.name != _FRAMEWORK_WRAPPER_PACKAGE
+    str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src/*/*") if p.name != _FRAMEWORK_WRAPPER_PACKAGE
 ]
 ```
 
@@ -164,9 +158,8 @@ does not need that skill installed.)
 def test_no_service_reaches_the_shared_tables_directly() -> None:
     all_hits = _grep(r"\bfoos_table\b|\bbars_table\b", *_SRC_OUTSIDE_SCHEMA, _SCHEMA_SRC)
     forbidden = [h for h in all_hits if not h.startswith(_SCHEMA_DATA_ACCESS)]
-    assert forbidden == [], (
-        "a shared table object reached directly — go through the data-access class:\n"
-        + "\n".join(forbidden)
+    assert forbidden == [], "a shared table object reached directly — go through the data-access class:\n" + "\n".join(
+        forbidden
     )
 ```
 
@@ -182,9 +175,7 @@ greps for cannot drift apart:
 def test_no_framework_import_outside_the_wrapper_package() -> None:
     all_hits = _grep(rf"\b{_FRAMEWORK_IMPORT}\b", *_SRC_OUTSIDE_FRAMEWORK_WRAPPER)
     forbidden = [h for h in all_hits if not h.startswith(_FRAMEWORK_GUARD_MODULE)]
-    assert forbidden == [], (
-        "framework import outside the declared framework-wrapper package:\n" + "\n".join(forbidden)
-    )
+    assert forbidden == [], "framework import outside the declared framework-wrapper package:\n" + "\n".join(forbidden)
 ```
 
 Widening the sweep over the member that holds the shared helper and allow-listing that helper are
@@ -214,7 +205,7 @@ Append at the top of the file, next to the existing constants:
 
 ```python
 _RESTAPI = str(_ROOT / "src" / "myapp" / "restapi")
-_INFRA   = str(_ROOT / "src" / "myapp" / "infrastructure")
+_INFRA = str(_ROOT / "src" / "myapp" / "infrastructure")
 ```
 
 ## Other bindings
