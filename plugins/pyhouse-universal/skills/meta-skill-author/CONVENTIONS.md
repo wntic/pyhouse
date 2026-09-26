@@ -162,8 +162,7 @@ Vocabulary only the `hex-*` skills use:
 - Commands/queries `CreateFooCommand`, `ListFoosQuery`, `CreateFooHandler`, `ListFoosResult`
 - REST `FooResponse`, `FooListResponse`, `FooCreateRequest`, `FooUpdateRequest`, router `restapi/routers/foos.py`
 - Auth `Role.LOWER` / `Role.HIGHER` — the placeholder rank ladder, two positional members, lower first,
-  which a project replaces with its own; `tenant_id` — the placeholder tenant or scope identifier an
-  authenticated identity carries
+  which a project replaces with its own
 
 ## Banned vocabulary
 

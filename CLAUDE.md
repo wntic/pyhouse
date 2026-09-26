@@ -18,8 +18,8 @@ was verified. Run it before shipping a template:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy greenlet \
-  pydantic-settings structlog respx pytest 'testcontainers[postgres,minio]' alembic redis \
-  aioboto3 pyjwt uuid6 httpx cryptography idna uvicorn
+  pydantic-settings structlog respx pytest 'testcontainers[postgres]' alembic redis \
+  pyjwt uuid6 httpx cryptography uvicorn
 .venv/bin/python tools/check_template_imports.py
 ```
 
