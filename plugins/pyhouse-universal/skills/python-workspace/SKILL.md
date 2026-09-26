@@ -20,7 +20,7 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
   `architecture-choice` decides hexagonal versus flat per distribution; nothing here depends on the
   answer.
 - Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill; what a
-  storage package holds is the member family's own persistence skill. This skill only creates the empty
+  data-access package holds is the member family's own persistence skill. This skill only creates the empty
   `packages/myschema/` shell.
 - Adding one member's internal layout — its layer or role packages, its clients, its work units → not
   this skill, use that member's architecture skill.

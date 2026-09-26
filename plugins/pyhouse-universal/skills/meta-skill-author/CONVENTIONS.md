@@ -13,7 +13,7 @@ too. The counts in every heading are the number of directories on disk.
 ### Universal (10)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
-- `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun.
+- `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
 - `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, and the logging allocation that keeps every re-raising scope silent, whatever the project's layering.
 - `python-packaging` — Decides whether a module wants a class at all before capping it at one — a closed set of declarations may share a module by test, and a module a framework dictates follows the framework — and keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
@@ -25,13 +25,13 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Meta (1)
 
-- `meta-skill-author` — Consult this sibling's vocabulary and index before adding a skill so its scope fits the existing catalogue.
+- `meta-skill-author` — Consult this sibling's vocabulary and index before adding a skill so its scope fits the existing catalogue; a template is copied verbatim, shows a house pattern rather than a vendor's manual, and a skeleton shows the common variants.
 
 ### Hex core (12)
 
 - `hex-architecture` — Once the family is hexagonal, decides which layer a module belongs in and which way an import may cross; whether hexagonal fits at all is `architecture-choice`'s.
 - `hex-conventions` — Resolve artifact locations and context ownership before applying an artifact's file template.
-- `hex-project-setup` — Run the migration bootstrap once; later table changes use the persistence skill's paired revision.
+- `hex-project-setup` — Run the bootstrap once — the linter's written size and complexity bounds, and migrations with a baseline only over an existing schema; later table changes use the persistence skill's paired revision.
 - `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together.
 - `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction.
 - `hex-domain-model` — Decides when a constrained primitive becomes a value object, on a stdlib-only substrate separate from transport models.
@@ -62,15 +62,15 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Flat core (4)
 
-- `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; one distribution on its own is the default.
-- `flat-persistence` — Confine a service's statements and connections to one package, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
-- `flat-entrypoint` — Changing the trigger — loop, schedule, stream, a thin HTTP wrapper or durable execution — wraps the same dependency-injected run function without rewriting its work; a workflow engine is earned, never assumed.
-- `flat-project-setup` — Lay a flat service down once — pyproject, toolchain, dependency floors and the migration bootstrap; per-change revisions are `flat-persistence`'s.
+- `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; a configured component is a package with its own settings, and a client holds one pooled transport; one distribution on its own is the default.
+- `flat-persistence` — Confine each store's statements and connections to one package named for its technology, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
+- `flat-entrypoint` — Changing the trigger — loop, schedule, stream, a thin HTTP wrapper or durable execution — wraps the same dependency-injected run function without rewriting its work, which holds bounded memory whatever triggers it; a workflow engine is earned, never assumed.
+- `flat-project-setup` — Lay a flat service down once — pyproject, toolchain with written size and complexity bounds, dependency floors and the migration bootstrap, no empty greenfield baseline; per-change revisions are `flat-persistence`'s.
 
 ### Flat tests (4)
 
 - `flat-test-integration-setup` — Choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
-- `flat-test-persistence` — Pin the storage package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception.
+- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
 - `flat-test-run-function` — Test the body and the wrapper that invokes it, and the orchestration level above them only where a durable-execution engine was earned.
 

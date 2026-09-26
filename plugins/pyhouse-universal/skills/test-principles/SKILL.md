@@ -197,6 +197,7 @@ packages/myschema/
 services/myapp/
 ├── src/myapp/…
 └── tests/
+    ├── conftest.py                    # the upstream stub and the client over it — both levels use them
     ├── unit/
     │   ├── test_foo_client.py         # flat-test-service-client
     │   ├── test_filters.py            # pure unit
@@ -231,7 +232,7 @@ Flat examples:
 
 | | Builder (module-level `def`) | Fixture (`@pytest.fixture`) |
 |--|------------------------------|------------------------------|
-| Use for | One record, one schema instance, one client with defaults | Anything with a lifecycle: engines, connections, containers, transports |
+| Use for | One record, one schema instance | Anything with a lifecycle: engines, connections, containers, transports — and a client handed one |
 | Lives in | The test module that uses it | A conftest at the right level |
 | Examples | `_foo(reference="a") -> Foo`, `_make_payload(*, foo_id: str = "a") -> FooPayload` | `engine`, `conn`, `db_dsn` |
 
@@ -246,7 +247,7 @@ Flat examples:
 
 - **Test file**: mirror the source file with a `test_` prefix. `application/foos/create_foo_handler.py` → `tests/unit/application/test_create_foo_handler.py`.
 - **Test function**: `test_<rule_being_pinned>` in snake_case. `test_assigns_uuid_and_stores`, `test_duplicate_name_raises_conflict`, `test_partial_update_leaves_unspecified_fields_untouched`. The name **is** the spec line — reading the file's `def test_*` list reads as a list of behaviors.
-- **Flat test files** mirror the source file inside their own member’s tree: `services/myapp/src/myapp/services/foo_client.py` → `services/myapp/tests/unit/test_foo_client.py`.
+- **Flat test files** mirror the source file inside their own member’s tree: `services/myapp/src/myapp/services/foo_api/foo_client.py` → `services/myapp/tests/unit/test_foo_client.py`.
 - **A test file whose subject is the tree, not a module, is named for the property it pins**, because
   there is no source file to mirror — `test_architecture.py` for the static source rules
   (`test-architecture-rule`). Reach for this only when the file genuinely covers no single module; a
@@ -291,9 +292,9 @@ Flat example:
 
 ```python
 async def test_records_a_new_foo(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    storage = FooStorage(engine)
+    repository = FooRepository(engine)
 
-    await storage.record_batch([_foo(reference="alpha")])
+    await repository.record_batch([_foo(reference="alpha")])
 
     references = (await conn.execute(select(foo_table.c.reference))).scalars().all()
     assert references == ["alpha"]
@@ -363,7 +364,7 @@ realism, so take the highest rung that can reach the case.
 |------|---------------------|------|
 | 1 | **Nothing — the real dependency**, started and disposed by the suite | Any schema or run-function test. Always the default. Here: Postgres through testcontainers. |
 | 2 | **The transport underneath the dependency**, leaving the dependency's own code running | Any service-client test. Only the socket is replaced, so the client's request building, response parsing and error translation all still execute. Here: `respx` under a real `httpx` client. |
-| 3 | **One method of the concrete class**, through a subclass overriding exactly the method that must fail | One-off failure injection, at test-module scope and underscore-prefixed: `class _RaiseFooClient(FooClient): async def fetch_batch(self) -> list[FooPayload]: raise FooClientError("boom")`. |
+| 3 | **One method of the concrete class**, through a subclass overriding exactly the method that must fail | One-off failure injection, at test-module scope and underscore-prefixed: `class _RaiseFooClient(FooClient): async def fetch(self, foo_id: str) -> FooPayload: raise FooClientError("boom")`. |
 | 4 | **An attribute on the concrete class the caller constructs internally**, patched for the test | Last resort, and only where the caller builds its own dependency with no parameter to pass. Here: `monkeypatch.setattr`. |
 | — | **A `Protocol` extracted so something becomes mockable** | **Never** — that is the anticipatory abstraction the flat-layered style exists to avoid. |
 

@@ -59,7 +59,7 @@ once rather than throughout — before the family is known:
 | Skill | Owns |
 |---|---|
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
-| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families and the role suffixes an architecture defines, renaming |
+| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms — `Repository` whether or not a port stands in front), the vague-noun families and the role suffixes an architecture defines, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
 | `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
 | `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules |
@@ -84,7 +84,7 @@ this set, because nothing ever fails to make you fix it.
 
 | Skill | Owns |
 |---|---|
-| `meta-skill-author` | Skill format, frontmatter and its real limits, the two-layer principle/binding anatomy, section order, naming scheme, rule ownership, packaging, and shared catalogue conventions |
+| `meta-skill-author` | Skill format, frontmatter and its real limits, the two-layer principle/binding anatomy, templates copied verbatim — a house pattern rather than a vendor's manual, a skeleton showing the common variants — section order, naming scheme, rule ownership, packaging, and shared catalogue conventions |
 
 ## Pick a style first
 
@@ -94,7 +94,7 @@ this set, because nothing ever fails to make you fix it.
 | **Layers** | `domain/` → `application/` ← `infrastructure/`, entrypoints on top — canonical names | One package per technical role, named for the role; no fixed vocabulary |
 | **Interfaces** | A `Protocol` port for every outward dependency | None until a second real implementation exists |
 | **Wiring** | A container at the composition root | Direct construction in the entrypoint |
-| **Persistence** | Repository adapters behind domain protocols | One package owning the service's data access |
+| **Persistence** | Repository adapters behind domain protocols | One package per store owning the service's data access |
 
 The table is the summary, not the decision. **`architecture-choice` owns the decision** — it is
 universal, so it is present whichever family plugins are installed, and it covers the cases this table
@@ -111,7 +111,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 |---|---|
 | `hex-architecture` | Once the family is hexagonal — layer boundaries, dependency direction, the composition root, ports vs adapters |
 | `hex-conventions` | Identifier → file path and class name; store profiles; multi-context resolution |
-| `hex-project-setup` | Library substrate, toolchain configuration, the write-once migration bootstrap |
+| `hex-project-setup` | Library substrate, toolchain configuration with written function-size and complexity bounds, the migration bootstrap — a baseline only over a schema that already exists |
 | `hex-patterns` | Compensating transactions, units of work and their nesting order, framework-free run functions |
 | `hex-persistence` | The relational table, repository adapter, and paired migration revision |
 | `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filters, and tunable thresholds |
@@ -155,17 +155,17 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 
 | Skill | Owns |
 |---|---|
-| `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
-| `flat-persistence` | One package owning a service's data access over a SQL store — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream, a thin HTTP wrapper or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
-| `flat-project-setup` | The one-time project setup — `pyproject.toml`, toolchain configuration, dependency floors, and the migration bootstrap; per-change revisions are `flat-persistence`'s |
+| `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; a package and settings class per configured component, and the one-implementation client over one pooled transport with a refreshable credential |
+| `flat-persistence` | One package per store, named for its technology, owning a service's data access — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked writes, deduplication left to the store, cursor reads over a total order, and one migration directory per store |
+| `flat-entrypoint` | Trigger choice — loop, schedule, stream, a thin HTTP wrapper or durable execution — and the framework-free run function every trigger wraps: bounded memory, progress markers after their data, atomic local state, fan-out failure containment, and the obligations an engine adds once one is earned |
+| `flat-project-setup` | The one-time project setup — `pyproject.toml`, toolchain configuration with written function-size and complexity bounds, dependency floors, and the migration bootstrap under `migrations/postgres/` with a baseline only over an existing schema; per-change revisions are `flat-persistence`'s |
 
 ## Flat tests (4)
 
 | Skill | Owns |
 |---|---|
 | `flat-test-integration-setup` | The container, the safety guard, and the isolation fixture each declared transaction owner needs |
-| `flat-test-persistence` | The storage package's contract against a real datastore |
+| `flat-test-persistence` | The data-access package's contract against a real datastore |
 | `flat-test-service-client` | One client class's test |
 | `flat-test-run-function` | What a trigger runs — the body, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 
@@ -224,7 +224,8 @@ a required vocabulary; `flat-layered` opens with the rule. Create the packages y
 require, named for those roles, and no others. The canonical hexagonal names — `domain/`,
 `application/`, `infrastructure/` — are the exception: those are the style's own terms and stay.
 
-**Technology names — keep.** `postgres`, `redis`, `s3`, `jwt`. Abstracting these would
+**Technology names — keep.** `postgres`, `redis`, `s3`, `jwt` — a flat service's data-access package
+included, named `postgres/` for its store. Abstracting these would
 destroy the meaning of the rule that infrastructure is grouped by the real technology. The one
 exception is a technology a rule is about *wrapping*, which takes `myframework` — naming a real one
 there makes the rule that framework's instead of the project's.

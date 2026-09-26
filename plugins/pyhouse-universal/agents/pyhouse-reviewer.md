@@ -65,7 +65,7 @@ actually holds — the family's skills plus the universal ones, never the whole 
 **The precondition filter.** A skill that states a precondition also states which of its rules lapse
 when it is unmet; answer the precondition from the project and hold the code only to what survives.
 `flat-persistence` is the worked case: four questions about the store's properties, each naming the
-rules that go with a "no", and nine rules that hold for any store at all. Read the skill's own
+rules that go with a "no", and a list of the rules that hold for any store at all. Read the skill's own
 precondition — do not invent one it does not state, and do not narrow one it does not narrow.
 
 Some skills are gated by a decision the project has or has not taken: the durable-execution

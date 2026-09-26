@@ -141,7 +141,7 @@ decided by someone.
 | Module | matches its class in snake_case (`python-packaging`) | `helpers.py` | `retry_policy.py` |
 | Class | a noun phrase for the thing itself | `FooManager` | `FooValidator` |
 | Protocol | the `I` prefix, always — see **Protocol names carry the `I` prefix** below | `FooRepository` as the port's own name | `IFooRepository`, `ICanExportFoos` |
-| Repository adapter | the aggregate plus `Repository`; the `I` stays on the port, not on the class implementing it | `FooRepositoryImpl`, `FooDao` | `FooRepository`, implementing `IFooRepository` |
+| Repository | the kind of stored record plus `Repository` (under hexagonal, the aggregate), whether or not a port stands in front; the `I` goes on the port where one exists, never on the class. The ban is on a second word for the class owning a record's data access — an adapter named for what its capability does (storing blobs) is not a repository | `FooRepositoryImpl`, `FooDao`, `FooStorage`, `FooStore` | `FooRepository` — implementing `IFooRepository` where there is a port |
 | Exception class | the condition that was violated, suffixed `Error` (`exception-catalog` owns the class's `code` and the file it lives in) | `FooException`, `FooFailure`, `BadFoo` | `FooConflictError` |
 | Type alias | the concept the composite stands for, PascalCase like a class (`python-style` decides *when* to introduce one) | `FooTuple`, `StrDict` | `FooKey`, `BarIdsByFooId` |
 | Dataclass / DTO | the subject plus what it asserts | `CheckResult` | `UpstreamAvailability` |
@@ -186,7 +186,8 @@ sees it in their own file. A deployed prefix is a frozen external contract — s
 (e.g. `IFooRepository`); capability protocols use `ICan<Verb>` (e.g. `ICanExportFoos`).
 Their modules are `i_foo_repository.py` and `i_can_<verb>.py`, respectively.
 Both prefixes are mandatory: `i_` marks a port, and `i_can_` distinguishes a
-capability from a repository at a glance.
+capability from a repository at a glance. A repository class with no port in front of it — a
+flat-layered service's, say — carries no `I` and needs none: the prefix marks a port, and there is none.
 
 **This is a deliberate departure from PEP 8**, which carries no such prefix, and from the `typing`
 documentation, whose own protocols are `Iterable`, `Sized`, `Hashable`. The departure buys something
@@ -228,7 +229,7 @@ subject in front of it says which one, so the name passes the six tests. The rol
 | `Payload` | an external system's wire record |
 | `Request`, `Response` | a transport's inbound and outbound models |
 | `Service` | a domain service |
-| `Repository` | an aggregate's data access |
+| `Repository` | the class that owns data access for one kind of stored record — an aggregate's, under hexagonal — with or without a port in front of it |
 | `Settings` | a component's settings class |
 | `Error` | an exception class (`exception-catalog`) |
 
@@ -237,7 +238,12 @@ written. Two conditions keep the carve-out from swallowing the rule: **the subje
 `Handler`, `Result`, `Payload` or `Service` alone names nothing — and **the class actually plays that
 role** in this architecture. A `FooResult` that no handler or run returns, a `FooService` that is a
 client, a `FooHandler` that is not a use case's handler is the vague noun it looks like, and the table
-above applies to it.
+above applies to it. Conversely, `FooStorage`, `FooStore` or `FooDao` on the class that owns a
+record's data access is a second word for the concept `Repository` already names — one concept, one
+word (**Porting names in from another project**). The ban stops there: a class that is not a repository
+but an adapter for one external capability takes the role noun of what that capability does — under
+hexagonal, `S3FooStorage` implementing a port for storing blobs (`ICanStoreFoos`) is named for the
+storing, and owns no record's data access.
 
 ### Other exceptions
 
@@ -277,8 +283,8 @@ The exception is a name that has escaped the codebase and become an external con
 frozen and are **not** renamed in place: log event names, exception `code` values, job or
 task names registered by string, queue and topic names, database table/column and constraint
 names, Alembic revision identifiers, serialization aliases and published API fields,
-environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new name alongside it and
-retire the old one deliberately, with a migration.
+environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new
+name alongside it and retire the old one deliberately, with a migration.
 
 ## Rules
 

@@ -93,8 +93,8 @@ _SRC_DIRS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src")]
 _SCHEMA = str(_ROOT / "packages" / "myschema")
 _SCHEMA_SRC = str(_ROOT / "packages" / "myschema" / "src")
 # The package inside it that owns the data access, under the name this repository gave it. The
-# trailing "/" keeps a prefix match from also exempting a sibling such as storage_utils.py.
-_SCHEMA_DATA_ACCESS = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "storage") + "/"
+# trailing "/" keeps a prefix match from also exempting a sibling such as postgres_utils.py.
+_SCHEMA_DATA_ACCESS = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "postgres") + "/"
 _SRC_OUTSIDE_SCHEMA = [p for p in _SRC_DIRS if p != _SCHEMA_SRC]
 
 # Tests live beside the member they cover, so a repo-wide test rule sweeps every member's tests/

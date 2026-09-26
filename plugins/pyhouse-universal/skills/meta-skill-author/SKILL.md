@@ -37,11 +37,10 @@ open it rather than working from this summary of it.
 skills/<skill-name>/SKILL.md
 ```
 
-The directory name **is** the skill name. One `SKILL.md` per directory, plus sibling files when the skill
-needs them — this skill's own `CONVENTIONS.md` is one. A theme large enough that its body would exceed
-~500 lines takes sibling topic files alongside `SKILL.md`, which then becomes navigation — but reach for
-that only when the body genuinely does not fit, because only `SKILL.md` is loaded when a skill is
-preloaded, so a sibling file is reached by an explicit instruction to read it.
+The directory name **is** the skill name. One `SKILL.md` per directory, plus sibling files when needed
+(this skill's `CONVENTIONS.md`). A body past ~500 lines takes sibling topic files, and `SKILL.md`
+becomes navigation — only when it genuinely does not fit, because only `SKILL.md` is preloaded and a
+sibling is reached by an explicit instruction to read it.
 
 ## Frontmatter
 
@@ -69,19 +68,17 @@ paths: <optional — activation globs, Claude Code only>
   anywhere, and a glob would suppress it — and neither does a skill that must fire on a greenfield
   project, where the directories it would match do not exist yet (`architecture-choice` is the case).
 
-`allowed-tools`, `metadata`, `license` and `compatibility` are also valid; this catalogue has no use for
-them yet. Two further fields exist and are deliberately **not** used: `user-invocable: false` hides a
-skill from the `/` menu, and `disable-model-invocation: true` blocks automatic loading. The second has a
-trap — it *also* prevents the skill from being preloaded, so a skill carrying it can only ever be
-invoked by hand.
+`allowed-tools`, `metadata`, `license` and `compatibility` are valid and unused here. Deliberately
+**not** used: `user-invocable: false` (hides a skill from the `/` menu) and
+`disable-model-invocation: true` (blocks automatic loading *and* preloading — hand invocation only).
 
 ### Length
 
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue.** 45 skills at ~400 characters is ~4,500 tokens,
-  about 2% of a 200k window. Length is spent where it buys disambiguation, not minimised.
+- **There is no total budget across the catalogue** — 45 skills at ~400 characters is ~2% of a 200k
+  window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
 
@@ -110,11 +107,10 @@ Code — never a fact that appears nowhere else, and never the clause that makes
 
 ### Publishing caveat
 
-Claude Code accepts and ignores unknown frontmatter keys. **claude.ai and the Skills API do not**: they
-accept only `name`, `description`, `license`, `compatibility`, `metadata` and `allowed-tools`, and
-**fail hard** on anything else. A skill published on that channel must have `paths` and `when_to_use`
-stripped first. Marketplace distribution — a GitHub repo plus `plugin.json`, which is this catalogue's
-channel — is unaffected, so both fields are safe here.
+Claude Code ignores unknown frontmatter keys. **claude.ai and the Skills API** accept only `name`,
+`description`, `license`, `compatibility`, `metadata` and `allowed-tools` and **fail hard** on anything
+else, so `paths` and `when_to_use` are stripped before publishing there. Marketplace distribution —
+this catalogue's channel — is unaffected.
 
 ## Body — the canonical sections
 
@@ -135,10 +131,11 @@ that the description deliberately leaves out.>
 
 ## Template(s)
 
-<One or more literal file templates with placeholder names, from the sibling CONVENTIONS.md. Show the
-entire file content, not a fragment. The heading NAMES THE STACK the template binds. When the skill
-covers several kinds (standalone vs UoW-managed repository, list vs cursor pagination), give one
-template per kind under `### <kind>` subheadings.>
+<One or more literal file templates with placeholder names, from the sibling CONVENTIONS.md — the
+entire file for a house artifact, the house skeleton around one minimal call for an integration
+(rule 4). The heading NAMES THE STACK the template binds. When the skill covers several kinds of
+genuinely different shape (standalone vs UoW-managed repository, list vs cursor pagination), give one
+template per kind under `### <kind>` subheadings. A second vendor for the same kind is not a kind.>
 
 ## Other bindings
 
@@ -244,45 +241,42 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
 
 1. **Match the section order exactly — with one allowance for templates, and one for Reference
    bodies.** Section headings are how a reader decides what to read, so renaming or reordering breaks
-   navigation. `## Template(s)` is the canonical heading, and the heading names the stack it binds (see
-   above); the allowance touches that section alone and takes two forms.
-   **Grouped by topic** — a skill covering **several artifacts** may group its templates by topic
-   instead of collecting them under one `## Template(s)`: topical `##` sections with the templates as
-   `###` subheadings inside. What makes that form legal is a single condition: **the heading names the
-   artifact** (`## The Table`, `## The container`, `## Upload templates`), never the subject of a
-   discussion (`## Notes`, `## Background`). An artifact name answers "is this the section I need?" as
-   well as `Template(s)` does; a topic name does not.
-   **Singular or named** — a heading that carries **one** template may name the form and the stack under
-   it (`## Template — SQLAlchemy Core`, `## Template — async, SDK-client form`, `## Skeleton — router
-   file`). It is the same section under a name that fits what sits below it: the plural stays canonical,
-   and a skill showing several forms of one artifact may either collect them under `## Template(s)` with
-   `### <kind>` subheadings or head each form by its name.
-   **Reference bodies may carry topical `##` sections.** A Reference skill produces no file and so has
-   no template section to hang its subject matter on; its body may use topical `##` headings that name
-   *the subject matter* (`## Naming a protocol`, `## The three dimensions`), never a discussion
-   label (`## Notes`, `## Summary`, `## Background`). The required sections keep their exact headings
-   and their relative order around them.
-   Every other section keeps its exact heading and its place in the order, and a Reference skill still
-   omits the template section — neither changes.
-   These allowances rest on evidence of success rather than a test of failure: skills already written in
-   the topical form were loaded and applied, and no template went unfound. If a template is ever missed
-   because it sat under a topical, singular or named heading, that form is withdrawn and the single
-   `## Template(s)` becomes the only heading.
+   navigation. `## Template(s)` is canonical and names the stack it binds (see above); the template
+   allowance touches that section alone and takes two forms.
+   **Grouped by topic** — a skill covering **several artifacts** may use topical `##` sections with the
+   templates as `###` subheadings, on one condition: **the heading names the artifact** (`## The Table`,
+   `## The container`), never a discussion (`## Notes`, `## Background`) — an artifact name answers
+   "is this the section I need?" as well as `Template(s)` does.
+   **Singular or named** — a heading carrying **one** template may name its form and stack
+   (`## Template — SQLAlchemy Core`, `## Skeleton — router file`); several forms of one artifact go
+   either under `## Template(s)` as `### <kind>` or each under its own name.
+   **Reference bodies** produce no file, so they may use topical `##` headings that name *the subject
+   matter* (`## Naming a protocol`), never a discussion label; the required sections keep their exact
+   headings and relative order around them.
+   Every other section keeps its heading and place, and a Reference skill still omits the template
+   section. These allowances rest on evidence of success — skills in these forms were loaded and
+   applied, and no template went unfound. If a template is ever missed because of a topical, singular
+   or named heading, that form is withdrawn and `## Template(s)` becomes the only heading.
 2. **State the obligation, then bind it once.** `## Rules` is mechanism-free; `## Template(s)` carries
    exactly one stack; `## Other bindings` names the rest in bullets. A skill that teaches two stacks in
    full is two skills, or one skill and a sibling.
-3. **Keep the body concise.** Once a skill is loaded its body stays in context for the rest of the
-   session, so every line is a recurring cost. State what to do rather than narrating how or why. A
-   body past ~500 lines is the signal to split into sibling topic files.
-4. **Templates are literal, not prose.** Show the entire file to be written. Use the placeholders the
-   sibling `CONVENTIONS.md` defines — `Foo`, `Bar`, `myapp`, `myschema`, `myrepo`, `myframework` — and
-   read that file for the full set rather than guessing at it.
+3. **Keep the body concise.** A loaded body stays in context for the rest of the session, so every line
+   is a recurring cost: state what to do rather than narrating how or why, and split into sibling topic
+   files past ~500 lines.
+4. **Templates are literal, not prose — and they are copied, not read.** Show the entire file for a
+   house artifact; for an integration with a vendor, show the house skeleton around one minimal call
+   (rule 15). Every line lands in the reader's project verbatim — directory and class names,
+   constants, version floors and comments alike — so a comment in a template is one that is true in the
+   reader's file; the API a version floor relies on qualifies, because it stays true there. Why the
+   template itself looks this way (why this example, why a driver raises what it raises) goes in prose
+   or `## Rules`, never in a `#` line. Use the placeholders the sibling `CONVENTIONS.md`
+   defines — `Foo`, `Bar`, `myapp`, `myschema`, `myrepo`, `myframework` — and read that file for the
+   full set rather than guessing at it.
 5. **One artifact kind per skill, or one set that always arrives together.** Two unrelated artifact
    types means two skills. Producing 2–3 tightly-coupled files (command + handler; protocol + adapter)
    is fine, and so is one skill covering several artifacts a single change always adds at once.
-6. **Cross-cutting rules are referenced, not restated.** Point to the cross-cutting skill rather than
-   copying its rules. See the ownership table below. An inlined slice of 3–6 bullets is acceptable when
-   load-bearing.
+6. **Cross-cutting rules are referenced, not restated.** Point to the owner in the table below rather
+   than copying its rules; an inlined slice of 3–6 load-bearing bullets is the one exception.
 7. **Hard stops are explicit.** Every plausible wrong-skill case becomes a hard stop with a redirect.
    This is how a reader recovers from misclassification without overreaching. A hard stop keeps its
    *reason*; softening "X → stop, use `Y`" into advice deletes the rule.
@@ -328,6 +322,17 @@ flat-test-<artifact>     flat-test-run-function, ...
     keeps the topic and drops exactly that, so the rule survives as a heading and stops changing
     anyone's behaviour. If the wording around it has to change, keep that phrase intact inside the new
     wording.
+15. **House pattern, not vendor manual.** Strip every call to the vendor's API from a template. If a
+    house pattern remains — injection, error translation at the boundary, transaction ownership, the
+    shape of the file — show it once, on the most common binding, around a minimal call. If nothing
+    remains, the template is the vendor's documentation, which the reader already has; it does not
+    belong in the catalogue. An error-code map, a canonicaliser or a client wrapper that restates the
+    SDK fails this test. A template shows each kind of artifact at most once; a second vendor for the
+    same kind is `## Other bindings` bullets, and `### <kind>` subheadings separate different shapes,
+    never different vendors (rule 2).
+16. **The skeleton answers the questions the prose does not ask.** A reader copies a layout for cases
+    the skill never discusses, and improvises where it is silent — so a skeleton shows the common
+    variants (a second store, a component with its own settings), one line each, not only the simplest.
 
 ## Ownership — reference, never restate
 
@@ -351,8 +356,7 @@ get a row — transport authentication is `hex-restapi-auth`'s, in the `pyhouse-
 row is a requirement, and a universal file may name a family skill only as an example.
 
 **Before replacing a restatement with a reference, open the owner and confirm the rule is there.** A
-pointer to a rule the owner does not state is a silent deletion, and it is invisible: both files read as
-if the rule exists.
+pointer to a rule the owner never stated is a deletion both files hide, each reading as if it exists.
 
 An inlined slice of 3–6 bullets under `## Inlined typing / import rules` is the one allowed exception,
 and only when those bullets are load-bearing for the artifact at hand.
@@ -426,23 +430,19 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
 - **A description that does not disambiguate.** "Apply when working with foos" is too vague. Compare
   "Apply when adding or modifying a repository adapter for an aggregate on a relational store", which
   excludes the other foo-touching work by construction.
-- **A description that leans on `when_to_use`.** The other clients never see that field. If the skill is
-  only distinguishable with it, the `description` is unfinished.
 - **A description carrying the whole neighbour map.** Keep the one or two clauses that separate it
   from its nearest sibling; move the rest to `When to use vs. neighbours`, where a reader who is
   already in the wrong skill will see them.
 - **A rule that names a mechanism instead of an obligation.** "Catch `IntegrityError`" is a template
   line wearing a rule's clothes. Restate it as what must be achieved.
-- **A second full template for the alternative stack.** That is a sibling skill, or three bullets under
-  `## Other bindings`. It is never a second template.
-- **A `## Template` heading that does not say which stack.** The reader cannot tell whether it applies
-  to them without reading the whole block.
 - **Templates that document the rule instead of showing the file.** More comments than code means the
-  rule is being explained. Move the explanation to `Rules` and tighten the template.
-- **Hard stops that are not stops.** "Think carefully before X" is not a hard stop. The form is
-  "X → stop, use Y".
-- **A leaked layer.** Writing what the skill hands back to something else, or a table of inputs some
-  caller must supply, is rule 10 being broken.
+  rule is being explained. Move the explanation to `Rules` and tighten the template — every comment
+  left behind ships into the reader's files (rule 4).
+- **A template that is the vendor's manual.** SDK error-code tables, input canonicalisers, client
+  setup the vendor documents — nothing house-shaped is left once the vendor calls go (rule 15).
+- **A rule above, broken in passing.** A description that leans on `when_to_use`, a second full
+  template, a `## Template` heading naming no stack, a hard stop softened into advice ("think carefully
+  before X"), a leaked layer (rule 10) — each is stated once above and fails the same way here.
 
 ## After writing the file
 
@@ -484,6 +484,10 @@ skill.
   them first; that channel fails hard on unknown keys.
 - Templates use application-specific names (`Order`, `Material`, `Invoice`) → stop, replace with
   `Foo`/`Bar`.
+- A template comment explains the template rather than the reader's code → stop, move it to prose
+  or `## Rules`; the comment is copied into every file generated from it.
+- A template left with no house pattern once its vendor calls are stripped, or a second template for
+  another vendor of the same kind → stop, delete it or make it `## Other bindings` bullets.
 - A template imports a symbol nobody ran → stop, import it and confirm the name resolves in the version
   the template binds; a name that does not exist ships as working code.
 - A rule leans on "measured", "in practice" or "this has been hit" without saying what was observed →
@@ -492,3 +496,5 @@ skill.
   placeholder or delete it; a disclaimer above the example is not a fix.
 - Nothing survives question 5 once the project-bound material is stripped → stop, there is no skill
   here — the material was a case study, not a subject.
+- A skeleton shows only the simplest case while the prose describes common variants → stop, add each
+  variant as one line; a reader improvises wherever the skeleton is silent (rule 16).
