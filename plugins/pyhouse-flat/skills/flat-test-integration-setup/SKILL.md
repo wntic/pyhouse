@@ -75,9 +75,7 @@ def db_dsn() -> Iterator[str]:
     if os.getenv(_EXTERNAL_FLAG) == "1":
         missing = [name for name in _REQUIRED_EXTERNAL_VARS if not os.getenv(name)]
         if missing:
-            raise RuntimeError(
-                f"{_EXTERNAL_FLAG}=1 but these are unset: {', '.join(missing)}"
-            )
+            raise RuntimeError(f"{_EXTERNAL_FLAG}=1 but these are unset: {', '.join(missing)}")
         dsn = os.environ["MYAPP_STORAGE_DSN"]
         _refuse_if_not_a_test_database(dsn)
         yield dsn

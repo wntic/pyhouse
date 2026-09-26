@@ -72,13 +72,19 @@ async def test_a_second_write_of_one_reference_updates_rather_than_duplicates(
     conn: AsyncConnection,
 ) -> None:
     await bulk_upsert(
-        conn, foo_table, [_foo()],
-        conflict_columns=["reference"], update_columns=["name"],
+        conn,
+        foo_table,
+        [_foo()],
+        conflict_columns=["reference"],
+        update_columns=["name"],
     )
 
     await bulk_upsert(
-        conn, foo_table, [_foo(name="second")],
-        conflict_columns=["reference"], update_columns=["name"],
+        conn,
+        foo_table,
+        [_foo(name="second")],
+        conflict_columns=["reference"],
+        update_columns=["name"],
     )
 
     names: Sequence[str] = (await conn.execute(select(foo_table.c.name))).scalars().all()
@@ -89,19 +95,23 @@ async def test_a_second_write_leaves_columns_outside_the_update_set_alone(
     conn: AsyncConnection,
 ) -> None:
     await bulk_upsert(
-        conn, foo_table, [_foo()],
-        conflict_columns=["reference"], update_columns=["name"],
+        conn,
+        foo_table,
+        [_foo()],
+        conflict_columns=["reference"],
+        update_columns=["name"],
     )
     first_created_at: datetime = (await conn.execute(select(foo_table.c.created_at))).scalar_one()
 
     await bulk_upsert(
-        conn, foo_table, [_foo(name="second")],
-        conflict_columns=["reference"], update_columns=["name"],
+        conn,
+        foo_table,
+        [_foo(name="second")],
+        conflict_columns=["reference"],
+        update_columns=["name"],
     )
 
-    assert (
-        await conn.execute(select(foo_table.c.created_at))
-    ).scalar_one() == first_created_at
+    assert (await conn.execute(select(foo_table.c.created_at))).scalar_one() == first_created_at
 
 
 async def test_the_reference_is_unique_on_a_plain_insert(conn: AsyncConnection) -> None:
@@ -130,13 +140,9 @@ async def test_an_empty_update_set_is_a_no_op_rather_than_an_error(
     await conn.execute(foo_table.insert().values(**_foo()))
     foo_id: UUID = (await conn.execute(select(foo_table.c.id))).scalar_one()
     row: dict[str, object] = {"foo_id": foo_id, "label": "amber"}
-    await bulk_upsert(
-        conn, bar_table, [row], conflict_columns=["foo_id", "label"], update_columns=[]
-    )
+    await bulk_upsert(conn, bar_table, [row], conflict_columns=["foo_id", "label"], update_columns=[])
 
-    await bulk_upsert(
-        conn, bar_table, [row], conflict_columns=["foo_id", "label"], update_columns=[]
-    )
+    await bulk_upsert(conn, bar_table, [row], conflict_columns=["foo_id", "label"], update_columns=[])
 
     count = (await conn.execute(select(func.count()).select_from(bar_table))).scalar_one()
     assert count == 1
@@ -148,8 +154,12 @@ async def test_a_write_crossing_chunk_boundaries_lands_every_row(
     rows = [_foo(reference=f"ref-{i}") for i in range(5)]
 
     await bulk_upsert(
-        conn, foo_table, rows,
-        conflict_columns=["reference"], update_columns=["name"], chunk_size=2,
+        conn,
+        foo_table,
+        rows,
+        conflict_columns=["reference"],
+        update_columns=["name"],
+        chunk_size=2,
     )
 
     count = (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one()
@@ -157,9 +167,7 @@ async def test_a_write_crossing_chunk_boundaries_lands_every_row(
 
 
 async def test_empty_input_is_a_no_op(conn: AsyncConnection) -> None:
-    await bulk_upsert(
-        conn, foo_table, [], conflict_columns=["reference"], update_columns=["name"]
-    )
+    await bulk_upsert(conn, foo_table, [], conflict_columns=["reference"], update_columns=["name"])
 
     count = (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one()
     assert count == 0
@@ -214,18 +222,14 @@ def _a_foo(reference: str = "alpha", labels: tuple[str, ...] = ("amber",)) -> Fo
     )
 
 
-async def test_a_batch_lands_its_foos_and_their_labels(
-    engine: AsyncEngine, conn: AsyncConnection
-) -> None:
+async def test_a_batch_lands_its_foos_and_their_labels(engine: AsyncEngine, conn: AsyncConnection) -> None:
     await FooStorage(engine).record_batch([_a_foo()])
 
     labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
     assert labels == ["amber"]
 
 
-async def test_a_reference_is_normalized_once_on_the_way_in_and_out(
-    engine: AsyncEngine
-) -> None:
+async def test_a_reference_is_normalized_once_on_the_way_in_and_out(engine: AsyncEngine) -> None:
     storage = FooStorage(engine)
     await storage.record_batch([_a_foo(reference="  ALPHA ")])
 

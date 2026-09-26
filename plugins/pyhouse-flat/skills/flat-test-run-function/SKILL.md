@@ -74,13 +74,9 @@ def _client() -> FooClient:
 
 
 @respx.mock
-async def test_a_run_lands_its_foos_and_their_labels(
-    engine: AsyncEngine, conn: AsyncConnection
-) -> None:
+async def test_a_run_lands_its_foos_and_their_labels(engine: AsyncEngine, conn: AsyncConnection) -> None:
     respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(
-            200, json={"items": [{"ref": " ALPHA ", "name": "a", "labels": ["amber"]}]}
-        )
+        return_value=httpx.Response(200, json={"items": [{"ref": " ALPHA ", "name": "a", "labels": ["amber"]}]})
     )
 
     await run_once(_client(), FooStorage(engine))
@@ -92,9 +88,7 @@ async def test_a_run_lands_its_foos_and_their_labels(
 
 
 @respx.mock
-async def test_items_the_filter_rejects_are_not_stored(
-    engine: AsyncEngine, conn: AsyncConnection
-) -> None:
+async def test_items_the_filter_rejects_are_not_stored(engine: AsyncEngine, conn: AsyncConnection) -> None:
     respx.get(f"{_BASE_URL}/foos").mock(
         return_value=httpx.Response(
             200,
@@ -137,9 +131,7 @@ async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> No
 
 
 @respx.mock
-async def test_an_upstream_failure_propagates_and_writes_nothing(
-    engine: AsyncEngine, conn: AsyncConnection
-) -> None:
+async def test_an_upstream_failure_propagates_and_writes_nothing(engine: AsyncEngine, conn: AsyncConnection) -> None:
     respx.get(f"{_BASE_URL}/foos").mock(return_value=httpx.Response(503))
 
     with pytest.raises(FooClientError):

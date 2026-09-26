@@ -51,9 +51,7 @@ def build_app(client: FooClient, storage: FooStorage) -> FastAPI:
     app = FastAPI()
 
     @app.middleware("http")
-    async def _contain_unexpected(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def _contain_unexpected(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         try:
             return await call_next(request)
         except Exception:
