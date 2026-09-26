@@ -19,8 +19,9 @@ from a flag.
 ## When to use vs. neighbours
 
 - Any other capability adapter's test — containerized, HTTP-gateway with `respx`, or another pure-CPU one → `hex-test-capability-adapter`, which owns the three flavors; the verifier test in `UNIT.md` is its pure-CPU flavor bound to auth.
-- The containers, the engine, the rollback `sf` and `real_app` itself → `hex-test-integration-setup`
-  (one-shot; `real_app` is defined there and every file here consumes it).
+- The containers, the engine, the rollback `sf`, `container` and `real_app` itself →
+  `hex-test-integration-setup` (one-shot; both are defined there and every integration file here consumes
+  `real_app`).
 - A per-endpoint test's non-auth half — happy path, schema validation, per-resource fixtures →
   `hex-test-restapi-endpoint`.
 - The other discovered invariants — OpenAPI error codes, CORS, request-size limit, the construct smoke →
@@ -120,10 +121,10 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 7. **Each call mints a fresh token.** Tokens are not reused across tests, calls, or roles. A test that
    needs two roles in one body calls `authed_client(...)` twice.
 8. **Mint only what the identity type declares; pass everything else via `extra_claims`.** The factory
-   bakes in the subject and the rank and nothing more — the two fields the domain identity carries in
-   every app (`hex-restapi-auth`). Anything further this app's identity carries (a tenant id, a display
-   name, …) is the caller's to pass via `extra_claims`, pinned only when a test must share it with a
-   fixture row (don't reuse such a value across unrelated tests). Never hardcode one app's identity
+   bakes in the subject, and the rank where the app has one, and nothing more (`hex-restapi-auth`).
+   Anything further this app's identity carries (a tenant id, a display name, …) is the caller's to
+   pass via `extra_claims`, pinned only when a test must share it with a fixture row (don't reuse such
+   a value across unrelated tests). Never hardcode one app's identity
    model into the factory, and never name a claim key outside the binding files.
 9. **The keypair and the verifier settings are session-scoped.** Generating an RSA key is the one
    expensive step here, and generating it per test would dominate suite wall time. The client factory stays
@@ -221,7 +222,7 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 - A second token signer is added beside `sign_token` → stop, one signer for the whole suite, or the
   unit and integration paths drift apart.
 - The app has no auth (every endpoint anonymous) → stop, produce none of these files, and strip the
-  `jwt_settings` parameter from `real_app` and its field and factory from `TestInfraProvider`. An
+  `jwt_settings` parameter from `container` and its field and factory from `TestInfraProvider`. An
   auth-less app binds no `JwtSettings`, so a factory claiming to override one fails when the graph is
   assembled.
 - Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this

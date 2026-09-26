@@ -26,11 +26,12 @@ is a *transport* rule — a single role-rank check — belongs here.
 
 - The app shell, middleware, the central error translator and `schemas/errors.py` → `hex-restapi-app`.
 - A route's signature and body, including multipart and streaming routes → `hex-restapi-endpoint`.
-- Which error codes a route advertises for non-auth reasons, and the registry for a status a middleware
-  introduces → `hex-restapi-endpoint`, in its sibling `CONTRACTS.md`.
+- Which error codes a route advertises for non-auth reasons → `hex-restapi-endpoint`, in its sibling
+  `CONTRACTS.md`; registering a status a middleware introduces → `hex-restapi-app`, *Registering a
+  middleware's status*.
 - `UnauthorizedError` / `ForbiddenError` themselves, and boundary translation → `exception-catalog`.
-- The `Role` enum's rank-ordered `StrEnum` form, and `CurrentUser` as a value object →
-  `hex-domain-model`.
+- Enum and value-object form in general → `hex-domain-model`; the rank-ordered `Role` below is the
+  catalogue's worked enum carrying a method over its own values.
 - How to write the capability protocol the verifier satisfies → `hex-domain-ports`.
 - Adapter form in general — constructor injection, secrets, no logging, no business logic →
   `hex-capability-adapter`; this skill carries only the verifier instance of it.
@@ -51,49 +52,20 @@ It is a domain value object under a cross-cutting subdomain package (`domain/aut
 
 ```python
 from dataclasses import dataclass
-from uuid import UUID
-
-from .role import Role
 
 __all__ = ["CurrentUser"]
 
 
 @dataclass(frozen=True, slots=True)
 class CurrentUser:
-    id: UUID
-    role: Role
+    id: str  # the issuer's opaque subject
 ```
 
-A multi-tenant app adds the tenant as a further field (`tenant_id: UUID`), and the route stamps it onto
-the DTO exactly like `caller_id`. Value-object form follows `hex-domain-model`.
-
-### `domain/auth/role.py`
-
-```python
-from enum import StrEnum
-
-__all__ = ["Role"]
-
-_RANK = {"LOWER": 0, "HIGHER": 1}
-
-
-class Role(StrEnum):
-    LOWER = "LOWER"
-    HIGHER = "HIGHER"
-
-    def satisfies(self, required: "Role") -> bool:
-        return _RANK[self.value] >= _RANK[required.value]
-```
-
-The self-reference is quoted — `required: "Role"` — because the name is not bound until the class
-statement finishes and the catalogue bans `from __future__ import annotations` (`python-style`).
-
-`LOWER` and `HIGHER` are **placeholder ranks**, the way `Foo` is the placeholder aggregate: substitute
-the app's own members, and however many of them it has. The rank-ordered `StrEnum` with `satisfies` is
-the shape. Enum form and the `_RANK` module constant follow `hex-domain-model`.
-
-A route template names the slot rather than a member — `Role.<MIN_RANK>` — and the concrete member comes
-from the route's own requirement against the app's `Role`.
+`id` is the credential's subject exactly as the issuer states it. It is converted to the app's own id
+type only where the issuer guarantees that form; otherwise a subject the app did not mint would fail
+to parse and lock a valid caller out. A rank app adds a `role` (*Rank apps only*, below); a tenant is
+added the same way, and which DTO fields are stamped from the identity, and how a handler scopes by
+them, are `hex-application`'s.
 
 ## The token-verifier port
 
@@ -118,18 +90,16 @@ adapter's alone (rule 13).
 
 ## The verifier adapter
 
-### Template — PyJWT, sync pure-CPU form
+### Template — PyJWT
 
 Placement (`infrastructure/jwt/`, the external tech), constructor injection, secret handling and the
-no-logging rule are `hex-capability-adapter`'s; this is that skill's sync pure-CPU form bound to PyJWT.
-Translation of the library's parse/verify errors follows `exception-catalog`.
+no-logging rule are `hex-capability-adapter`'s; this is the sync pure-CPU adapter that skill describes in
+prose, bound to PyJWT. Translation of the library's parse/verify errors follows `exception-catalog`.
 
 ```python
-from uuid import UUID
-
 import jwt
 
-from myapp.domain.auth import CurrentUser, Role  # the protocol (ICanVerifyToken) is NOT imported
+from myapp.domain.auth import CurrentUser  # the protocol (ICanVerifyToken) is NOT imported
 from myapp.domain.exceptions import UnauthorizedError
 
 from .settings import JwtSettings
@@ -152,9 +122,9 @@ class PyJwtTokenVerifier:
                 algorithms=[self._algorithm],
                 issuer=self._issuer,
                 audience=self._audience,
-                options={"require": ["sub", "role"]},
+                options={"require": ["sub"]},
             )
-            return CurrentUser(id=UUID(claims["sub"]), role=Role(claims["role"]))
+            return CurrentUser(id=claims["sub"])
         except jwt.ExpiredSignatureError as exc:
             raise UnauthorizedError("token expired", {"reason": "expired"}) from exc
         except jwt.InvalidTokenError as exc:
@@ -162,8 +132,6 @@ class PyJwtTokenVerifier:
                 "invalid token",
                 {"reason": exc.__class__.__name__},
             ) from exc
-        except (AttributeError, TypeError, ValueError) as exc:
-            raise UnauthorizedError("invalid token claims", {"reason": "invalid_claims"}) from exc
 ```
 
 `algorithms=[...]` is a **list of one**, read from settings — never the token's own `alg` header. A
@@ -171,13 +139,10 @@ verifier that trusts the header accepts `none` and accepts a symmetric algorithm
 key it published; the settings-side allowlist validator below is what keeps that list honest.
 
 **The identity is built inside the translated scope.** A token can carry a valid signature and still
-not describe a caller — a claim missing, a subject that is not an identifier, a role the app does not
-declare. Each of those is an unverifiable credential and answers 401 like a bad signature, never a
-500. Here `require` turns an absent claim into the library's own `InvalidTokenError`, and the last arm
-catches what building the identity raises on a claim of the wrong shape — `ValueError` from a string
-`UUID(...)` or `Role(...)` cannot parse, `AttributeError` or `TypeError` from `UUID(...)` handed a
-non-string. PyJWT 2.10 and later reject a non-string `sub` themselves; the arm keeps the verifier
-correct without depending on that.
+not describe a caller — a claim missing, a subject of the wrong type. Each of those is an unverifiable
+credential and answers 401 like a bad signature, never a 500. Here `require` turns an absent claim into
+the library's own `InvalidTokenError`, and PyJWT (2.10 and later) rejects a non-string `sub` the same
+way.
 
 ### `infrastructure/jwt/settings.py`
 
@@ -218,7 +183,9 @@ class JwtSettings(BaseSettings):
 The allowlist is a **rejection validator** in the sense of `python-settings` rule 12: it refuses a value
 that would cause silent misbehaviour rather than a loud failure. An `alg` of `none`, or `HS256` against
 a published public key, verifies happily and forges every identity in the system; the failure surfaces
-as "auth works" rather than as an error, so the only place to catch it is process startup. The PEM
+as "auth works" rather than as an error, so the only place to catch it is process startup. A service
+that is its own issuer may allow one HMAC algorithm with a secret key instead, never alongside a
+published public key. The PEM
 unescape is the other sanctioned validator purpose — normalization, accepting the env-friendly
 single-line form and storing the canonical one. Settings rules, secrets and `SecretStr` handling are
 `python-settings`; this file is one instance of them.
@@ -248,8 +215,8 @@ binding is in use.
 ### `restapi/dependencies.py`
 
 `dependencies.py` is FastAPI's home for shared route dependencies; in this catalogue its only current
-content is the auth pair, so the file is emitted **only** for an app that declares auth. An auth-less app
-has no `get_current_user`/`require_role`, no `CurrentUser`/`Role` import, and routes attach no auth
+content is the auth dependency, so the file is emitted **only** for an app that declares auth. An auth-less app
+has no `get_current_user`, no `CurrentUser` import, and routes attach no auth
 dependency — hence no `dependencies.py` at all (`hex-restapi-app`). A non-auth shared route dependency,
 if one is ever introduced, lives in the same file independent of auth.
 
@@ -258,10 +225,10 @@ from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from myapp.domain.auth import CurrentUser, ICanVerifyToken, Role
-from myapp.domain.exceptions import ForbiddenError, UnauthorizedError
+from myapp.domain.auth import CurrentUser, ICanVerifyToken
+from myapp.domain.exceptions import UnauthorizedError
 
-__all__ = ["get_current_user", "require_role"]
+__all__ = ["get_current_user"]
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -274,12 +241,57 @@ async def get_current_user(
     if creds is None or creds.scheme.lower() != "bearer":
         raise UnauthorizedError("Missing bearer token", {"reason": "missing_credentials"})
     return verifier.verify(creds.credentials)
+```
+
+The bearer scheme is declared **once** at module level. `get_current_user` receives the verifier by
+its port type — never instantiate verifiers in routes or dependencies. **The `@inject` decorator is
+required here even though the routers carry `route_class=DishkaRoute`**: that route class injects route
+functions, not the `Depends` functions behind them (`hex-restapi-endpoint`). The verifier arrives typed,
+so nothing is cast.
+
+### Rank apps only — the role gate
+
+Where some route gates on rank, four things are added; an app whose routes only authenticate has none
+of them. `CurrentUser` gains `role: Role`. The verifier requires the claim (`"require": ["sub",
+"role"]`), builds `CurrentUser(id=claims["sub"], role=Role(claims["role"]))`, and gains one arm —
+`except ValueError` → `UnauthorizedError("invalid token claims", {"reason": "invalid_claims"})` —
+because a role the app does not declare is an unverifiable credential, never a 500.
+`domain/auth/role.py` holds the ladder:
+
+```python
+from enum import StrEnum
+
+__all__ = ["Role"]
+
+_RANK = {"LOWER": 0, "HIGHER": 1}
+
+
+class Role(StrEnum):
+    LOWER = "LOWER"
+    HIGHER = "HIGHER"
+
+    def satisfies(self, required: "Role") -> bool:
+        return _RANK[self.value] >= _RANK[required.value]
+```
+
+The self-reference is quoted because the name is not bound until the class statement finishes and the
+catalogue bans `from __future__ import annotations` (`python-style`). `LOWER` and `HIGHER` are
+**placeholder ranks**, the way `Foo` is the placeholder aggregate: substitute the app's own members,
+however many it has; a route template names the slot — `Role.<MIN_RANK>` — never a member. Its unit
+test covers `satisfies` at, above and below the bar (`hex-test-domain`).
+
+`restapi/dependencies.py` gains the gate below `get_current_user`, and `require_role` joins its
+`__all__`:
+
+```python
+from fastapi import Depends
+
+from myapp.domain.auth import CurrentUser, Role
+from myapp.domain.exceptions import ForbiddenError
 
 
 class _RoleDependency:
-    """A role-gated route dependency. A callable CLASS, not a closure, so the gated role is a
-    TYPED attribute (`required_role`) rather than a `# type: ignore`-stashed function attribute.
-    FastAPI inspects `__call__` like any callable."""
+    """A callable CLASS, not a closure, so the gated role is a typed attribute."""
 
     def __init__(self, required: Role) -> None:
         self.required_role = required
@@ -297,13 +309,6 @@ def require_role(required: Role) -> _RoleDependency:
     return _RoleDependency(required)
 ```
 
-The bearer scheme is declared **once** at module level. `get_current_user` receives the verifier by
-its port type — never instantiate verifiers in routes or dependencies. **The `@inject` decorator is
-required here even though the routers carry `route_class=DishkaRoute`**: that route class injects route
-functions, not the `Depends` functions behind them (`hex-restapi-endpoint`). The verifier arrives typed,
-so nothing is cast. `require_role` returns a `_RoleDependency` instance — a callable class so the gated
-role rides as a typed attribute (see `python-style`).
-
 ## The error-handler auth branch
 
 `hex-restapi-app`'s primary `error_handler.py` is the auth-less one. An app that declares auth uses the
@@ -312,7 +317,7 @@ one `isinstance` branch, attaching the RFC-7235 challenge. Nothing else in the f
 `hex-restapi-app` rule 3 caps it at **at most one** branch.
 
 ```python
-from myapp.domain.exceptions import DomainError, UnauthorizedError, ValidationError
+from myapp.domain.exceptions import MyappError, UnauthorizedError, ValidationError
 ```
 
 ```python
@@ -344,7 +349,7 @@ issue. Those are two different answers, not two spellings of one; `exception-cat
 **Read `ROUTES.md` before writing or changing any route in an app that declares auth** — only this
 file is loaded automatically. It is the half consulted every time a route is written: the decision
 table for which dependency an operation takes, the `_`-vs-`user` binding rule and the stamp-from-the-identity rule,
-the four things that derive an authenticated route from an auth-free one, and the coordinated
+how an authenticated route is derived from an auth-free one, and the coordinated
 advertisement rule joining the chosen dependency to the codes the route declares.
 
 ## The composition-root wiring
@@ -381,6 +386,9 @@ ordering and the settings lifecycle follow `hex-wiring`.
 
 ## Other bindings
 
+- **JWKS endpoint.** The issuer publishes its key set rather than one key: the adapter fetches it and
+  caches the keys by `kid`, selecting the verifying key by the token's `kid` and never by its `alg`.
+  The port, the identity, the gate and the codes are unchanged.
 - **Opaque token + introspection endpoint.** The port, `CurrentUser`, `require_role`, the dependency
   pair and the whole advertisement half are unchanged. What changes: the adapter does IO, so the
   capability method becomes `async` (`hex-domain-ports`' async capability shape) and the provider is
@@ -434,13 +442,10 @@ ordering and the settings lifecycle follow `hex-wiring`.
 10. **In an app that has auth, authentication is the default for a non-public route.** A "trusted
     internal" route that skips auth is forbidden; internal-only access is enforced at the network or
     gateway layer. This does **not** manufacture auth on an app that has none.
-11. **A rank ladder is the app's own.** Ranks are declared as a rank-ordered enum with a
-    rank-satisfaction method; the member names and their number belong to the app. A route template
-    names the slot (`Role.<MIN_RANK>`), and the ladder shown anywhere in this catalogue is the
-    placeholder pair `Role.LOWER` / `Role.HIGHER` — never a member carried over from some app.
-12. **Auth-derived values come from the resolved identity, never from the request.** Actor, tenant and
-    anything else the credential carries are stamped from the identity object; reading a tenant id from
-    the path, query or body lets a client choose another tenant's scope.
+11. **A rank ladder is the app's own** — a rank-ordered enum with a rank-satisfaction method, whose
+    members and their number belong to the app; a route template names the slot, never a member.
+12. **Auth-derived values come from the resolved identity, never from the request.** Which DTO fields
+    they are, and how a handler scopes by them, are `hex-application`'s.
 13. **The identity type is a domain type.** The verifier returns it; the credential's own wire shape —
     a claims mapping, an introspection payload, a header set — never leaves the adapter, and no layer
     above it sees one.
@@ -453,7 +458,7 @@ ordering and the settings lifecycle follow `hex-wiring`.
   untyped attribute — fix the injection instead.
 - `Depends` from `fastapi`; `HTTPAuthorizationCredentials`, `HTTPBearer` from
   `fastapi.security`.
-- Domain imports absolute (`from myapp.domain.auth import CurrentUser, Role`). The verifier adapter
+- Domain imports absolute (`from myapp.domain.auth import CurrentUser`). The verifier adapter
   **never** imports the protocol it satisfies — structural subtyping at the DI site is the contract
   (`hex-capability-adapter`'s rule that an adapter neither inherits nor imports its protocol).
 - Full annotations on every dependency, the callable class's `__call__`, and the verifier's methods. No
@@ -461,8 +466,8 @@ ordering and the settings lifecycle follow `hex-wiring`.
 
 ## Package wiring
 
-`domain/auth/` is a subdomain package — its `__init__.py` re-exports `CurrentUser`, `Role` and
-`ICanVerifyToken`, which every `from myapp.domain.auth import ...` above resolves against — and
+`domain/auth/` is a subdomain package — its `__init__.py` re-exports `CurrentUser` and
+`ICanVerifyToken` (and `Role` in a rank app), which every `from myapp.domain.auth import ...` above resolves against — and
 `infrastructure/jwt/` an infrastructure one; both follow `python-packaging`, with the layer placement
 in `hex-architecture`. `restapi/dependencies.py` sits in the entrypoint package `hex-restapi-app` creates, under that package's entrypoint carve-out.
 
@@ -489,6 +494,7 @@ in `hex-architecture`. `restapi/dependencies.py` sits in the entrypoint package 
   the default and only routes the app declares public skip it.
 - Asked for authorization finer than a single role rank — per-row ownership, a policy matrix → stop,
   use `hex-application`; the handler raises `ForbiddenError`.
-- The tenant id is put in the path, query or body → stop, stamp it from the resolved identity.
+- An actor or tenant id is read from the path, query or body → stop, use `hex-application`; it is stamped
+  from the resolved identity.
 - The composition root binds no verifier → stop, use `hex-wiring` to declare it before the dependency
   asks for it.

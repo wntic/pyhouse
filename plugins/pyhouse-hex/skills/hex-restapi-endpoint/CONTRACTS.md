@@ -23,37 +23,35 @@ Domain exception classes register themselves: `error_responses(...)` derives its
 no registry to append to.
 
 Two symbols come from `errors.py` — created once by `hex-restapi-app`, which is their single source of
-truth — and only one of them is ever written here:
+truth — and a route only reads them:
 
 - **`error_responses(*codes: int) -> dict[int | str, dict[str, Any]]`** — the helper that goes on a route
   decorator. It validates each code against the known set —
   `{cls.http_status for cls in domain.exceptions.__all__} ∪ set(MIDDLEWARE_ERRORS.values())` — and raises
   `ValueError` on an unknown one, so OpenAPI can never advertise a status nothing produces.
-- **`MIDDLEWARE_ERRORS: dict[str, int]`** — the **only** manually-maintained registry in `errors.py`, and
-  the sole write target on this path. `hex-restapi-app` creates it carrying `INTERNAL_ERROR`; a row is
-  added when a middleware introduces a status with no `DomainError` behind it, such as a size cap →
-  `{"PAYLOAD_TOO_LARGE": 413}`.
+- **`MIDDLEWARE_ERRORS: dict[str, int]`** — the **only** manually-maintained registry in `errors.py`.
+  A middleware status is registered by `hex-restapi-app` before a route advertises it; a route never
+  writes to it.
 
 ## Standard code sets per operation
 
-The sets below are for a route with **no auth dependency** — every route in an app that declares no auth,
-and the public routes of an app that does. `401` and `403` are auth codes, not universal: they join the
-set only when a route attaches an auth dependency, and `hex-restapi-auth` owns that join. The `422`
-never drops: it is an input-validation code, not an auth code (rule 13). This is load-bearing rather
-than cosmetic: `error_responses(...)` validates against the known set, and an auth-less app has no
-`UnauthorizedError` class, so a stray `401` raises `ValueError`.
+The sets below are for a route with **no auth dependency**; `hex-restapi-auth`'s `ROUTES.md` adds the
+auth codes. The `422` never drops: it is an input-validation code, not an auth code (rule 13).
 
 | Operation | `error_responses(...)` |
 |---|---|
 | Read, parameterless | nothing (plus `404` if it can not-find) |
 | Read by id (`{id}` path param) | `404, 422` |
 | List / browse (filter or pagination params) | `422` |
-| Create (body) | `409, 422` (plus `404` if the body references another aggregate by id) |
-| Update (`{id}` plus body) | `404, 409, 422` |
-| Delete (`{id}` path param) | `404, 409, 422` — `409` covers in-use |
-| Static collection action (a literal path segment) | `422` |
+| Create (body) | `422`, plus `409` per uniqueness constraint the aggregate carries |
+| Update (`{id}` plus body) | `404, 422`, plus `409` likewise |
+| Delete (`{id}` path param) | `404, 422`, plus `409` where another aggregate can reference it (in use) |
+| Collection action (a literal path segment) | `422`, plus whatever its handler raises |
 | Lookup / detect (a read with input) | `404, 422` |
-| Multipart upload | add `413` to whichever set applies |
+| Multipart upload | whichever set applies; add `413` only where a size-cap middleware is declared |
+
+Where `Foo` references another aggregate by id, create advertises `404` for an id that does not exist
+(update already carries it).
 
 **Advertise `422` on every route carrying ANY validated input** — a path param, query, filter or
 pagination params, or a body. Any of them can be rejected before the handler runs, and the shell renders
@@ -67,29 +65,17 @@ it. The rule stands on the document telling the truth, not on a red run. That is
 the `{id}` path param alone produces it. Only a parameterless, body-less route — a `GET /me` or a health
 probe — omits it. The trap is reading `422` as "body validation"; it is *any-input* validation.
 
-**List a code only if the route can actually produce it.** No `409` on a read, no `413` on a route with no
-size cap in front of it, and no auth code on a route with no auth dependency. The converse holds too: a
-code the write path can raise is listed. Where the repository translates a reference to a missing
-aggregate into the catalogue's not-found class (`hex-persistence`), a create or update whose body names
-that aggregate by id can answer `404`, and advertises it.
+**List a code only if the route can actually produce it.** No `409` on a read or on a write the store
+cannot reject, no `413` on a route with no size cap in front of it, and no auth code on a route with no
+auth dependency. The converse holds too: a code the write path can raise is listed.
 
 ## Procedure — routine route
 
 1. Choose the code set from the table.
 2. Add `responses=error_responses(<codes>)` to the route decorator.
 
-The catalog is dynamic; nothing further is registered.
-
-## Procedure — a middleware-introduced code
-
-1. Confirm the status genuinely has no `DomainError` behind it — the body comes from middleware, before
-   the exception handler runs. Otherwise the answer is `exception-catalog`, not this path.
-2. Append `("CODE_STRING", <http_status>)` to `MIDDLEWARE_ERRORS` in `restapi/schemas/errors.py` — the
-   only hand-edit to that `hex-restapi-app`-owned file.
-3. Nothing to do for the description: `hex-restapi-app`'s helper looks the standard phrase up from
-   `http.HTTPStatus`. Only if this app must word that status differently does it get a
-   `DESCRIPTION_OVERRIDES` entry in the same file.
-4. Have the middleware emit an `ErrorResponse`-shaped body with the same `code` string.
+The catalog is dynamic; nothing further is registered. A status a middleware introduces is registered
+by `hex-restapi-app` (its `## Middleware`) before any route advertises it.
 
 ## Other bindings
 
@@ -104,7 +90,7 @@ The catalog is dynamic; nothing further is registered.
 
 ## Hard stops
 
-- A route lists a status no `DomainError` subclass produces and that is not in `MIDDLEWARE_ERRORS` → stop,
-  define the exception first or take the middleware path.
+- A route lists a status no `MyappError` subclass produces and that is not in `MIDDLEWARE_ERRORS` → stop,
+  define the exception first (`exception-catalog`) or register the middleware's status (`hex-restapi-app`).
 - Asked to add branching logic to `restapi/error_handler.py` → stop, the translator stays minimal;
   new behaviour is encoded by subclassing, or by `http_status` / `code` on the new class.

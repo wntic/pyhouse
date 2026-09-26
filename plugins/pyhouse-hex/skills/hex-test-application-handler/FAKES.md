@@ -40,7 +40,7 @@ class FakeFooRepository:
 
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
         # One condition per scoping field the filter declares, as the real WHERE applies it.
-        return [f for f in self._store.values() if not filter.bar_ids or f.bar_id in filter.bar_ids]
+        return [f for f in self._store.values() if filter.name is None or f.name == filter.name]
 
     async def get_by_id(self, id: UUID) -> Foo:
         if id not in self._store:
@@ -76,67 +76,15 @@ class FakeFooRepository:
         del self._store[id]
 ```
 
-## Aggregate with cascading sub-collection
+## Capability that returns a value
 
-For an aggregate that owns children — here `FooAttachment`, an entity (`id: UUID`, `foo_id: UUID`,
-`mime: str`) in `domain/foos/` whose table cascades from `foos` (`hex-persistence`'s owned-children
-table). The CRUD methods above stay; the cascade adds these:
-
-```python
-from dataclasses import replace
-from uuid import UUID
-
-from myapp.domain.exceptions import NotFoundError
-from myapp.domain.foos import Foo, FooAttachment
-
-__all__ = ["FakeFooRepository"]
-
-
-class FakeFooRepository:
-    def __init__(self, items: list[Foo] | None = None) -> None:
-        self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
-        self._attachments: dict[UUID, FooAttachment] = {}
-
-    async def add_attachment(self, foo_id: UUID, attachment: FooAttachment) -> None:
-        if foo_id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(foo_id)})
-        self._attachments[attachment.id] = replace(attachment)
-
-    async def delete(self, id: UUID) -> None:
-        if id not in self._store:
-            raise NotFoundError("Foo not found", {"id": str(id)})
-        # Replay the schema's ON DELETE CASCADE
-        cascaded = [a_id for a_id, a in self._attachments.items() if a.foo_id == id]
-        for a_id in cascaded:
-            del self._attachments[a_id]
-        del self._store[id]
-```
-
-## Behavioral capability (`ICanDoX`) — single async method
-
-```python
-from collections.abc import Sequence
-
-from myapp.domain.foos import FooExportRow
-
-__all__ = ["FakeExportFoosXlsx"]
-
-
-class FakeExportFoosXlsx:
-    def __init__(self, payload: bytes = b"fake-xlsx") -> None:
-        self._payload = payload
-        self.exported: list[Sequence[FooExportRow]] = []
-
-    async def export(self, rows: Sequence[FooExportRow]) -> bytes:
-        self.exported.append(tuple(rows))
-        return self._payload
-```
-
-Behavioral fakes expose a call-record list (`self.exported`) so handler tests can assert what was invoked. Prefer asserting on resulting domain state when possible; reach for call records only when call shape is the thing under test.
+A capability whose one method returns something (`ICanFetchBarToken`, say) is faked by a class that
+returns a constructor-supplied value and appends each call's arguments to a public list. Prefer asserting
+the resulting domain state; reach for the call record only when the call's shape is the thing under test.
 
 ## Storage gateway with a call-record observation surface
 
-A storage fake records what it was asked to do (uploads / deletes) so compensating-transaction tests can assert the undo ran — no failure-injection flags, just observable call records. Its `delete` is the port's plain reversing method and succeeds like the real one; a test that needs the undo itself to fail subclasses it (`_RaiseOnDeleteStorage` in the `compensating-tx` handler template in `SKILL.md`):
+A storage fake records what it was asked to do (uploads / deletes) so compensating-transaction tests can assert the undo ran — no failure-injection flags, just observable call records. Its `delete` is the port's plain reversing method and succeeds like the real one; a test that needs the undo itself to fail subclasses it (`_RaiseOnDeleteStorage` in the compensating-handler tests below):
 
 ```python
 __all__ = ["FakeFooStorage"]
@@ -156,6 +104,58 @@ class FakeFooStorage:
 
 The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at the test scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
 
+### The compensating handler's tests — upload, then the write fails, assert the undo
+
+The handler under test is `hex-patterns`' compensating `CreateFooHandler`, whose command carries the
+uploaded bytes. The file is that handler's own `tests/unit/application/test_create_foo_handler.py`.
+
+```python
+import pytest
+
+from myapp.application.foos import CreateFooCommand, CreateFooHandler
+from myapp.domain.exceptions import UpstreamError
+from myapp.domain.foos import Foo
+from tests.unit.fakes import FakeFooRepository, FakeFooStorage
+
+
+class _RaiseAfterUploadRepo(FakeFooRepository):
+    async def create(self, foo: Foo) -> None:
+        raise RuntimeError("simulated DB failure after blob upload")
+
+
+class _RaiseOnDeleteStorage(FakeFooStorage):
+    async def delete(self, key: str) -> None:
+        await super().delete(key)
+        raise UpstreamError("simulated undo failure", {"key": key})
+
+
+async def test_db_failure_after_upload_deletes_blob() -> None:
+    storage = FakeFooStorage()
+    handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
+
+    with pytest.raises(RuntimeError):
+        await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
+
+    assert len(storage.uploads) == 1
+    assert storage.deletes == [storage.uploads[0][0]]
+
+
+async def test_failed_undo_still_raises_the_original_failure() -> None:
+    storage = _RaiseOnDeleteStorage()
+    handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
+
+    with pytest.raises(RuntimeError, match="simulated DB failure"):
+        await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
+
+    assert storage.deletes == [storage.uploads[0][0]]
+```
+
+The simulated exception type is incidental — `RuntimeError` here, or any uncaught exception. The
+contract is: **the upload landed, then something failed, then the same key was deleted, and the caller
+sees the failure that started it.** The undo raises like any other call (`hex-patterns`); the second
+test pins that the handler swallows the *undo's* failure and re-raises the original — an
+`UpstreamError` escaping instead fails `pytest.raises(RuntimeError)`.
+
 ## The fake's copy contract, pinned once
 
 `tests/unit/test_fake_foo_repository.py` — one test per fake that keeps state, because Fakes rule 9 is
@@ -169,7 +169,7 @@ from tests.unit.fakes import FakeFooRepository
 
 
 async def test_a_mutated_entity_does_not_reach_the_store() -> None:
-    foo = Foo(id=uuid.uuid4(), name="alpha", bar_id=uuid.uuid4())
+    foo = Foo(id=uuid.uuid4(), name="alpha")
     repo = FakeFooRepository(items=[foo])
 
     foo.name = "seeded-then-mutated"

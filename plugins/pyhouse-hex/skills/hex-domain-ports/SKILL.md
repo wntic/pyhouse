@@ -13,15 +13,15 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 
 - Aggregate-root data access — CRUD plus aggregate-specific reads → **repository protocol** (`IFooRepository`), in this skill.
 - A single action that does IO or talks to an external system — file rendering, token verification, blob storage, a third-party gateway call → **capability protocol** (`ICan<Verb>`), in this skill.
-- A pure-CPU operation a third-party library performs — JWT signature verification, IDNA-aware URL canonicalization → **capability protocol**, with a sync method instead of async; the domain cannot import the library, and the port is how it uses one.
+- A pure-CPU operation a third-party library performs — JWT signature verification, rendering bytes through a document library → **capability protocol**, with a sync method instead of async; the domain cannot import the library, and the port is how it uses one.
 - Pure-CPU logic the standard library can do — trimming, case-folding, a stdlib URL normalization → no port; a value object's construction (`hex-domain-model`) or a module-level domain function (`hex-domain-service`).
-- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`, which also shows the `Baz` entity and the value objects the ports below name (`CanonicalBarUrl`, `BarToken`, `FooExportRow`, `AuditEvent`).
+- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`. `BarToken`, which the gateway port below returns, is a value object of its standard form in `domain/bars/bar_token.py` — `value: str` and `expires_at: datetime`.
 - A rule needing cross-aggregate state, which *consumes* these protocols → `hex-domain-service`.
 - A concrete repository implementation → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store). The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
 - A concrete capability implementation → `hex-capability-adapter`.
 - An in-memory fake satisfying one of these protocols in a unit test → `hex-test-application-handler`.
 - Binding a concrete implementation to the protocol by type → `hex-wiring`.
-- The token-verifier port, its adapter and the route dependency that resolves it → `hex-restapi-auth`; it is the sync shape below, bound to auth, and exists only in an app whose entrypoint authenticates.
+- The token-verifier port, its adapter and the route dependency that resolves it → `hex-restapi-auth`; it is the sync shape, bound to auth, and exists only in an app whose entrypoint authenticates.
 - The `i_` and `i_can_` filename prefixes and the rest of the identifier derivation → `naming`.
 - The command or query handler that consumes one of these protocols → `hex-application`.
 - The reversing method a compensating handler calls on one of these ports (`delete` beside `upload`) → a port method like any other, which raises on failure; the handler-side guard that tolerates its failure is `hex-patterns`'.
@@ -77,33 +77,18 @@ class IBazRepository(Protocol):
 An index kept beside the authoritative store is the same rule again: its own narrower port, whose verbs
 are what that index answers.
 
-An append-only record that joins a unit of work (`hex-patterns`) is a repository with one write:
+### Capability protocol — a third-party gateway call (async, the default in an event-loop program)
 
 ```python
 from typing import Protocol
 
-from .audit_event import AuditEvent
+from .bar_token import BarToken
 
-__all__ = ["IAuditRepository"]
-
-
-class IAuditRepository(Protocol):
-    async def append(self, event: AuditEvent) -> None: ...
-```
-
-### Capability protocol — async (the default in an event-loop program)
-
-```python
-from collections.abc import Sequence
-from typing import Protocol
-
-from .foo_export_row import FooExportRow
-
-__all__ = ["ICanExportFoosXlsx"]
+__all__ = ["ICanFetchBarToken"]
 
 
-class ICanExportFoosXlsx(Protocol):
-    async def export(self, rows: Sequence[FooExportRow]) -> bytes: ...
+class ICanFetchBarToken(Protocol):
+    async def fetch_token(self, subject: str) -> BarToken: ...
 ```
 
 ### Capability protocol — a reversible action (the forward operation and its undo)
@@ -119,46 +104,11 @@ class ICanStoreFoos(Protocol):
     async def delete(self, key: str) -> None: ...
 ```
 
-Reading the stored bytes back is a second action, so it is a second port — one adapter may satisfy
-both (`hex-capability-adapter`):
+Reading the stored bytes back is a second action, so it is a second port, which one adapter may also
+satisfy (`hex-capability-adapter`).
 
-```python
-from typing import Protocol
-
-__all__ = ["ICanFetchFoos"]
-
-
-class ICanFetchFoos(Protocol):
-    async def download(self, key: str) -> bytes: ...
-```
-
-### Capability protocol — a third-party gateway call
-
-```python
-from typing import Protocol
-
-from .bar_token import BarToken
-
-__all__ = ["ICanFetchBarToken"]
-
-
-class ICanFetchBarToken(Protocol):
-    async def fetch_token(self, subject: str) -> BarToken: ...
-```
-
-### Capability protocol — sync (pure CPU only)
-
-```python
-from typing import Protocol
-
-from .canonical_bar_url import CanonicalBarUrl
-
-__all__ = ["ICanCanonicalizeBarUrl"]
-
-
-class ICanCanonicalizeBarUrl(Protocol):
-    def canonicalize(self, raw: str) -> CanonicalBarUrl: ...
-```
+A pure-CPU port backed by a third-party library declares its method sync (`def`, not `async def`);
+otherwise it has the same form.
 
 ## Rules
 
@@ -168,7 +118,7 @@ one aggregate root, a **capability** is a single action the domain needs but can
 - Aggregate-root data access — CRUD plus aggregate-specific reads → **repository protocol**.
 - A single action that does IO or talks to an external system — file rendering, blob storage, a
   third-party gateway call → **capability protocol**.
-- A pure-CPU operation that needs a third-party library — IDNA-encoding a host, rendering in-memory
+- A pure-CPU operation that needs a third-party library — verifying a signature, rendering in-memory
   bytes through a document library → **capability protocol**, with a sync method instead of async.
   Pure-CPU logic the standard library can do is not a port at all: it lives in the domain, as a value
   object's construction or a module-level domain function.
@@ -222,6 +172,8 @@ own subdomain package (`domain/auth/`, `domain/observability/`).
    - `list` returns a read-only view (`Sequence[Foo]`) — see `python-style` for why a read-only return
      type is not the same as a `list`.
    - `create` / `update` / `delete` return `None`. A write that returns data is a query in disguise.
+4. **A port declares the methods some handler calls.** A method no use case reaches is not declared,
+   however standard — the template is a CRUD service's full set.
 
 ### Capability protocol
 

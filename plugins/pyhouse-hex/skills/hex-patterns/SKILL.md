@@ -1,22 +1,20 @@
 ---
 name: hex-patterns
-description: Use when a handler needs compensation — undo or roll back an externally visible side effect when a later step fails — or a unit of work making writes atomic across two or more repositories, plus a framework-free run function. Provides the try/undo/re-raise body and `IUnitOfWork`. The default handler shape, with no `try/except`, is `hex-application`'s; this is the earned exception.
+description: Use when a handler needs compensation — undo or roll back an externally visible side effect when a later step fails — or a unit of work making writes atomic across two or more repositories. Provides the try/undo/re-raise body and `IUnitOfWork`. The default handler shape, with no `try/except`, is `hex-application`'s; this is the earned exception.
 paths: ["**/application/**", "**/infrastructure/**"]
 ---
 
-# Hexagonal Patterns — compensation, unit of work and run function
+# Hexagonal Patterns — compensation and unit of work
 
-Three patterns that span layers rather than owning one layer's artifact, which is why none belongs to a
+Two patterns that span layers rather than owning one layer's artifact, which is why neither belongs to a
 single artifact skill.
 
 - **Compensating transaction** — produces no new file. It shapes a command handler's `execute` body when
   the handler has already done something the outside world can see before a later step can still fail.
 - **Unit of work** — produces three artifacts: a domain protocol, an infrastructure implementation, and
   the handler form that consumes it.
-- **Run function** — gives a CLI, worker or scheduled entrypoint a plain async call into an existing
-  application handler.
 
-The transaction patterns compose in one direction only: **compensation wraps the unit of work.** try → `async with uow` →
+The two compose in one direction only: **compensation wraps the unit of work.** try → `async with uow` →
 commit → except → undo → raise.
 
 ## When to use vs. neighbours
@@ -30,8 +28,8 @@ Compensating transaction:
 
 Unit of work:
 
-- The handler writes to **two or more repositories in one transaction** — a write plus an audit append,
-  an aggregate plus an outbox row → **unit of work**.
+- The handler writes to **two or more repositories in one transaction** — two aggregates changed
+  together, an aggregate plus an outbox row → **unit of work**.
 - Only one repository participates → neither pattern; the standalone repository form in
   `hex-persistence`, which owns its own transaction, is simpler.
 - The only motivation is keeping objects readable after the commit → neither; that is the store's
@@ -43,7 +41,8 @@ Unit of work:
 
 Elsewhere:
 
-- A CLI, worker or schedule needs to invoke a hexagonal use case → the run-function template below.
+- A CLI, worker or schedule invoking a hexagonal use case → no pattern of its own: it resolves the handler
+  from the container (`hex-wiring`) and awaits `execute`, exactly as a route does.
 - The command or query and its handler, and its default shape with no `try/except` at all → `hex-application`.
 - A flat service's run function and trigger wrappers → `flat-entrypoint`, in the `pyhouse-flat` plugin.
 - Layer boundaries and the injection site → `hex-architecture`.
@@ -59,17 +58,15 @@ file this replaces, never a second `CreateFooCommand` beside it:
 
 ```python
 from dataclasses import dataclass
-from uuid import UUID
 
 __all__ = ["CreateFooCommand"]
 
 
 @dataclass(frozen=True)
 class CreateFooCommand:
-    caller_id: UUID
     name: str
-    bar_id: UUID
     data: bytes
+    note: str | None = None
 ```
 
 ```python
@@ -92,8 +89,7 @@ class CreateFooHandler:
         self._storage = storage
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo_id = uuid.uuid4()
-        foo = Foo(id=foo_id, name=cmd.name, bar_id=cmd.bar_id)
+        foo = Foo(id=uuid.uuid4(), name=cmd.name, note=cmd.note)
         storage_key = f"foos/{foo.id}"
 
         await self._storage.upload(storage_key, cmd.data)
@@ -106,53 +102,21 @@ class CreateFooHandler:
                 logger.warning("foo_upload_undo_failed", storage_key=storage_key, exc_info=undo_exc)
             raise
 
-        logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
+        logger.info("foo_created", foo_id=str(foo.id))
         return foo.id
 ```
 
 The entity is built — and its invariants checked — before the upload, so a malformed command fails
 with nothing to undo (compensation rule 7). The storage key is derived from the entity's id, so the
-entity carries no field for it and the key can be rebuilt wherever it is needed. `caller_id` is logged only when the command carries it
-(`hex-application`).
+entity carries no field for it and the key can be rebuilt wherever it is needed.
 
-## Template — compensation, multi-step side effects
+Where several side effects land before the fallible step, the handler records each one as it lands and,
+on failure, undoes every recorded one, each behind its own guard — so a failure part-way still cleans
+what already landed.
 
-Accumulate the work-to-undo in a list so partial progress is cleaned too — inside the same handler,
-each undo guarded the same way:
-
-```python
-uploaded_keys: list[str] = []
-try:
-    items = await self._upload_items(uploads, foo_id, uploaded_keys)
-    foo = _build_foo(cmd, items)
-    await self._repo.create(foo)
-except Exception:
-    for key in uploaded_keys:
-        try:
-            await self._storage.delete(key)
-        except Exception as undo_exc:
-            logger.warning("foo_upload_undo_failed", storage_key=key, exc_info=undo_exc)
-    raise
-```
-
-The helper appends to `uploaded_keys` after each successful upload, so a failure mid-loop still rolls
-back what already landed.
-
-### Successful-path cleanup is **not** compensation
-
-When an upsert *replaces* a previous resource, the old one is cleaned **after** the database commit:
-
-```python
-previous_key = await self._repo.upsert_foo(...)
-# ... the try/except wraps only the upsert above ...
-
-if previous_key is not None:
-    await self._storage.delete(previous_key)
-```
-
-That trailing call is ordinary cleanup: it runs only on success and disposes of the *old* resource. No
-failure is propagating when it runs, so the best-effort guard does not apply and its failure propagates
-like any other step's. Do not conflate the two.
+**Cleanup on the successful path is not compensation.** When a write replaces a resource, disposing of
+the old one after the commit runs only on success and no failure is propagating, so the best-effort
+guard does not apply: its failure propagates like any other step's.
 
 ## Template — unit of work, the protocol
 
@@ -161,7 +125,7 @@ like any other step's. Do not conflate the two.
 from types import TracebackType
 from typing import Protocol, Self
 
-from ..audit import IAuditRepository
+from ..bars import IBarRepository
 from ..foos import IFooRepository
 
 __all__ = ["IUnitOfWork"]
@@ -171,7 +135,7 @@ class IUnitOfWork(Protocol):
     @property
     def foos(self) -> IFooRepository: ...
     @property
-    def audit(self) -> IAuditRepository: ...
+    def bars(self) -> IBarRepository: ...
 
     async def __aenter__(self) -> Self: ...
     async def __aexit__(
@@ -200,7 +164,7 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .repositories import AuditRepository, FooSessionRepository
+from .repositories import BarSessionRepository, FooSessionRepository
 
 __all__ = ["SqlAlchemyUnitOfWork"]
 
@@ -209,15 +173,15 @@ class SqlAlchemyUnitOfWork:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session = session_factory()
         self._foos = FooSessionRepository(self._session)
-        self._audit = AuditRepository(self._session)
+        self._bars = BarSessionRepository(self._session)
 
     @property
     def foos(self) -> FooSessionRepository:
         return self._foos
 
     @property
-    def audit(self) -> AuditRepository:
-        return self._audit
+    def bars(self) -> BarSessionRepository:
+        return self._bars
 
     async def __aenter__(self) -> Self:
         return self
@@ -252,7 +216,9 @@ its transaction lazily on first use, so there is no explicit `begin()` — calli
 already has an implicit transaction raises.
 
 The implementation does **not** inherit from `IUnitOfWork` — satisfaction is structural
-(`hex-architecture`).
+(`hex-architecture`). Each member is a repository in `hex-persistence`'s joining form (`REPOSITORY.md`,
+the unit-of-work-managed form): it takes the live session, never a factory, and never commits — commit
+and rollback belong to the unit of work.
 
 The binding, an add-on merged into the subdomain's provider in `hex-wiring`'s base composition root,
 is the factory callable (unit-of-work rule 8) — process-lifetime, because the closure is stateless.
@@ -287,7 +253,7 @@ from collections.abc import Callable
 
 import structlog
 
-from myapp.domain.audit import AuditEvent
+from myapp.domain.bars import Bar
 from myapp.domain.foos import Foo
 from myapp.domain.uow import IUnitOfWork
 
@@ -303,12 +269,13 @@ class CreateFooHandler:
         self._uow_factory = uow_factory
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(id=uuid.uuid4(), name=cmd.name, bar_id=cmd.bar_id)
+        foo = Foo(id=uuid.uuid4(), name=cmd.name, note=cmd.note)
+        bar = Bar(id=uuid.uuid4(), name=cmd.name)
         async with self._uow_factory() as uow:
             await uow.foos.create(foo)
-            await uow.audit.append(AuditEvent(subject_id=foo.id, action="foo_created"))
+            await uow.bars.create(bar)
             await uow.commit()
-        logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
+        logger.info("foo_created", foo_id=str(foo.id))
         return foo.id
 ```
 
@@ -332,77 +299,6 @@ except Exception:
         logger.warning("foo_upload_undo_failed", storage_key=storage_key, exc_info=undo_exc)
     raise
 ```
-
-## Template — session-injected repository, SQLAlchemy (required when joining a unit of work)
-
-A repository joining the unit of work takes a live `session: AsyncSession`, not a factory. One class
-cannot be both unit-of-work-managed and standalone, so the joining adapter is a class of its own —
-`FooSessionRepository` beside the standalone `FooRepository` when an aggregate needs both, each in its
-own module. Its full form is `hex-persistence`'s (`REPOSITORY.md`, the unit-of-work-managed form).
-
-```python
-class FooSessionRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def create(self, foo: Foo) -> None:
-        try:
-            await self._session.execute(...)
-        except IntegrityError as exc:
-            raise _map_integrity_error(exc) from exc
-```
-
-Methods use `self._session.execute(...)` directly, and **never `commit()` or `rollback()`** — the unit of
-work owns those. Committing inside a repository breaks atomicity.
-
-The audit repository only ever joins a unit of work, so it has the joining form alone. `AuditEvent` and
-`IAuditRepository` are `hex-domain-model`'s and `hex-domain-ports`'; `audit_events_table` is
-`hex-persistence`'s append-only table (`TABLE.md`), whose key the store generates, so an append has no
-constraint of its own to violate:
-
-```python
-# src/myapp/infrastructure/postgres/repositories/audit_repository.py
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from myapp.domain.audit import AuditEvent
-
-from ..tables.audit_events import audit_events_table
-
-__all__ = ["AuditRepository"]
-
-
-class AuditRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def append(self, event: AuditEvent) -> None:
-        await self._session.execute(
-            audit_events_table.insert().values(subject_id=event.subject_id, action=event.action)
-        )
-```
-
-## Template — run function
-
-The entrypoint resolves the handler through `hex-wiring` and builds the command using
-`hex-application`. Its run function passes that command to the handler; the handler retains the use
-case, including any compensation or unit of work above.
-
-```python
-# src/myapp/worker/run_foo.py
-from uuid import UUID
-
-from myapp.application.foos import CreateFooCommand, CreateFooHandler
-
-__all__ = ["run_once"]
-
-
-async def run_once(handler: CreateFooHandler, command: CreateFooCommand) -> UUID:
-    return await handler.execute(command)
-```
-
-The function has no scheduler or framework dependency. A CLI or worker supplies the resolved handler
-and command, awaits `run_once`, and translates its result at the entrypoint boundary. A query uses the
-corresponding query handler and result type from `hex-application`.
 
 ## Naming (unit of work)
 
@@ -439,19 +335,12 @@ corresponding query handler and result type from `hex-application`.
    `try/except` allowed in a handler**, alongside the failure-state transition. Needing another means
    the design is wrong — push the catch into infrastructure or remove it.
 2. **Catch `Exception`, not specific exceptions.** Compensation must run regardless of the cause.
-3. **The undo must never let its own failure mask the original error.** The undo is the port's plain
-   reversing method (`delete`, `retract`), which raises like any other call. The handler's `except` —
-   the scope that caught the original failure — wraps it in its own `try`, catches the undo's failure,
-   logs exactly one `warning` event named for the undo with the undo's inputs as fields and the undo's
-   exception attached, and then the bare `raise` re-raises the *original* failure unchanged. That is
-   `exception-catalog`'s best-effort compensation rule: the undo's failure is stopped and logged, not
-   swallowed; the event's shape is `python-style`'s. Never call the undo *unguarded* inside `except`
-   (if it raises, the original error is lost), never swallow it with a bare `pass`, and never push the
-   stop into a dedicated `*_best_effort` method on the port or the adapter.
-4. **Bare `raise` at the end of `except`.** Never `raise NewException(...)`, never `raise ... from exc`.
-   The original exception propagates unchanged.
-5. **The original failure is not logged inside `except`.** The central error handler logs it once. The
-   one event logged here is a failed undo (rule 3), which is a different occurrence.
+3. **The undo is guarded** — the port's plain reversing method (`delete`, `retract`), wrapped in its own
+   `try` inside the `except`, is `exception-catalog`'s best-effort compensation; the one warning event it
+   logs takes `python-style`'s shape.
+4. **The original failure is re-raised unchanged** with a bare `raise` — `exception-catalog`'s
+   best-effort compensation.
+5. **The original failure is not logged here** — a re-raising scope stays silent (`exception-catalog`).
 6. **The side effect runs *outside* the `try`.** Only the fallible *next* step goes inside.
 7. **Pre-side-effect validation runs *before* the side effect.** Fail fast without compensation whenever
    possible.
@@ -482,20 +371,7 @@ corresponding query handler and result type from `hex-application`.
    unit of work's lifetime is this `async with`, owned by the handler, not by the composition root
    (`hex-wiring`).
 
-### Run function
-
-1. Pass the resolved handler and input as arguments; the run function does not construct adapters or
-   reach into the composition root. Composition remains in `hex-wiring`.
-2. Keep the use case in the command or query handler from `hex-application`; trigger-specific setup
-   belongs to the calling entrypoint under `hex-architecture`.
-3. Let the handler's result and exceptions propagate to the calling entrypoint; use `exception-catalog`
-   for boundary translation and `python-style` for logging.
-
 ## Hard stops
-
-- A run function constructs a concrete adapter or reaches into the composition root → stop, use `hex-wiring`.
-- A run function starts implementing the use case → stop, use `hex-application` for the handler.
-- A flat service needs its run-function template → stop, use `flat-entrypoint` (`pyhouse-flat`).
 
 - The capability protocol has no cleanup method to call in the undo → stop, add it to the protocol first.
 - The undo is called unguarded inside `except`, or its failure is swallowed with no event logged → stop,

@@ -105,7 +105,8 @@ other arrow is legal.
 - Forbidden: everything else. No third-party libraries — no ORM, no settings library, no HTTP client, no
   cloud SDK, no web framework. No `application/`, no `infrastructure/`, no entrypoint imports.
 - Defines: entities, value objects, enums, filter records, domain protocols (`I*` / `ICan*`), domain
-  services, domain exceptions, type aliases.
+  services, domain exceptions, type aliases. In a hexagonal service the project's one exception
+  catalogue (`exception-catalog`) lives in `domain/exceptions.py`.
 - Zero IO. No file reads, no network, no database, no logging.
 
 **`application/`**
@@ -137,6 +138,11 @@ defect. Siblings are `cli/` and `worker/`.
 - Defines: HTTP routes, CLI commands or queue consumers; request and response wire schemas; the central
   error handler; the dependency wiring.
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
+- Opens one per-operation scope per request, message or call, and closes it when the operation ends.
+- Has one scope that catches what propagates, logs it once and renders it as a transport outcome off the
+  exception's own attributes (`exception-catalog` rule 13).
+- Acknowledges a message only after its handler returns. Where delivery is at-least-once, a create is
+  safe to repeat — its identity comes from the message, not a mint per delivery.
 
 ### Who logs, by layer
 

@@ -1,135 +1,128 @@
 # hex-restapi-endpoint — file-transfer routes
 
-Topic file of `hex-restapi-endpoint`. The mechanism-free obligations are rules 19 and 24–32 in
-`SKILL.md`; what follows is the **FastAPI** binding that satisfies them.
+Topic file of `hex-restapi-endpoint`, read before writing an upload or a download route. It states rules
+24–32, which hold for file-transfer routes only, and binds them — with rule 19 of `SKILL.md` — to
+**FastAPI**. Everything else in `SKILL.md` applies unchanged: the parameter order, the advertised codes,
+the route ordering that puts a literal path such as `/import` above `/{id}`.
 
 ## `upload` — multipart upload
 
-### Pure file upload — one file
-
 ```python
-@router.post(
-    "/import/xlsx",
-    response_model=ImportFoosResponse,
-    responses=error_responses(413, 422),
-)
-async def import_xlsx(
+# In the router file, beside `router = APIRouter(...)`: the app's ceiling, stated once.
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+@router.post("/import", status_code=204, responses=error_responses(422))
+async def import_foos(
     file: UploadFile,
-    handler: FromDishka[ImportFoosXlsxHandler],
-    bar_id: UUID = Form(...),
-) -> ImportFoosResponse:
-    data = await file.read()
-    result = await handler.execute(
-        ImportFoosXlsxCommand(bar_id=bar_id, file_data=data),
-    )
-    return ImportFoosResponse(...)
+    handler: FromDishka[ImportFoosHandler],
+) -> Response:
+    data = await file.read(_MAX_UPLOAD_BYTES + 1)
+    if len(data) > _MAX_UPLOAD_BYTES:
+        raise ValidationError("upload too large", {"max_bytes": _MAX_UPLOAD_BYTES})
+    await handler.execute(ImportFoosCommand(data=data))
+    return Response(status_code=204)
 ```
 
-Rules:
+- `file: UploadFile` is the file part. The route passes bytes on the command; it never parses them.
+- The bounded read is rule 28. Where the app declares a request-size middleware (`hex-restapi-app`),
+  the route reads `await file.read()`, the constant and the two check lines go, and the decorator adds
+  that middleware's `413`.
+- The `422` covers both a missing file part and the over-size rejection. A handler that can raise
+  more — a conflict, a not-found — adds its codes per `CONTRACTS.md`. An import whose client needs a
+  result returns a response model from the resource's schema module instead of the `204`.
 
-- `file: UploadFile` for the file part. Companion scalar/UUID fields use `= Form(...)` — they share the same multipart envelope.
-- `await file.read()` loads the body into memory. This is bounded **only** when the app declares a request-size cap middleware (`hex-restapi-app`'s `MaxRequestSizeMiddleware`), which rejects oversize requests before the route runs. A request-size cap is the app's own choice, not a given: if the app declares none, the body is unbounded and `file.read()` is **not** safe — the app must add a size cap (or the route must stream-and-bound the read) before relying on it. The templates here assume the app declares such a cap.
-- **Advertise `413`** in `responses=error_responses(...)` **only when the app declares a request-size cap middleware** — 413 is produced by that middleware (its code registered in `MIDDLEWARE_ERRORS`), not by a domain exception, so an app without one has no 413 to advertise, and the OpenAPI discovery check (`hex-test-app-invariants`) would reject the orphan code. The `413` shown in the decorator templates is present because those templates assume a size-capped app; drop it for an app that declares no size middleware.
-- The route does not parse the file — pass bytes to the handler via the command DTO (`file_data: bytes`).
-
-### Multiple optional uploads
-
-```python
-attachments: list[UploadFile] | None = (None,)
-...
-attachment_inputs: list[CreateFooAttachment] = []
-for f in attachments or []:
-    raw = await f.read()
-    attachment_inputs.append(CreateFooAttachment(data=raw, mime=f.content_type or ""))
-```
-
-- The parameter type `list[UploadFile] | None = None` handles "no files attached" cleanly.
-- Build a list of application input dataclasses inside the route; capture both `data` and `f.content_type or ""`. The empty-string fallback is deliberate — domain validates the mime and an empty value triggers a clear `ValidationError` rather than `None` slipping through.
+Several files arrive as `files: list[UploadFile]`, each read with the same bound and passed on the
+command as a sequence of bytes. `ImportFoosHandler` here and `ExportFoosHandler` below are application
+handlers written like any other (`hex-application`).
 
 ### Mixed multipart + JSON — the only sanctioned `try/except` in a route body
 
-**This is the one worked AUTHENTICATED template in this skill, and it requires `hex-restapi-auth`.** It
-is role-gated, so it advertises `403` as well as `401`: the advertised codes must match the chosen
-dependency, and a role-gated route that advertises `401` but not `403` is a hard stop in
-`hex-restapi-auth`. Drop the dependency, the two auth codes and the `domain.auth`/`..dependencies`
-imports for the public form.
+A body that carries a JSON part beside a file arrives as one form field holding a string —
+`payload: Annotated[str, Form()]` beside `file: UploadFile` — which the framework does not validate:
 
 ```python
-@router.post(
-    "",
-    status_code=201,
-    response_model=FooResponse,
-    responses=error_responses(401, 403, 404, 409, 413, 422),
-)
-async def create_foo(
-    data: Annotated[str, Form()],
-    handler: FromDishka[CreateFooHandler],
-    attachments: list[UploadFile] | None = None,
-    user: CurrentUser = Depends(require_role(Role.<MIN_RANK>)),
-) -> FooResponse:
-    try:
-        payload = CreateFooPayload.model_validate_json(data)
-    except PydanticValidationError as exc:
-        fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
-        raise ValidationError("invalid payload", {"fields": fields}) from exc
-    ...
+try:
+    body = FooCreateRequest.model_validate_json(payload)
+except PydanticValidationError as exc:
+    fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
+    raise ValidationError("invalid payload", {"fields": fields}) from exc
 ```
 
-Rules:
-
-- `data: Annotated[str, Form()]` receives the JSON blob as a string. Pydantic does not automatically validate it because the parameter type is `str` — validation is explicit.
-- `<Schema>.model_validate_json(data)` parses and validates.
-- **The `try/except PydanticValidationError → raise ValidationError(...) from exc` is the single sanctioned `try/except` in a route body** in this codebase. The context names the rejected fields by location and never echoes the input: the library's own message carries each rejected value, which may be a secret, so it is not passed on. It exists because Pydantic's exception raised inside a route is neither a `DomainError` nor the framework's request-validation error, so uncaught it reaches the catch-all handler and answers `500 INTERNAL_ERROR` for what is the client's malformed input. **Use this pattern verbatim — no other forms of error catching belong in a route.**
-- Exception chaining follows `exception-catalog`.
-
-This pattern is reserved for the multipart+JSON case. **Do not generalize it.** A JSON-only route uses `body: <Schema>` and lets FastAPI's normal validation flow through the central handler.
+- **This is the single sanctioned `try/except` in a route body.** The library's exception raised inside
+  a route is neither a `MyappError` nor the framework's request-validation error, so uncaught it reaches
+  the catch-all handler and answers `500` for the client's malformed input. The context names the
+  rejected fields by location and never echoes the input: the library's own message carries each
+  rejected value, which may be a secret. Chaining follows `exception-catalog`.
+- **Do not generalize it.** A JSON-only route takes `body: <Schema>` and lets the framework's validation
+  reach the central handler.
 
 ## `download` — streaming binary response
 
 ```python
-@router.post("/export", responses=error_responses(422))
+@router.get("/export")
 async def export_foos(
-    body: ExportFoosFilterRequest,
     handler: FromDishka[ExportFoosHandler],
 ) -> StreamingResponse:
-    data = await handler.execute(ExportFoosQuery(filter=_to_filter(body)))
-    filename = _export_filename("csv")  # the extension this export actually produces
+    data = await handler.execute(ExportFoosQuery())
     return StreamingResponse(
         iter([data]),
-        # The real content type the handler produces — csv / pdf / xlsx / … — not a
-        # fixed format frozen from one app. Don't fall back to octet-stream for a known type.
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        media_type="text/csv",  # the type this export actually produces
+        headers={"Content-Disposition": 'attachment; filename="foos.csv"'},
     )
 ```
 
-Rules:
+- **Return annotation `-> StreamingResponse`, no `response_model`.** The framework does not serialize
+  the body.
+- `iter([data])` wraps already-materialized bytes in a single-chunk iterator; a handler that yields an
+  `AsyncIterator[bytes]` is passed directly.
+- `Content-Disposition: attachment; filename="..."` makes a client save rather than render. The route
+  names the file, never the handler; a plain ASCII filename is the default, and RFC 5987 encoding for a
+  non-ASCII one is documented inline where used.
+- The route takes no input, so it advertises nothing; a filtered export takes query parameters or a
+  body and advertises `422` (`CONTRACTS.md`).
+- Where browsers call the API cross-origin, `Content-Disposition` is readable by a page's script only
+  if the CORS middleware's `expose_headers` lists it (`hex-restapi-app`); the route that sets the header
+  adds it to that setting in the same change.
 
-- **Return annotation: `-> StreamingResponse`.** No `response_model` — FastAPI does not serialize the body.
-- `StreamingResponse(iter([bytes]), media_type=..., headers={...})` is the canonical shape. `iter([data])` wraps already-materialized bytes in a single-chunk iterator. If the handler produces a true `AsyncIterator[bytes]`, pass it directly without `iter([...])`.
-- **`media_type` is the real content type** (xlsx / docx / pdf MIME). Don't use `application/octet-stream` for known formats — clients render based on this.
-- `Content-Disposition: attachment; filename="..."` triggers download instead of inline. Filename is double-quoted; a plain ASCII filename is the simplest default, and if you need RFC 5987 encoding for non-ASCII, document it inline.
+## Rules
 
-### `_export_filename` helper
+### Handler contract for downloads
 
-```python
-def _export_filename(ext: str) -> str:
-    ts = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    return f"myapp-foos-{ts}.{ext}"
-```
+24. **The handler returns raw bytes** (or an async iterator of bytes for true streaming) — never a wire
+    model, a response object, or a file path.
+25. **The route does not transform the bytes.** It wraps them in a streaming response and names the
+    file.
+26. **Authorization, filtering and content generation live in the handler.** The route is a transport
+    adapter.
 
-- **Name it `_<purpose>_filename`** — module-level, underscore-prefixed because it is private to the
-  router module and must not be re-exported. Identifier choice otherwise follows `naming`; the
-  private-export rule follows `python-packaging`.
-- The filename format — timestamp style, prefix, ASCII vs RFC 5987 — is an app-level choice; keep it consistent within one app.
-- Filename construction lives in the route, not the handler. The handler returns content; the route names the artifact.
+### What never goes in a file-transfer route
 
-### CORS `expose_headers`
+27. **Writing the upload to disk.** The route passes bytes to the handler; storage is an
+    infrastructure concern (`hex-capability-adapter`).
+28. **An unbounded read.** An upload is bounded before it is read: by the app's request-size middleware
+    where one is declared, else the route reads with a bound; the route never computes the limit.
+29. **A streaming response without its media type.** Clients render by it; a known format never falls
+    back to a generic binary type.
+30. **Any exception handling beyond the one sanctioned translation** of a JSON part's validation error
+    in a mixed multipart + JSON route. Do not extend it.
+31. **Serving a path on disk.** All file content originates from the handler's bytes.
+32. **A response model on a streaming route.** It is meaningless and misdescribes the response in the
+    published document.
 
-`Content-Disposition` is not a default CORS-exposed header, so a browser strips it from the response visible to JS. **If the app has CORS configured** (`hex-restapi-app`), a download route must ensure its response header is in the CORS middleware's `expose_headers` list — the bootstrap leaves that list **empty** by default, so a download route adds `"Content-Disposition"` (and any other non-default header it sets, e.g. `X-Total-Count`) there:
+## Inlined typing / import rules
 
-```python
-expose_headers = (["Content-Disposition"],)
-```
+- `Form`, `UploadFile` from `fastapi`; `Response`, `StreamingResponse` from `fastapi.responses`.
+- `from pydantic import ValidationError as PydanticValidationError` — aliased so it does not shadow the
+  catalogue's `ValidationError`, imported from `myapp.domain.exceptions` where the route raises it.
 
-An app with no CORS configured has no such list to extend. **Verify `expose_headers` whenever you add a headered download response** (when CORS is enabled).
+## Hard stops
+
+- The route is asked to compute a size limit, or to read an upload with no bound where no size-cap
+  middleware is declared → stop, rule 28.
+- The route is asked to parse the file content → stop, that is the handler's job; the route passes
+  bytes.
+- A download response header is added without adding it to the CORS `expose_headers` setting, where the
+  app declares CORS → stop, change both together.
+- A `413` is advertised with no size-cap middleware declared → stop, `error_responses(...)` rejects it at
+  import and nothing produces it.

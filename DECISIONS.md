@@ -867,7 +867,8 @@ break, the Alembic bootstrap); the catalogue is 45 skills.
 The client-style store template used a `store_sdk` that was Qdrant with the name removed, down to its
 port — unrunnable, and a vendor disguised as generic. It now binds `qdrant-client` under a heading that
 says so *(superseded by D79: the vector-store binding is removed)*; key-value stores get their own narrower port (`IFooArchive`, now `IBazRepository` — D79) because they cannot answer the
-aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template, every
+aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template *(superseded by
+D108: `Foo(id, name, note)`, with no reference to `Bar`)*, every
 settings class a template constructs has a body and a provider, and settings are constructed at exactly
 three composition roots (the container, the migration environment, the test infrastructure) *(D79 names
 them by role instead, since a hex service need not have a migration environment)*.
@@ -891,7 +892,8 @@ verification re-gated every decision and found two more to narrow.
   stores is what `hex-store-repository` rule 1 forbids. `Baz` is a new row in `CONVENTIONS.md`.
 - The same spread came through the two files every hex project copies. `hex-wiring`'s container
   template bound every adapter the catalogue defines, and the root integration conftest wired a blob
-  store into `real_app`. Both are now a relational **base**: each optional adapter carries its own
+  store into `real_app` *(D108: the base now ends at the per-test `container`, and `real_app` is itself the REST
+  add-on)*. Both are now a relational **base**: each optional adapter carries its own
   container binding in the skill that owns the adapter, as JWT already did, and its test fixtures are
   an add-on section of the integration conftest that a project adds only when it has that store.
 - Settings are constructed at composition roots named by role — the process's container, any tool that
@@ -922,7 +924,8 @@ port. `naming` now says so: `Repository` with or without a port, the `I` only on
 the topic file `REPOSITORY.md`, the test `test_foo_repository.py`. `StorageUnavailableError` and
 `StorageWriteRejectedError` keep their names: they name a failure of the store, not the class. The ban
 reaches only the class owning a record's data access: an adapter for one capability is named for what
-the capability does, so hex's `S3FooStorage` behind `ICanStoreFoos` stays, and `naming` says so.
+the capability does, so hex's `S3FooStorage` behind `ICanStoreFoos` stays, and `naming` says so *(superseded
+by D108: the S3 adapter template is gone, and `naming` states the exception with no vendor in it)*.
 **Reverse by:** renaming the class, module, topic file and test back, and removing the flat sentence
 and the widened table row from `naming`.
 
@@ -1247,3 +1250,52 @@ for a transport failure; and replaced the startup-state recovery message with on
 **Reverse by:** restoring the flat skill files, their indexes and the `python-toolchain`,
 `flat-project-setup` and `naming` sentences from the commit before this one, renumbering the durable
 obligations back to 13, and removing the superseded markers on D19, D51 and D90.
+
+## The hex family, reduced to what most hex services have
+
+### D108 — The sample application leaves the hex family
+The generality review that cut the flat family (D107) walked the hex family through its test services —
+a CRUD REST service with one aggregate, a queue-driven service, a gRPC service with two aggregates and
+no auth, a service with no relational store — and found one sample application under the placeholders.
+It is gone: the `Foo`→`Bar` foreign key and its `bar_id`/`bar_ids` fields and filter, the audit trail
+(`IAuditRepository`, `AuditEvent`, `domain/audit/`), the xlsx export and its settings and tunable, the URL
+canonicalizer with its value object, the S3 and idna adapters, the framework-free run function in
+`hex-patterns`, the date-range filter, `caller_id` on every command, CORS in the app shell, a `413`
+advertised by default, the `/bulk` route and attachments. `Foo` is `Foo(id, name, note)` — `note` so a
+PATCH test has an untouched field to check — and `Bar` is a second aggregate of the same form, named and
+never templated. Where the caller is authenticated, the entrypoint sets a `caller_id` from whatever
+authenticated it, stated in one sentence where commands are defined. The caller identity is the
+issuer's opaque subject, a `str`, and a rank exists only where a route gates on one; JWKS is an
+`## Other bindings` bullet. The unit-of-work example writes one `Foo` and one `Bar` over `foos` and
+`bars`. A tunable value object carries no default (`python-settings` rule 5). The Redis key prefix is
+a module constant in the adapter. The engine, session and connection factories moved out of
+`hex-conventions` to sit beside their store skills — `hex-persistence`'s `REPOSITORY.md` and
+`hex-store-repository` — leaving `hex-conventions` the factory names. The capability adapter has one
+template, the HTTP gateway; the SDK-client and pure-CPU forms are prose. The base integration conftest is
+framework-free and ends at the per-test `container`; `real_app` is the REST add-on, and the blob-store
+add-on names its settings class by role. Registering a status a middleware emits moved to
+`hex-restapi-app`, which owns the middleware.
+**Reverse by:** restoring the hex skill files, their indexes, the `naming`, `python-style` and
+`flat-test-integration-setup` examples from the commit before this one, and removing the superseded
+markers on D78, D79 and D80.
+
+### D109 — The hex family uses the universal catalogue and states what a transport-free service needs
+A second pass over the hex family (D108) moved its remaining sample shapes to the universal owners and
+reduced them to obligations. The exception root is the project's own `MyappError` from
+`exception-catalog`, never a family-wide `DomainError`; in a hexagonal service the one catalogue lives in
+`domain/exceptions.py`, and `hex-restapi-app` names the classes the shell and the routes add, each with
+its optional `http_status` and each only where something raises it. The auth templates are rank-less by
+default — `CurrentUser(id)`, a verifier requiring `sub` alone, `get_current_user` alone — and `Role`,
+its claim arm, `ForbiddenError` and `require_role` sit in one *Rank apps only* block, where `Role` is
+also the catalogue's one worked enum with a method (the duplicate templates in `hex-domain-model` and
+`hex-test-domain` are a sentence each). The relational delete has no in-use branch; the FK translation
+is a rule that applies where another table references this one. `hex-architecture` states the
+non-HTTP entrypoint obligations as rules: a per-operation scope, one catching scope rendering off the
+exception's attributes, acknowledgement after the handler returns, and a create safe to repeat under
+at-least-once delivery. A port declares only what some handler calls; a PATCH field the client may
+clear distinguishes absent from null; `caller_id` is persisted only where the aggregate records an
+owner or actor. The base composition root carries one handler line. The blob-store test add-on and the
+`/info` invariant test are gone: the key-value add-on is the worked store add-on, and a health or info
+endpoint is tested like any endpoint. The page-size default is the filter's alone.
+**Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
+this one.

@@ -1,6 +1,6 @@
 ---
 name: hex-conventions
-description: Use when asking where does this file go or what is this class called — the registry deriving a path and class name from a bare identifier, plus the two store profiles with their connection factories and `<subdomain>:<Name>` cross-context resolution. Produces no file of its own. What a thing is *called* in general is `naming`; layer boundaries are `hex-architecture`.
+description: Use when asking where does this file go or what is this class called — the registry deriving a path and class name from a bare identifier, plus the two store profiles with their connection-factory names and `<subdomain>:<Name>` cross-context resolution. Produces no file of its own. What a thing is *called* in general is `naming`; layer boundaries are `hex-architecture`.
 paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
@@ -56,6 +56,7 @@ every derived path and class name here, multiplying one careless choice across t
 |---|---|---|---|
 | domain enum | `FooKind` in subdomain `foos` | `FooKind` | `domain/foos/foo_kind.py` |
 | domain value object | `FooCode` in `foos` | `FooCode` | `domain/foos/foo_code.py` |
+| tunable value object | `FooRetentionTunable` in `foos` | `FooRetentionTunable` | `domain/foos/foo_retention_tunable.py` — built from a settings class by its own provider (`hex-domain-model`) |
 | domain entity | `Foo` in `foos` | `Foo` | `domain/foos/foo.py` |
 | domain service | `FooVerifier` in `foos` | `FooVerifier` | `domain/foos/foo_verifier.py` |
 | domain filter | `FooListFilter` in `foos` | `FooListFilter` | `domain/foos/foo_list_filter.py` |
@@ -65,11 +66,11 @@ every derived path and class name here, multiplying one careless choice across t
 | domain exception | `NotFoundError` | `NotFoundError` | appended to `domain/exceptions.py` (single catalog) |
 | application command | `CreateBar` (subdomain derived, see below) | `CreateBarCommand` + `CreateBarHandler` | `application/bars/create_bar_command.py` + `application/bars/create_bar_handler.py` |
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |
-| datastore | named `<name>`, kind `<kind>` (e.g. `archive` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
-| settings | `S3Settings` | `S3Settings` | `infrastructure/s3/settings.py` — subpackage = the consuming tech; the module is always `settings.py`, one settings class per subpackage |
+| datastore | named `<name>`, kind `<kind>` (e.g. `baz_store` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
+| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/settings.py` — subpackage = the consuming tech; the module is always `settings.py`, one settings class per subpackage |
 | repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repo-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
 | capability adapter | implements `ICanManageTokens`, adapter `jwt`, role `TokenManager` | `JwtTokenManager` | `infrastructure/jwt/jwt_token_manager.py` |
-| wire schema | `LoginRequest` for resource `foos` | `LoginRequest` | grouped into `restapi/schemas/foos.py` |
+| wire schema | `FooCreateRequest` for resource `foos` | `FooCreateRequest` | grouped into `restapi/schemas/foos.py` |
 | endpoint | method + path, resource `foos` | endpoint function (name from method + path) | grouped into `restapi/routers/foos.py` |
 | middleware | `RequestId` | `RequestIdMiddleware` | `restapi/middleware/request_id.py` |
 
@@ -77,19 +78,6 @@ every derived path and class name here, multiplying one careless choice across t
 repository protocol the handler depends on (a repository protocol carries its own subdomain); with no
 repository dependency, fall back to the subdomain of the first domain entity it touches. So `CreateBar`
 depending on `IBarRepository` (subdomain `bars`) lands in `application/bars/`.
-
-**A value object used as a dependency is a tunable VO, and its wiring follows.** A value object is
-normally built inline at its use site. When it is instead *injected* into a handler or a domain service,
-it is the **tunable variant** — the config-knob view of an environment threshold: wired as a singleton
-constructed field-by-field from a settings class, not from an inline literal. The stem pairing
-`<Stem>Tunable` ← `<Stem>Settings` is an **advisory default, not load-bearing** — the real binding is the
-wiring, which sources the tunable from whichever settings fields match. A stem mismatch is fine:
-`FooLimitTunable(max_attempts=settings.max_attempts, …)` from a single `FooSettings` is correct. Name
-them to match when a dedicated settings class exists; reuse a broader one (and let the stems differ)
-when the knobs naturally live there. The invariant is the obligation, not a spelling: a factory of the
-tunable's own reads each single field off the settings object and passes it (`hex-wiring`). This is how
-an environment-tunable domain threshold — rate limits, quotas, retention — reaches a domain service
-without the domain importing a settings library.
 
 **Infrastructure groups by external TECH, never by a domain subdomain and never under a catch-all
 `db/`.** The tech token is:
@@ -122,7 +110,7 @@ own (`hex-store-repository` rule 1):
 - a **relational store** repo → `<snake(aggregate)>_repository.py` (`Foo` on `main` →
   `foo_repository.py`).
 - a **client-style store** repo → the **protocol-derived** stem: the implemented protocol name minus its
-  leading `I`, snaked (`IBazRepository` on `archive` → `baz_repository.py`).
+  leading `I`, snaked (`IBazRepository` on `baz_store` → `baz_repository.py`).
 
 So a `Foo` stored relationally behind `IFooRepository`, with a search index beside it behind an
 `IFooSearchIndex`, lands two distinct files — `<relational-kind>/repositories/foo_repository.py` and
@@ -135,7 +123,7 @@ client-repository form covering every key-value / cache / document backend. A ne
 
 **Imports and package mechanics are not restated here.** A referenced type resolves to its owning module:
 same-subdomain domain types use a relative `.module` import, cross-subdomain a relative `..subdomain`,
-cross-layer an absolute `myapp.domain.<subdomain>` import, stdlib its canonical import, builtins none.
+cross-layer an absolute `myapp.domain.<subdomain>` import, stdlib its usual import, builtins none.
 `python-packaging` owns the import rules, `__all__`, and the `from .module import *` re-export contract
 the collapsed import form depends on; `hex-architecture` owns only which layer may import which.
 
@@ -154,14 +142,13 @@ one of them in:
 | **client-style** — reached through an injected SDK client | `client` / `client` | the SDK's own async client class | that SDK's client import | no |
 | *(kind not yet profiled)* | `client` / `client` | `object` | — | no |
 
-A concrete kind is one row of an **appendix the project fills in**, not a row of the table above. Three
+A concrete kind is one row of an **appendix the project fills in**, not a row of the table above. Two
 worked out, as the shape to copy:
 
 | kind | profile | resource type | resource import |
 |---|---|---|---|
 | `postgres` | relational | `async_sessionmaker[AsyncSession]` | `from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker` |
 | `redis` | client-style | `Redis` | `from redis.asyncio import Redis` |
-| `<cache>` | client-style | the SDK's async client | that SDK's client import |
 
 - **Relational** also selects the repository form (block A): yes → `hex-persistence`; no → the
   client-repository form. Adding a client-style backend is one row here.
@@ -170,65 +157,17 @@ worked out, as the shape to copy:
   and gets a write-once `Table` under `infrastructure/<relational-kind>/tables/`. **No** → lay a `create_<store>_client(settings)`
   factory in `infrastructure/<kind>/connection.py` that the composition root binds at process lifetime and
   injects into every repository on that store, and there is **no** table — the store persists through its own client.
-- **Say in prose what a repository method promises on this store**, in the one comment the adapter
-  carries: on a relational store the method issues a statement and the caller's unit of work decides when
-  it commits; on a client store the call *is* the write and there is nothing to commit; on an unprofiled
-  store the client is untyped and the method's guarantees are whatever the vendor documents. Write that
-  sentence — there is no token to pick.
 - An **unknown** kind degrades to a generic untyped `object` client plus a loud contract comment — fail
   loud, do not crash. Adding a backend is **one row here**, never a change to any tool.
 
-**The connection factory is complete glue, not a stub.** For a known profile kind the connection / engine
+**The connection factory is complete glue, not a stub.** For a known profile kind the connection or engine
 factory carries zero judgment — it is a fixed function of the settings shape — so write it in **full**,
-never as `raise NotImplementedError`. A stub here type-checks and lints clean, then crashes the container
-at app construct. The canonical complete forms, the relational one written against SQLAlchemy's asyncio
-engine with an asyncpg DSN — the catalogue's binding (`hex-persistence`). Another engine or driver
-changes the DSN string and the factory's return type; the shape, the name and the completeness rule are
-unchanged:
-
-```python
-# src/myapp/infrastructure/postgres/engine.py  (the relational engine + session factory — complete)
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-
-from .settings import DbSettings
-
-__all__ = ["create_engine", "create_session_factory"]
-
-
-def create_engine(settings: DbSettings) -> AsyncEngine:
-    return create_async_engine(settings.dsn, pool_pre_ping=True)
-
-
-def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(engine, expire_on_commit=False)
-```
-
-```python
-# src/myapp/infrastructure/redis/connection.py  (a client-store connection factory — complete, redis-py binding)
-from redis.asyncio import Redis
-
-from .settings import RedisSettings
-
-__all__ = ["create_archive_client"]
-
-
-def create_archive_client(settings: RedisSettings) -> Redis:
-    return Redis.from_url(settings.url.get_secret_value())
-```
-
-The engine factory reads the connection string the settings object derives rather than reassembling it
-from parts (`python-settings` rule 10), and passes `pool_pre_ping=True` literally; a pool-sizing argument
-appears only beside the required field a deployment adds for it (`hex-persistence`).
-Every client-style store has the second shape; another vendor changes the client class, its import and
-the constructor keywords, never the name or the completeness rule.
+never as `raise NotImplementedError`. A stub type-checks and lints clean, then crashes the container at
+app construct. The relational engine and session factory are `hex-persistence`'s; a client-style store's
+`connection.py` is `hex-store-repository`'s, worked for redis.
 
 The factory name is `create_<datastore-name>_client` — the datastore's *name*, not its kind, so
-`create_archive_client` for a datastore named `archive`. The resource type and import come from the
+`create_baz_store_client` for a datastore named `baz_store`. The resource type and import come from the
 profile table. Only a genuinely unknown kind (the degraded `object` row) cannot be written complete;
 there alone leave a `NotImplementedError` plus a loud comment.
 
@@ -277,25 +216,19 @@ same name, different shape — is never silently merged. Stop and surface it.
 1. Choose identifiers with `naming`, then check every derived artifact against block A's table.
 2. Locate an application handler by its first repository's subdomain; use its first domain entity
    when it has no repository dependency.
-3. Check injected tunables against the field-by-field settings construction in block A; matching stems
-   are advisory.
+3. Place an injected tunable value object by block A's row; how a settings class builds it is
+   `hex-domain-model`'s.
 4. Select each infrastructure directory by the consuming technology, using block A's tech-token cases.
 5. Derive a repository's file stem from the aggregate for relational stores and the protocol for client
    stores; select its implementation form through block B's profile.
 6. Extend datastore support through the profile table; retain the documented fallback for unknown kinds.
-7. Check known-profile connection factories against the complete glue forms in block B, including the
-   datastore-name-derived factory name.
+7. Write known-profile connection factories complete, per block B, under the datastore-name-derived
+   factory name.
 8. Resolve context-qualified references through the named subdomain, using `python-packaging` for
    imports and `hex-architecture` for layer boundaries.
 9. Build the shared substrate from block C's union of contexts; deduplicate identical declarations and
    surface incompatible shapes.
-10. **Entity ids are `uuid.uuid4()`, generated in the application layer** — one scheme across every
-    template, production and test alike. Stdlib only, on the interpreter floor `python-style` sets;
-    `uuid.uuid7()` is standard library only from **Python 3.14**. Time-ordered v7 ids index better when
-    rows created together are read together, and a project that wants them takes a third-party
-    generator and applies it everywhere at once — never in half the templates. (The flat family does
-    exactly that for primary keys, for a reason `flat-persistence` states in the `pyhouse-flat`
-    plugin; the rule here does not depend on reading it.)
+10. Entity ids and where they are minted → `hex-application`, command handler rule 8.
 
 ## Hard stops
 

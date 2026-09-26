@@ -32,8 +32,8 @@ The names it generates are exactly what the repository's translator (`REPOSITORY
 
 - PK: `pk_foos`
 - unique on `name`: `uq_foos_name`
-- index on `bar_id`: `ix_foos_bar_id`
-- FK `foos.bar_id → bars.id`: `fk_foos_bar_id_bars`
+- index on `created_at`: `ix_foos_created_at`
+- an FK from an owned child, `foo_children.foo_id → foos.id`: `fk_foo_children_foo_id_foos`
 - check with `name="name_non_empty"`: `ck_foos_name_non_empty`
 
 **For a `CheckConstraint`, `name=` is the suffix** — the convention prepends `ck_<table>_`. Pick a
@@ -43,7 +43,7 @@ stable, descriptive suffix.
 
 ```python
 # src/myapp/infrastructure/postgres/tables/foos.py
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Table, Text
+from sqlalchemy import CheckConstraint, Column, DateTime, Table, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -56,13 +56,7 @@ foos_table: Table = Table(
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
     Column("name", Text, nullable=False, unique=True),
-    Column(
-        "bar_id",
-        UUID(as_uuid=True),
-        ForeignKey("bars.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    ),
+    Column("note", Text, nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now(), index=True),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("char_length(name) > 0", name="name_non_empty"),
@@ -70,36 +64,7 @@ foos_table: Table = Table(
 ```
 
 `index=True` on a column is the single-column index with no `name=`: the convention names it
-`ix_foos_bar_id` and `ix_foos_created_at`, exactly what the revision writes out.
-
-## Template — append-only table with a store-generated key
-
-A record nothing addresses by an application-minted id — an audit trail, an event log — takes a key the
-store generates, and the repository inserts without one (`hex-patterns`' audit repository):
-
-```python
-# src/myapp/infrastructure/postgres/tables/audit_events.py
-from sqlalchemy import BigInteger, Column, DateTime, Identity, Table, Text
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-
-from ..metadata import metadata
-
-__all__ = ["audit_events_table"]
-
-audit_events_table: Table = Table(
-    "audit_events",
-    metadata,
-    Column("id", BigInteger, Identity(), primary_key=True),
-    Column("subject_id", UUID(as_uuid=True), nullable=False, index=True),
-    Column("action", Text, nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-)
-```
-
-The convention names its key `pk_audit_events` and its index `ix_audit_events_subject_id`. Its revision
-is an ordinary one (`REVISION.md`), writing the key as `sa.Column("id", sa.BigInteger, sa.Identity(),
-primary_key=True)` and creating the index by that name.
+`ix_foos_created_at`, exactly what the revision writes out.
 
 ## Rules — column types
 

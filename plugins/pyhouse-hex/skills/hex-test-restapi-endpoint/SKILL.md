@@ -13,7 +13,7 @@ Produces one integration-test file per endpoint. Self-contained: every test in t
 
 - A new or modified endpoint added by `hex-restapi-endpoint` → this skill.
 - A new resource introduces several endpoints (create + list + get + update + delete) → invoke this skill once per endpoint file; sibling files share a per-resource `conftest.py`.
-- The `tests/integration/conftest.py` itself (rollback, container fixtures, `real_app`) → `hex-test-integration-setup` (one-shot).
+- The `tests/integration/conftest.py` itself (rollback, container fixtures, `container`, `real_app`) → `hex-test-integration-setup` (one-shot).
 - The `authed_client` factory and the signing-key fixtures behind it → `hex-test-restapi-auth` (auth apps only).
 - Driving a route as an authenticated caller, asserting a role rejection or a cross-tenant 404 → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
 - The token verifier's own unit test — no HTTP, real keys, one case per translation arm → `hex-test-restapi-auth`, not this skill and not `hex-test-capability-adapter`.
@@ -41,51 +41,38 @@ when there is a caller to have a role.
 ### `test_<verb>_<noun>.py` — the endpoint test
 
 ```python
-import uuid
-
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from myapp.domain.exceptions import FooConflictError, NotFoundError
+from myapp.domain.exceptions import FooConflictError
 from myapp.restapi.schemas import FooResponse
 
 
-async def test_create_foo_happy_path(real_app: FastAPI, bar_id: uuid.UUID) -> None:
+async def test_create_foo_happy_path(real_app: FastAPI) -> None:
     transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
+        response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 201
     body = FooResponse.model_validate(response.json())
     assert body.name == "alpha"
-    assert body.bar_id == bar_id
 
 
-async def test_create_foo_duplicate_name_returns_409(real_app: FastAPI, bar_id: uuid.UUID) -> None:
+async def test_create_foo_duplicate_name_returns_409(real_app: FastAPI) -> None:
     transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        payload = {"name": "alpha", "bar_id": str(bar_id)}
-        first = await client.post("/foos", json=payload)
+        first = await client.post("/foos", json={"name": "alpha"})
         assert first.status_code == 201
 
-        second = await client.post("/foos", json=payload)
+        second = await client.post("/foos", json={"name": "alpha"})
 
     assert second.status_code == 409
     assert second.json()["code"] == FooConflictError.code
-
-
-async def test_create_foo_unknown_bar_returns_404(real_app: FastAPI) -> None:
-    transport = ASGITransport(app=real_app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post("/foos", json={"name": "alpha", "bar_id": str(uuid.uuid4())})
-
-    assert response.status_code == 404
-    assert response.json()["code"] == NotFoundError.code
 ```
 
 The plain `AsyncClient` over `real_app` is the sanctioned client for a route with no auth dependency
-(Rule 6). Every error path for the same endpoint lives in this file too — the duplicate-name `409`, the
-unknown-parent `404` — each asserted by `code` (Rule 9).
+(Rule 6). Every error path for the same endpoint lives in this file too — here the duplicate-name
+`409` — each asserted by `code` (Rule 9).
 
 ### Per-resource `conftest.py` — relational seed factory
 
@@ -101,28 +88,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture
-async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
-    bid = uuid.uuid4()
-    async with sf() as session:
-        await session.execute(
-            text("INSERT INTO bars(id, name) VALUES(:id, :name)"),
-            {"id": str(bid), "name": "bar"},
-        )
-        await session.commit()
-    return bid
-
-
-@pytest.fixture
-def make_foo(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> Callable[..., Awaitable[uuid.UUID]]:
+def make_foo(sf: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
     async def _make(*, name: str | None = None) -> uuid.UUID:
         fid = uuid.uuid4()
         async with sf() as session:
             await session.execute(
-                text(
-                    "INSERT INTO foos(id, name, bar_id, created_at, updated_at)"
-                    " VALUES(:id, :name, :bar_id, now(), now())"
-                ),
-                {"id": str(fid), "name": name or "foo", "bar_id": str(bar_id)},
+                text("INSERT INTO foos(id, name) VALUES(:id, :name)"),
+                {"id": str(fid), "name": name or "foo"},
             )
             await session.commit()
         return fid
@@ -135,58 +107,11 @@ async def foo_id(make_foo: Callable[..., Awaitable[uuid.UUID]]) -> uuid.UUID:
     return await make_foo()
 ```
 
-### Multipart upload — single-test skeleton
+### Transfer routes
 
-```python
-import uuid
-
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
-
-from myapp.restapi.schemas import AttachmentResponse
-
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
-
-
-async def test_upload_attachment_returns_201(real_app: FastAPI, foo_id: uuid.UUID) -> None:
-    transport = ASGITransport(app=real_app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post(
-            f"/foos/{foo_id}/attachments",
-            data={"data": '{"caption": "test"}'},
-            files=[("attachments", ("a.png", PNG, "image/png"))],
-        )
-
-    assert response.status_code == 201
-    AttachmentResponse.model_validate(response.json())
-```
-
-### Streaming download — single-test skeleton
-
-```python
-import uuid
-
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
-
-
-async def test_download_attachment_streams_bytes(
-    real_app: FastAPI,
-    foo_id: uuid.UUID,
-    attachment_id: uuid.UUID,
-) -> None:
-    transport = ASGITransport(app=real_app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.get(f"/foos/{foo_id}/attachments/{attachment_id}")
-
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "image/png"
-    assert response.headers["content-disposition"].startswith("attachment; filename=")
-    assert len(response.content) > 0
-```
-
-The media type and the disposition mode asserted are the route's own declared ones
-(`hex-restapi-endpoint`) — the values the route under test sets, not a fixed download shape.
+A multipart upload or a streaming download is the same file shape; beyond the status and the body
+schema, a download test asserts the declared media type and `attachment` disposition — the values the
+route under test sets (`hex-restapi-endpoint`), not a fixed download shape.
 
 ## Other bindings
 
@@ -214,7 +139,6 @@ Consult `test-principles` for the testing constitution.
 9. **Error responses are asserted by `code`, not by message.** `assert response.json()["code"] == FooConflictError.code` — message text drifts, the `code` constant is the contract. The actual HTTP status is asserted separately.
 10. Test collection and async marker rules → `test-principles`.
 11. **Mocking.** Follow `test-principles` for the mocking prohibition. If a test needs to mock, it isn't an integration test; move it to a domain unit test (`hex-test-domain`) or to a handler test over fakes (`hex-test-application-handler`), which is also where a compensating handler's undo is pinned.
-12. **A blob-writing test asserts only inside its own namespace, and the namespace reaches the route through the test's infrastructure bindings, never through the route.** In an app with a blob store, `real_app` binds the per-test `S3Settings` (`hex-test-integration-setup`'s blob-store add-on), so a route writes into the test's own bucket with no change to its signature; the test reads that bucket back through the same settings. A route that accepts a prefix, header or parameter only so a test can steer where it writes has grown a test-only input into production.
 
 ## Inlined typing / import rules
 

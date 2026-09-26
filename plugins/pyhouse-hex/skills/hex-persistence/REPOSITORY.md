@@ -21,7 +21,6 @@ adapters.
 
 ```python
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 from uuid import UUID
 
@@ -32,7 +31,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from myapp.domain.exceptions import (
     ConflictError,
     FooConflictError,
-    InUseError,
     NotFoundError,
     ValidationError,
 )
@@ -49,11 +47,6 @@ _SORT_COLUMNS = {
     FooSort.NAME_ASC: foos_table.c.name.asc(),
 }
 
-# Only an aggregate with a foreign key carries this map and the 23503 branch.
-_FK_FIELD_MAP = {
-    "fk_foos_bar_id_bars": "bar_id",
-}
-
 
 def _map_integrity_error(exc: IntegrityError) -> Exception:
     cause = exc.orig.__cause__ if exc.orig else None
@@ -62,9 +55,6 @@ def _map_integrity_error(exc: IntegrityError) -> Exception:
 
     if constraint == "uq_foos_name":
         return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
-    if pgcode == "23503" and constraint:
-        field = _FK_FIELD_MAP.get(constraint, constraint)
-        return NotFoundError(f"Referenced {field} not found", {"field": field, "constraint": constraint})
     if pgcode == "23514" and constraint and "name_non_empty" in constraint:
         return ValidationError("name cannot be empty", {"field": "name", "constraint": constraint})
 
@@ -79,7 +69,7 @@ class FooRepository:
         self._sf = session_factory
 
     def _row_to_entity(self, row: RowMapping) -> Foo:
-        return Foo(id=row["id"], name=row["name"], bar_id=row["bar_id"])
+        return Foo(id=row["id"], name=row["name"], note=row["note"])
 
     async def get_by_id(self, id: UUID) -> Foo:
         async with self._sf() as session:
@@ -109,7 +99,7 @@ class FooRepository:
     async def create(self, foo: Foo) -> None:
         try:
             async with self._sf() as session:
-                await session.execute(foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id))
+                await session.execute(foos_table.insert().values(id=foo.id, name=foo.name, note=foo.note))
                 await session.commit()
         except IntegrityError as exc:
             raise _map_integrity_error(exc) from exc
@@ -122,7 +112,7 @@ class FooRepository:
                     await session.execute(
                         foos_table.update()
                         .where(foos_table.c.id == foo.id)
-                        .values(name=foo.name, bar_id=foo.bar_id, updated_at=func.now())
+                        .values(name=foo.name, note=foo.note, updated_at=func.now())
                     ),
                 )
                 if result.rowcount == 0:
@@ -132,44 +122,30 @@ class FooRepository:
             raise _map_integrity_error(exc) from exc
 
     async def delete(self, id: UUID) -> None:
-        try:
-            async with self._sf() as session:
-                result = cast(
-                    CursorResult[object],
-                    await session.execute(foos_table.delete().where(foos_table.c.id == id)),
-                )
-                if result.rowcount == 0:
-                    raise NotFoundError("Foo not found", {"id": str(id)})
-                await session.commit()
-        except IntegrityError as exc:
-            raise InUseError("Foo is referenced", {"id": str(id)}) from exc
+        async with self._sf() as session:
+            result = cast(
+                CursorResult[object],
+                await session.execute(foos_table.delete().where(foos_table.c.id == id)),
+            )
+            if result.rowcount == 0:
+                raise NotFoundError("Foo not found", {"id": str(id)})
+            await session.commit()
 
 
 def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:
-    if filter.bar_ids:
-        stmt = stmt.where(foos_table.c.bar_id.in_(filter.bar_ids))
-    if filter.created_from is not None:
-        stmt = stmt.where(foos_table.c.created_at >= _start_of(filter.created_from))
-    if filter.created_to is not None:
-        stmt = stmt.where(foos_table.c.created_at < _start_of(filter.created_to + timedelta(days=1)))
+    if filter.name is not None:
+        stmt = stmt.where(foos_table.c.name == filter.name)
     return stmt
-
-
-def _start_of(day: date) -> datetime:
-    return datetime.combine(day, time.min, tzinfo=UTC)
 ```
-
-Both date bounds are inclusive and read as UTC days: `created_to` admits every instant of that day, so
-the upper bound is the start of the next one.
 
 ## Template — unit-of-work-managed form
 
 A class of its own, `FooSessionRepository` in `foo_session_repository.py`, when the aggregate needs the
 standalone form too. Only the constructor and the method bodies differ: methods use
 `self._session.execute(...)` directly and **never call `commit()`** — the unit of work owns the
-transaction. The module-level helpers (`_SORT_COLUMNS`, `_FK_FIELD_MAP`, `_map_integrity_error`,
-`_apply_filter`) are shared, not copied: once both forms exist they move to one module both adapters
-import, so the constraint-name map stays single.
+transaction. The module-level helpers (`_SORT_COLUMNS`, `_map_integrity_error`, `_apply_filter`) are
+shared, not copied: once both forms exist they move to one module both adapters import, so the
+constraint-name map stays single.
 
 ```python
 class FooSessionRepository:
@@ -178,10 +154,13 @@ class FooSessionRepository:
 
     async def create(self, foo: Foo) -> None:
         try:
-            await self._session.execute(foos_table.insert().values(id=foo.id, name=foo.name, bar_id=foo.bar_id))
+            await self._session.execute(foos_table.insert().values(id=foo.id, name=foo.name, note=foo.note))
         except IntegrityError as exc:
             raise _map_integrity_error(exc) from exc
 ```
+
+`BarSessionRepository`, which the unit of work in `hex-patterns` also constructs, is this same joining
+form for `Bar` — a second aggregate written in the same transaction, not a second template.
 
 ## Rules — form
 
@@ -215,8 +194,8 @@ class FooSessionRepository:
 12. `create(entity)` returns `None`; the handler generated the id. Wrap in `try/except IntegrityError`.
 13. `update(entity)` returns `None`. `rowcount == 0` → `NotFoundError`. Use `func.now()` for
     `updated_at`.
-14. `delete(id)` returns `None`, or a list of related keys when compensation needs them. `rowcount == 0`
-    → `NotFoundError`. An FK `IntegrityError` → `InUseError`, not a generic `ConflictError`.
+14. `delete(id)` returns `None`. `rowcount == 0` → `NotFoundError`. Where another table references this
+    one, the FK integrity error on delete → the catalogue's in-use class.
 15. **Reading `rowcount` is type-clean only via a cast.** `execute()` is typed `Result[Any]`, which has no
     `rowcount`. Wrap the DML execute exactly once:
     `result = cast(CursorResult[object], await session.execute(...))`. One canonical form — never an
@@ -224,13 +203,13 @@ class FooSessionRepository:
 
 ## Rules — `IntegrityError` translation
 
-16. **Every `IntegrityError` is translated** before it escapes the repository:
-    `raise _map_integrity_error(exc) from exc`, or an inline mapping for one or two cases.
-17. **The mapper's fallback is mandatory.** It ends by returning a domain exception when no specific case
-    matches. **Never `return exc`**: letting `IntegrityError` leak breaks the
-    no-framework-exceptions-across-layers rule and produces a 500 where the entrypoint should give a 409.
-18. **Pick the most specific exception.** A domain subclass beats `ConflictError`; `InUseError` beats
-    `ConflictError` for an FK on delete.
+16. **Every `IntegrityError` is translated** before it escapes the repository —
+    `raise _map_integrity_error(exc) from exc`, or an inline mapping for one or two cases (`exception-catalog`
+    rule 8).
+17. **The mapper's fallback is mandatory** — `exception-catalog` rule 10; the `ConflictError` return at the
+    end of `_map_integrity_error` is it.
+18. **The most specific class wins** — `exception-catalog` rule 9. Where another table references this
+    one, the FK integrity error on delete → the catalogue's in-use class.
 19. **Populate `context` with the offending field and the constraint name.** Always include
     `"constraint": constraint` — the full conventional name — so the entrypoint and the tests can assert
     on it.
@@ -252,7 +231,7 @@ class FooSessionRepository:
 
 ## Evolution — when to extract a shared integrity-error mapper
 
-The per-repository `_map_integrity_error` plus `_FK_FIELD_MAP` is the default. When **three or more**
+The per-repository `_map_integrity_error` is the default. When **three or more**
 repositories carry overlapping pgcode handlers (`23503` / `23505` / `23514`), extract
 `src/myapp/infrastructure/postgres/integrity_error_mapper.py`, which:
 
@@ -260,16 +239,16 @@ repositories carry overlapping pgcode handlers (`23503` / `23505` / `23514`), ex
   `23514 → ValidationError`) plus the mandatory fallback;
 - exposes `map_integrity_error(exc, *, constraint_map: Mapping[str, ConstraintRule]) -> Exception`, where
   each repository registers only its own constraint-name overrides;
-- defines `ConstraintRule` as `(DomainErrorClass, message, context_fn)` so per-repository customization
+- defines `ConstraintRule` as `(MyappError subclass, message, context_fn)` so per-repository customization
   stays declarative.
 
 Do not introduce it preemptively. Add it the first time a third repository forces the same boilerplate,
 and migrate every existing repository in that one commit — partial adoption causes drift.
 
-## The store's settings and its binding — pydantic-settings, dishka
+## The store's settings, engine and binding — pydantic-settings, SQLAlchemy, dishka
 
-`src/myapp/infrastructure/postgres/settings.py` — the settings class the engine factory reads
-(`hex-conventions` block B). It follows `python-settings`:
+`src/myapp/infrastructure/postgres/settings.py` — the settings class the engine factory below reads. It
+follows `python-settings`:
 
 ```python
 from pydantic import SecretStr
@@ -304,6 +283,36 @@ pool-sizing field, because a deployment's number never ships as a default: pool-
 required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory passes
 `pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
 closed underneath the pool.
+
+`src/myapp/infrastructure/postgres/engine.py` — the engine and session factories, complete glue: they
+carry no judgment, so they are written in full, never left as a stub (`hex-conventions` rule 7).
+
+```python
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from .settings import DbSettings
+
+__all__ = ["create_engine", "create_session_factory"]
+
+
+def create_engine(settings: DbSettings) -> AsyncEngine:
+    return create_async_engine(settings.dsn, pool_pre_ping=True)
+
+
+def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(engine, expire_on_commit=False)
+```
+
+The engine reads the DSN the settings object derives rather than reassembling it from parts
+(`python-settings` rule 10), and passes `pool_pre_ping=True` literally. A pool-sizing argument
+(`pool_size`, `max_overflow`) appears only when the deployment sizes the pool, and then beside the
+required settings field it reads — never as a default. `expire_on_commit=False` keeps a row's values
+readable after the commit that wrote it, which an async session cannot lazily reload.
 
 The binding is an add-on to the base composition root in `hex-wiring`'s `CONTAINER.md`, which binds no
 store. A project whose aggregates are relational merges each class below into the base's provider of the

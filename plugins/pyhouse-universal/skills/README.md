@@ -112,17 +112,17 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | Skill | Owns |
 |---|---|
 | `hex-architecture` | Once the family is hexagonal — layer boundaries, dependency direction, the composition root, ports vs adapters |
-| `hex-conventions` | Identifier → file path and class name; store profiles; multi-context resolution |
+| `hex-conventions` | Identifier → file path and class name; the two store profiles and their connection-factory names (the factories themselves sit with their store skills); multi-context resolution |
 | `hex-project-setup` | Which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap — a baseline only over a schema that already exists; the toolchain is `python-toolchain`'s |
-| `hex-patterns` | Compensating transactions, units of work and their nesting order, framework-free run functions |
-| `hex-persistence` | The relational table, repository adapter, and paired migration revision, and the store's settings class with its engine and repository binding |
-| `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filters, and tunable thresholds |
-| `hex-domain-ports` | Aggregate repository and external-capability protocols |
-| `hex-domain-service` | Stateless domain rules that use cross-aggregate state or capabilities |
+| `hex-patterns` | Compensating transactions, units of work over two repositories, and their nesting order |
+| `hex-persistence` | The relational table, repository adapter (standalone and unit-of-work-joining), and paired migration revision, and the store's settings class, engine and session factories, and container binding |
+| `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filter records with their sort enum, and tunable thresholds with no default |
+| `hex-domain-ports` | Aggregate repository protocols, including one for a store that answers only some reads, and external-capability protocols — async by default, a reversible pair, sync for pure CPU |
+| `hex-domain-service` | Stateless domain rules that need state one entity cannot see, with injected ports; a pure transformation stays a module function |
 | `hex-application` | CQRS commands, queries, handlers, and read-result forms |
 | `hex-wiring` | DI providers, lifetimes, container declaration order, and where each settings class is built and bound |
-| `hex-capability-adapter` | Concrete capability implementations using SDKs, HTTP, or CPU work |
-| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis; other stores under Other bindings |
+| `hex-capability-adapter` | Concrete capability implementations — one template, an HTTP gateway with its settings and binding; the SDK-client and pure-CPU forms in prose |
+| `hex-store-repository` | Aggregate repositories for nonrelational stores, their record mappings, settings and connection factory, with the key prefix a module constant; bound to redis, other stores under Other bindings |
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
 rules the layer split imposes on top of `python-packaging`; `hex-architecture` allocates logging by layer
@@ -132,10 +132,10 @@ rules the layer split imposes on top of `python-packaging`; `hex-architecture` a
 
 | Skill | Owns |
 |---|---|
-| `hex-restapi-app` | FastAPI lifecycle, middleware, central error translation, and the shared error schemas |
-| `hex-restapi-endpoint` | Resource routers, JSON operations, multipart uploads, streaming downloads, handler resolution, and the error responses a route advertises |
+| `hex-restapi-app` | FastAPI lifecycle, central error translation, the shared error schemas, and middleware — none presumed, CORS included — with the registration of a status a middleware emits |
+| `hex-restapi-endpoint` | Resource routers, JSON operations with read-back, route ordering, multipart uploads and streaming downloads, handler resolution, and the error responses a route advertises |
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
-| `hex-restapi-auth` | Caller identity, the token-verifier port and adapter, route dependencies, the role gate, and the auth codes a route advertises |
+| `hex-restapi-auth` | Caller identity as the issuer's opaque subject, with a rank only where a route gates on one; the token-verifier port and adapter, route dependencies, and the auth codes a route advertises |
 
 **The first three are complete on their own.** `hex-restapi-auth` is optional: a service behind an
 authenticating gateway, an mTLS-fronted API or a public one declares no auth and never loads it.
@@ -144,13 +144,13 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 
 | Skill | Owns |
 |---|---|
-| `hex-test-integration-setup` | The map of the whole hex suite tree, session containers, rollback isolation, DI overrides, and the real-app fixture |
-| `hex-test-domain` | Entity, value-object, enum, and domain-service unit tests |
-| `hex-test-application-handler` | Handler unit tests, failure injection, and in-memory repository and capability fakes |
+| `hex-test-integration-setup` | The map of the whole hex suite tree; a framework-free base of session containers, rollback isolation and the per-test `container` with overridden providers; the key-value store as the worked store add-on; `real_app` as the REST add-on |
+| `hex-test-domain` | Entity, value-object, enum, and domain-service unit tests — no file for a value object with no invariant |
+| `hex-test-application-handler` | Handler unit tests for create, PATCH, delete, list and compensation, failure injection, and in-memory repository and capability fakes |
 | `hex-test-repository-contract` | Real-backend repository contracts with relational rollback or client-store namespace isolation |
-| `hex-test-capability-adapter` | Capability adapter tests with containers, HTTP transport substitution, or real CPU work |
+| `hex-test-capability-adapter` | Capability adapter tests — a `respx` template for the HTTP gateway; the containerized and pure-CPU flavours in prose, pointing at their worked instances |
 | `hex-test-restapi-endpoint` | Real-app ASGI integration tests, response validation, and per-resource fixtures |
-| `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI, CORS, and request-size invariants |
+| `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI invariant, plus CORS and request-size checks only where the app configures them |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
 ## Flat core (4)
@@ -236,9 +236,9 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
 
 ## Backlog
 
-- **A hex entrypoint skill other than REST** (CLI, worker). `hex-patterns` carries the framework-free
-  run function such an entrypoint calls, and `hex-restapi-app` is the only worked entrypoint; a CLI or
-  queue-consumer skill would own the shell around that run function.
+- **A hex entrypoint skill other than REST** (CLI, worker). Any entrypoint calls the same application
+  handlers (`hex-application`), and `hex-restapi-app` is the only worked shell; a CLI or queue-consumer
+  skill would own the shell around those handlers.
 - **`flat-service-client` as its own skill** — *not currently needed*. `flat-layered` carries the
   external-system client template, its constructor-argument rule and its alternatives, and
   `flat-test-service-client` carries the test. Split it out only if the client family grows past one

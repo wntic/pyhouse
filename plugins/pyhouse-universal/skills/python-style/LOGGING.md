@@ -13,7 +13,7 @@ import structlog
 log = structlog.get_logger()
 
 # inline fields
-log.info("foo_created", foo_id=str(foo.id), bar_count=len(foo.bar_ids))
+log.info("foo_created", foo_id=str(foo.id), tag_count=len(foo.tags))
 
 # bound context for a sequence of calls
 log_ctx = log.bind(import_id=str(import_id))
