@@ -159,8 +159,10 @@ commands read, because it is house style and has no other home.
   the type checker's `python_version` — and all three name the **oldest** interpreter the project must
   run on. Write them at setup, in the root config, and keep them in step; a linter configured for a
   newer runtime than the deployment one accepts forms that fail there. `python-style` owns the floor —
-  **3.13**, the house floor, which a project may raise and never lower — so the three read
-  `requires-python = ">=3.13"`, `target-version = "py313"` and `python_version = "3.13"`.
+  **3.13**, the house floor for a new project — so a new project's three read
+  `requires-python = ">=3.13"`, `target-version = "py313"` and `python_version = "3.13"`. An existing
+  project below it keeps its own floor in all three and raises it deliberately, never as a side effect
+  of adopting the catalogue; a floor is raised, never lowered.
 - **Type checker config**: strict mode, an explicit `python_version`, and the validation library's plugin
   if it ships one. Under the pydantic-settings binding (`hex-wiring`) that is `plugins = ["pydantic.mypy"]`,
   and it is not optional: without it strict mode reports every no-argument settings construction in the
@@ -324,8 +326,9 @@ names `src tests` and does not.
    value** — block B documents 88 and 120 with the argument for each, and either is compliant once it is
    written down. On an established tree the change reformats the tree, so it travels as its own commit,
    never inside a feature change.
-7. Configure strict type checking, the interpreter floor in all three places block B names (at or
-   above `python-style`'s 3.13), the applicable validation plugin and per-package
+7. Configure strict type checking, the interpreter floor in all three places block B names (a new
+   project at `python-style`'s 3.13 or above; an existing one at its own floor until it raises it
+   deliberately), the applicable validation plugin and per-package
    missing-stub overrides as specified in block B.
 8. Add the complete migration configuration only for a relational store; create the initial baseline
    only while the revision directory is empty.
