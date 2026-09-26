@@ -23,7 +23,7 @@ what unit coverage cannot.
 - An in-memory fake of the same protocol, for handler unit tests → `hex-test-application-handler`.
 - The exceptions the adapter translates integrity errors and SDK errors into → `exception-catalog`.
 - Speed targets, fixture placement and the substitution ladder → `test-principles`.
-- The write path is a flat-layered service's own storage package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `sf`.
+- The write path is a flat-layered service's own data-access package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `sf`.
 
 ## Template(s) — pytest, testcontainers, SQLAlchemy async over Postgres, redis-py
 

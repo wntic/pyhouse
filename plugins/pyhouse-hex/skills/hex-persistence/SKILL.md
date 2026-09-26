@@ -1,6 +1,6 @@
 ---
 name: hex-persistence
-description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, or the paired Alembic revision. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not a flat-layered service's storage package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
+description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, or the paired Alembic revision. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not a flat-layered service's data-access package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
 paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**"]
 ---
 
@@ -22,10 +22,11 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - The migration pairing with a schema change → `REVISION.md`.
 - The `IFooRepository` protocol file the adapter is written against → `hex-domain-ports`.
 - Why the adapter satisfies that protocol structurally and never inherits it → `hex-architecture`.
-- The one-time migration bootstrap — config, `env.py`, the baseline revision → `hex-project-setup`.
+- The one-time migration bootstrap — config, `env.py`, and a baseline only over a schema that already
+  exists → `hex-project-setup`.
 - A repository on a client-style store — key-value, document, or an index kept beside the authoritative
   store, reached through an injected SDK client instead of the shared engine → `hex-store-repository`.
-- Tables, bulk upserts and migrations in a flat-layered service's own storage package, reached
+- Tables, bulk upserts and migrations in a flat-layered service's own data-access package, reached
   directly rather than through a port → `flat-persistence`, in the `pyhouse-flat` plugin.
 - The settings class and the DI provider that construct this repository → `hex-wiring`.
 - The unit-of-work protocol and implementation, when the repository joins multi-repository transactions →
@@ -161,10 +162,11 @@ Both:
 
 `tables/__init__.py` must import the new table module and name it in `__all__` —
 `from . import foos` beside `__all__ = ["foos"]` — otherwise migration autogenerate cannot see the table,
-and the linter reads the bare import as unused and removes it. A table module's public name is a bare object, not a class, so it is
-not wildcarded into the package (`python-packaging` carve-out 3); the repository imports it from its own
-module (`from ..tables.foos import foos_table`). `repositories/__init__.py` re-exports the new adapter
-class with the usual `from . import foo_repository` + wildcard. `metadata.py`'s public name is a bare
+and the linter reads the bare import as unused and removes it. A table module's public name is a bare
+object, not a class, so it is not wildcarded into the package (`python-packaging` carve-out 3); the
+repository imports it from its own module (`from ..tables.foos import foos_table`).
+`repositories/__init__.py` re-exports the new adapter class with the usual
+`from . import foo_repository` + wildcard. `metadata.py`'s public name is a bare
 `MetaData`, so it is not wildcarded into `infrastructure/postgres/__init__.py` either (`python-packaging`
 carve-out 3 — `metadata` would shadow its own module, which the type checker rejects as a redefinition
 and which breaks the package's `metadata.__all__` at import): the package re-exports its other modules
@@ -183,5 +185,5 @@ environment import it from its module (`from ..metadata import metadata`,
 - The repository is asked to log → stop, a repository never logs; the central error handler or the
   calling handler owns that (`python-style`).
 - Asked for id generation inside the repository → stop, the application handler generates ids.
-- The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision file; this
-  skill covers DDL only.
+- The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
+  file; this skill covers DDL only.

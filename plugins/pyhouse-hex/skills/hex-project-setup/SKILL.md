@@ -1,6 +1,6 @@
 ---
 name: hex-project-setup
-description: Use when laying a hexagonal project down once — the `pyproject.toml` dependency substrate by role, the ruff and mypy configuration, and the initial Alembic bootstrap the revision chain cannot start without. Never per feature — the per-change migration revision is `hex-persistence`, runtime DI bindings and settings classes are `hex-wiring`.
+description: Use when laying a hexagonal project down once — the `pyproject.toml` dependency substrate by role, the ruff configuration that bounds function size and complexity, the mypy configuration, and the Alembic bootstrap the revision chain cannot start without (config, environment, and a baseline only over a schema that already exists). Never per feature — the per-change migration revision is `hex-persistence`, runtime DI bindings and settings classes are `hex-wiring`.
 ---
 
 # Hexagonal Project Setup — substrate, toolchain, migration bootstrap
@@ -117,8 +117,9 @@ commands read, because it is house style and has no other home.
   at their edge. What keeps `tests` green is the rule that every fixture and helper is fully annotated: a
   fixture consuming the app types it, a yielding fixture annotates `-> AsyncIterator[T]`, a parametrize
   hook types its argument.
-- **Lint rule selection**: the error and pyflakes families, import sorting, plus two individual bugbear
-  rules — **not** the whole bugbear family; keep the select narrow.
+- **Lint rule selection**: two parts. The **correctness** part is narrow — the error and pyflakes
+  families, import sorting, plus two individual bugbear rules, **not** the whole bugbear family. The
+  **size** part bounds function complexity and length (next bullet). Nothing else is selected.
   - The **raise-without-from** rule makes a bare `raise X` inside an `except` an error: chain the cause
     with `raise X(...) from exc`, or suppress it deliberately with `from None` (e.g. translating a lookup
     miss into an auth error without leaking the internal cause).
@@ -127,6 +128,9 @@ commands read, because it is house style and has no other home.
   - Per-file, `__init__.py` ignores the two wildcard-import warnings, because the re-export contract in
     `python-packaging` requires wildcards. **This is the only sanctioned suppression on a content
     module** — never an inline ignore comment there.
+  - A migration revision file ignores the statement-count rule alone, per file: its body is generated
+    DDL, one statement per column and constraint, not authored logic, and a wide table is not a
+    function to split.
   - **One kind of file is not a content module: a module outside the packaged tree whose import exists
     for a registration side effect.** It sits outside `src/`, ships in no wheel, and imports a package
     purely so that importing it registers something — so the unused-import suppression on that line is
@@ -135,6 +139,13 @@ commands read, because it is house style and has no other home.
     migration tool's environment module importing the tables package (`migrations/env.py` under the
     binding in block C, which carries the `# noqa: F401`), where losing it makes autogeneration stop
     seeing the schema.
+- **Function size and complexity are bounded by the linter, and every threshold is written down.**
+  Cyclomatic complexity stops at 10, McCabe's published ceiling; branches at 12, return statements at 6
+  and statements at 50, pylint's long-standing defaults. Arguments are capped twice — positional ones at
+  5 and all of them at 7 — because a keyword-only argument names itself at every call site. A number is
+  written even where it equals the tool's default, for the reason the line length is: an unwritten
+  threshold moves when the tool's default does. A function that trips a bound is split, never
+  suppressed.
 - **`line-length` is the project's own parameter. The rule is the decision, not the number.** Settle it
   when the project is laid down, **write it in the root `pyproject.toml` explicitly**, and never argue it
   again. A decision invisible in the config has not been made, and a later reader cannot tell a chosen 88
@@ -183,10 +194,21 @@ line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B006", "B904"]
+select = ["E", "F", "I", "B006", "B904", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 7
+max-positional-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
+"migrations/versions/*.py" = ["PLR0915"]
 
 [tool.mypy]
 strict = true
@@ -197,7 +219,9 @@ mypy_path = ["src", "."]
 ```
 
 `B006` is the mutable-default-argument rule and `B904` the raise-without-from rule; `F403` and `F405` are
-the two wildcard-import warnings. A package the project carries that ships no stubs adds one block,
+the two wildcard-import warnings. `C901` is cyclomatic complexity; `PLR0911`, `PLR0912`, `PLR0913`,
+`PLR0915` and `PLR0917` are too many returns, branches, arguments, statements and positional arguments,
+and `PLR0915` is the one a revision file ignores. A package the project carries that ships no stubs adds one block,
 `[[tool.mypy.overrides]]` with `module = ["<package>", "<package>.*"]` and
 `ignore_missing_imports = true`.
 
@@ -205,9 +229,9 @@ the two wildcard-import warnings. A package the project carries that ships no st
 
 Laid **only when a relational store backs a repository**, the same trigger as the relational substrate
 and the first table. The migration tool owns the revision chain, but the chain cannot start — and
-`alembic upgrade head` cannot run — without two things: the **config** (pure glue, rewritten freely) and
-an **initial baseline revision** (write-once). Without them the integration suite dies at setup with
-`No 'script_location' key found`. Nothing in lint, type-check or the unit tier catches that; only a real
+`alembic upgrade head` cannot run — without the **config** (pure glue, rewritten freely), and over a
+database that already holds objects, a **baseline revision** (write-once). Without the config the
+integration suite dies at setup with `No 'script_location' key found`. Nothing in lint, type-check or the unit tier catches that; only a real
 run against a database does.
 
 The three config files are complete glue at the tree root and `migrations/`:
@@ -253,14 +277,24 @@ asyncio.run(_run_online())
 `${down_revision}` / `upgrade()` / `downgrade()`), taken as `alembic init` writes it, so `alembic
 revision` can author later deltas.
 
-The **baseline revision** is **write-once** — create `migrations/versions/0001_baseline.py` only when
-`migrations/versions/` carries no `*.py` yet. Never clobber a chain that already has deltas:
+**On a greenfield project there is no baseline: `migrations/versions/` starts empty, and the first real
+revision is the root.** The first table the project adds is autogenerated and reviewed like every later
+one (`hex-persistence` rule 12), and Alembic gives it no parent — `alembic upgrade head` and
+`downgrade base` already succeed on an empty chain, so a placeholder ahead of it would be a no-op every
+database replays forever, and there is exactly one way a table enters the schema.
+
+**Over a database that already holds objects, the root is a baseline**, and it is **write-once** —
+create `migrations/versions/0001_baseline.py` only when `migrations/versions/` carries no `*.py` yet.
+Never clobber a chain that already has deltas:
 
 ```python
 # migrations/versions/0001_baseline.py
-"""baseline — the root of the revision chain"""
+"""baseline — the schema as it stood before the chain began"""
 
 from collections.abc import Sequence
+
+import sqlalchemy as sa
+from alembic import op
 
 revision: str = "0001"
 down_revision: str | None = None
@@ -269,21 +303,24 @@ depends_on: Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    pass
+    op.create_table(
+        "foos",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_foos"),
+    )
 
 
 def downgrade() -> None:
-    pass
+    op.drop_table("foos")
 ```
 
-**On a greenfield project the baseline is empty.** It exists so the chain has a root, and it holds no
-table: the first table the project adds is its own revision, autogenerated and then reviewed like every
-later one (`hex-persistence` rule 12), so there is exactly one way a table enters the schema. **On a
-database that already holds objects**, the baseline holds only those pre-existing objects, and it
-**freezes** them as they stood the day it was written — every column, type and constraint spelled out by
-hand, nothing read from the live metadata at run time, because `metadata.create_all` would build whatever
-the tables have become by the time the revision runs, and the chain would stop being replayable from
-zero. Either way the baseline imports neither the project's metadata nor its table registrar.
+The baseline holds only the pre-existing objects, and it **freezes** them as they stood the day it was
+written — every column, type and constraint spelled out by hand, nothing read from the live metadata at
+run time, because `metadata.create_all` would build whatever the tables have become by the time the
+revision runs, and the chain would stop being replayable from zero. It imports neither the project's
+metadata nor its table registrar. Each existing database is marked with `alembic stamp 0001` rather than
+upgraded through it; a fresh one — the integration suite's — runs it like any revision.
 
 **Every subsequent migration is a real revision** (`uv run alembic revision --autogenerate -m "<change>"`)
 — see `hex-persistence` for the per-change form.
@@ -300,13 +337,14 @@ names `src tests` and does not.
   its own — the obligation is that dev dependencies are declared somewhere the tool installs by default,
   not in a deprecated table nothing reads.
 - **Another linter or type checker.** flake8 with its plugin set, or pyright in strict mode: the rule
-  codes and the config keys change; the `src`-and-`tests`-at-parity rule, the narrow selection, the
-  explicit line length and the two sanctioned suppressions do not. Confirm the replacement still refuses
+  codes and the config keys change; the `src`-and-`tests`-at-parity rule, the narrow correctness
+  selection, written bounds on complexity, branches, returns, statements and arguments, the explicit line
+  length and the sanctioned suppressions do not. Confirm the replacement still refuses
   a bare `raise` inside `except` and a mutable default argument — those two are why the selection is not
   simply the error family.
 - **Another migration tool.** The config file, the revision template and the autogenerate command all
-  change; the write-once baseline — empty on a greenfield project, hand-frozen DDL over a database that
-  already holds objects — and the mandatory reverse operation do not.
+  change; a greenfield chain rooted at its first real revision, a write-once baseline of hand-frozen DDL
+  only over a database that already holds objects, and the mandatory reverse operation do not.
 
 ## Rules
 
@@ -320,8 +358,10 @@ names `src tests` and does not.
    is `[dependency-groups]` and `uv init --package`.
 4. Check the lint and type-check surfaces against block B, including lint's additional migration coverage;
    annotation requirements come from `python-style`.
-5. Keep lint selection to the families and two bugbear rules specified in block B; configure the wildcard
-   exception per file for the re-export contract in `python-packaging`.
+5. Keep the correctness selection to the families and two bugbear rules specified in block B, beside
+   the size and complexity rules of rule 10; configure the wildcard exception per file for the
+   re-export contract in `python-packaging`, and the statement-count exemption per file for migration
+   revisions.
 6. Write the line length explicitly in the root config and settle it at setup. **This skill mandates no
    value** — block B documents 88 and 120 with the argument for each, and either is compliant once it is
    written down. On an established tree the change reformats the tree, so it travels as its own commit,
@@ -330,10 +370,13 @@ names `src tests` and does not.
    project at `python-style`'s 3.13 or above; an existing one at its own floor until it raises it
    deliberately), the applicable validation plugin and per-package
    missing-stub overrides as specified in block B.
-8. Add the complete migration configuration only for a relational store; create the initial baseline
-   only while the revision directory is empty.
-9. Keep the baseline empty on a greenfield project and frozen hand-written DDL of pre-existing objects
-   otherwise (block C); every table the project adds is its own revision under `hex-persistence`.
+8. Add the complete migration configuration only for a relational store; create a baseline only while
+   the revision directory is empty.
+9. Root a greenfield chain at its first real revision, with no baseline; write a baseline only over a
+   database that already holds objects, as frozen hand-written DDL of those objects (block C). Every
+   table the project adds is its own revision under `hex-persistence`.
+10. Select the linter's function-size and complexity rules with every threshold written in the config,
+    so neither is left to review; a function that trips one is split, never suppressed.
 
 ## Hard stops
 
@@ -344,8 +387,8 @@ names `src tests` and does not.
 - A feature-triggered package is being added to an app that has no such feature → stop, a dependency
   nothing imports is a stray package.
 - An inline lint-ignore or type-ignore comment is being added to a content module → stop, the only
-  sanctioned suppressions are the `__init__.py` wildcard per-file ignore and a per-package missing-stub
-  override. A registration-side-effect import on a non-content module outside the packaged tree is the
+  sanctioned suppressions are the `__init__.py` wildcard per-file ignore, the revision files'
+  statement-count per-file ignore and a per-package missing-stub override. A registration-side-effect import on a non-content module outside the packaged tree is the
   one exception — the migration tool's environment module is that case (`migrations/env.py` under
   Alembic), where removing the suppression breaks migration autogeneration.
 - `line-length` is being left unwritten → stop, write the number; an unwritten decision has not been
@@ -358,3 +401,8 @@ names `src tests` and does not.
   DDL written by hand, or the chain stops being replayable.
 - A table the project is adding is being written into the baseline → stop, the baseline holds only what
   already existed; the new table is its own autogenerated, reviewed revision (`hex-persistence`).
+- A baseline, empty or not, is being written for a greenfield project → stop, the first table's
+  autogenerated revision is the root (`hex-persistence`).
+- A size or complexity rule is being dropped from the selection, its threshold raised, or a function
+  exempted with `noqa` to get a large function through → stop, split the function; the bound is the
+  point.
