@@ -30,7 +30,7 @@ Filename examples (`naming` owns the rule): `test_<tech>_<aggregate_or_area>.py`
 
 ### Pick the flavor
 
-- **Containerized backend.** Adapter speaks to a service that runs in a Testcontainer (MinIO for S3, Postgres for non-aggregate stores, Redis, Kafka). Drives the real client against the real container; consumes the resource fixtures (`s3_session`, `s3_settings`, `redis`) from the integration conftest. **Lives under `tests/integration/<adapter>/`.**
+- **Containerized backend.** Adapter speaks to a service that runs in a Testcontainer (MinIO for S3, Postgres for non-aggregate stores, Redis, Kafka). Drives the real client against the real container; consumes the resource fixtures (`s3_session`, `s3_settings`, `redis_client`) from the integration conftest. **Lives under `tests/integration/<adapter>/`.**
 - **HTTP gateway with `respx`.** Adapter speaks `httpx` to a third-party HTTP API. Wraps the real `httpx.AsyncClient` with `respx.mock` and asserts the request shape (URL, headers, body) on the way out and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
 - **Pure-CPU.** Adapter does no IO — a canonicalizer, a renderer over in-memory bytes, a verifier. Stdlib + the real parsing / crypto library. No fixtures, no containers. **Lives under `tests/unit/infrastructure/<adapter>/`.**
 
@@ -360,7 +360,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ### Containerized flavor specifics
 
-13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client (`s3_session`, `redis`) and settings naming the test's own namespace (`s3_settings`). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is the rejected-credential case (rule 9), which builds a client with credentials the backend refuses.
+13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client (`s3_session`, `redis_client`) and settings naming the test's own namespace (`s3_settings`). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is the rejected-credential case (rule 9), which builds a client with credentials the backend refuses.
 14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** A blob store, a cache or a queue has no nested transaction to discard, so each test owns a fresh prefix, key namespace or bucket, created before it and dropped after it. This is not a choice to leave open — left open, two projects answer it two ways and the second leaks state between tests. The split of ownership is by scope: the session-scoped container and client are `hex-test-integration-setup`'s, and the per-test namespace and its teardown live beside the tests that consume it (the same split `hex-test-repository-contract` rule 15 makes) — which for a blob store is that same integration conftest, because `real_app` substitutes the per-test bucket too.
 15. **Don't bypass the adapter to drive setup.** For success assertions, you may inspect the backend directly (`s3.head_object`) — that is the observation. But for setup that exists to drive the test, go through the adapter (`adapter.upload(...)` then `adapter.delete(...)`).
 
@@ -385,7 +385,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ## Hard stops
 
-- Nothing up-tree provides the live backend a containerized flavor drives (`s3_session` / `s3_settings`, `redis`, … under this catalogue's binding) → stop, use `hex-test-integration-setup` to extend the fixtures first; what the flavor needs is the running backend, not a particular fixture name.
+- Nothing up-tree provides the live backend a containerized flavor drives (`s3_session` / `s3_settings`, `redis_client`, … under this catalogue's binding) → stop, use `hex-test-integration-setup` to extend the fixtures first; what the flavor needs is the running backend, not a particular fixture name.
 - Asked for `unittest.mock` / `MagicMock` of the SDK client → stop, use `test-principles` for substitution rules; the SDK boundary is exactly what this test exists to verify.
 - Asked to mock the adapter itself → stop, use `hex-test-application-handler`.
 - Asked for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles` for marker rules.

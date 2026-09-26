@@ -187,7 +187,9 @@ _ALLOWED_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "ES256", "EdDSA"})
 
 class JwtSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="MYAPP_JWT_", env_file=".env", extra="ignore"
+        env_prefix="MYAPP_JWT_",
+        env_file=".env",
+        extra="ignore",
     )
 
     algorithm: str = "RS256"
