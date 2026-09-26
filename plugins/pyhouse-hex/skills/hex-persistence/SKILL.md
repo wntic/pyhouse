@@ -164,7 +164,13 @@ Both:
 and the linter reads the bare import as unused and removes it. A table module's public name is a bare object, not a class, so it is
 not wildcarded into the package (`python-packaging` carve-out 3); the repository imports it from its own
 module (`from ..tables.foos import foos_table`). `repositories/__init__.py` re-exports the new adapter
-class with the usual `from . import foo_repository` + wildcard. Mechanics: `python-packaging`.
+class with the usual `from . import foo_repository` + wildcard. `metadata.py`'s public name is a bare
+`MetaData`, so it is not wildcarded into `infrastructure/postgres/__init__.py` either (`python-packaging`
+carve-out 3 — `metadata` would shadow its own module, which the type checker rejects as a redefinition
+and which breaks the package's `metadata.__all__` at import): the package re-exports its other modules
+and leaves `metadata` out of both the import line and the `__all__` sum. The tables and the migration
+environment import it from its module (`from ..metadata import metadata`,
+`from myapp.infrastructure.postgres.metadata import metadata`). Mechanics: `python-packaging`.
 
 ## Hard stops
 
