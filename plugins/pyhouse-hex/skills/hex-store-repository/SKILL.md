@@ -16,7 +16,7 @@ Produces one repository class that adapts a domain repository protocol to a clie
 - The protocol file (`i_foo_repository.py`) → `hex-domain-ports`.
 - A single-action `ICan<Verb>` port (not an aggregate's collection) → `hex-capability-adapter`.
 - The obligations a settings class meets (env namespace, secrets, construction only at a composition root) → `hex-wiring`; the store's own settings class is shown here, beside the adapter that reads it.
-- The DI provider that constructs this repository → `hex-wiring`.
+- The lifetime and declaration-order rules the repository's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - Which store profile a datastore is, and the client factory that profile names → `hex-conventions`.
 - The catalogue exception an SDK error is translated into → `exception-catalog`.
 - An in-memory test stand-in for handler unit tests → `hex-test-application-handler`.
@@ -115,6 +115,47 @@ class RedisSettings(BaseSettings):
 
     url: SecretStr
     bars_key_prefix: str
+```
+
+The binding, an add-on to the base composition root in `hex-wiring`'s `CONTAINER.md`, which binds no
+client store. A project that keeps `Bar` here merges the first two classes into the base's providers of
+the same name and adds `BarsProvider()` to the `create_container` list: the settings factory, the client
+built once by the datastore's connection factory (`hex-conventions` block B) and closed after its yield,
+and the repository bound to its port per operation, like every repository (`hex-wiring`).
+
+```python
+from collections.abc import AsyncIterator
+
+from dishka import Provider, Scope, provide
+from redis.asyncio import Redis
+
+from myapp.domain.bars import IBarRepository
+from myapp.infrastructure.redis import RedisSettings, create_archive_client
+from myapp.infrastructure.redis.repositories import BarRepository
+
+
+class SettingsProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def redis_settings(self) -> RedisSettings:
+        return RedisSettings()
+
+
+class InfrastructureProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    async def archive_client(self, settings: RedisSettings) -> AsyncIterator[Redis]:
+        client = create_archive_client(settings)
+        yield client
+        await client.aclose()
+
+
+class BarsProvider(Provider):
+    scope = Scope.REQUEST
+
+    bar_repository = provide(BarRepository, provides=IBarRepository)
 ```
 
 ## Other bindings

@@ -3,13 +3,19 @@
 Topic file of `hex-wiring`. The mechanism-free obligations are `## Rules` in `SKILL.md`; what follows
 is the **dishka** binding that satisfies them.
 
+This is the **base** every project extends: the settings, the relational store (engine, session
+factory, the `Foo` repository), the tunable value object and the handlers. It binds no optional
+adapter. Each of those — a blob store, an HTTP gateway, a canonicalizer, a key-value store, a token
+verifier — ships its own binding beside the adapter, in the skill that owns it: the S3 storage, the
+HTTP gateway and the idna canonicalizer in `hex-capability-adapter`, the Redis repository in
+`hex-store-repository`, the token verifier in `hex-restapi-auth`. A project merges the ones it has into
+the providers below, each line into the provider class of the same name, in declaration order; a
+provider class a binding adds (a second subdomain's) joins the `create_container` list.
+
 ```python
 from collections.abc import AsyncIterator
 
-import aioboto3
-import httpx
-from dishka import AnyOf, AsyncContainer, Provider, Scope, make_async_container, provide
-from redis.asyncio import Redis
+from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from myapp.application.foos import (
@@ -19,22 +25,10 @@ from myapp.application.foos import (
     ListFoosHandler,
     UpdateFooHandler,
 )
-from myapp.domain.bars import IBarRepository, ICanCanonicalizeBarUrl, ICanFetchBarToken
-from myapp.domain.foos import (
-    FooExportTunable,
-    FooUniquenessService,
-    ICanFetchFoos,
-    ICanStoreFoos,
-    IFooRepository,
-)
+from myapp.domain.foos import FooExportTunable, FooUniquenessService, IFooRepository
 from myapp.infrastructure.export import ExportSettings
-from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
-from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
 from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
 from myapp.infrastructure.postgres.repositories import FooRepository
-from myapp.infrastructure.redis import RedisSettings, create_archive_client
-from myapp.infrastructure.redis.repositories import BarRepository
-from myapp.infrastructure.s3 import S3FooStorage, S3Settings
 
 __all__ = ["create_container"]
 
@@ -49,28 +43,13 @@ class SettingsProvider(Provider):
         return DbSettings()
 
     @provide
-    def s3_settings(self) -> S3Settings:
-        return S3Settings()
-
-    @provide
-    def redis_settings(self) -> RedisSettings:
-        return RedisSettings()
-
-    @provide
-    def bar_gateway_settings(self) -> BarGatewaySettings:
-        return BarGatewaySettings()
-
-    @provide
-    def idna_settings(self) -> IdnaSettings:
-        return IdnaSettings()
-
-    @provide
     def export_settings(self) -> ExportSettings:
         return ExportSettings()
 
 
 class InfrastructureProvider(Provider):
-    """2. Long-lived handles, each released after its yield, and 3. cross-cutting adapters."""
+    """2. Long-lived handles, each released after its yield, and 3. cross-cutting adapters,
+    which the binding beside each adapter adds here."""
 
     scope = Scope.APP
 
@@ -83,35 +62,6 @@ class InfrastructureProvider(Provider):
     @provide
     def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return create_session_factory(engine=engine)
-
-    @provide
-    def s3_session(self, settings: S3Settings) -> aioboto3.Session:
-        # A session holds credentials, not connections; the adapter opens a client per call.
-        return aioboto3.Session(
-            aws_access_key_id=settings.access_key,
-            aws_secret_access_key=settings.secret_key.get_secret_value(),
-        )
-
-    @provide
-    async def archive_client(self, settings: RedisSettings) -> AsyncIterator[Redis]:
-        client = create_archive_client(settings)
-        yield client
-        await client.aclose()
-
-    @provide
-    async def http_client(self, settings: BarGatewaySettings) -> AsyncIterator[httpx.AsyncClient]:
-        async with httpx.AsyncClient(timeout=settings.timeout_seconds) as client:
-            yield client
-
-    foo_storage = provide(S3FooStorage, provides=AnyOf[ICanStoreFoos, ICanFetchFoos])
-    bar_gateway = provide(HttpBarGateway, provides=ICanFetchBarToken)
-    bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
-
-
-class BarsProvider(Provider):
-    scope = Scope.REQUEST
-
-    bar_repository = provide(BarRepository, provides=IBarRepository)
 
 
 class FoosProvider(Provider):
@@ -143,18 +93,18 @@ def create_container(*overrides: Provider) -> AsyncContainer:
     return make_async_container(
         SettingsProvider(),
         InfrastructureProvider(),
-        BarsProvider(),
         FoosProvider(),
         *overrides,
     )
 ```
 
-The template binds every adapter the catalogue defines, so it binds `Bar`'s key-value repository
-beside `Foo`'s relational one — each aggregate on its one authoritative store (`hex-store-repository`
-rule 1). One adapter satisfying two ports is bound once, to both (`AnyOf`), so the two ports share the
-one instance. A client-style store is bound in three steps, the Redis repository (`hex-store-repository`)
-being the worked one: a settings factory, a client factory that closes the client after its yield, and
-the repository bound to its port.
+Every add-on binding has the same parts, each in the place the declaration order gives it: a settings
+factory in `SettingsProvider`; in `InfrastructureProvider`, the client it needs — built by a factory that
+releases it after its yield when it holds connections — and a capability adapter bound to its port; and
+a repository bound to its port in its subdomain's per-operation provider. One adapter satisfying two
+ports is bound once, to both (`AnyOf`), so the two ports share the one instance — the S3 binding is the
+worked case. An aggregate has one authoritative store (`hex-store-repository` rule 1), so no add-on binds
+a second repository for `Foo`; the key-value one binds `Bar`'s.
 
 Add `FastapiProvider()` to that list **only** when a factory takes `fastapi.Request` or
 `fastapi.WebSocket` as a parameter; the default composition root above takes neither and stays free of

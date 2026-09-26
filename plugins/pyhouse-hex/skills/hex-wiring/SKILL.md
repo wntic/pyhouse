@@ -54,11 +54,15 @@ one of the three composition roots rule 13 names, so they construct settings wit
 `src/myapp/containers.py` is the only file this half touches. Bindings are grouped into provider classes
 by layer and by subdomain; `create_container` assembles them. **Every dependency is resolved by type** —
 no binding is reached by its attribute name, so renaming a class cannot silently break a call site. The
-template binds every adapter the catalogue's templates define for one app; an app binds the ones it has.
+template is the **base** a project extends — the relational store, the tunable and the handlers — and
+binds no optional adapter. **An add-on's binding lives with its adapter**: the S3 storage, the HTTP
+gateway and the idna canonicalizer in `hex-capability-adapter`, the Redis repository in
+`hex-store-repository`, the token verifier in `hex-restapi-auth`; a project merges the ones it has.
 
 **Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
-carries the composition root — the provider classes in declaration order and `create_container` — and
-the unit-of-work factory binding; only `SKILL.md` is loaded automatically.
+carries the base composition root — the provider classes in declaration order and `create_container` —
+how an add-on binding merges into it, and the unit-of-work factory binding; only `SKILL.md` is loaded
+automatically.
 
 ## Other bindings
 

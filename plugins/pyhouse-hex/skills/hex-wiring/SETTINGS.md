@@ -92,5 +92,6 @@ consumer reads and nothing else — and each is shown beside what reads it:
 - `ExportSettings` — in `CONTAINER.md`, beside the provider of the tunable value object that is its one
   consumer.
 
-Every one of them has its factory in the composition root — in `CONTAINER.md`, or for `JwtSettings`
-in the binding `hex-restapi-auth` adds to it.
+Every one of them has its factory in the composition root. `DbSettings` and `ExportSettings` have
+theirs in the base in `CONTAINER.md`; each other class has its factory in the binding shown beside its
+adapter, which a project merges into that base — `S3Settings`' included, in `hex-capability-adapter`.

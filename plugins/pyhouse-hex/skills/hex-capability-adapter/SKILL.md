@@ -17,7 +17,7 @@ here, into the classes `exception-catalog` owns.
 - Aggregate-root persistence on a key-value or document store, or an index kept beside it → `hex-store-repository`; an injected SDK client alone does not make something a capability.
 - The `ICan<Verb>` protocol file this adapter satisfies → `hex-domain-ports`.
 - The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `hex-wiring`, which also shows the S3 adapter's `S3Settings`; the HTTP gateway's and the canonicalizer's classes are shown here, beside their adapters.
-- The binding that constructs this adapter (almost always process-lifetime) → `hex-wiring`.
+- The lifetime and declaration-order rules the adapter's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
 - The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-patterns`'.
 - An in-memory test stand-in for this capability (the `Fake<Capability>` flavor) → `hex-test-application-handler`.
@@ -266,6 +266,101 @@ class IdnaSettings(BaseSettings):
     )
 
     allowed_schemes: frozenset[str]
+```
+
+### The composition-root bindings — dishka
+
+Each adapter above is an add-on to the base composition root in `hex-wiring`'s `CONTAINER.md`, which
+binds none of them. A project that has one merges its binding into the base: each line into the
+provider class of the same name, after the lines already there. All three are process-lifetime — an
+adapter keeps no state across calls (rule 13).
+
+The S3 storage: the settings factory, the SDK session built from its two credential fields, and the
+one adapter bound to both ports it satisfies, so they share one instance.
+
+```python
+import aioboto3
+from dishka import AnyOf, Provider, Scope, provide
+
+from myapp.domain.foos import ICanFetchFoos, ICanStoreFoos
+from myapp.infrastructure.s3 import S3FooStorage, S3Settings
+
+
+class SettingsProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def s3_settings(self) -> S3Settings:
+        return S3Settings()
+
+
+class InfrastructureProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def s3_session(self, settings: S3Settings) -> aioboto3.Session:
+        # A session holds credentials, not connections; the adapter opens a client per call.
+        return aioboto3.Session(
+            aws_access_key_id=settings.access_key,
+            aws_secret_access_key=settings.secret_key.get_secret_value(),
+        )
+
+    foo_storage = provide(S3FooStorage, provides=AnyOf[ICanStoreFoos, ICanFetchFoos])
+```
+
+The HTTP gateway: the settings factory, one shared client closed after its yield — the timeout is read
+here, where the client is built — and the adapter bound to its port.
+
+```python
+from collections.abc import AsyncIterator
+
+import httpx
+from dishka import Provider, Scope, provide
+
+from myapp.domain.bars import ICanFetchBarToken
+from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
+
+
+class SettingsProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def bar_gateway_settings(self) -> BarGatewaySettings:
+        return BarGatewaySettings()
+
+
+class InfrastructureProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    async def http_client(self, settings: BarGatewaySettings) -> AsyncIterator[httpx.AsyncClient]:
+        async with httpx.AsyncClient(timeout=settings.timeout_seconds) as client:
+            yield client
+
+    bar_gateway = provide(HttpBarGateway, provides=ICanFetchBarToken)
+```
+
+The idna canonicalizer: no client, only its settings.
+
+```python
+from dishka import Provider, Scope, provide
+
+from myapp.domain.bars import ICanCanonicalizeBarUrl
+from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
+
+
+class SettingsProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def idna_settings(self) -> IdnaSettings:
+        return IdnaSettings()
+
+
+class InfrastructureProvider(Provider):
+    scope = Scope.APP
+
+    bar_url_canonicalizer = provide(IdnaBarUrlCanonicalizer, provides=ICanCanonicalizeBarUrl)
 ```
 
 ## Other bindings

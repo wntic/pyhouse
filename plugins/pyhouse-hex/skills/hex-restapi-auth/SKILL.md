@@ -341,8 +341,9 @@ advertisement rule joining the chosen dependency to the codes the route declares
 
 ## The composition-root wiring
 
-The verifier and its settings are two bindings in the composition root. Placement follows `hex-wiring`'s
-declaration order: settings first, then long-lived infrastructure — a verifier is process-lifetime
+The verifier and its settings are two bindings in the composition root — an add-on a project that
+declares auth merges into `hex-wiring`'s base, each line into the provider class of the same name.
+Placement follows `hex-wiring`'s declaration order: settings first, then long-lived infrastructure — a verifier is process-lifetime
 (stateless, parses its key once).
 
 ```python
