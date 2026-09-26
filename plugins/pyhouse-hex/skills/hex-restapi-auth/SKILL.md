@@ -34,7 +34,7 @@ is a *transport* rule — a single role-rank check — belongs here.
 - How to write the capability protocol the verifier satisfies → `hex-domain-ports`.
 - Adapter form in general — constructor injection, secrets, no logging, no business logic →
   `hex-capability-adapter`; this skill carries only the verifier instance of it.
-- Settings classes, binding lifetimes and composition-root declaration order → `hex-wiring`.
+- What a settings class declares → `python-settings`; binding lifetimes and composition-root declaration order → `hex-wiring`.
 - Authorization finer than a single role-rank check → `hex-application`; the handler raises
   `ForbiddenError`.
 - The fixtures that mint tokens, the `authed_client`, and the unauthenticated-probe invariant →
@@ -193,7 +193,7 @@ _ALLOWED_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "ES256", "EdDSA"})
 class JwtSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_JWT_",
-        env_file=".env",
+        env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
@@ -215,13 +215,13 @@ class JwtSettings(BaseSettings):
         return SecretStr(value.get_secret_value().replace("\\n", "\n"))
 ```
 
-The allowlist is a **rejection validator** in `hex-wiring`'s sense: it refuses a value that would cause
-silent misbehaviour rather than a loud failure. An `alg` of `none`, or `HS256` against a published
-public key, verifies happily and forges every identity in the system; the failure surfaces as "auth
-works" rather than as an error, so the only place to catch it is process startup. The PEM
+The allowlist is a **rejection validator** in the sense of `python-settings` rule 12: it refuses a value
+that would cause silent misbehaviour rather than a loud failure. An `alg` of `none`, or `HS256` against
+a published public key, verifies happily and forges every identity in the system; the failure surfaces
+as "auth works" rather than as an error, so the only place to catch it is process startup. The PEM
 unescape is the other sanctioned validator purpose — normalization, accepting the env-friendly
 single-line form and storing the canonical one. Settings rules, secrets and `SecretStr` handling are
-`hex-wiring`'s; this file is one instance of them.
+`python-settings`; this file is one instance of them.
 
 ### Binding traps — bearer JWS
 

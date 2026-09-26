@@ -4,23 +4,25 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 45 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 47 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
 too. The counts in every heading are the number of directories on disk.
 
-### Universal (10)
+### Universal (12)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
 - `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, the logging allocation that keeps every re-raising scope silent, whatever the project's layering, and a closed set of constants as an `Enum`, with logging configured only at the entry point.
 - `python-packaging` — Decides whether a module wants a class at all before capping it at one — a closed set of declarations may share a module by test, and a module a framework dictates follows the framework — and keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
+- `python-settings` — One settings class per configured component, reading only its own non-strict namespace and built once at the program's composition root; no default on a required field, a secret or a tunable, and a published library reads no environment at all.
+- `python-toolchain` — The configuration every distribution carries once, whatever its family — the src layout, a narrow lint selection with every size and complexity threshold written, strict type checking over `src` and `tests` alike, the sanctioned suppressions, one line length, and a floor only at a named break; which libraries a service's roles bring stays with the family's setup skill.
 - `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; transport rendering stays at the boundary.
-- `test-principles` — Takes precedence whenever an artifact-specific test skill contradicts the shared constitution.
+- `test-principles` — The testing constitution for any Python project, and it wins wherever an artifact-specific test skill contradicts it — where tests and fixtures sit and the closed autouse set, one substitution ladder, assert strength with literal expected values, and HTTP interception asserted on the exercised route's own call record.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
 ### Meta (1)
@@ -31,14 +33,14 @@ too. The counts in every heading are the number of directories on disk.
 
 - `hex-architecture` — Once the family is hexagonal, decides which layer a module belongs in and which way an import may cross; whether hexagonal fits at all is `architecture-choice`'s.
 - `hex-conventions` — Resolve artifact locations and context ownership before applying an artifact's file template.
-- `hex-project-setup` — Run the bootstrap once — the linter's written size and complexity bounds, and migrations with a baseline only over an existing schema; later table changes use the persistence skill's paired revision.
+- `hex-project-setup` — Run the bootstrap once — which libraries each role brings with the floors this family's templates rely on, and migrations with a baseline only over an existing schema; the toolchain itself is `python-toolchain`'s, later table changes the persistence skill's paired revision.
 - `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together.
-- `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction.
+- `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction; the relational store's settings class and its engine and repository binding sit beside the adapter.
 - `hex-domain-model` — Decides when a constrained primitive becomes a value object, on a stdlib-only substrate separate from transport models.
 - `hex-domain-ports` — Defines the signatures that adapters satisfy without inheriting or importing the protocol.
 - `hex-domain-service` — Place rules beside their primary aggregate; use an entity for rules enforceable from its own fields.
 - `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface.
-- `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler.
+- `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler; it builds and binds settings classes, whose contents are `python-settings`'s.
 - `hex-capability-adapter` — Implements an external action; aggregate persistence belongs to a repository skill.
 - `hex-store-repository` — Use for client-style storage, bound to redis, other stores under Other bindings; relational tables and Alembic revisions belong to the persistence skill.
 
@@ -51,7 +53,7 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Hex tests (8)
 
-- `hex-test-integration-setup` — Establish shared infrastructure fixtures before repository, adapter, or API integration tests.
+- `hex-test-integration-setup` — Establish shared infrastructure fixtures before repository, adapter, or API integration tests, and map the whole hex suite tree, naming the skill that writes each file in it.
 - `hex-test-domain` — Choose the template for the domain shape, using a minimal inline stub when a service needs a collaborator.
 - `hex-test-application-handler` — Keeps in-memory collaborator behavior and failure injection beside the handler contracts they support.
 - `hex-test-repository-contract` — Exercise the same aggregate contract across adapters while selecting isolation for the actual store.
@@ -62,10 +64,10 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Flat core (4)
 
-- `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; a configured component is a package with its own settings, and a client holds one pooled transport; one distribution on its own is the default.
+- `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; a configured component is a package with its own settings class, built by the process definition, whose contents are `python-settings`'s, and a client holds one pooled transport; one distribution on its own is the default.
 - `flat-persistence` — Confine each store's statements and connections to one package named for its technology, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
 - `flat-entrypoint` — Changing the trigger — loop, schedule, stream, a thin HTTP wrapper or durable execution — wraps the same dependency-injected run function without rewriting its work, which holds bounded memory whatever triggers it; a workflow engine is earned, never assumed.
-- `flat-project-setup` — Lay a flat service down once — pyproject, toolchain with written size and complexity bounds, dependency floors and the migration bootstrap, no empty greenfield baseline; per-change revisions are `flat-persistence`'s.
+- `flat-project-setup` — Lay a flat service down once — which libraries each role brings with the floors this family's templates rely on, and the migration bootstrap with no empty greenfield baseline; the toolchain itself is `python-toolchain`'s, per-change revisions `flat-persistence`'s.
 
 ### Flat tests (4)
 
@@ -89,7 +91,7 @@ skill only as an example and must read correctly in a repository with no Python 
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 12 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |

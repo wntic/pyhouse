@@ -1,7 +1,8 @@
 # hex-persistence — the repository adapter
 
-Topic file of `hex-persistence`. The mechanism-free obligations are rules 6–11 and 13 in `SKILL.md`;
-what follows is the **SQLAlchemy Core + asyncpg** binding that satisfies them.
+Topic file of `hex-persistence`. The mechanism-free obligations are rules 6–11 and 13 in `SKILL.md`, and
+`python-settings` for the settings class at the end; what follows is the **SQLAlchemy Core + asyncpg**
+binding that satisfies them.
 
 One class adapting a domain repository protocol to SQLAlchemy Core. The adapter does not inherit from the
 protocol — structural subtyping at the injection site is the contract.
@@ -264,4 +265,86 @@ repositories carry overlapping pgcode handlers (`23503` / `23505` / `23514`), ex
 
 Do not introduce it preemptively. Add it the first time a third repository forces the same boilerplate,
 and migrate every existing repository in that one commit — partial adoption causes drift.
+
+## The store's settings and its binding — pydantic-settings, dishka
+
+`src/myapp/infrastructure/postgres/settings.py` — the settings class the engine factory reads
+(`hex-conventions` block B). It follows `python-settings`:
+
+```python
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["DbSettings"]
+
+
+class DbSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_DB_",
+        env_file=".env",  # only where the project keeps a dotenv file for development
+        extra="ignore",
+    )
+
+    host: str
+    port: int = 5432
+    user: str
+    password: SecretStr
+    name: str
+
+    @property
+    def dsn(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
+        )
+```
+
+`dsn` is the derived value every consumer reads and the one place the password is unwrapped
+(`python-settings` rules 9 and 10); `port` defaults to the driver's well-known port. The class carries no
+pool-sizing field, because a deployment's number never ships as a default: pool-sizing fields are added,
+required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory passes
+`pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
+closed underneath the pool.
+
+The binding is an add-on to the base composition root in `hex-wiring`'s `CONTAINER.md`, which binds no
+store. A project whose aggregates are relational merges each class below into the base's provider of the
+same name, the repository line first in its subdomain's provider, ahead of the services that use it:
+
+```python
+from collections.abc import AsyncIterator
+
+from dishka import Provider, Scope, provide
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+from myapp.domain.foos import IFooRepository
+from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
+from myapp.infrastructure.postgres.repositories import FooRepository
+
+
+class SettingsProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def db_settings(self) -> DbSettings:
+        return DbSettings()
+
+
+class InfrastructureProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    async def engine(self, settings: DbSettings) -> AsyncIterator[AsyncEngine]:
+        engine = create_engine(settings=settings)
+        yield engine
+        await engine.dispose()
+
+    @provide
+    def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+        return create_session_factory(engine=engine)
+
+
+class FoosProvider(Provider):
+    scope = Scope.REQUEST
+
+    foo_repository = provide(FooRepository, provides=IFooRepository)
+```
 

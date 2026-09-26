@@ -24,10 +24,12 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
   this skill, use that member's architecture skill.
 - Choosing a runnable member's trigger → the member family's entrypoint skill (`flat-entrypoint`, in the
   `pyhouse-flat` plugin, is one).
-- Bootstrapping one member's dependency substrate and tool configuration → the member family's setup
-  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one, and the flat family's is
-  `flat-project-setup`, in the `pyhouse-flat` plugin). Nothing below needs it: the tooling
-  values this root settles are stated here, and the interpreter floor behind them is `python-style`'s.
+- What the linter, the type checker and the line length are set to, and how dependencies are declared
+  → `python-toolchain`; this root is only where those values are written, once. The interpreter floor
+  behind them is `python-style`'s.
+- Which runtime libraries a member's roles bring → the member family's setup skill
+  (`hex-project-setup`, in the `pyhouse-hex` plugin, is one, and the flat family's is
+  `flat-project-setup`, in the `pyhouse-flat` plugin).
 - Where members share a store, the pytest plugin module the root `addopts` loads, and the fixtures
   inside it → the member family's integration-setup skill (`flat-test-integration-setup`, in the
   `pyhouse-flat` plugin, or `hex-test-integration-setup`, in `pyhouse-hex`).
@@ -72,13 +74,7 @@ requires-python = ">=3.13"
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
 
-[tool.ruff]
-line-length = 120
-target-version = "py313"
-
-[tool.mypy]
-python_version = "3.13"
-strict = true
+# [tool.ruff*] and [tool.mypy]: python-toolchain's tables, whole, written here once
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
@@ -99,11 +95,8 @@ own**. Nothing importable lives at the root; every line of shipped code sits ins
 **The tooling values above are the project's to choose; what the workspace fixes is that they are chosen
 once, at the root, and inherited.** A member never restates them — a second `line-length` in a member's
 `pyproject.toml` is how two halves of one workspace start disagreeing about what a diff should look like.
-`line-length = 120` is the value this catalogue's templates are written to; **88** is the linter's and
-the wider ecosystem's default, and the argument between them turns on whether there is an existing
-tree to reformat. Pick either, write it at the root, and stop arguing. The interpreter floor and the
-three settings that name it are `python-style`'s; the workspace's part is only that they are written
-here, once.
+The full tool tables and the choice of line length are `python-toolchain`'s, the interpreter floor
+`python-style`'s; the workspace's part is only that they are written here, once.
 
 Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 

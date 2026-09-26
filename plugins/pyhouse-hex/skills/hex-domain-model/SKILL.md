@@ -28,7 +28,7 @@ Outside it:
 - A DTO crossing the application boundary → `hex-application`. A filter record may be reused there; the query DTO wraps it plus authorization context.
 - The request or response model on the wire → `hex-restapi-schema`; a domain type is never serialized straight out.
 - Persistence of any of these → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store).
-- The settings class the tunable variant's values come from, and the provider that constructs it → `hex-wiring`.
+- The settings class the tunable variant's values come from → `python-settings`; the lifetime rules its provider follows → `hex-wiring`; the provider itself is shown beside the template.
 - Testing an invariant, identity equality or the pinned enum member set → `hex-test-domain`.
 - What the class and its module are called → `naming`; one class per module and the re-export → `python-packaging`.
 
@@ -168,7 +168,16 @@ class FooExportTunable:
 Distinguishing characteristics:
 
 - Sourced from a settings class at the composition root — a provider of its own reads each field off
-  the settings object and passes it: `FooExportTunable(max_rows=settings.max_rows)`. See `hex-wiring`.
+  the settings object and passes it. The binding, an add-on to `hex-wiring`'s base composition root, is
+  process-lifetime; `ExportSettings` stands for whichever settings class declares the field
+  (`python-settings`), bound in `SettingsProvider` like any other:
+
+  ```python
+  class FoosProvider(Provider):
+      @provide(scope=Scope.APP)
+      def foo_export_tunable(self, settings: ExportSettings) -> FooExportTunable:
+          return FooExportTunable(max_rows=settings.max_rows)
+  ```
 - Injected into domain services and application handlers, never into entities. Entities do not read
   tunables; services do.
 - Every value-object rule still applies: frozen, no methods, primitive or VO fields only. Which

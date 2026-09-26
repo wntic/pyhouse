@@ -33,7 +33,7 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
   which layer logs is below.
 - The error catalog → `exception-catalog`.
 - Deriving a concrete path or class name from an identifier → `hex-conventions`.
-- Library substrate, toolchain config, the migration bootstrap → `hex-project-setup`.
+- Library substrate and the migration bootstrap → `hex-project-setup`; toolchain config → `python-toolchain`.
 - A table, a relational repository, a migration → `hex-persistence`.
 - Compensation or a unit of work → `hex-patterns`.
 - What the composition root actually binds — providers, lifetimes, settings, teardown, declaration

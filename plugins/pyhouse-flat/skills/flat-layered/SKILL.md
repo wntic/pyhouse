@@ -52,13 +52,16 @@ what Fowler calls **transaction scripts** above it.
   `python-workspace`. One distribution on its own needs none of that.
 - What triggers a run — a loop, a cron entry, a stream, an HTTP request, or durable execution once it
   is earned → `flat-entrypoint`, which owns the run function's own obligations.
-- The `pyproject.toml`, the toolchain configuration and the migration environment, laid once when the
-  service is created → `flat-project-setup`.
+- The dependencies each role brings and the migration environment, laid once when the service is
+  created → `flat-project-setup`; the src layout and the lint and type-check configuration →
+  `python-toolchain`.
 
-Four skills apply here unchanged and are not restated: `python-packaging` (one class per module,
+Five skills apply here unchanged and are not restated: `python-packaging` (one class per module,
 `__all__`, re-exports, import forms), `python-style` (annotations, collection types, the shape a record
-takes across a boundary, logging, comments), `exception-catalog` (the catalog and translating SDK errors
-into it) and `coupling` (where boundaries go at all, and how much structure a component deserves).
+takes across a boundary, logging, comments), `python-settings` (what a settings class declares, its
+defaults and secrets, and construction at the composition root), `exception-catalog` (the catalog and
+translating SDK errors into it) and `coupling` (where boundaries go at all, and how much structure a
+component deserves).
 
 ## The four role kinds and the import contract
 
@@ -232,54 +235,6 @@ filter drops, and a body without the key is malformed and fails the parse. `labe
 because the upstream omits it when there are none. `src/myapp/schemas/__init__.py` re-exports all three
 modules (`python-packaging`).
 
-### Template — settings, on pydantic-settings
-
-`src/myapp/services/foo_api/settings.py` — the external system's own configuration, inside the package
-of the client it configures:
-
-```python
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["FooApiSettings", "get_foo_api_settings"]
-
-
-class FooApiSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="MYAPP_FOO_API_",
-        env_file=".env",
-        extra="ignore",
-    )
-
-    url: str
-    timeout_seconds: float
-
-
-def get_foo_api_settings() -> FooApiSettings:
-    return FooApiSettings()
-```
-
-The process's own `src/myapp/settings.py`, at the package root beside the rest of the cross-cutting
-setup, has exactly this shape — `Settings` and `get_settings()` under `MYAPP_` — holding only the fields
-that configure the process itself; a process with none has no such module. Every settings class in the
-family carries the same three `model_config` keys. `env_prefix` is the component's namespace;
-`env_file` points at the project's dotenv file, so local development reads it while production injects
-real environment and the file simply is not there; and `extra="ignore"` keeps the namespace non-strict,
-so a variable under the prefix that the class does not declare — a nested component's
-(`MYAPP_FOO_API_URL` under `MYAPP_`), or a stale one — never crashes startup. A thin HTTP wrapper adds
-two server fields to the process's class (`flat-entrypoint`); it stays one class.
-
-`MYAPP_` is the placeholder for this distribution's stem, and each component's prefix extends it with
-that component's own segment — `MYAPP_FOO_API_` here, `MYAPP_POSTGRES_` for the data-access package —
-so each segment is reserved in the class above it (rule 8). The URL and the timeout have no default
-(rule 10): a required field fails at the first factory call. The package's `__init__.py` re-exports
-the settings and client modules (`python-packaging`), so a caller writes
-`from myapp.services.foo_api import FooClient`.
-
-**Build settings behind a factory, never as a bare module-level instance** (rule 7) — the data-access
-package exposes factories for its settings and its engine in the same shape, for the process definition
-to call (`flat-persistence`). **`@lru_cache` on one is conditional**: the process definition calls it
-once, so add it only where a second caller genuinely exists — a web framework resolving it per request.
-
 ### Template — an external-system client, on httpx
 
 `src/myapp/services/foo_api/foo_client.py` — one concrete class, no Protocol:
@@ -314,6 +269,17 @@ class FooClient:
 `FooClientError` is the one class this client raises, from the service's own catalogue; what its
 `context` carries when a method takes an input is `exception-catalog`'s.
 
+`src/myapp/services/foo_api/settings.py` is `python-settings`' template under `MYAPP_FOO_API_`,
+declaring the client's `url` and `timeout_seconds`. The process's own `src/myapp/settings.py`, at the
+package root beside the rest of the cross-cutting setup, has the same shape — `Settings` and
+`get_settings()` under `MYAPP_` — holding only the fields that configure the process itself; a process
+with none has no such module, and a thin HTTP wrapper adds two server fields to it (`flat-entrypoint`).
+The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
+re-exports the settings and client modules (`python-packaging`), so a caller writes
+`from myapp.services.foo_api import FooClient`. The data-access package exposes factories for its
+settings and its engine in the same shape (`flat-persistence`), and the process definition calls every
+one of them (rule 7).
+
 **The client is handed its transport; it never builds one** (rule 14). The process-definition package
 builds the pooled HTTP client once from the system's settings — `httpx.AsyncClient(base_url=settings.url,
 timeout=settings.timeout_seconds)`, entered with `async with` for the life of the process so it closes
@@ -339,10 +305,6 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
 - **A console-script entry point in place of `__main__.py`.** `[project.scripts]` in the packaging
   metadata gives the same one declared place a process starts from, as a named command. What must not
   change is the count: one declared entry point per runnable process.
-- **Another settings library in place of pydantic-settings.** `environ-config`, `dynaconf` or a
-  hand-parsed `os.environ` all satisfy rules 7, 8 and 10 — what survives the swap is that a component's
-  fields are declared and validated in one class of its own, that required fields have no defaults, and
-  that the object is built behind a factory rather than at import time.
 - **Another HTTP or SDK client in place of `httpx`.** `aiohttp`, `niquests`, a vendor SDK: the client
   class keeps its shape — the session or SDK client built once by the process definition and handed to
   the constructor, the library's own exceptions caught and translated inside it, no `Protocol` above it.
@@ -382,28 +344,20 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    dependency*; do not retrofit the rest of the service.
 6. **One exception catalog**, and SDK/library exceptions are translated into it at the boundary — inside
    the client class that called the SDK. Shape and translation rules: `exception-catalog`.
-7. **Settings are built by a factory and passed down as values.** A settings module —
-   `src/myapp/settings.py` in the example above — exposes `get_settings()`; the process definition calls
-   it once and hands concrete arguments, and the transports it built, to the clients and work units it
-   constructs. The migration environment is the process definition of a migration run and calls the
-   data-access component's factory the same way (`flat-project-setup`). Nothing below the
-   process-definition role imports settings, and no module below it calls a settings factory, its own
-   component's included. A settings object built at import time makes the package unimportable — by a
-   test, by a type checker, by a sibling module wanting one constant — anywhere the environment is
-   incomplete.
+7. **The process definition builds settings and passes them down as values** — it is this family's
+   composition root (`python-settings` rule 13). It calls each component's settings factory once and
+   hands concrete arguments, and the transports it built, to the clients and work units it constructs.
+   The migration environment is the process definition of a migration run and calls the data-access
+   component's factory the same way (`flat-project-setup`). Nothing below the process-definition role
+   imports settings, and no module below it calls a settings factory, its own component's included.
 8. **Every component that has configuration is a package, and declares its own settings class in a
-   `settings.py` inside that package, under its own environment prefix.** The process's configuration,
-   an external system's and a store's are three components' configuration and three classes, never one
-   class holding several components' fields, and never a client module with a `*_settings.py` sibling
-   in a package it shares with other systems. Each class exposes a factory and stops there — declaring
-   one is not licence to call it below the process definition, which rule 7 forbids. **No variable may
-   ever satisfy two components' fields.** Sharing a prefix outright is the obvious way to break that; a
-   *nested* prefix is the quiet one. `MYAPP_` for the process and `MYAPP_POSTGRES_` for its data-access
-   package hold only while no field on the outer class begins with the inner segment — `postgres_dsn`
-   under `MYAPP_` and `dsn` under `MYAPP_POSTGRES_` are the same variable. Either keep the stems
-   disjoint, or treat each inner segment as reserved in the outer class and never declare a field there
-   that begins with it. The failure is the same whether the second component is a package inside this
-   distribution or a library shared with siblings (`flat-persistence` states that package's half).
+   `settings.py` inside that package** (`python-settings` rule 1). The process's configuration, an
+   external system's and a store's are three components and three classes, never a client module with
+   a `*_settings.py` sibling in a package it shares with other systems. Each class exposes a factory and
+   stops there — declaring one is not licence to call it below the process definition (rule 7). Its
+   prefix, and the nested-prefix collision between the process's `MYAPP_` and a component's
+   `MYAPP_POSTGRES_`, are `naming`'s rule 7, the same whether the second component is a package inside
+   this distribution or a library shared with siblings (`flat-persistence` states that package's half).
 9. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
    durable-execution engine is earned, the one framework-guarded helper module the firewall's allow-list
    names by path, so the exemption stays one entry a reviewer can read. For one distribution that is a
@@ -412,10 +366,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    loop, a test or a one-off script, and it is what makes switching a service's trigger a wrapper change
    rather than a rewrite. The role is declared when the package is created, never inferred from a
    directory name.
-10. **A tunable with no single right value carries no default.** A timeout is set from the upstream's
-    observed latency and from what the caller can wait for; a default is one deployment's tuning frozen
-    into a template, and it converts a missing variable into a silent wrong answer instead of a startup
-    failure.
+10. **A tunable with no single right value carries no default** (`python-settings` rule 5).
 11. **An enum lives beside the module that owns it.** A shared vocabulary module holds only what is
     genuinely used across packages, and admission to it runs `coupling`'s test — a blanket category
     package pulls single-owner types away from their owner and stops naming anything.
@@ -458,8 +409,8 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
   move the wrapper into the framework-wrapper package and leave the body where it was.
 - A package cannot be placed in one row of the import-contract table → stop, it holds two roles or none;
   split it or delete it before writing code into it.
-- A module builds its settings instance at import time → stop, expose `get_settings()` instead; the
-  bare instance makes the package unimportable wherever the environment is incomplete.
+- A module builds its settings instance at import time → stop, expose `get_settings()` for the process
+  definition to call (`python-packaging` rule 8).
 - A module below the process definition calls a settings factory, its own component's included → stop,
   the process definition calls it and passes the values down; owning a settings class is not permission
   to read it from inside the component.

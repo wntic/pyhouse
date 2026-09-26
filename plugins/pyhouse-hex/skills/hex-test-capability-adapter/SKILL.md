@@ -388,15 +388,15 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ### Containerized flavor specifics
 
 13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client (`s3_session`, `redis_client`) and settings naming the test's own namespace (`s3_settings`). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is the rejected-credential case (rule 9), which builds a client with credentials the backend refuses.
-14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** A blob store, a cache or a queue has no nested transaction to discard, so each test owns a fresh prefix, key namespace or bucket, created before it and dropped after it. This is not a choice to leave open — left open, two projects answer it two ways and the second leaks state between tests. The split of ownership is by scope: the session-scoped container and client are `hex-test-integration-setup`'s, and the per-test namespace and its teardown live beside the tests that consume it (the same split `hex-test-repository-contract` rule 15 makes) — which for a blob store is that same integration conftest, because `real_app` substitutes the per-test bucket too.
+14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** A blob store, a cache or a queue has no nested transaction to discard. Which fixture owns the per-test namespace and which the session-scoped container and client → `hex-test-integration-setup` (obligation 9 and its scope split).
 15. **Don't bypass the adapter to drive setup.** For success assertions, you may inspect the backend directly (`s3.head_object`) — that is the observation. But for setup that exists to drive the test, go through the adapter (`adapter.upload(...)` then `adapter.delete(...)`).
 
-### HTTP-gateway flavor specifics — interception binding: respx over httpx
+### HTTP-gateway flavor specifics
 
-16. **The interception is active before any request is made, never opened around one block mid-test.** The decorator form (`@respx.mock`) covers the whole test body — adapter construction and the act; it does not cover fixtures, which run before the decorated function is entered, so a fixture that itself issues requests enters `respx.mock` itself. A context manager opened mid-test leaves any request made outside it going to the real network, which fails opaquely or — worse — reaches the real upstream.
-17. **Each stubbed route matches one exact method-and-URL, never a catch-all.** A pattern broad enough to also match a request the test did not intend — a retry, a token refresh, a second endpoint — answers it too, and the test then passes without ever proving the call it was written for went where it should.
-18. **Every happy-path test asserts the stubbed route was actually hit.** An interception layer answers whatever arrives and reports success by default, so an adapter that never made the call — an un-awaited coroutine is the standing case — passes a test that only checks the return value.
-19. **Trigger a transport failure with a transport-level error, not a status code.** Only a raised connect or timeout error (`side_effect=httpx.ConnectError(...)`) reaches the adapter's transport-error arm; every status-code test lands on the response arm and leaves that branch unexercised.
+16. The interception is active before any request is made → `test-principles`, *Intercepting HTTP* rule 1.
+17. Each stubbed route matches one exact method and URL → `test-principles`, *Intercepting HTTP* rule 2.
+18. Every happy-path test asserts the route it exercises was hit, on that route's own call record (`route.called` here) → `test-principles`, *Intercepting HTTP* rule 3.
+19. A transport failure is triggered with a transport-level error, not a status code → `test-principles`, *Intercepting HTTP* rule 4. Rule 9 names the two cases this flavor needs.
 
 ### CPU flavor specifics
 
@@ -413,9 +413,8 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ## Hard stops
 
 - Nothing up-tree provides the live backend a containerized flavor drives (`s3_session` / `s3_settings`, `redis_client`, … under this catalogue's binding) → stop, use `hex-test-integration-setup` to extend the fixtures first; what the flavor needs is the running backend, not a particular fixture name.
-- Asked for `unittest.mock` / `MagicMock` of the SDK client → stop, use `test-principles` for substitution rules; the SDK boundary is exactly what this test exists to verify.
+- Asked for a mock of the SDK client, or for a layer or async marker → stop, use `test-principles`; the SDK boundary is exactly what this test exists to verify.
 - Asked to mock the adapter itself → stop, use `hex-test-application-handler`.
-- Asked for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles` for marker rules.
 - Asked to assert `pytest.raises(<SdkExceptionClass>)` directly → stop, use `exception-catalog` for boundary translation; assert the translated `DomainError` subclass.
 - Asked to assert on a translated exception without checking `context` keys → stop, check the context keys; the context map is the load-bearing contract this test exists to pin.
 - Asked for a happy-path test only with no error-translation cases → stop, cover the exception map row-by-row.

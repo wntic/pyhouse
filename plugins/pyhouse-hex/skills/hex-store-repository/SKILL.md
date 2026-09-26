@@ -15,7 +15,7 @@ Produces one repository class that adapts a domain repository protocol to a clie
 - The aggregate's store is the relational bootstrap store (SQLAlchemy/Postgres) → `hex-persistence`.
 - The protocol file (`i_foo_repository.py`) → `hex-domain-ports`.
 - A single-action `ICan<Verb>` port (not an aggregate's collection) → `hex-capability-adapter`.
-- The obligations a settings class meets (env namespace, secrets, construction only at a composition root) → `hex-wiring`; the store's own settings class is shown here, beside the adapter that reads it.
+- The obligations a settings class meets (env namespace, secrets, construction only at a composition root) → `python-settings`; the store's own settings class is shown here, beside the adapter that reads it.
 - The lifetime and declaration-order rules the repository's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - Which store profile a datastore is, and the client factory that profile names → `hex-conventions`.
 - The catalogue exception an SDK error is translated into → `exception-catalog`.
@@ -95,7 +95,7 @@ class BazRepository:
 ```
 
 The settings class the adapter and the store's connection factory (`hex-conventions` block B) read, in
-`infrastructure/redis/settings.py`. It follows `hex-wiring`'s settings rules; the URL is a secret
+`infrastructure/redis/settings.py`. It follows `python-settings`; the URL is a secret
 because it carries the password, and the key prefix is the adapter's container token.
 
 ```python
@@ -108,7 +108,7 @@ __all__ = ["RedisSettings"]
 class RedisSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_REDIS_",
-        env_file=".env",
+        env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
@@ -206,7 +206,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ### Records ↔ entities
 
-6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`): no IO; logging follows `python-style`. IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore in an adapter body is a hard stop in `hex-project-setup` and is "never sanctioned" in `hex-capability-adapter`; an adapter is the one place the vendor type is allowed, so there is nothing to silence.
+6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`): no IO; logging follows `python-style`. IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore is `python-style`'s last resort, for code the checker is wrong about that cannot be restated (its type suppressions); an adapter is the one place the vendor type is allowed, so the code can always be restated and there is nothing to silence.
 7. **The record shape is a design decision, not a transcription.** What becomes the key, what goes into the payload, what the store indexes — the client-store analogue of "column types are judgment" in `hex-persistence`. The aggregate's access patterns and the store's semantics guide it.
 8. **An entity is reconstructed from its own stored data.** Never substitute query-side values for stored ones (e.g. an entity rebuilt from a record is built from the record's fields, never patched with the key or the arguments the caller looked it up by); when the read path doesn't consume a stored field, omit it explicitly rather than faking it.
 

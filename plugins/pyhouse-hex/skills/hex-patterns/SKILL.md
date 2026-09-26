@@ -49,7 +49,7 @@ Elsewhere:
 - Layer boundaries and the injection site → `hex-architecture`.
 - The repository that joins a unit of work → `hex-persistence`.
 - The reversing method a compensation calls (`delete`, `retract`) → declared on a port beside its forward operation by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`; the guard that lets the handler stop its failure is stated here, as `exception-catalog`'s best-effort compensation exception.
-- The composition-root declarations both patterns need — the `IUnitOfWork` binding and its scope → `hex-wiring`.
+- The lifetime and declaration-order rules the unit-of-work binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here.
 - What the handler may log → `python-style`.
 
 ## Template — compensation, a single side effect
@@ -253,6 +253,28 @@ already has an implicit transaction raises.
 
 The implementation does **not** inherit from `IUnitOfWork` — satisfaction is structural
 (`hex-architecture`).
+
+The binding, an add-on merged into the subdomain's provider in `hex-wiring`'s base composition root,
+is the factory callable (unit-of-work rule 8) — process-lifetime, because the closure is stateless.
+
+```python
+from collections.abc import Callable
+from functools import partial
+
+from dishka import Provider, Scope, provide
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from myapp.domain.uow import IUnitOfWork
+from myapp.infrastructure.postgres import SqlAlchemyUnitOfWork
+
+
+class FoosProvider(Provider):
+    @provide(scope=Scope.APP)
+    def uow_factory(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> Callable[[], IUnitOfWork]:
+        return partial(SqlAlchemyUnitOfWork, session_factory=session_factory)
+```
 
 ## Template — unit of work, handler integration
 

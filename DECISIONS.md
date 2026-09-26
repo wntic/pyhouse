@@ -40,6 +40,7 @@ lets any single plan be reverted alone.
 
 <!-- appended as they occur -->
 ### D6 — Fixed `test-principles`' flat example instead of deferring it
+**Superseded by D105.** The flat AAA example this entry fixed left `test-principles` with the flat tree.
 Plan 01's own verification flagged `EntitiesRepository`, `record_batch(foo_filtered_table, "foo", …)`
 and `entity_kinds_table` in a **universal** skill — source-project vocabulary, banned outright by
 CLAUDE.md. The plan's Finding 4 triage had grepped only `myschema|packages/|services/|workspace` and
@@ -1136,3 +1137,73 @@ Which layer logs is a fact about the hexagonal layers, so the table moved from `
 the universal log-once rule and the level guide in `LOGGING.md`; `hex-restapi-app`, `hex-test-domain`
 and the catalogue README point at the table's new home.
 **Reverse by:** moving the table, its rule and its hard stop back to `python-style`.
+
+## Universal owners — settings, the toolchain and the test constitution
+
+### D103 — `python-settings` owns settings from the environment
+Settings rules sat twice, in `hex-wiring` (with `SETTINGS.md`) and in `flat-layered`, worded
+differently and each applicable to every Python program. They are one universal skill now;
+`hex-wiring/SETTINGS.md` is deleted, `hex-wiring` keeps where a settings class is built and bound, and
+`flat-layered` keeps that a configured component is a package with its own class, built by the process
+definition. Where the two disagreed, flat's rule won: **a tunable with no single right value carries no
+default** (rule 5), hex's defaulted pool sizes having been one deployment's tuning frozen into a
+template. So the relational store's pool sizes are required, and pre-ping is not a setting at all — the
+engine factory passes it literally. `DbSettings`, the engine and the relational repository
+binding moved to `hex-persistence/REPOSITORY.md`, beside the adapter that reads them, so the base
+container binds no store — every store's binding now lives with its adapter, as the add-ons' already
+did. Rule 15 (a value chosen per invocation is an argument, not a setting) is new: a CLI tool is in
+scope, and there the confusion is the common one.
+**Reverse by:** restoring `hex-wiring/SETTINGS.md` and the settings halves of `hex-wiring` and
+`flat-layered`, defaulting the hex tunables again, moving `DbSettings` and the relational binding back
+into `hex-wiring/CONTAINER.md`, and deleting `python-settings` with its index lines and ownership row.
+
+### D104 — `python-toolchain` owns the configuration every distribution carries once
+The src layout, the ruff selection and its written thresholds, the sanctioned suppressions, strict
+mypy, the line length, development dependency groups and the dependency-floor discipline were stated
+in both `hex-project-setup` and `flat-project-setup`, and a library or CLI tool with no family had no
+home for them at all. They are one universal skill now. The family setup skills keep only what differs
+by family — which libraries each role brings with the floors their own templates rely on, and the
+migration bootstrap. The inline type-ignore policy is `python-style`'s (**Type suppressions**:
+fix first, an ignore is the last resort and names its code and reason); `python-toolchain` owns only
+the per-package missing-stub override. With that, flat's blanket ban on any inline `# type: ignore` or
+`# noqa` under `src/` is gone: lint suppressions are the closed list `python-toolchain` rule 5
+sanctions (D106), and type suppressions follow `python-style`.
+**Reverse by:** restoring the toolchain blocks to both `*-project-setup` skills, restoring flat's
+inline-suppression hard stop, moving the type-ignore policy back beside it, and deleting
+`python-toolchain` with its index lines and ownership row.
+
+### D105 — `test-principles` is family-neutral
+The constitution carried two family trees and two substitution ladders, so a library, a CLI tool, or a
+project with one family plugin installed read half a skill about something it did not have. The hex
+tree moved to `hex-test-integration-setup`, which now maps the whole hex suite and names the skill that
+writes each file. The flat tree was deleted rather than moved: `test-principles` states where tests and fixtures sit,
+and each flat test skill names the file it writes. The two ladders merged into one five-rung ladder whose
+port-fake rung is conditional — taken where the architecture defines a port, skipped where it does
+not, never a reason to create one. The autouse set is closed at three: the safety guard, the schema
+setup and the isolation reset. HTTP interception was reconciled: every happy-path test asserts the
+route it exercised was hit, on that route's own call record, never by requiring every stubbed route to
+be called — `flat-test-service-client`'s first happy-path test now does exactly that. General rules on
+assert strength and literal expected values moved in from the family test skills.
+**Reverse by:** restoring both trees and both ladders to `test-principles`, removing the tree map from
+`hex-test-integration-setup`, and restoring the all-routes-called form of the interception rule.
+
+### D106 — The base container binds no feature; setup triggers key on owning the schema
+A review of D103–D105 found template lines most services would not have. The hex base container now
+binds no store and no feature: `ExportSettings`, its package and the tunable's provider are gone from
+`hex-wiring/CONTAINER.md`, and the tunable's binding is an add-on beside the tunable value object in
+`hex-domain-model`; the unit-of-work factory binding moved to `hex-patterns` under its implementation,
+with one rule left in `hex-wiring` — a unit of work is bound as its factory callable. The base's
+handler provider says where `IFooRepository`'s binding comes from, and the numbered docstrings that
+copied the skill's ordering into a reader's code are gone. `python-settings` rule 5 gained a CLI
+exception — a program its users run may ship a documented tunable default — and its hard stop narrowed
+to deployables; the dotenv read became conditional, since a CLI tool run from arbitrary directories
+reads none. The migration tool and bootstrap in both setup skills are triggered by owning the schema of
+a relational store, not by having one, so a service that only reads a table carries no migration tool.
+`python-toolchain` rule 5 sanctions one suppression everywhere and lets the family setup skill that
+lays a migration bootstrap sanction the two migration ones, whose rationales now live there.
+`flat-layered`'s settings template is gone in favour of `python-settings`', named in one sentence.
+**Reverse by:** restoring `ExportSettings`, the tunable provider and the unit-of-work section to
+`hex-wiring/CONTAINER.md` and removing their add-ons from `hex-domain-model` and `hex-patterns`;
+dropping the CLI exception from `python-settings` rule 5; keying the migration tool back on having a
+relational store; moving the migration suppressions back into `python-toolchain` rule 5 as a list of
+three; and restoring the settings template to `flat-layered`.

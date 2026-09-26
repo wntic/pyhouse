@@ -25,10 +25,10 @@ whole point of the infrastructure rule is that the folder is named after the rea
 - What goes *inside* the artifact whose name you just derived → the skill that owns it
   (`hex-persistence`, `exception-catalog`, `hex-patterns`). This skill is consulted **alongside**
   them, never instead of them — it produces no file of its own.
-- Which libraries the project carries and how the toolchain is configured → `hex-project-setup`.
+- Which libraries the project carries → `hex-project-setup`; how the toolchain is configured → `python-toolchain`.
 - Choosing what an identifier should be *called* once you know where it goes — the derivation procedure and the naming tests → `naming`. This skill maps a name to a place; `naming` picks the name.
 - One class per module, `__all__`, and the `__init__.py` re-exports → `python-packaging`.
-- The composition root and the settings classes a store profile's connection factory is wired from → `hex-wiring`.
+- The composition root a store profile's connection factory is wired from → `hex-wiring`; the settings class that factory reads sits beside the store's adapter (`hex-persistence`, `hex-store-repository`) and follows `python-settings`.
 - Whether the service should be hexagonal at all → `architecture-choice`.
 - The command, query or handler that lives at the path you just derived → `hex-application`.
 
@@ -201,13 +201,7 @@ __all__ = ["create_engine", "create_session_factory"]
 
 
 def create_engine(settings: DbSettings) -> AsyncEngine:
-    return create_async_engine(
-        settings.dsn,
-        pool_size=settings.pool_size,
-        max_overflow=settings.max_overflow,
-        pool_pre_ping=settings.pool_pre_ping,
-        echo=settings.echo,
-    )
+    return create_async_engine(settings.dsn, pool_pre_ping=True)
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -228,7 +222,8 @@ def create_archive_client(settings: RedisSettings) -> Redis:
 ```
 
 The engine factory reads the connection string the settings object derives rather than reassembling it
-from parts (`hex-wiring` settings rule 8), and passes every pool option the settings class declares.
+from parts (`python-settings` rule 10), and passes `pool_pre_ping=True` literally; a pool-sizing argument
+appears only beside the required field a deployment adds for it (`hex-persistence`).
 Every client-style store has the second shape; another vendor changes the client class, its import and
 the constructor keywords, never the name or the completeness rule.
 

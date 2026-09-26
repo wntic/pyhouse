@@ -44,7 +44,7 @@ first thing to get right.
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). Isolate exactly as the per-test bucket does for blobs: **each test owns a fresh namespace** — a unique key-prefix (redis), collection or database name (a document store), or bucket — created in a fixture and dropped at teardown. Bring the real store up once per session via testcontainers; create/destroy the per-test namespace per test. **The split is by scope, not by store kind.** `hex-test-integration-setup` owns every **session-scoped** container, engine and client fixture, whatever the store — that is what guarantees one container per session. The sibling `tests/integration/<store-kind>/conftest.py` owns only the **per-test** namespace fixture and its teardown — unless `real_app` binds that namespace as well as the tests that use it, in which case it sits up-tree beside the session half. Both worked add-ons are that case: the blob store's per-test bucket and the key-value store's per-test prefix live in `hex-test-integration-setup`'s conftest.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a fresh namespace** — a unique key-prefix (redis), collection or database name (a document store) — created in a fixture and dropped at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
 
 ### Relational
 
@@ -425,7 +425,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 
 13. **Each test runs against the real store via testcontainers** — never a fake, never a mock. The fake (`hex-test-application-handler`) is for handler unit tests; this layer exists to prove the adapter against the actual backend, which is the only place the SDK call shape and error mapping are exercised.
 14. **Isolate by a per-test namespace, not rollback.** A fresh key-prefix / collection / database per test, created in the per-test settings fixture (`redis_settings`) and emptied or dropped at teardown. There is no transaction to roll back; do not reach for `sf`.
-15. **The container is session-scoped; the namespace is function-scoped.** One store per run, because starting it is expensive; one namespace per test, because that is what gives each test sole ownership. Where the environment supplies the store instead of the fixture starting one, the endpoint is read from a **dedicated opt-in variable**, never an ambient one like `CI` — `test-principles` reliability rules.
+15. **The container is session-scoped; the namespace is function-scoped** — `hex-test-integration-setup` obligation 3. A store the environment supplies instead is opted into as `test-principles` reliability rules 1 and 7 state.
 16. **Exercise the full protocol**, CRUD verbs and non-CRUD alike — `create`/`get_by_id`/`delete` with their absent-record cases AND any verb of the port's own (`delete_by_<field>`, range/scan). A verb that promises an order asserts that order, not just membership.
 17. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A compound return asserts every element it carries, not just the entity.
 18. **Assert the SDK-error → domain-exception translation end-to-end.** This is the load-bearing contract (the client-store analogue of the relational `context["constraint"]` assertion): point the repository at an unreachable/closed client, or trigger a store rejection, and assert the boundary raises the domain exception the adapter promises — `UpstreamError` for a network / store failure, `NotFoundError` for an absent record — never the raw SDK exception. These are the domain exceptions `hex-store-repository` translates into at its boundary (shown here as placeholders); assert whichever ones that adapter actually raises, not a frozen literal. Assert the `context` keys the adapter promises.
@@ -449,14 +449,12 @@ fixture uses `AsyncIterator[T]` / `Iterator[T]`.
 ## Hard stops
 
 - Nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding) → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
-- Asked for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.
 - A test disposes the engine, starts its own connection / instantiate `async_sessionmaker(bind=engine)` directly → stop, that bypasses rollback; use `sf`.
-- Asked to assert on `len(items) == N + 1` or use `any(...)` defensively → stop, use `test-principles`.
+- Asked for a layer or async marker, an `N + 1` count, a defensive `any(...)` or a random natural-key suffix → stop, use `test-principles`; the isolation this file rests on removes the need for each.
 - Asked to assert on `ConflictError` without checking `context["constraint"]` → stop, the constraint-name map is the load-bearing contract this test exists to pin.
 - A test seeds with a raw INSERT on the table under test, **in a test of that repository** → stop, drive setup through `repo.create`; seeding behind the subject proves nothing about it.
 - A test references FastAPI, `httpx` or the DI container → stop, use `hex-test-restapi-endpoint`.
 - Asked to run Alembic from this test → stop, that's a migration regression test in a separate flat file.
-- A test uses `uuid4().hex[:8]` suffixes "to avoid duplicate-key flakes" → stop, use `test-principles`; rollback removes the need.
 - Asked to use `sf` / transaction rollback for a client store → stop, there is no nested transaction; isolate by per-test namespace + teardown.
 - Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.
 - A client-store test asserts on `ConflictError` + `context["constraint"]` → stop, that is the relational `IntegrityError` contract; a client store asserts the domain exceptions its adapter translates SDK errors into (`UpstreamError` / `NotFoundError`) instead.
