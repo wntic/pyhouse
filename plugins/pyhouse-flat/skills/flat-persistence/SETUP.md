@@ -54,7 +54,7 @@ __all__ = ["PostgresSettings", "get_postgres_settings"]
 class PostgresSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_POSTGRES_",
-        env_file=".env",
+        env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
@@ -65,31 +65,26 @@ def get_postgres_settings() -> PostgresSettings:
     return PostgresSettings()
 ```
 
-**The connection string is a secret-typed field**, because it carries the password: a secret type keeps
-it out of the settings object's `repr` and out of any log line or error that renders one. It is unwrapped
-with `.get_secret_value()` at the one place the engine is built, and nowhere else.
+The connection string carries the password, so it is secret-typed and unwrapped only where the engine
+is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the process's `MYAPP_`, so
+`postgres` is a reserved segment there (`naming`); where the package is shared between distributions its
+prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
+changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
+adds its fields to this one (rule 17). The process definition calls the factory, unwraps `dsn` and hands
+the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the migration
+environment is the migration run's process definition and does the same (`flat-project-setup`).
 
-**The prefix is this component's own and claims no variable another component's fields could claim** —
-the same terms where the package is shared between distributions, and the `## Other bindings` bullet in
-`SKILL.md` says what else changes there. `MYAPP_POSTGRES_` nests under the process's `MYAPP_`, so
-`postgres` is a reserved segment there: the process's own class declares no field beginning with it
-(`flat-layered` rule 8). A second store's package declares its own class the same way — `<Store>Settings`
-under `MYAPP_<STORE>_`, reserving its segment in turn — and never adds its fields to this one (rule 17).
-**The process definition is the only caller of this factory**: declaring the
-class here does not let a module in this package call it. The process definition calls it, unwraps `dsn`,
-and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the
-migration environment is the migration run's process definition and does the same (`flat-project-setup`).
-
-**No `@lru_cache` on either factory here.** With one caller by construction there is nothing to collapse,
-and memoising an engine keyed by its connection string pins a live pool for the life of the process,
-outliving the shutdown path and the test that wanted to dispose of it. Needing one is a sign that
-something below the process definition is building its own connection instead of being handed one.
+**No `@lru_cache` on the engine factory.** Memoising an engine keyed by its connection string pins a live
+pool for the life of the process, outliving the shutdown path and the test that wanted to dispose of it;
+the settings factory's cache is `python-packaging`'s rule, and with one caller there is nothing for
+either cache to collapse.
 
 ## Engine and write helpers — SQLAlchemy async, asyncpg
 
 The engine is built by a **factory taking the connection string**, never as a module-level object: the
-process definition reads this package's settings once and hands the value down (`flat-layered` rules 7
-and 8), and `import myapp.postgres.engine` must not fail in an environment that has set nothing.
+process definition reads this package's settings once and hands the value down (`flat-layered` rule 7),
+and `import myapp.postgres.engine` must not fail in an environment that has set nothing
+(`python-packaging` rule 8).
 
 `src/myapp/postgres/engine.py` — two write primitives: a plain chunked bulk write, and a `RETURNING`
 variant for when a later step needs the rows just written:

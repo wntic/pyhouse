@@ -232,9 +232,9 @@ pure-unit collection pays nothing for it.
    `downgrade()` runs.
 2. **The safety guard lives inside the fixture producing the connection details**, and guards on an
    exact database name drawn from a project-declared constant, never a port or substring heuristic.
-3. **Using a datastore the suite did not start is opt-in and explicit.** Key it on a dedicated variable,
-   never on ambient `CI`. Raise a named error listing every missing variable rather than letting a
-   `KeyError` escape.
+3. **Using a datastore the suite did not start is opt-in and explicit** — `test-principles` reliability
+   rules 1 and 7. Raise a named error listing every missing variable rather than letting a `KeyError`
+   escape.
 4. **The connection pool is session-scoped, the transaction function-scoped.** One datastore and one
    pool per run; one transaction per test. A function-scoped pool re-establishes itself every test and
    adds seconds to the run; a session-scoped connection serializes the suite onto one connection.
@@ -260,8 +260,8 @@ pure-unit collection pays nothing for it.
 
 - The guard is being moved into its own fixture, or relaxed to a port or substring heuristic → stop,
   both are how a suite ends up truncating a developer's database.
-- The external-database branch is being keyed on `CI` or any other ambient variable → stop, use a
-  dedicated opt-in flag; ambient variables are exported by tools that know nothing about this suite.
+- The external-database branch is being keyed on `CI` or any other ambient variable → stop, use
+  `test-principles` reliability rule 7.
 - An autouse fixture is being added to a fixture module shared with other distributions → stop, it fires
   for every collection in the repository, pure-unit runs included; define it non-autouse there and wrap
   it as autouse where the tests actually commit.

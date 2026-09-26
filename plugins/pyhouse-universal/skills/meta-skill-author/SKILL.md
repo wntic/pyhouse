@@ -75,7 +75,7 @@ paths: <optional — activation globs, Claude Code only>
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue** — 45 skills at ~400 characters is ~2% of a 200k
+- **There is no total budget across the catalogue** — 47 skills at ~400 characters is ~2% of a 200k
   window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
@@ -339,9 +339,11 @@ A rule lives in exactly one skill. Every other skill points at it.
 | Rule | Owner |
 |---|---|
 | What anything is called, incl. the `I` prefix on protocols | `naming` |
-| Typing, logging, comments | `python-style` |
+| Typing, logging, comments, type suppressions | `python-style` |
 | The interpreter floor, and the three settings that name it | `python-style` |
 | One class per module, `__all__`, `__init__.py` re-exports, imports | `python-packaging` |
+| Settings from the environment | `python-settings` |
+| Lint and type-check configuration, the src layout, dependency declarations and floors | `python-toolchain` |
 | The error catalogue and boundary translation | `exception-catalog` |
 | What the version promises, and the change that moves it | `python-versioning` |
 | Where a boundary goes, split vs merge | `coupling` |

@@ -247,9 +247,8 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
 
 ## Rules
 
-1. **A run function takes what it needs as parameters** — the client, the repository class. A body reaching
-   for a module-level engine or a settings value cannot be pointed at the test container, and no test of
-   it means anything.
+1. **A run function takes what it needs as parameters** — `flat-entrypoint` rule 3, which is what lets
+   this level point it at the test container.
 2. **The upstream is substituted at its transport; the datastore is not substituted at all.** That
    asymmetry is what makes this level catch wiring: real columns, real constraints, real conflict
    semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
@@ -308,8 +307,8 @@ change under any engine, because the body never imports one.
 
 ## Hard stops
 
-- `run_once` reaches for a module-level engine instead of taking one → stop, add the parameter; this is a
-  change to the run function, and it is the change that makes it testable at all.
+- `run_once` reaches for a module-level engine instead of taking one → stop, use `flat-entrypoint`
+  rule 3 and add the parameter.
 - A test drives the `while True` loop directly → stop, extract the guarded single-run call and test that;
   the loop itself is one `await asyncio.sleep` and needs no coverage.
 - A test monkeypatches `asyncio.sleep` to break out of a loop → stop, that asserts the mechanism, not the

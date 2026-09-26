@@ -52,8 +52,8 @@ rule 15 says what that changes.
 - Testing these tables, helpers and the repository class against the real datastore →
   `flat-test-persistence`.
 - The container, migration and isolation fixtures those tests run on → `flat-test-integration-setup`.
-- The project's `pyproject.toml`, toolchain and the relational migration environment laid once, before
-  the first revision → `flat-project-setup`.
+- The store's dependencies and the relational migration environment laid once, before the first
+  revision → `flat-project-setup`; the toolchain → `python-toolchain`.
 - The exception classes the translator produces, and what context they carry → `exception-catalog`.
 - What the repository class is called → `naming`, whose data-access suffix is `Repository`.
 - Module layout, `__all__`, and the `__init__.py` re-exports every table module needs →
@@ -191,12 +191,11 @@ layout. Only this file is loaded automatically, so open the one you need:
     One table diverging onto a different scheme splits the schema's id policy in two.
 14. **This package declares its own connection settings, and engines, sessions and those settings are
     all reached through factories and passed as arguments below the process definition.** Being a
-    component with configuration of its own, it states that configuration in one settings class beside
-    the package under its own environment prefix (`flat-layered` rule 8) and exposes a factory for it.
-    Nothing here builds a settings object, an engine or a session at import time — an object constructed
-    at module scope makes merely importing the package fail wherever the environment is incomplete — and
-    no module in this package calls either factory: the process definition calls them and hands the
-    values down (`flat-layered` rule 7).
+    component with configuration of its own, it states that configuration in one settings class inside
+    the package (`flat-layered` rule 8, `python-settings`) and exposes a factory for it. Nothing here
+    builds a settings object, an engine or a session at import time (`python-packaging` rule 8), and no
+    module in this package calls either factory: the process definition calls them and hands the values
+    down (`flat-layered` rule 7).
 15. **Where several distributions share a store, exactly one of them owns its schema and its migration
     history, and every other one depends on it.** Two packages defining tables in one
     database means two migration histories over one schema, and the second one to run decides what the

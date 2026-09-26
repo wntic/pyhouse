@@ -1,6 +1,6 @@
 ---
 name: hex-test-integration-setup
-description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, the fixtures a blob-store or key-value add-on brings (a per-test bucket, a store client), and `real_app` on a dishka composition root whose infrastructure providers are overridden — or the same fixtures as one plugin module several hexagonal workspace members share. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's fixtures, which are `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
+description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, the fixtures a blob-store or key-value add-on brings (a per-test bucket, a store client), and `real_app` on a dishka composition root whose infrastructure providers are overridden — or the same fixtures as one plugin module several hexagonal workspace members share. Maps the whole suite tree and names the skill that writes each file in it. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's fixtures, which are `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
 ---
 
 # Hex Test — Integration Setup
@@ -30,13 +30,22 @@ One-shot per project, and everything else in the integration suite depends on it
 ```
 tests/
 ├── conftest.py                       # empty; pytest-asyncio config belongs in pyproject.toml
+├── unit/                             # nothing here takes a fixture from integration/
 └── integration/
     ├── conftest.py                   # base: Postgres container, guard, migrations, engine, `sf`, `real_app`
     │                                 # + each add-on's fixtures (blob store, key-value store)
-    └── api/
+    ├── postgres/                     # repository contract tests — take `sf`, never `real_app`
+    └── api/                          # only where the app has an HTTP entrypoint
         ├── conftest.py               # empty unless the app declares auth
         └── <resource>/conftest.py    # per-resource row factories — not this skill's
 ```
+
+The files that fill that tree belong to the skills that write them, each of which shows its own
+fragment: `tests/unit/fakes/` to `hex-test-application-handler`; `tests/unit/test_architecture.py` to
+`test-architecture-rule`; `tests/unit/restapi/test_app_constructs.py` and the app-wide files under
+`api/` to `hex-test-app-invariants`; `tests/helpers/`, the auth fixtures in `api/conftest.py` and the
+anonymous-caller probe to `hex-test-restapi-auth`, only for an app that declares auth; one file per
+endpoint under `api/<resource>/` to `hex-test-restapi-endpoint`.
 
 **Read the sibling `CONFTEST.md` before writing or changing any fixture in that hierarchy.** Only this
 file is loaded automatically, so open it rather than reconstructing the fixtures from the obligations
@@ -84,7 +93,7 @@ schema gets there, and what the disposability marker is set by.
 
 ### Dependency injection
 
-- **`dependency-injector`.** The container fixtures, the migration run, the guard and the savepoint-rollback `sf` are unchanged; only `real_app` differs, and it differs in kind rather than in spelling. There is no `TestInfraProvider`: the fixture builds the real container, calls `.override(value)` on each provider **after** construction, and must `.reset_override()` each one in the `finally` block. Because the substitution lands on a live container, an already-resolved singleton may have captured the pre-override value — the classic case is a singleton whose `__init__` snapshots a settings field — so the fixture set grows an autouse teardown that calls `.reset()` on every such capturing singleton, and `containers.py` has to be audited once to find them. That failure mode does not exist under the primary binding, where the graph is assembled with the test factories already in it.
+- **`dependency-injector`.** The container fixtures, the migration run, the guard and the savepoint-rollback `sf` are unchanged; only `real_app` differs, and it differs in kind rather than in spelling. There is no `TestInfraProvider`: the fixture builds the real container, calls `.override(value)` on each provider **after** construction, and must `.reset_override()` each one in the `finally` block. Because the substitution lands on a live container, an already-resolved singleton may have captured the pre-override value — the classic case is a singleton whose `__init__` snapshots a settings field — so the same `finally` block also calls `.reset()` on every such capturing singleton — an explicit teardown in the fixture that overrode it, never an autouse one, which `test-principles`' closed autouse set does not admit — and `containers.py` has to be audited once to find them. That failure mode does not exist under the primary binding, where the graph is assembled with the test factories already in it.
 - **Manual composition.** The composition root is a factory function, so the fixture calls it with the test objects as arguments. No provider classes, no override marking, and teardown is whatever `AsyncExitStack` the factory returned.
 
 ### Shared across workspace members
@@ -109,6 +118,9 @@ Consult `test-principles` for the testing constitution.
   commit are rolled back at teardown.
 - **`tests/integration/api/conftest.py`** — created here, empty by default. Its only current occupant is
   the auth fixture set, which is `hex-test-restapi-auth`'s and exists only for an app that declares auth.
+- **The autouse pair is the disposable-database guard and the migration run**, both session-scoped and
+  both in the base conftest, for a relational app — the closed autouse set `test-principles` allows.
+  Everything else, `sf` and `real_app` included, is requested by name.
 
 **This is the relational-store isolation strategy.** The engine, the Alembic migration run, and the savepoint-rollback `sf` all assume a relational store — the per-test transaction that ROLLBACKs is a SQL-database mechanism. An app whose only datastore is client-style (redis / a document store / …) has no engine, no migration chain, and cannot use savepoint rollback; it isolates by **per-test namespace + teardown** instead (the blob-store add-on's per-test bucket in `CONFTEST.md` is exactly that pattern). Lay the Postgres machinery only when the app has a relational store.
 

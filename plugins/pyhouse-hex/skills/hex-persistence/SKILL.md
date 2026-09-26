@@ -1,6 +1,6 @@
 ---
 name: hex-persistence
-description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, or the paired Alembic revision. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not a flat-layered service's data-access package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
+description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, the paired Alembic revision, or the store's settings class with its engine and repository binding. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not a flat-layered service's data-access package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
 paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**"]
 ---
 
@@ -28,7 +28,9 @@ instead. The store profile decides which applies (`hex-conventions` block B).
   store, reached through an injected SDK client instead of the shared engine → `hex-store-repository`.
 - Tables, bulk upserts and migrations in a flat-layered service's own data-access package, reached
   directly rather than through a port → `flat-persistence`, in the `pyhouse-flat` plugin.
-- The settings class and the DI provider that construct this repository → `hex-wiring`.
+- The store's settings class and its container binding → `REPOSITORY.md`; what a settings class
+  declares → `python-settings`; lifetimes, declaration order and the base they merge into → `hex-wiring`.
+- The engine and session factories the binding calls → `hex-conventions` block B.
 - The unit-of-work protocol and implementation, when the repository joins multi-repository transactions →
   `hex-patterns`.
 - The exception classes the translator raises → `exception-catalog`.
@@ -43,6 +45,8 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 
 ```
 src/myapp/infrastructure/postgres/
+├── settings.py                    # DbSettings
+├── engine.py                      # engine and session factories — hex-conventions block B
 ├── metadata.py                    # the shared MetaData with naming_convention
 ├── tables/
 │   ├── __init__.py                # import the new module and name it in __all__ (no wildcard)
@@ -61,7 +65,8 @@ file for the artifact before writing or changing it** — only this file is load
 - **`TABLE.md`** — the naming convention, the table template, and the column, foreign-key, index,
   constraint, child-table and default rules.
 - **`REPOSITORY.md`** — the two constructor forms, the session, read, mutation,
-  translation and mapping rules, and the shared-mapper extraction threshold.
+  translation and mapping rules, the shared-mapper extraction threshold, and the store's settings class
+  with its container binding.
 - **`REVISION.md`** — the revision template, the drift check and the downgrade rule.
 
 ## Other bindings

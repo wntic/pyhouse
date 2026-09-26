@@ -80,10 +80,13 @@ from myapp.services.foo_api import FooClient
 
 
 async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]}))
+    route = foo_api.get("/foos").mock(
+        return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]})
+    )
 
     result = await foo_client.fetch_foos()
 
+    assert route.called
     assert result == (FooPayload(ref="f1", name="alpha"),)
 
 
@@ -200,9 +203,9 @@ the object, so a signature change breaks the test at call time instead of passin
 6. **The base URL is a constant beside the fixture that builds the client, and is passed in.** Never let
    the test depend on a settings value — hand the client an HTTP client built with an explicit
    `base_url`, which is why the client is handed its transport rather than building one.
-7. **Never assert that every stubbed route was called** (`assert_all_called` here). It pins how many
-   requests the client happens to make, so an added prefetch or a dropped retry reddens a test that was
-   about neither; assert the calls the behaviour requires.
+7. **Assert the route a test exercises, never that every stubbed route was called** —
+   `test-principles`, *Intercepting HTTP* rule 3. The shared router therefore turns its own
+   all-called check off (`assert_all_called=False` here).
 8. **Every test in the file intercepts the transport; none may reach a real host.** A test that escapes
    the stub — an unmatched URL, a client that builds a transport the stub does not cover — is
    non-deterministic, slow, and fails in CI on the day the vendor has an outage.

@@ -16,7 +16,7 @@ here, into the classes `exception-catalog` owns.
 - Aggregate-root CRUD over a relational store → `hex-persistence`, not this skill.
 - Aggregate-root persistence on a key-value or document store, or an index kept beside it → `hex-store-repository`; an injected SDK client alone does not make something a capability.
 - The `ICan<Verb>` protocol file this adapter satisfies → `hex-domain-ports`.
-- The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `hex-wiring`; each adapter's own class — the S3 storage's, the HTTP gateway's and the canonicalizer's — is shown here, beside it.
+- The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `python-settings`; each adapter's own class — the S3 storage's, the HTTP gateway's and the canonicalizer's — is shown here, beside it.
 - The lifetime and declaration-order rules the adapter's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
 - The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-patterns`'.
@@ -32,7 +32,7 @@ here, into the classes `exception-catalog` owns.
 ```
 src/myapp/infrastructure/<adapter>/    # <adapter> = the external tech: s3, jwt, openai, …
 ├── __init__.py            # see python-packaging
-├── settings.py            # the adapter's settings class — hex-wiring's settings rules
+├── settings.py            # the adapter's settings class — python-settings
 └── s3_foo_storage.py      # this skill writes this file
 ```
 
@@ -125,7 +125,7 @@ __all__ = ["S3Settings"]
 class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_S3_",
-        env_file=".env",
+        env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
@@ -217,7 +217,7 @@ __all__ = ["BarGatewaySettings"]
 class BarGatewaySettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_BAR_",
-        env_file=".env",
+        env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
@@ -230,8 +230,8 @@ class BarGatewaySettings(BaseSettings):
 headroom, and bounded above by what the caller can wait for — a request-path adapter whose timeout
 exceeds the app's own request timeout can never fire usefully. What the template does fix is that the
 timeout is a **settings field**, read once by the composition root and injected — never a constant
-hardcoded inside the adapter. Whether it carries a default at all is `hex-wiring` settings rules 1 and
-2: default it only if one value is safe for every deployment, and make it required otherwise.
+hardcoded inside the adapter. It is a tunable with no single right value, so it carries no default
+(`python-settings` rule 5).
 
 ### Template — sync pure CPU (stdlib plus a parsing library)
 
@@ -290,7 +290,7 @@ __all__ = ["IdnaSettings"]
 class IdnaSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_IDNA_",
-        env_file=".env",
+        env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
@@ -432,7 +432,7 @@ class InfrastructureProvider(Provider):
    on, and a test can build it without assembling a settings object.
 7. **A secret is unwrapped once, in the constructor of the adapter that sends it**
    (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
-   private attribute and never unwrapped again per call — the point of use `hex-wiring` settings rule 7
+   private attribute and never unwrapped again per call — the point of use `python-settings` rule 9
    names. A secret never reaches a log line (`python-style`) and never reaches an exception's `context`
    (rule 10).
 
@@ -474,7 +474,7 @@ class InfrastructureProvider(Provider):
 - Domain imports absolute (`from myapp.domain.bars import BarToken` — the entities/VOs the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanFetchBarToken`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .settings import S3Settings`).
 - No `from __future__ import annotations`. Full annotations on every method.
 - `X | None` over `Optional`. `Mapping[K, V]` / `Sequence[T]` (from `collections.abc`) for read-only views.
-- **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (`response["Body"].read()`, an untyped client method) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way a route dependency casts a container-resolved value (`hex-restapi-auth`). An inline `# type: ignore[...]` on the adapter body is never sanctioned: it hides the next genuine type error in that expression too.
+- **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (`response["Body"].read()`, an untyped client method) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way a route dependency casts a container-resolved value (`hex-restapi-auth`). An adapter can always restate the vendor type, so an inline ignore never meets `python-style`'s last-resort test here.
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - No `Any` except at the immediate raw-SDK-payload boundary (e.g. `payload: dict[str, Any] = response.json()` — convert to the domain type on the next line).
 

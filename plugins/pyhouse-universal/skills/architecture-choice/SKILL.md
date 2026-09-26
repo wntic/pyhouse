@@ -137,7 +137,8 @@ this.** Write the script.
 
 The universal skills still bind, and they are the whole of what applies — `naming` for what things are
 called, `python-style` for typing and logging, `python-packaging` for module and import rules,
-`exception-catalog` for errors, `test-principles` for tests — and `python-versioning` the day it is
+`python-settings` for anything read from the environment, `python-toolchain` for the lint and
+type-check configuration, `exception-catalog` for errors, `test-principles` for tests — and `python-versioning` the day it is
 distributed to anyone, which most scripts never are. Reaching for either family here produces
 packages with nothing in them and a reviewer who assumes work lives there.
 
@@ -172,11 +173,11 @@ family and do not supply a layout — there is none here to give, and a hexagona
 into a framework's tree fights the framework at every file.
 
 The universal skills still bind in full — `naming`, `python-style`, `python-packaging`,
-`python-versioning`, `exception-catalog`, `test-principles` — and they are not a consolation prize;
-they are the rules that were never architectural in the first place. Where the framework dictates a
-module's name and contents — Django's `models.py` and `admin.py` — the framework's convention wins,
-and `python-packaging` says so itself. The deciding question is still
-worth answering, because knowing whether the project owns invariants tells the reader what to
+`python-settings`, `python-toolchain`, `python-versioning`, `exception-catalog`, `test-principles` —
+and they are not a consolation prize; they are the rules that were never architectural in the first
+place. Where the framework dictates a module's name and contents — Django's `models.py` and
+`admin.py` — the framework's convention wins, and `python-packaging` says so itself. The deciding
+question is still worth answering, because knowing whether the project owns invariants tells the reader what to
 protect. It just selects no family here.
 
 Run this skill again if a service is carved out of the project: a deployable with its own entrypoint

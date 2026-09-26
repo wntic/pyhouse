@@ -1,6 +1,6 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 house interpreter floor for a new deployable project, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, a closed set of constants as an `Enum`, one structured event per occurrence, which scope logs an error, and logging configured once at the entry point and never inside a distributed package, whose interpreter floor is its consumers'. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 house interpreter floor for a new deployable project, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, when a type error may be silenced inline, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, a closed set of constants as an `Enum`, one structured event per occurrence, which scope logs an error, and logging configured once at the entry point and never inside a distributed package, whose interpreter floor is its consumers'. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
@@ -103,6 +103,15 @@ required on a procedure. Lambdas inside business logic are forbidden — use a n
 This includes test code: a fixture annotates what it yields (`-> AsyncIterator[T]`), a builder annotates
 its return, a parametrize hook types its argument. Type-checking `tests` at parity with `src` is only
 possible because of this.
+
+### Type suppressions
+
+A type error is fixed, not silenced: restate the type, narrow with a runtime guard, or `cast` after a
+guard the checker cannot follow. **An inline type-ignore is the last resort, where the checker is wrong
+and the code cannot be restated to satisfy it** — in source and tests alike, it names the one error code
+it silences and carries the reason on the same line (`# type: ignore[<code>]  # <why>`), so it stops
+hiding the next error in that expression. A package that ships no type information is never silenced
+inline: it gets one per-package override in the type checker's configuration (`python-toolchain`).
 
 ### `Any` only at raw external boundaries
 
@@ -370,7 +379,9 @@ no `# helpers`.
     same two bans to anything placed in an exception's `context`.
 14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
     their stated limits.
-15. Check casts, untyped variadic arguments and type suppressions against the typing hard stops below.
+15. **A type error is fixed, not silenced; an inline type-ignore is the last resort, names its error
+    code and gives its reason**, and a missing stub is silenced only by a per-package configuration
+    override. Check casts and untyped variadic arguments against the typing hard stops below.
 16. **A closed set of named constants is an `Enum` — a `StrEnum` for string values (`class Foo(str, Enum)` below 3.11) — never a class of bare
     attributes**, in any module.
 17. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
@@ -408,7 +419,10 @@ Typing:
   source.
 - `cast(...)` to silence a type error → stop, fix the type. `cast` is acceptable only to narrow after a
   runtime guard the checker cannot follow, which is rare.
-- A type-ignore comment with no reason → stop, name the specific rule and give a brief explanation.
+- A type-ignore comment that names no error code or gives no reason → stop, name the specific code and
+  give a brief explanation — or, first, restate the type so none is needed.
+- A missing-stub error silenced inline → stop, one per-package override in the type checker's
+  configuration (`python-toolchain`).
 - A mutable collection on a frozen dataclass field → stop, use the immutable equivalent.
 - A class of bare attributes standing in for a closed set of values (`class Status: ACTIVE = "active"`)
   → stop, declare an `Enum` or `StrEnum`.

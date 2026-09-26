@@ -227,11 +227,8 @@ Consult `test-principles` for the testing constitution.
 - Nothing up-tree provides an isolated session handle, or an app built on the test's own infrastructure bindings (`sf` / `real_app` under this catalogue's binding) → stop, use `hex-test-integration-setup`; the missing thing is the guarantee, not the fixture name.
 - Asked to register the new endpoint in a hand-maintained route or expectation table so a global check sees it → stop, use `hex-test-app-invariants`; the global checks derive their inputs from the running app, so a new route joins them with nothing to update.
 - A test asserts a role rejection or a cross-tenant 404 here → stop, use `hex-test-restapi-auth`; those assertions need a caller identity this skill does not mint.
-- A test uses `unittest.mock` / `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
+- A test uses a mock or a patch, a random natural-key suffix, an `N + 1` count, or a layer or async marker → stop, use `test-principles`; the isolation `hex-test-integration-setup` establishes leaves the store empty at test start.
 - A test asserts on a response field that is not in the Pydantic response schema → stop, use `hex-restapi-schema` to extend the schema first.
-- A test uses `[:4]` or `[:5]` natural-key suffixes "to avoid collisions" → stop, the isolation `hex-test-integration-setup` establishes leaves the store empty at test start; fixed names are fine.
-- A test asserts `len(items) == N + 1` to account for "the test's own row plus seed rows" → stop, assert the exact count under `test-principles`; rollback isolation drops everything.
 - A test uses a plain `AsyncClient` for a request to a route that attaches an auth dependency → stop, use `hex-test-restapi-auth`'s authenticated client; a plain client on a gated route tests the rejection, not the endpoint.
-- A test adds `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.
 - A fixture returns the same row across multiple tests (session-scoped row) → stop, use a factory + function-scoped wrapper; rows are per-test.
 - The endpoint touches multipart or streaming and its encoding is not stated → stop, use `hex-restapi-endpoint` for the route side first.

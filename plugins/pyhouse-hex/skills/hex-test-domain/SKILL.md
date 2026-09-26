@@ -278,13 +278,10 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
    a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
    class for a narrow protocol (rule 17).
 3. Fixture-versus-builder rules → `test-principles`.
-4. **Assert against literal expected values.** Never re-implement the rule under test to compute the
-   expected value — that hides the defect where both sides make the same mistake.
-5. **Test what the author wrote, never what the data model already guarantees.** Field-by-field
-   equality, hashability and immutability come free with a frozen `@dataclass`; asserting them is
-   maintenance with no defect-detection value, because no plausibly-wrong change to the domain could
-   red them. What is not free is the constructor's invariants, the computed properties and the methods —
-   those are the whole coverage target.
+4. Literal expected values, never a re-implementation of the rule → `test-principles`, assert strength.
+5. Test what the author wrote, never what the data model already guarantees → `test-principles`, assert
+   strength. In the domain that means the constructor's invariants, the computed properties and the
+   methods, and never the equality, hash or immutability a frozen `@dataclass` supplies.
 6. **One test per invariant, and a rejection test asserts the failure's machine-readable field key,
    never its message.** Capture the raised catalogue exception (`pytest.raises(ValidationError) as exc`)
    and assert the `context` entry naming the offending field: the message is prose and drifts, the key is
@@ -320,8 +317,7 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 15. **Always include the unknown-value rejection**:
     `with pytest.raises(ValueError): FooStatus("<unknown>")` proves the enum is closed.
 16. **One `test_*` per pure-logic method**, named after the method, asserting every relevant
-    input/output pair with `is True` / `is False` for booleans — `==` may accidentally compare `int(1)` to
-    `True`.
+    input/output pair; a boolean is asserted as `test-principles` states (`is True` / `is False`).
 
 ### Domain service
 
@@ -340,7 +336,7 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 21. **A canonicalizer always has `test_idempotent`** — parametrized over a few representative inputs,
     one reported case each, asserting `f(f(x)) == f(x)`. Idempotence is part of the canonicalization
     contract; a loop inside one test stops at the first failing input and hides the rest.
-22. **Pair every happy path with a rejection test.** Single-direction tests are incomplete.
+22. Every happy path is paired with a rejection test → `test-principles`, assert strength.
 
 ## Inlined typing / import rules
 
@@ -359,8 +355,8 @@ Identical for all four kinds:
   `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
 - Asked for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
 - Asked for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
-- Asked to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
-- A test re-implements the rule to compute the expected value → stop, assert literal values.
+- Asked to test dataclass-given equality, hash or immutability, or a test re-implements the rule to
+  compute its expected value → stop, use `test-principles`.
 - A test asserts on log output or captured logs → stop, the domain layer logs nothing at all
   (`hex-architecture`, *Who logs, by layer*); assert the return value or the raised exception.
 - Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
@@ -368,8 +364,7 @@ Identical for all four kinds:
   maintains them, so they are not entity fields (`hex-domain-model`, Entity rule 6).
 - The value object declares no invariant of its own and no custom equality → stop, produce no file.
 - A test loops over enum members → stop, write explicit asserts.
-- A test uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent
-  truthy-but-not-`True` bugs.
+- A test uses `==` for a boolean enum-method return → stop, use `test-principles`.
 - An enum's members are not known → stop, list them explicitly.
 - An inline stub stands in for a full port, or implements methods beyond the narrow protocol the
   service's parameter declares → stop, use the port's fake from `tests.unit.fakes`, or the narrow

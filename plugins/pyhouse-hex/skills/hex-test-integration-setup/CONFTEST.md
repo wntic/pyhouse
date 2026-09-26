@@ -76,8 +76,6 @@ def db_settings(postgres_container: _PgConn) -> DbSettings:
         user=postgres_container["user"],
         password=SecretStr(postgres_container["password"]),
         name=postgres_container["name"],
-        # A session-long container never idles a pooled connection stale.
-        pool_pre_ping=False,
     )
 
 

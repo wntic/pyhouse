@@ -167,10 +167,9 @@ if __name__ == "__main__":
 name collides stays out of its package's re-export and is reached by explicit import where it is
 consumed (`python-packaging`). A run function with a name of its own is re-exported like any other.
 
-**The process-definition package is the only place a settings factory is called** — it reads each
-configured component's settings, and the process's own where it declares any, and hands
-concrete values down. A component owning its settings class does not give a module inside it licence to
-call that factory (`flat-layered` rules 7 and 8).
+**The process-definition package builds every settings object and hands concrete values down** — it is
+this family's composition root, so the rule is `python-settings` rule 13 and its flat spelling
+`flat-layered` rule 7.
 
 **The transport and the engine are built once and wrap the whole loop.** One pooled
 `httpx.AsyncClient` and one engine exist before the first run; every run reuses their connections, and
