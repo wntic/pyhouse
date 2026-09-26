@@ -31,20 +31,12 @@ published surface, and a command-line tool puts it above the command modules tha
 file either way — the reason for a single file is that the catalog stays auditable in one read, and
 that reason is not architectural.
 
-The **shape** below is identical in every case, and **`code` is the only required field**.
-Everything else is a transport annotation, added when a transport actually reads it and omitted when
-none does. `http_status` is the one this catalogue writes out, because an HTTP entrypoint has a central
-handler that translates it into a response — but **the trigger is the HTTP surface, not the architecture
-family.** A hexagonal service driven only by a CLI, a worker loop or a queue consumer carries the `code`
-alone, exactly as a flat-layered worker does; a flat-layered service that does serve HTTP adds
-`http_status` exactly as a hexagonal one would.
-
-Where an annotation is warranted it is a deliberate **transport annotation on a domain class**, not a
-leak — kept on the class precisely so that no `code`→annotation map exists anywhere. Deriving the value
-from the class it belongs to is what keeps this catalogue free of a hand-maintained table that every new
-error has to be remembered into; a project whose transport reads nothing omits the attribute instead. A
-non-HTTP transport annotates by the same rule under its own name — a process exit code, a gRPC status —
-or, far more often, needs nothing and leaves `code` to do the work.
+The **shape** below is identical in every case: **`code` and the inherited `context` are the required
+shape.** A project may add fields of its own to the root, each read by whatever renders the error and
+added only when something does. The common one is `http_status`, and **its trigger is an HTTP
+entrypoint, not the architecture family** — a service with none carries `code` alone. An added field
+stays on the class, so no `code`→rendering map exists anywhere; a non-HTTP transport annotates by the
+same rule under its own name (a process exit code, a gRPC status), or far more often needs nothing.
 
 ## When to use vs. neighbours
 
@@ -63,14 +55,14 @@ or, far more often, needs nothing and leaves `code` to do the work.
   architecture family's (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
-- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and its status, not the rendering.
+- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and any field the project adds to it, not the rendering.
 
 ## File shape (the contract every entry obeys)
 
 - `__all__` **after the imports**, alphabetized — `python-packaging` owns module layout and forbids
   `__all__` above the imports. This file is stdlib-only and has no imports, so it opens the file;
   that is the same rule, not an exception to it.
-- The **root** defines `code: str` — and `http_status: int` where the project has an HTTP surface — with
+- The **root** defines `code: str` — and any field the project adds, such as `http_status: int` — with
   type annotations and defaults, plus the `__init__` accepting `(message, context=None)` and storing
   `self.context`.
 - Every subclass declares its attributes as **bare class attributes**, no type annotation; the type is
@@ -80,18 +72,14 @@ or, far more often, needs nothing and leaves `code` to do the work.
   the parent's values unless it overrides them.
 - Order: `__all__`, then the root, then direct subclasses, then refinements.
 
-## Template — a flat-layered service catalog
-
-This is also the form to copy when the project is in neither family — the `code`-only catalog, with a
-transport annotation added below only if something in the project actually reads one.
+## Template — stdlib exceptions
 
 ```python
 # myapp/exceptions.py
 __all__ = [
-    "FooClientError",
     "MyappError",
-    "UpstreamUnavailableError",
-    "ValidationError",
+    "NotFoundError",
+    "UpstreamError",
 ]
 
 
@@ -103,102 +91,48 @@ class MyappError(Exception):
         self.context: dict[str, object] = context if context is not None else {}
 
 
-class FooClientError(MyappError):
-    code = "FOO_CLIENT_ERROR"
+class NotFoundError(MyappError):
+    code = "NOT_FOUND"
 
 
-class ValidationError(MyappError):
-    code = "VALIDATION_ERROR"
-
-
-class UpstreamUnavailableError(FooClientError):
-    code = "UPSTREAM_UNAVAILABLE"
+class UpstreamError(MyappError):
+    code = "UPSTREAM_ERROR"
 ```
 
-## Template — a hexagonal catalog
+That is the entire class body of each entry. No `__init__`, no fields, no methods. The classes a
+project needs are its own; these two show the pattern, not a list to copy.
 
-Identical, plus `http_status` — shown here because this family most often fronts an HTTP API, and read
-by the central error handler. **A hexagonal service with no HTTP surface — a CLI, a worker loop, a queue
-consumer — drops the attribute and is otherwise unchanged.**
+### Optional — a field the project adds
+
+Where the service has an HTTP entrypoint, the root gains one annotated line and a subclass sets the
+value only where it differs from the root's. Nothing else in the file changes:
 
 ```python
-# myapp/domain/exceptions.py
-__all__ = [
-    "ConflictError",
-    "DomainError",
-    "ForbiddenError",
-    "InUseError",
-    "NotFoundError",
-    "UnauthorizedError",
-    "UpstreamError",
-    "ValidationError",
-]
-
-
-class DomainError(Exception):
-    code: str = "DOMAIN_ERROR"
+class MyappError(Exception):
+    code: str = "MYAPP_ERROR"
     http_status: int = 500
 
-    def __init__(self, message: str, context: dict[str, object] | None = None) -> None:
-        super().__init__(message)
-        self.context: dict[str, object] = context if context is not None else {}
 
-
-class NotFoundError(DomainError):
+class NotFoundError(MyappError):
     code = "NOT_FOUND"
     http_status = 404
-
-
-class ConflictError(DomainError):
-    code = "CONFLICT"
-    http_status = 409
-
-
-class ValidationError(DomainError):
-    code = "VALIDATION_ERROR"
-    http_status = 422
-
-
-class UnauthorizedError(DomainError):
-    code = "UNAUTHORIZED"
-    http_status = 401
-
-
-class ForbiddenError(DomainError):
-    code = "FORBIDDEN"
-    http_status = 403
-
-
-class UpstreamError(DomainError):
-    # a dependency behind this service failed — 502, never 500
-    code = "UPSTREAM_ERROR"
-    http_status = 502
-
-
-class InUseError(ConflictError):
-    code = "IN_USE"
-    # http_status omitted — it equals the parent's 409
 ```
-
-That is the entire class body of each entry. No `__init__`, no fields, no methods.
 
 ### A custom subclass and its raise site
 
-Each named error is a bare subclass of `DomainError` — or of the most specific existing parent, when one
-is a semantic match (a refinement inherits `http_status` unless it differs):
+Each named error is a bare subclass of the root — or of the most specific existing parent, when one is
+a semantic match (a refinement inherits every value it does not override):
 
 ```python
-class FooConflictError(ConflictError):
-    code = "FOO_NAME_TAKEN"
+class FooNotFoundError(NotFoundError):
+    code = "FOO_NOT_FOUND"
 ```
 
-Custom exceptions still carry `context`. The raise site (in `infrastructure/` or `application/`) passes a `context` dict whose keys express the structured detail:
+Custom exceptions still carry `context`. The raise site passes a `context` dict whose keys express the
+structured detail:
 
 ```python
-raise FooConflictError(
-    "foo name already exists",
-    {"name": foo.name},
-)
+raise FooNotFoundError("foo not found", {"foo_id": str(foo_id)})
 ```
 
 ### What `context` carries
@@ -233,7 +167,7 @@ try:
     response = await http.get(url)
     response.raise_for_status()
 except httpx.HTTPError as exc:
-    raise FooClientError(f"failed to fetch foo {foo_id}", {"foo_id": foo_id}) from exc
+    raise UpstreamError(f"failed to fetch foo {foo_id}", {"foo_id": foo_id}) from exc
 ```
 
 `from exc` is not optional. It preserves `__cause__`, which is what a test asserts to prove the
@@ -241,11 +175,7 @@ translation happened rather than the error being manufactured, and what a reader
 failure. Suppress it deliberately with `from None` only when the internal cause must not leak — for
 instance turning a lookup miss into an authentication failure.
 
-Structured detail rides in `context`, not in new fields, under the key contract above:
-
-```python
-raise ConflictError("foo name already exists", {"field": "name", "constraint": "uq_foos_name"})
-```
+Structured detail rides in `context`, not in new fields, under the key contract above.
 
 ### The fallback is mandatory
 
@@ -320,7 +250,8 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
 4. **Subclasses do not override `__init__`.** Structured detail goes through the inherited `context` dict
    at the raise site.
 5. **Subclass attributes use bare assignment.** `code = "X"`, not `code: str = "X"`.
-6. **An inherited value is not restated.** Set `http_status` only when it differs from the parent's.
+6. **An inherited value is not restated.** A subclass sets a field the project added, such as
+   `http_status`, only where it differs from the parent's.
 7. **`code` values are `SCREAMING_SNAKE_CASE`**, and every one is unique across the catalog.
 8. **Every library exception is translated at its boundary, with `from exc`.** A third-party type
    reaching a caller is a leak.
@@ -342,8 +273,8 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
     hand-maintained `code`→rendering table from reappearing: a new class renders correctly the day it
     is added, with no second edit. Where the entrypoint serves HTTP, that scope is the central handler,
     its response status is `exc.http_status`, and the `ErrorResponse` body carries `code=exc.code`,
-    `message=str(exc)` and `context=exc.context` — the custom raise above renders HTTP 409 with
-    `{"code": "FOO_NAME_TAKEN", "message": "foo name already exists", "context": {"name": foo.name}}`.
+    `message=str(exc)` and `context=exc.context` — the custom raise above renders HTTP 404 with
+    `{"code": "FOO_NOT_FOUND", "message": "foo not found", "context": {"foo_id": "…"}}`.
     A project whose only caller is its own importer — a distributed package — renders nothing and lets
     the class reach that caller intact, which is the same rule with the rendering scope outside the
     project. The rule is complete here; the hexagonal family's handler and response-schema templates

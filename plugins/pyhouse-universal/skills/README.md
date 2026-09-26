@@ -249,8 +249,8 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
 
 Two entries that stood here are closed. `hex-persistence` is no longer oversized — its templates sit in
 `TABLE.md`, `REPOSITORY.md` and `REVISION.md` beside it. Flat-side exception translation is genuinely
-covered: `exception-catalog` carries a flat-layered catalog template, the translation section and the
-mandatory-fallback rule, and `flat-layered` routes to it.
+covered: `exception-catalog` carries one family-neutral catalog template, the translation section and
+the mandatory-fallback rule, and `flat-layered` routes to it.
 
 ## Licence
 
