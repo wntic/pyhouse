@@ -63,6 +63,7 @@ from uuid import UUID
 
 __all__ = ["CreateFooCommand"]
 
+
 @dataclass(frozen=True)
 class CreateFooCommand:
     caller_id: UUID

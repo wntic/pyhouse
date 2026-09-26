@@ -40,6 +40,7 @@ from .foo_list_filter import FooListFilter
 
 __all__ = ["IFooRepository"]
 
+
 class IFooRepository(Protocol):
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]: ...
     async def count(self, *, filter: FooListFilter) -> int: ...
@@ -66,6 +67,7 @@ from .baz import Baz
 
 __all__ = ["IBazRepository"]
 
+
 class IBazRepository(Protocol):
     async def create(self, baz: Baz) -> None: ...
     async def get_by_id(self, id: UUID) -> Baz: ...
@@ -84,6 +86,7 @@ from .audit_event import AuditEvent
 
 __all__ = ["IAuditRepository"]
 
+
 class IAuditRepository(Protocol):
     async def append(self, event: AuditEvent) -> None: ...
 ```
@@ -98,6 +101,7 @@ from .foo_export_row import FooExportRow
 
 __all__ = ["ICanExportFoosXlsx"]
 
+
 class ICanExportFoosXlsx(Protocol):
     async def export(self, rows: Sequence[FooExportRow]) -> bytes: ...
 ```
@@ -108,6 +112,7 @@ class ICanExportFoosXlsx(Protocol):
 from typing import Protocol
 
 __all__ = ["ICanStoreFoos"]
+
 
 class ICanStoreFoos(Protocol):
     async def upload(self, key: str, body: bytes) -> None: ...
@@ -122,6 +127,7 @@ from typing import Protocol
 
 __all__ = ["ICanFetchFoos"]
 
+
 class ICanFetchFoos(Protocol):
     async def download(self, key: str) -> bytes: ...
 ```
@@ -135,6 +141,7 @@ from .bar_token import BarToken
 
 __all__ = ["ICanFetchBarToken"]
 
+
 class ICanFetchBarToken(Protocol):
     async def fetch_token(self, subject: str) -> BarToken: ...
 ```
@@ -147,6 +154,7 @@ from typing import Protocol
 from .canonical_bar_url import CanonicalBarUrl
 
 __all__ = ["ICanCanonicalizeBarUrl"]
+
 
 class ICanCanonicalizeBarUrl(Protocol):
     def canonicalize(self, raw: str) -> CanonicalBarUrl: ...

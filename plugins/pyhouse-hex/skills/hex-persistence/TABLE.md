@@ -17,13 +17,15 @@ from sqlalchemy import MetaData
 
 __all__ = ["metadata"]
 
-metadata = MetaData(naming_convention={
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-})
+metadata = MetaData(
+    naming_convention={
+        "ix": "ix_%(column_0_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s",
+    }
+)
 ```
 
 The names it generates are exactly what the repository's translator (`REPOSITORY.md`) matches on:
@@ -61,9 +63,7 @@ foos_table: Table = Table(
         nullable=False,
         index=True,
     ),
-    Column(
-        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
-    ),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now(), index=True),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("char_length(name) > 0", name="name_non_empty"),
 )

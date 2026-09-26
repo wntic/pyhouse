@@ -35,7 +35,7 @@ Rules:
 ### Multiple optional uploads
 
 ```python
-attachments: list[UploadFile] | None = None,
+attachments: list[UploadFile] | None = (None,)
 ...
 attachment_inputs: list[CreateFooAttachment] = []
 for f in attachments or []:
@@ -129,7 +129,7 @@ def _export_filename(ext: str) -> str:
 `Content-Disposition` is not a default CORS-exposed header, so a browser strips it from the response visible to JS. **If the app has CORS configured** (`hex-restapi-app`), a download route must ensure its response header is in the CORS middleware's `expose_headers` list — the bootstrap leaves that list **empty** by default, so a download route adds `"Content-Disposition"` (and any other non-default header it sets, e.g. `X-Total-Count`) there:
 
 ```python
-expose_headers=["Content-Disposition"],
+expose_headers = (["Content-Disposition"],)
 ```
 
 An app with no CORS configured has no such list to extend. **Verify `expose_headers` whenever you add a headered download response** (when CORS is enabled).

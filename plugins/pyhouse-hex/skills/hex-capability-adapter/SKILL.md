@@ -63,6 +63,7 @@ _ERROR_CODE_MAP: Mapping[str, type[Exception]] = {
     "InvalidRequest": ValidationError,
 }
 
+
 def _map_client_error(exc: ClientError, *, key: str) -> Exception:
     code = exc.response.get("Error", {}).get("Code", "")
     target = _ERROR_CODE_MAP.get(code)
@@ -74,6 +75,7 @@ def _map_client_error(exc: ClientError, *, key: str) -> Exception:
         "storage call failed",
         {"key": key, "code": code or "unknown"},
     )
+
 
 class S3FooStorage:
     def __init__(self, session: aioboto3.Session, settings: S3Settings) -> None:
@@ -119,6 +121,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["S3Settings"]
 
+
 class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_S3_",
@@ -148,6 +151,7 @@ from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationErro
 from .settings import BarGatewaySettings
 
 __all__ = ["HttpBarGateway"]
+
 
 class HttpBarGateway:
     def __init__(self, client: httpx.AsyncClient, settings: BarGatewaySettings) -> None:
@@ -182,6 +186,7 @@ class HttpBarGateway:
                 {"subject": subject, "reason": exc.__class__.__name__},
             ) from exc
 
+
 def _map_status(exc: httpx.HTTPStatusError, *, subject: str) -> Exception:
     status = exc.response.status_code
     if status == 404:
@@ -207,6 +212,7 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["BarGatewaySettings"]
+
 
 class BarGatewaySettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -245,6 +251,7 @@ from .settings import IdnaSettings
 
 __all__ = ["IdnaBarUrlCanonicalizer"]
 
+
 class IdnaBarUrlCanonicalizer:
     def __init__(self, settings: IdnaSettings) -> None:
         self._allowed_schemes = settings.allowed_schemes
@@ -263,9 +270,7 @@ class IdnaBarUrlCanonicalizer:
                 "host is not a valid internationalized domain name",
                 {"host": parts.hostname or "", "reason": exc.__class__.__name__},
             ) from exc
-        normalized = urlunsplit(
-            (parts.scheme, host, parts.path or "/", parts.query, "")
-        )
+        normalized = urlunsplit((parts.scheme, host, parts.path or "/", parts.query, ""))
         return CanonicalBarUrl(value=normalized)
 ```
 
@@ -280,6 +285,7 @@ JSON list (`MYAPP_IDNA_ALLOWED_SCHEMES='["http","https"]'`).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["IdnaSettings"]
+
 
 class IdnaSettings(BaseSettings):
     model_config = SettingsConfigDict(

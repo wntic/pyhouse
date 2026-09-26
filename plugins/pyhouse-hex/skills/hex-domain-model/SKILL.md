@@ -48,6 +48,7 @@ from ..exceptions import ValidationError
 
 __all__ = ["Foo"]
 
+
 @dataclass
 class Foo:
     id: UUID
@@ -78,6 +79,7 @@ from ..exceptions import ValidationError
 
 __all__ = ["Baz"]
 
+
 @dataclass
 class Baz:
     id: UUID
@@ -105,6 +107,7 @@ from ..exceptions import ValidationError
 
 __all__ = ["Foo"]
 
+
 @dataclass(frozen=True)
 class Foo:
     field_a: str
@@ -128,6 +131,7 @@ otherwise two semantically equal values compare unequal.
 from dataclasses import dataclass
 
 __all__ = ["Foo"]
+
 
 @dataclass(frozen=True)
 class Foo:
@@ -153,6 +157,7 @@ methods. For the file and class names, see `naming`.
 from dataclasses import dataclass
 
 __all__ = ["FooExportTunable"]
+
 
 @dataclass(frozen=True)
 class FooExportTunable:
@@ -185,6 +190,7 @@ from dataclasses import dataclass
 
 __all__ = ["CanonicalBarUrl"]
 
+
 @dataclass(frozen=True)
 class CanonicalBarUrl:
     value: str
@@ -196,6 +202,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 __all__ = ["BarToken"]
+
 
 @dataclass(frozen=True)
 class BarToken:
@@ -211,6 +218,7 @@ from uuid import UUID
 
 __all__ = ["FooExportRow"]
 
+
 @dataclass(frozen=True)
 class FooExportRow:
     id: UUID
@@ -224,6 +232,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 __all__ = ["AuditEvent"]
+
 
 @dataclass(frozen=True)
 class AuditEvent:
@@ -240,6 +249,7 @@ does (Entity rule 6) — and takes the same frozen form (`hex-application`, read
 from enum import StrEnum
 
 __all__ = ["Foo"]
+
 
 class Foo(StrEnum):
     A = "A"
@@ -258,6 +268,7 @@ from enum import StrEnum
 __all__ = ["Foo"]
 
 _RANK: dict[str, int] = {"A": 1, "B": 2, "C": 3}
+
 
 class Foo(StrEnum):
     A = "A"
@@ -289,6 +300,7 @@ from enum import Enum
 
 __all__ = ["Foo"]
 
+
 class Foo(Enum):
     A = 1
     B = 2
@@ -306,6 +318,7 @@ from enum import StrEnum
 
 __all__ = ["FooSort"]
 
+
 class FooSort(StrEnum):
     CREATED_AT_DESC = "created_at_desc"
     CREATED_AT_ASC = "created_at_asc"
@@ -322,6 +335,7 @@ from uuid import UUID
 from .foo_sort import FooSort
 
 __all__ = ["FooListFilter"]
+
 
 @dataclass(frozen=True)
 class FooListFilter:

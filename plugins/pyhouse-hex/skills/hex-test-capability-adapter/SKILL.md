@@ -69,6 +69,7 @@ async def test_upload_then_head_object_succeeds(
         head = await s3.head_object(Bucket=s3_settings.bucket, Key="foos/alpha")
     assert head["ContentLength"] == len(b"payload")
 
+
 async def test_delete_removes_object(
     s3_session: Session,
     s3_settings: S3Settings,
@@ -84,6 +85,7 @@ async def test_delete_removes_object(
             await s3.head_object(Bucket=s3_settings.bucket, Key="foos/alpha")
     assert exc.value.response["Error"]["Code"] == "404"
 
+
 async def test_delete_missing_object_is_a_no_op(
     s3_session: Session,
     s3_settings: S3Settings,
@@ -91,6 +93,7 @@ async def test_delete_missing_object_is_a_no_op(
     adapter = S3FooStorage(session=s3_session, settings=s3_settings)
 
     await adapter.delete(key="foos/never-uploaded")
+
 
 async def test_download_missing_object_raises_not_found(
     s3_session: Session,
@@ -103,6 +106,7 @@ async def test_download_missing_object_raises_not_found(
 
     assert exc.value.context == {"key": "foos/never-uploaded", "code": "NoSuchKey"}
 
+
 async def test_upload_to_missing_bucket_raises_not_found(
     s3_session: Session,
     s3_settings: S3Settings,
@@ -114,6 +118,7 @@ async def test_upload_to_missing_bucket_raises_not_found(
         await adapter.upload(key="foos/x", body=b"x")
 
     assert exc.value.context == {"key": "foos/x", "code": "NoSuchBucket"}
+
 
 async def test_upload_with_rejected_credentials_raises_upstream_error(
     s3_settings: S3Settings,
@@ -159,18 +164,22 @@ from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
 
 _BASE_URL = "https://api.bar.example"
 
+
 @pytest.fixture
 def settings() -> BarGatewaySettings:
     return BarGatewaySettings(base_url=_BASE_URL, api_key=SecretStr("test-key"), timeout_seconds=5.0)
+
 
 @pytest.fixture
 async def client() -> AsyncIterator[httpx.AsyncClient]:
     async with httpx.AsyncClient() as c:
         yield c
 
+
 @respx.mock
 async def test_fetch_token_happy_path(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     route = respx.post(f"{_BASE_URL}/tokens").mock(
         return_value=httpx.Response(200, json={"token": "tok-1", "expires_at": "2030-01-01T00:00:00Z"}),
@@ -185,9 +194,11 @@ async def test_fetch_token_happy_path(
     assert request.headers["Authorization"] == "Bearer test-key"
     assert json.loads(request.content) == {"subject": "alice"}
 
+
 @respx.mock
 async def test_fetch_token_malformed_body_raises_upstream(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(200, json={"token": "tok-1"}))
     adapter = HttpBarGateway(client=client, settings=settings)
@@ -197,9 +208,11 @@ async def test_fetch_token_malformed_body_raises_upstream(
 
     assert exc.value.context == {"subject": "alice", "reason": "KeyError"}
 
+
 @respx.mock
 async def test_fetch_token_404_raises_not_found(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(404))
     adapter = HttpBarGateway(client=client, settings=settings)
@@ -209,9 +222,11 @@ async def test_fetch_token_404_raises_not_found(
 
     assert exc.value.context == {"subject": "missing", "status": 404}
 
+
 @respx.mock
 async def test_fetch_token_400_raises_validation(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(400))
     adapter = HttpBarGateway(client=client, settings=settings)
@@ -221,9 +236,11 @@ async def test_fetch_token_400_raises_validation(
 
     assert exc.value.context == {"subject": "malformed", "status": 400}
 
+
 @respx.mock
 async def test_fetch_token_503_raises_upstream(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(503))
     adapter = HttpBarGateway(client=client, settings=settings)
@@ -233,9 +250,11 @@ async def test_fetch_token_503_raises_upstream(
 
     assert exc.value.context == {"subject": "alice", "status": 503}
 
+
 @respx.mock
 async def test_fetch_token_network_error_raises_upstream(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     respx.post(f"{_BASE_URL}/tokens").mock(side_effect=httpx.ConnectError("boom"))
     adapter = HttpBarGateway(client=client, settings=settings)
@@ -245,9 +264,11 @@ async def test_fetch_token_network_error_raises_upstream(
 
     assert exc.value.context["reason"] == "ConnectError"
 
+
 @respx.mock
 async def test_fetch_token_read_timeout_raises_upstream(
-    client: httpx.AsyncClient, settings: BarGatewaySettings,
+    client: httpx.AsyncClient,
+    settings: BarGatewaySettings,
 ) -> None:
     respx.post(f"{_BASE_URL}/tokens").mock(side_effect=httpx.ReadTimeout("slow"))
     adapter = HttpBarGateway(client=client, settings=settings)
@@ -281,6 +302,7 @@ from myapp.infrastructure.idna import IdnaBarUrlCanonicalizer, IdnaSettings
 
 _SETTINGS = IdnaSettings(allowed_schemes=frozenset({"http", "https"}))
 
+
 def test_canonicalize_returns_canonical_url() -> None:
     canonicalizer = IdnaBarUrlCanonicalizer(settings=_SETTINGS)
 
@@ -288,12 +310,14 @@ def test_canonicalize_returns_canonical_url() -> None:
 
     assert result == CanonicalBarUrl(value="https://example.com/a?b=1")
 
+
 def test_canonicalize_punycodes_an_international_host() -> None:
     canonicalizer = IdnaBarUrlCanonicalizer(settings=_SETTINGS)
 
     result = canonicalizer.canonicalize("https://bücher.example/")
 
     assert result == CanonicalBarUrl(value="https://xn--bcher-kva.example/")
+
 
 def test_canonicalize_unsupported_scheme_raises_validation_error() -> None:
     canonicalizer = IdnaBarUrlCanonicalizer(settings=_SETTINGS)
@@ -303,6 +327,7 @@ def test_canonicalize_unsupported_scheme_raises_validation_error() -> None:
 
     assert exc.value.context["scheme"] == "ftp"
 
+
 def test_canonicalize_invalid_host_raises_validation_error() -> None:
     canonicalizer = IdnaBarUrlCanonicalizer(settings=_SETTINGS)
 
@@ -311,7 +336,9 @@ def test_canonicalize_invalid_host_raises_validation_error() -> None:
 
     assert exc.value.context["host"] == "-bad-.example"
     assert exc.value.context["reason"] in {
-        "IDNAError", "InvalidCodepoint", "IDNABidiError",
+        "IDNAError",
+        "InvalidCodepoint",
+        "IDNABidiError",
     }
 ```
 

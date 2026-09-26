@@ -62,6 +62,7 @@ from uuid import UUID
 
 __all__ = ["CreateFooCommand"]
 
+
 @dataclass(frozen=True)
 class CreateFooCommand:
     caller_id: UUID
@@ -83,6 +84,7 @@ from .create_foo_command import CreateFooCommand
 __all__ = ["CreateFooHandler"]
 
 logger = structlog.get_logger()
+
 
 class CreateFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
@@ -106,6 +108,7 @@ from uuid import UUID
 
 __all__ = ["UpdateFooCommand"]
 
+
 @dataclass(frozen=True)
 class UpdateFooCommand:
     caller_id: UUID
@@ -126,6 +129,7 @@ from .update_foo_command import UpdateFooCommand
 __all__ = ["UpdateFooHandler"]
 
 logger = structlog.get_logger()
+
 
 class UpdateFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
@@ -153,6 +157,7 @@ from uuid import UUID
 
 __all__ = ["DeleteFooCommand"]
 
+
 @dataclass(frozen=True)
 class DeleteFooCommand:
     caller_id: UUID
@@ -169,6 +174,7 @@ from .delete_foo_command import DeleteFooCommand
 __all__ = ["DeleteFooHandler"]
 
 logger = structlog.get_logger()
+
 
 class DeleteFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
@@ -188,6 +194,7 @@ from myapp.domain.foos import FooListFilter
 
 __all__ = ["ListFoosQuery"]
 
+
 @dataclass(frozen=True)
 class ListFoosQuery:
     filter: FooListFilter
@@ -202,6 +209,7 @@ from uuid import UUID
 from myapp.domain.foos import FooListFilter
 
 __all__ = ["ListFoosQuery"]
+
 
 @dataclass(frozen=True)
 class ListFoosQuery:
@@ -218,6 +226,7 @@ from uuid import UUID
 
 __all__ = ["GetFooQuery"]
 
+
 @dataclass(frozen=True)
 class GetFooQuery:
     id: UUID
@@ -230,6 +239,7 @@ from myapp.domain.foos import Foo, IFooRepository
 from .get_foo_query import GetFooQuery
 
 __all__ = ["GetFooHandler"]
+
 
 class GetFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
@@ -253,6 +263,7 @@ from .list_foos_result import ListFoosResult
 
 __all__ = ["ListFoosHandler"]
 
+
 class ListFoosHandler:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
@@ -271,6 +282,7 @@ from dataclasses import dataclass
 from myapp.domain.foos import Foo
 
 __all__ = ["ListFoosResult"]
+
 
 @dataclass(frozen=True)
 class ListFoosResult:

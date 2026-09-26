@@ -57,10 +57,9 @@ from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import Foo
 
 
-def _make_foo(
-    *, id: uuid.UUID | None = None, name: str = "Test", bar_id: uuid.UUID | None = None
-) -> Foo:
+def _make_foo(*, id: uuid.UUID | None = None, name: str = "Test", bar_id: uuid.UUID | None = None) -> Foo:
     return Foo(id=id or uuid.uuid4(), name=name, bar_id=bar_id or uuid.uuid4())
+
 
 def test_equality_by_id() -> None:
     shared_id = uuid.uuid4()
@@ -72,6 +71,7 @@ def test_equality_by_id() -> None:
     assert a != c
     assert hash(a) == hash(b)
     assert hash(a) != hash(c)
+
 
 def test_name_must_be_non_empty() -> None:
     with pytest.raises(ValidationError) as exc:
@@ -102,6 +102,7 @@ def test_equality_by_id() -> None:
     bar_id = uuid.uuid4()
     assert Foo(id=shared_id, name="a", bar_id=bar_id) == Foo(id=shared_id, name="b", bar_id=bar_id)
 
+
 def test_name_must_be_non_empty() -> None:
     with pytest.raises(ValidationError) as exc:
         Foo(id=uuid.uuid4(), name="", bar_id=uuid.uuid4())
@@ -124,6 +125,7 @@ def test_canonical_equality() -> None:
     assert a == b
     assert hash(a) == hash(b)
 
+
 def test_rejects_empty() -> None:
     with pytest.raises(ValidationError) as exc:
         FooKey(raw="", canonical="")
@@ -143,6 +145,7 @@ def test_amount_must_be_non_negative() -> None:
     with pytest.raises(ValidationError) as exc:
         Money(amount=-1, currency="USD")
     assert exc.value.context["field"] == "amount"
+
 
 def test_currency_must_be_three_letters() -> None:
     with pytest.raises(ValidationError) as exc:
@@ -182,6 +185,7 @@ def test_values() -> None:
     with pytest.raises(ValueError):
         FooPriority("URGENT")
 
+
 def test_satisfies() -> None:
     assert FooPriority.HIGH.satisfies(FooPriority.NORMAL) is True
     assert FooPriority.NORMAL.satisfies(FooPriority.NORMAL) is True
@@ -209,11 +213,13 @@ def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
     foos = [Foo(id=uuid.uuid4(), name=n, bar_id=uuid.uuid4()) for n in existing_names or []]
     return FooUniquenessService(repo=FakeFooRepository(items=foos))
 
+
 async def test_assert_name_available_raises_when_taken() -> None:
     service = _service(["alpha"])
     with pytest.raises(FooConflictError) as exc:
         await service.assert_name_available("alpha")
     assert exc.value.context["field"] == "name"
+
 
 async def test_assert_name_available_passes_when_free() -> None:
     service = _service([])
@@ -234,15 +240,16 @@ from myapp.domain.foos import canonicalize_url
 def test_strips_trailing_slash() -> None:
     assert canonicalize_url("https://example.com/path/") == "https://example.com/path"
 
+
 def test_drops_default_port() -> None:
     assert canonicalize_url("https://example.com:443/path") == "https://example.com/path"
 
-@pytest.mark.parametrize(
-    "raw", ["https://example.com/", "https://example.com/path/?b=2&a=1"]
-)
+
+@pytest.mark.parametrize("raw", ["https://example.com/", "https://example.com/path/?b=2&a=1"])
 def test_idempotent(raw: str) -> None:
     once = canonicalize_url(raw)
     assert canonicalize_url(once) == once
+
 
 def test_rejects_non_http() -> None:
     with pytest.raises(ValidationError) as exc:

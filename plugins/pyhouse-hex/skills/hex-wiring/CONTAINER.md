@@ -119,6 +119,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["ExportSettings"]
 
+
 class ExportSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_EXPORT_",
@@ -145,9 +146,7 @@ from myapp.infrastructure.postgres import SqlAlchemyUnitOfWork
 
 class FoosProvider(Provider):
     @provide(scope=Scope.APP)
-    def uow_factory(
-        self, session_factory: async_sessionmaker[AsyncSession]
-    ) -> Callable[[], IUnitOfWork]:
+    def uow_factory(self, session_factory: async_sessionmaker[AsyncSession]) -> Callable[[], IUnitOfWork]:
         return partial(SqlAlchemyUnitOfWork, session_factory=session_factory)
 ```
 

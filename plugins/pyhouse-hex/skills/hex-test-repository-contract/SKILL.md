@@ -96,12 +96,12 @@ from myapp.infrastructure.postgres.tables.foos import foos_table
 
 _PLANTED = dt.datetime(2000, 1, 1, tzinfo=dt.UTC)
 
+
 def _foo(bar_id: uuid.UUID, name: str = "alpha") -> Foo:
     return Foo(id=uuid.uuid4(), name=name, bar_id=bar_id)
 
-async def test_create_then_get_returns_every_field(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+
+async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo(bar_id)
 
@@ -109,9 +109,8 @@ async def test_create_then_get_returns_every_field(
 
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
-async def test_update_persists_the_new_values(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+
+async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo(bar_id, "alpha")
     await repo.create(foo)
@@ -121,9 +120,8 @@ async def test_update_persists_the_new_values(
 
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
-async def test_delete_removes_the_row(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+
+async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo(bar_id)
     await repo.create(foo)
@@ -132,6 +130,7 @@ async def test_delete_removes_the_row(
 
     with pytest.raises(NotFoundError):
         await repo.get_by_id(foo.id)
+
 
 async def test_duplicate_name_on_insert_raises_conflict(
     sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
@@ -143,6 +142,7 @@ async def test_duplicate_name_on_insert_raises_conflict(
         await repo.create(_foo(bar_id, "alpha"))
 
     assert exc.value.context["constraint"] == "uq_foos_name"
+
 
 async def test_duplicate_name_on_update_raises_conflict(
     sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
@@ -158,16 +158,13 @@ async def test_duplicate_name_on_update_raises_conflict(
 
     assert exc.value.context["constraint"] == "uq_foos_name"
 
-async def test_update_writes_updated_at(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+
+async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo(bar_id)
     await repo.create(foo)
     async with sf() as session:
-        await session.execute(
-            update(foos_table).where(foos_table.c.id == foo.id).values(updated_at=_PLANTED)
-        )
+        await session.execute(update(foos_table).where(foos_table.c.id == foo.id).values(updated_at=_PLANTED))
         await session.commit()
     foo.name = "beta"
 
@@ -175,21 +172,19 @@ async def test_update_writes_updated_at(
 
     async with sf() as session:
         written: dt.datetime = (
-            await session.execute(
-                select(foos_table.c.updated_at).where(foos_table.c.id == foo.id)
-            )
+            await session.execute(select(foos_table.c.updated_at).where(foos_table.c.id == foo.id))
         ).scalar_one()
     assert written > _PLANTED
 
-async def test_get_by_name_returns_match(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+
+async def test_get_by_name_returns_match(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     await repo.create(_foo(bar_id, "alpha"))
 
     loaded = await repo.get_by_name("alpha")
     assert loaded is not None
     assert loaded.name == "alpha"
+
 
 async def test_get_by_name_returns_none_when_absent(
     sf: async_sessionmaker[AsyncSession],
@@ -198,9 +193,8 @@ async def test_get_by_name_returns_none_when_absent(
 
     assert await repo.get_by_name("alpha") is None
 
-async def test_list_respects_pagination_and_sort(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+
+async def test_list_respects_pagination_and_sort(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     await repo.create(_foo(bar_id, "c"))
     await repo.create(_foo(bar_id, "a"))
@@ -257,9 +251,7 @@ For an aggregate that owns a child collection — `FooAttachment` rows in a tabl
 with no owned children has neither them nor this test.
 
 ```python
-async def test_cascade_delete_removes_attachments(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+async def test_cascade_delete_removes_attachments(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo(bar_id)
     await repo.create(foo)
@@ -268,6 +260,7 @@ async def test_cascade_delete_removes_attachments(
     await repo.delete(foo.id)
 
     assert await repo.count_attachments(foo.id) == 0
+
 
 async def test_attachment_with_wrong_parent_raises_not_found(
     sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
@@ -323,9 +316,8 @@ from myapp.infrastructure.redis.repositories import BazRepository
 def _baz(name: str = "alpha") -> Baz:
     return Baz(id=uuid.uuid4(), name=name)
 
-async def test_create_then_get_returns_every_field(
-    redis_client: Redis, redis_settings: RedisSettings
-) -> None:
+
+async def test_create_then_get_returns_every_field(redis_client: Redis, redis_settings: RedisSettings) -> None:
     repo = BazRepository(client=redis_client, settings=redis_settings)
     baz = _baz()
 
@@ -333,9 +325,8 @@ async def test_create_then_get_returns_every_field(
 
     assert asdict(await repo.get_by_id(baz.id)) == asdict(baz)
 
-async def test_create_writes_under_the_configured_prefix(
-    redis_client: Redis, redis_settings: RedisSettings
-) -> None:
+
+async def test_create_writes_under_the_configured_prefix(redis_client: Redis, redis_settings: RedisSettings) -> None:
     repo = BazRepository(client=redis_client, settings=redis_settings)
     baz = _baz()
 
@@ -343,9 +334,8 @@ async def test_create_writes_under_the_configured_prefix(
 
     assert await redis_client.exists(f"{redis_settings.bazs_key_prefix}:{baz.id}") == 1
 
-async def test_get_by_id_of_absent_record_raises_not_found(
-    redis_client: Redis, redis_settings: RedisSettings
-) -> None:
+
+async def test_get_by_id_of_absent_record_raises_not_found(redis_client: Redis, redis_settings: RedisSettings) -> None:
     repo = BazRepository(client=redis_client, settings=redis_settings)
     missing = uuid.uuid4()
 
@@ -354,9 +344,8 @@ async def test_get_by_id_of_absent_record_raises_not_found(
 
     assert exc.value.context["id"] == str(missing)
 
-async def test_delete_removes_the_record(
-    redis_client: Redis, redis_settings: RedisSettings
-) -> None:
+
+async def test_delete_removes_the_record(redis_client: Redis, redis_settings: RedisSettings) -> None:
     repo = BazRepository(client=redis_client, settings=redis_settings)
     baz = _baz()
     await repo.create(baz)
@@ -366,13 +355,13 @@ async def test_delete_removes_the_record(
     with pytest.raises(NotFoundError):
         await repo.get_by_id(baz.id)
 
-async def test_delete_of_absent_record_raises_not_found(
-    redis_client: Redis, redis_settings: RedisSettings
-) -> None:
+
+async def test_delete_of_absent_record_raises_not_found(redis_client: Redis, redis_settings: RedisSettings) -> None:
     repo = BazRepository(client=redis_client, settings=redis_settings)
 
     with pytest.raises(NotFoundError):
         await repo.delete(uuid.uuid4())
+
 
 async def test_get_against_unreachable_store_raises_upstream_error() -> None:
     dead_url = "redis://127.0.0.1:1/0"  # nothing listening

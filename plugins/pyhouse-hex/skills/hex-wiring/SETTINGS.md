@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["DbSettings"]
 
+
 class DbSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_DB_",
@@ -39,8 +40,7 @@ class DbSettings(BaseSettings):
     @property
     def dsn(self) -> str:
         return (
-            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}"
-            f"@{self.host}:{self.port}/{self.name}"
+            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
         )
 ```
 

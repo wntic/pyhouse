@@ -33,6 +33,7 @@ _SETTINGS = JwtSettings(
 
 _CALLER_ID = "11111111-1111-1111-1111-111111111111"
 
+
 def _token(
     *,
     claims: dict[str, object] | None = None,
@@ -49,12 +50,14 @@ def _token(
         ttl_seconds=ttl_seconds,
     )
 
+
 def test_verify_valid_token_returns_current_user() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
     result = verifier.verify(_token())
 
     assert result == CurrentUser(id=UUID(_CALLER_ID), role=Role.HIGHER)
+
 
 def test_verify_expired_token_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
@@ -64,6 +67,7 @@ def test_verify_expired_token_raises_unauthorized_error() -> None:
 
     assert exc.value.context == {"reason": "expired"}
 
+
 def test_verify_wrong_audience_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
@@ -71,6 +75,7 @@ def test_verify_wrong_audience_raises_unauthorized_error() -> None:
         verifier.verify(_token(audience="other-audience"))
 
     assert exc.value.context["reason"] == "InvalidAudienceError"
+
 
 def test_verify_wrong_issuer_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
@@ -80,6 +85,7 @@ def test_verify_wrong_issuer_raises_unauthorized_error() -> None:
 
     assert exc.value.context["reason"] == "InvalidIssuerError"
 
+
 def test_verify_tampered_signature_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
@@ -87,8 +93,10 @@ def test_verify_tampered_signature_raises_unauthorized_error() -> None:
         verifier.verify(_token()[:-4] + "AAAA")
 
     assert exc.value.context["reason"] in {
-        "InvalidSignatureError", "DecodeError",
+        "InvalidSignatureError",
+        "DecodeError",
     }
+
 
 def test_verify_token_missing_role_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
@@ -98,6 +106,7 @@ def test_verify_token_missing_role_raises_unauthorized_error() -> None:
 
     assert exc.value.context["reason"] == "MissingRequiredClaimError"
 
+
 def test_verify_non_uuid_subject_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
@@ -105,6 +114,7 @@ def test_verify_non_uuid_subject_raises_unauthorized_error() -> None:
         verifier.verify(_token(claims={"sub": "not-a-uuid", "role": Role.HIGHER.value}))
 
     assert exc.value.context == {"reason": "invalid_claims"}
+
 
 def test_verify_undeclared_role_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
