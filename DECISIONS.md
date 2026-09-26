@@ -1254,6 +1254,7 @@ obligations back to 13, and removing the superseded markers on D19, D51 and D90.
 ## The hex family, reduced to what most hex services have
 
 ### D108 — The sample application leaves the hex family
+**The blob-store add-on superseded by D109.**
 The generality review that cut the flat family (D107) walked the hex family through its test services —
 a CRUD REST service with one aggregate, a queue-driven service, a gRPC service with two aggregates and
 no auth, a service with no relational store — and found one sample application under the placeholders.
