@@ -110,16 +110,16 @@ tests/
 │   ├── restapi/                                 # test_app_constructs.py — construct smoke, no DB (hex-test-app-invariants)
 │   └── test_architecture.py                     # grep firewalls
 └── integration/
-    ├── conftest.py                              # OWNED BY hex-test-integration-setup
+    ├── conftest.py                              # OWNED BY hex-test-integration-setup; the base:
     │                                            #   - postgres_container (session) — relational apps
     │                                            #   - db_settings (session) — relational apps
     │                                            #   - _migrated_db, _guard_against_real_db, _engine (session) — relational apps
     │                                            #   - run_alembic (session) — relational apps
     │                                            #   - _outer_connection, sf (function) — relational apps
     │                                            #   - real_app (function) — consumes jwt_settings from down-tree WHEN the app has auth
-    │                                            #   - minio_container, s3_session (session) — blob-store apps only
-    │                                            #   - s3_settings (function) — per-test bucket, bound into real_app — blob-store apps only
-    │                                            #   - redis_url (session) — key-value store apps (the non-relational store binding)
+    │                                            #   add-on sections, each bringing its own fixtures, only when the app has that store:
+    │                                            #   - blob store: minio_container, s3_session (session), s3_settings (per-test bucket)
+    │                                            #   - key-value store: redis_url, redis_client (session)
     ├── postgres/                                # repository contract tests; uses `sf` only
     │   └── test_foo_repository.py
     └── api/
