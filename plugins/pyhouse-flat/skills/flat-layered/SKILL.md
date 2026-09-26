@@ -66,7 +66,7 @@ component deserves).
 ## The four role kinds and the import contract
 
 A flat service divides into four **role kinds**. The kinds are the architecture; the directory names are
-this project's and appear nowhere in the rules. A service creates a package per role it actually has,
+this project's and appear nowhere in the rules. A service creates a module or package per role it has,
 names it for that role, and declares which kind it is when it creates it.
 
 | Role kind | Holds | May import | Imported by |
@@ -90,7 +90,7 @@ the templates names *one* run function whose work genuinely is one pass, not a c
 **Rule 9 is enforced by a firewall of `test-architecture-rule`'s standard form** — the framework's
 import is forbidden outside the declared wrapper package, whatever the framework. Only once a
 durable-execution engine is earned does its allow-list gain one entry, the framework-guarded helper
-(`flat-entrypoint` durable obligation 10). The other invariants worth a firewall in a flat service: no
+(`flat-entrypoint` durable obligation 8). The other invariants worth a firewall in a flat service: no
 statement or table constructed outside a data-access package (rule 4), no module-level engine
 (`python-packaging` rule 8), no engine in a unit test and no mock or sleep in any test
 (`test-principles`), and in a repository of several members no runnable member importing another
@@ -98,81 +98,49 @@ statement or table constructed outside a data-access package (rule 4), no module
 
 ### The package names
 
-The skeleton below is **one worked example**, not a required set of directory names: *one package per
-role kind the service has*, named for what it does here. A service that fetches nothing has no
-upstream-pull package, one with no datastore has no data-access package and one with two stores has two;
-a fetch-and-parse service might call its work units `fetch/` and `parse/`. A name copied for a role the
-service lacks yields an empty package a reviewer assumes holds work. What *is* fixed is the decision:
+A service creates a package only for a role it has, and names it for what it holds (`naming`); a name
+copied for a role the service lacks yields an empty package a reviewer assumes holds work. What is fixed
+is the decision:
 
-- cross-cutting setup — logging, and the process's own settings — sits in modules at the package root,
-  never in a package named after the category;
-- **a component with configuration of its own is a package**, and its settings module sits inside it
-  beside the class it configures (rule 8) — never as a `*_settings.py` sibling in a package it shares;
+- cross-cutting setup — logging, the exception catalogue, the process's own settings — sits in modules
+  at the package root, never in a package named after the category;
+- **a component with configuration of its own is a package** at the package root, and its settings
+  module sits inside it beside the class it configures (`foo_api/settings.py`, rule 8) — never as a
+  `*_settings.py` sibling in a package it shares;
 - each external system gets one such package, holding its one client class;
 - each store gets one data-access package, named for the store's technology (rule 4);
-- work units are grouped by kind and sit **below** the process that runs them;
+- a run function is a module named for its work, and several that share a concern share a package named
+  for it — never the module that defines the process running them;
 - a framework wrapper is isolated in its own package so the work it wraps stays framework-free;
-- process definitions sit in one package that everything else can be imported *by*, and that nothing
-  imports.
+- the one process is defined in `__main__.py`; several each get a module in `entrypoints/` and a console
+  script of their own, and nothing imports any of them.
 
-Two or three packages is a normal size; seven because the example shows seven is as wrong as one. Each
-is named for its responsibility, never a category word carried from an example (`naming`) — `worker`,
-the word this style attracts, fits a loop, a queue-serving process, a wrapper and a run function equally
-badly.
+## Template — package skeleton
 
-## Template — package skeleton (one worked example)
-
-**Every directory name below is this example's choice, filling the role named in the comment.** A
-different service fills the same roles under its own names, and creates only the ones it has.
+Only what nearly every flat service has. A line marked *only* exists when its condition does; a service
+creates nothing else because a tree showed it.
 
 ```
 src/myapp/
 ├── __init__.py
-├── __main__.py                  # the declared entry point — `python -m myapp` selects and runs one
-├── settings.py                  # the process's own settings class, env-prefixed
-├── logging.py                   # logging setup, called once at startup
-├── enums.py                     # ONLY vocabulary genuinely used across packages — see rule 11
-├── exceptions.py                # one catalog of this service's exception classes
-├── schemas/
-│   ├── __init__.py
-│   ├── foo.py                    # the service's own record — one declared type per module
-│   ├── foo_payload.py            # the upstream's wire record, parsed by the client
-│   └── ingest_result.py          # the aggregate one run returns
-├── services/
-│   ├── __init__.py
-│   └── foo_api/                  # one package per external system — rule 8
-│       ├── __init__.py
-│       ├── settings.py           # this system's own settings class and prefix
-│       └── foo_client.py         # its one client class, SDK exceptions caught here
-├── postgres/                     # ROLE: data access, one package per store — `flat-persistence`
-│   ├── __init__.py
-│   ├── metadata.py               # the one MetaData and its naming convention
-│   ├── settings.py               # this store's own settings class and prefix
-│   ├── engine.py                 # the engine factory and the bulk write helpers
-│   ├── foo_table.py              # this store's table definitions
-│   └── foo_repository.py         # the ONLY place a statement is built or a connection opened
-├── ingest/                       # ROLE: work units that PULL from upstream and land raw rows
-│   ├── __init__.py
-│   └── foo_ingest.py
-├── jobs/                         # ROLE: work units over ALREADY-STORED data
-│   ├── __init__.py
-│   └── foo_recheck.py
-└── entrypoints/                  # ROLE: process definitions
-    ├── __init__.py
-    ├── containment.py            # the one guard every loop wraps a run in — `flat-entrypoint`
-    ├── foo_loop.py               # process: the self-scheduling loop
-    └── foo_stream.py             # process: a long-lived continuous stream
+├── __main__.py        # the one process: builds its dependencies and runs — `flat-entrypoint`
+├── exceptions.py      # this service's exception catalogue — `exception-catalog`
+├── logging.py         # configures logging once, called by the process definition
+├── settings.py        # only with settings of the process's own
+├── schemas/           # the records more than one package reads, one declared type per module
+├── foo_api/           # only with an external system: its client and its settings.py
+├── postgres/          # only with a store: one package per store, named for its technology — `flat-persistence`
+├── foo_sync.py        # a run function, named for its work
+├── containment.py     # only in a process that outlives one run: the guard around each run
+└── entrypoints/       # only with more than one process: one module per process, replacing __main__.py
 ```
 
-The tree sits under `src/`, beside the distribution's `pyproject.toml`, `tests/` and `migrations/`
-(`flat-project-setup`). A service with no framework to wrap has no wrapper package; its process
-definitions call the work units directly. One that has a framework adds one wrapper package — the HTTP
-shape's, or a durable-execution engine's together with the one guarded helper module once the engine is
-earned (`flat-entrypoint`). A second store adds a sibling of `postgres/` named for its own technology —
-`clickhouse/` beside it, with its own settings, connection factory and migration history
-(`flat-persistence`) — never a second set of tables inside the first. A very small service may collapse
-its two work-unit packages into one — but never collapse either into the process-definition package,
-which is what makes the work untestable without starting a process.
+The tree sits under `src/`, beside the distribution's `pyproject.toml` and `tests/` (`flat-project-setup`).
+A record one package alone reads lives in that package; a record that crosses packages — the service's
+own record, a wire record one package parses and another consumes, what a run returns — sits in
+`schemas/`. A service with a framework adds one wrapper package — the HTTP shape's, or a
+durable-execution engine's together with its guarded helper module (`flat-entrypoint`). A second store is
+a sibling of `postgres/` named for its own technology (rule 4).
 
 ### Template — the declared records, on dataclasses and pydantic
 
@@ -181,26 +149,27 @@ module: they change for three different reasons — the service's model, the ups
 a run reports — so they are not one set (`python-packaging`).
 
 `src/myapp/schemas/foo.py` — the service's own record, built by the run function and by the
-repository's row mapper; `id` is `None` until the record has been stored:
+repository's row mapper, identified by its `reference` — an identifier the source issued, so a distinct
+type over `str` (`python-style`), wrapped where a value is mapped into the record:
 
 ```python
 from dataclasses import dataclass
 from datetime import datetime
-from uuid import UUID
+from typing import NewType
 
-__all__ = ["Foo"]
+__all__ = ["Foo", "FooReference"]
+
+FooReference = NewType("FooReference", str)
 
 
 @dataclass(frozen=True, slots=True)
 class Foo:
-    id: UUID | None
-    reference: str
+    reference: FooReference
     name: str
     observed_at: datetime
-    labels: tuple[str, ...]
 ```
 
-`src/myapp/schemas/foo_payload.py` — the upstream's wire record, parsed and validated by the client:
+`src/myapp/schemas/foo_payload.py` — the wire record, parsed and validated where it arrives:
 
 ```python
 from pydantic import BaseModel, ConfigDict
@@ -211,33 +180,28 @@ __all__ = ["FooPayload"]
 class FooPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    ref: str | None
+    ref: str
     name: str
-    labels: tuple[str, ...] = ()
 ```
 
-`src/myapp/schemas/ingest_result.py` — the aggregate a run returns (`flat-entrypoint` rule 5):
+`src/myapp/schemas/run_result.py` — the aggregate a run returns (`flat-entrypoint` rule 5):
 
 ```python
 from dataclasses import dataclass
 
-__all__ = ["IngestResult"]
+__all__ = ["RunResult"]
 
 
 @dataclass(frozen=True, slots=True)
-class IngestResult:
-    fetched: int
-    kept: int
+class RunResult:
+    recorded: int
 ```
 
-`ref` is **required and nullable**: the upstream always sends the key, a `null` is an item the run's
-filter drops, and a body without the key is malformed and fails the parse. `labels` defaults to empty
-because the upstream omits it when there are none. `src/myapp/schemas/__init__.py` re-exports all three
-modules (`python-packaging`).
+`src/myapp/schemas/__init__.py` re-exports all three modules (`python-packaging`).
 
 ### Template — an external-system client, on httpx
 
-`src/myapp/services/foo_api/foo_client.py` — one concrete class, no Protocol:
+`src/myapp/foo_api/foo_client.py` — one concrete class, no Protocol:
 
 ```python
 import httpx
@@ -266,17 +230,18 @@ class FooClient:
             raise FooClientError("failed to fetch foos") from exc
 ```
 
-`FooClientError` is the one class this client raises, from the service's own catalogue; what its
+`FooClientError` is the one class this client raises, a refinement of the catalogue's `UpstreamError`
+(`exception-catalog`); what its
 `context` carries when a method takes an input is `exception-catalog`'s.
 
-`src/myapp/services/foo_api/settings.py` is `python-settings`' template under `MYAPP_FOO_API_`,
+`src/myapp/foo_api/settings.py` is `python-settings`' template under `MYAPP_FOO_API_`,
 declaring the client's `url` and `timeout_seconds`. The process's own `src/myapp/settings.py`, at the
 package root beside the rest of the cross-cutting setup, has the same shape — `Settings` and
 `get_settings()` under `MYAPP_` — holding only the fields that configure the process itself; a process
 with none has no such module, and a thin HTTP wrapper adds two server fields to it (`flat-entrypoint`).
 The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
 re-exports the settings and client modules (`python-packaging`), so a caller writes
-`from myapp.services.foo_api import FooClient`. The data-access package exposes factories for its
+`from myapp.foo_api import FooClient`. The data-access package exposes factories for its
 settings and its engine in the same shape (`flat-persistence`), and the process definition calls every
 one of them (rule 7).
 
@@ -331,9 +296,10 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    package, and every other package asks it for data — never a statement in a work unit, never one
    store's access scattered across packages. A second store is a second package beside the first, named
    for its technology like the first (`postgres/`, `clickhouse/`), with its own settings class,
-   connection factory and migration history — never a second set of tables, or a second store's fields,
-   inside the first. A store's SQL is findable in one place or it is everywhere. What such a package
-   contains, and what changes where several distributions share one store, is `flat-persistence`.
+   connection factory and, where this service owns its schema (`flat-persistence` rule 15), migration
+   history — never a second set of tables, or a second store's fields, inside the first. A store's SQL
+   is findable in one place or it is everywhere. What such a package contains, and what changes where
+   several distributions share one store, is `flat-persistence`.
 5. **Introduce a port only when a second real production implementation is about to be written** — a
    second provider the service switches between. A fake for tests never counts: test doubles come from
    the real backend, a stubbed transport or a subclass (rule 13). Judge "about to be written" from the
@@ -374,10 +340,8 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     service the scope that stops a failure is usually the loop's guard or the framework wrapper's error
     handler; a client translating an SDK error re-raises and so stays silent, with the detail riding in
     the translated exception's `context` (`exception-catalog`).
-13. **Test at the boundary, not through fakes of internal abstractions.** Prefer a real integration test
-    — a containerized dependency, a stubbed HTTP transport — over mocking a class that has no
-    interface. When isolation is needed, subclass the concrete client for one-off failure injection; do
-    not introduce a `Protocol` purely to make something mockable. The full ladder is `test-principles`.
+13. **Tests substitute at the boundary, by `test-principles`' substitution ladder** — never a `Protocol`
+    introduced only to make a concrete class mockable (rule 5).
 14. **A client holds one pooled transport for the process's life and never opens one per call.** The
     process definition builds the connection pool or SDK session once, hands it to the client's
     constructor, and closes it when the process ends (rule 7). A client that builds its own transport
@@ -392,7 +356,9 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     system's documentation.** An HTTP API, a vendor SDK, a local executable and its output, files it
     writes — the client calls whichever the system offers, and never assumes an HTTP API. A client
     written against an endpoint the system does not have passes every test stubbed from the same
-    invention and fails on the first real run. Rules 6 and 14 hold whatever the interface is.
+    invention and fails on the first real run. Rules 6 and 14 hold whatever the interface is. A
+    directory the service writes to for another reader is an external system too — a package with its
+    own settings and one writer class.
 
 ## Hard stops
 

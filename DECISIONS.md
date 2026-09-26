@@ -119,7 +119,7 @@ engine factory taking the connection string, with the process definition passing
 own-settings-class case moved to the shared-distribution bullet under `## Other bindings`.
 
 ### D19 — `FooStorage` writes across two statements
-Plan 04's `FooStorage` was single-statement, but it has to carry the "a write spanning more than one
+**Superseded by D107.** Plan 04's `FooStorage` was single-statement, but it has to carry the "a write spanning more than one
 statement is one transaction" rule and be the subject of the atomicity test. A single statement has no
 atomicity to pin. Gave `record_batch` an ordinary parent-and-children shape in one `engine.begin()`.
 This is not the deleted registry: no cross-service identity, no junction, no view, no kinds.
@@ -342,7 +342,7 @@ drive code review, where a rule that only fires on one stack is noise.
 subsections back out; nothing else referenced them by then.
 
 ### D51 — Durable obligation 7 kept its loop shape, stated as a consequence rather than a shape
-The obligation said the batch loop is "an unbounded loop with an explicit counter, never a bounded loop
+**Obligation 7 merged into durable obligation 6 by D107.** The obligation said the batch loop is "an unbounded loop with an explicit counter, never a bounded loop
 with a trailing `return`", which reads as one engine's control flow. The reason underneath it is not:
 where a run takes a continuation it never reaches the statement after the loop, so a loop bounded by a
 count has its termination condition nowhere and dead code where it belongs. That is true of every
@@ -1025,14 +1025,14 @@ that pooled units in one buffer: a buffer spans units only if each unit's marker
 unflagged.
 
 ### D90 — Deduplication belongs to the store, and a cursor carries a total order
-Two more, both in data access: looking up which rows already exist before writing each chunk — a round
+**The collapse by the normalized key, and `list_after` as the worked case, superseded by D107.** Two more, both in data access: looking up which rows already exist before writing each chunk — a round
 trip per chunk that still admits the duplicates two concurrent runs write — and paging a table by
 timestamp alone, which silently skips every row sharing a timestamp at a page edge, and a batch shares
 one. `flat-persistence` rule 18 leaves deduplication to
 the store's write-time conflict clause or merge-time engine; rule 19 orders a resumed read by a total
 order and carries all of it in the cursor. `FooRepository.list_after` is the worked case, and
 `flat-test-persistence` pins it across a page edge inside one timestamp.
-Rule 18 then gained two clauses. An earliest, latest or aggregated column (a first-seen time) is
+Rule 18 then gained two clauses (the `LEAST`/`GREATEST` spelling reduced to one sentence by D107). An earliest, latest or aggregated column (a first-seen time) is
 resolved by the conflict clause's `LEAST`/`GREATEST` or a merge engine that aggregates — a generated
 service had looked rows up before every insert only to keep a first-seen time. And inputs sharing a key
 are collapsed by it before the statement: Postgres refuses to update one row twice in one statement
@@ -1107,7 +1107,7 @@ only where a member resolves settings files against the working directory.
 constants, and a copy of that template briefly sat under `flat-entrypoint` shape 2. Both are gone. Rule 9
 of `flat-layered` holds for any framework, HTTP included, and is enforced by a standard-form firewall
 that forbids the framework's import outside the declared wrapper package; only an earned engine adds its
-one allow-list entry, the guarded helper of durable obligation 10. `test-architecture-rule` rule 9 keeps
+one allow-list entry, the guarded helper of durable obligation 8. `test-architecture-rule` rule 9 keeps
 the general obligation — a role's name read from a declared constant, one constant per name.
 **Reverse by:** restoring the framework constants and test to `test-architecture-rule` and pointing
 `flat-layered` and `flat-entrypoint` back at it.
@@ -1207,3 +1207,43 @@ lays a migration bootstrap sanction the two migration ones, whose rationales now
 dropping the CLI exception from `python-settings` rule 5; keying the migration tool back on having a
 relational store; moving the migration suppressions back into `python-toolchain` rule 5 as a list of
 three; and restoring the settings template to `flat-layered`.
+
+## The flat family, reduced to what most flat services have
+
+### D107 — The flat skeleton, entrypoint, persistence and tests cut to the common case
+A generality review walked the flat family through its test services — a queue consumer that stores
+nothing, a nightly report job, a webhook receiver, a CLI-triggered export, a crawler with two stores —
+and found one sample application's shape throughout. The skeleton in `flat-layered` now holds only what
+most flat services have, with packages at the package root: no `services/`, `ingest/` or `jobs/`, the
+external system's package named for it (`foo_api/`), the run function a module named for its work
+(`foo_sync.py`), `containment.py` only where a process outlives one run, and `entrypoints/` only where
+there is more than one process. The service's own record has a non-nullable key and no labels; a
+directory written for another reader is an external system with its own package. In
+`flat-entrypoint` one run per process, started by an external scheduler, is the default; a loop is the
+same run repeated, and only a process that outlives one run is guarded, sleeping on an interval read
+from settings. A contained unit returns for redelivery up to a declared limit and then goes to a dead
+letter, its effect idempotent (rule 15); a file another reader collects is written atomically (rule 12).
+Durable obligations 6 to 8 — the continuation's carried values, the empty-batch end and the public
+batch ceiling — are merged into 6, which keeps the first two and drops the ceiling a test had to read;
+the old 9 to 13 are 7 to 11. The HTTP shape is
+one route receiving a body and handing it to one run function, with no upstream client in the HTTP
+process, and the framework's validation failure rendered as the catalogue's `InvalidPayloadError` —
+first named `InvalidRequestError`, renamed because it collided with SQLAlchemy's exception of that name.
+`flat-persistence` is one table and a repository with `record_batch` alone: `list_after` went, rule 19
+staying as a rule and its test becoming conditional on a run that pages, because most flat services
+never walk their own table; the record's `reference` is a `FooReference`, a distinct type over `str`
+wrapped at each mapping point, because `python-style` makes an identifier issued elsewhere one;
+`normalize_reference` is gone because it silently merged keys the source tells apart by case, the key
+now stored as it arrives, and the read-back helper and the atomicity test are stated as conditional on a
+write that spans statements (D19's parent-and-children write is gone). The integration conftest lost
+its external-database mode, now one `## Other bindings` bullet carrying its own guard, and a store
+another project owns gets no migrations — the suite creates its schema from metadata. The test skills
+follow: no filter test, the aggregate asserted as `RunResult`, the containment test only where a
+process outlives a run, the HTTP test driving one body-receiving route, and the batch-loop tests
+matched to durable obligation 6, with the public-loop-constant rule gone. A later pass in the same
+review left the redelivery limit and dead letter to the broker's own configuration, scoped to units a
+broker delivered; had no transaction span two stores; dropped the client's failure-injection subclass
+for a transport failure; and replaced the startup-state recovery message with one sentence.
+**Reverse by:** restoring the flat skill files, their indexes and the `python-toolchain`,
+`flat-project-setup` and `naming` sentences from the commit before this one, renumbering the durable
+obligations back to 13, and removing the superseded markers on D19, D51 and D90.

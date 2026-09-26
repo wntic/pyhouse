@@ -48,7 +48,7 @@ import httpx
 import pytest
 import respx
 
-from myapp.services.foo_api import FooClient
+from myapp.foo_api import FooClient
 
 _FOO_API_URL = "https://foo.test"
 _TIMEOUT_SECONDS = 1.0
@@ -75,8 +75,8 @@ import pytest
 import respx
 
 from myapp.exceptions import FooClientError
+from myapp.foo_api import FooClient
 from myapp.schemas import FooPayload
-from myapp.services.foo_api import FooClient
 
 
 async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
@@ -148,22 +148,7 @@ The error tests assert the translated class and its chained cause. `fetch_foos` 
 test agree on — never the message text, which is free to change (`exception-catalog`). The malformed-body
 cases cover both halves of parsing: a body that is not JSON, and JSON that does not fit the payload.
 
-## Template — failure injection for the client's *callers*
-
-When a caller's test needs this client to fail, it subclasses rather than mocks. This lives in the
-caller's test module, not here — it is included so both halves of the pattern are in one place:
-
-```python
-class _RaiseFooClient(FooClient):
-    async def fetch_foos(self) -> tuple[FooPayload, ...]:
-        raise FooClientError("upstream down")
-```
-
-It is constructed like the real client, over an `httpx.AsyncClient` the caller's test builds and closes
-— `_RaiseFooClient(http)` — which the overridden method never uses.
-
-Override exactly the one method that must fail, and nothing else — the rest of the real client stays in
-the object, so a signature change breaks the test at call time instead of passing silently.
+A caller's test makes this client fail at its transport (`flat-test-run-function` rule 2).
 
 ## Other bindings
 
@@ -212,8 +197,8 @@ the object, so a signature change breaks the test at call time instead of passin
 
 ## Hard stops
 
-- A test patches a method of the class under test → stop, stub the transport, or subclass for a
-  *caller's* injection; patching the subject leaves nothing tested.
+- A test patches a method of the class under test → stop, stub the transport; patching the subject
+  leaves nothing tested.
 - A `Protocol` is being extracted so the client can be substituted → stop, forbidden by the flat-layered
   style; the transport stub already substitutes at the right seam.
 - The client swallows a transport or parsing failure internally, returning a default instead of raising

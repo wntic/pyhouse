@@ -1,6 +1,6 @@
 ---
 name: flat-test-integration-setup
-description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the datastore container with its exact-name safety guard, the migration round trip, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the data-access package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
+description: Use when laying the shared fixtures a flat-layered service's integration tests rest on — the suite-owned datastore container, the exact-name safety guard any database the suite did not start must pass, the migration round trip, the session-scoped engine every fixture and test shares one event loop with, the rollback-scoped connection for code that accepts one, and the whole-schema wipe for code that opens its own transaction. Lives in the distribution's own `tests/integration/conftest.py`. Testing the data-access package against that datastore is `flat-test-persistence`; a hexagonal package's conftest hierarchy with a dishka `real_app` is `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
 when_to_use: Also when asked where a flat service's test fixtures live, how integration tests get a real database, why a test suite must never truncate a developer's database, or why a session-scoped engine needs a session-scoped event loop.
 ---
 
@@ -62,38 +62,16 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
-_EXTERNAL_FLAG = "MYAPP_TEST_USE_EXTERNAL"
-_REQUIRED_EXTERNAL_VARS = ("MYAPP_POSTGRES_DSN",)
 _CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
-_ALLOWED_TEST_DATABASES = frozenset({"test"})
 _DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(scope="session")
 def db_dsn() -> Iterator[str]:
-    """A suite-owned container, or an external database only behind a dedicated opt-in flag."""
-    if os.getenv(_EXTERNAL_FLAG) == "1":
-        missing = [name for name in _REQUIRED_EXTERNAL_VARS if not os.getenv(name)]
-        if missing:
-            raise RuntimeError(f"{_EXTERNAL_FLAG}=1 but these are unset: {', '.join(missing)}")
-        dsn = os.environ["MYAPP_POSTGRES_DSN"]
-        _refuse_if_not_a_test_database(dsn)
-        yield dsn
-        return
-
     from testcontainers.community.postgres import PostgresContainer
 
     with PostgresContainer(_CONTAINER_IMAGE, driver="asyncpg") as pg:
         yield pg.get_connection_url()
-
-
-def _refuse_if_not_a_test_database(dsn: str) -> None:
-    database_name = dsn.rsplit("/", 1)[-1].split("?")[0]
-    if database_name not in _ALLOWED_TEST_DATABASES:
-        raise RuntimeError(
-            f"refusing to run integration tests against database {database_name!r} — "
-            f"the external database must be one of {sorted(_ALLOWED_TEST_DATABASES)}"
-        )
 
 
 def _alembic(dsn: str, *args: str) -> None:
@@ -110,6 +88,7 @@ def _alembic(dsn: str, *args: str) -> None:
 @pytest.fixture(scope="session")
 def _migrated_db(db_dsn: str) -> str:
     """Up, down to the base and up again, so every downgrade() runs once per session."""
+    # a store another project owns: await conn.run_sync(metadata.create_all) instead (rule 1)
     _alembic(db_dsn, "upgrade", "head")
     _alembic(db_dsn, "downgrade", "base")
     _alembic(db_dsn, "upgrade", "head")
@@ -149,14 +128,11 @@ async def truncate_all(engine: AsyncEngine) -> AsyncIterator[None]:
         await cleanup.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 ```
 
-**The guard lives inside the fixture that produces the connection details**, not in a fixture of its
-own. A separate guard fixture is bypassed by any test that reaches for the DSN directly; a check inside
-`db_dsn` cannot be. And it guards on an **exact database name**, never a port heuristic — a project whose
-dev stack is remapped to non-default ports sails straight through "not the default port". The names it
-accepts are **declared by the project** in `_ALLOWED_TEST_DATABASES`; a project that calls its throwaway
-database something else edits the constant rather than the comparison, which stays whole-name equality.
+**`db_dsn` yields only the container the suite started**, so nothing it can reach holds data anyone
+else wants. Pointing the suite at a database it did not start is a mode of its own, and it arrives with
+its guard (`## Other bindings`, rules 2 and 3).
 
-The image tag is a constant for the same reason: **the container runs the major version production
+The image tag is a named constant because **the container runs the major version production
 runs**, pinned to it, so the suite exercises the planner and DDL surface the migrations will meet. A
 floating tag moves the schema under the suite between runs.
 
@@ -211,10 +187,14 @@ pure-unit collection pays nothing for it.
   but loses `autouse=True` and each member whose code commits turns it on for its own tests in a
   one-line wrapper fixture.
 - **A pre-provisioned throwaway database** — a compose service, a CI service container, one issued per
-  branch. The container fixture disappears and `db_dsn` takes the external branch it already carries;
-  the migration run, the engine scope and both isolation fixtures are unchanged. **The name guard must
-  not disappear with the container**: it stops being a second line of defence and becomes the only one,
-  since the suite still TRUNCATEs every table it can see.
+  branch. `db_dsn` gains a branch taken only behind a dedicated opt-in flag, which raises a named error
+  listing every variable it needs and finds unset (rule 3), and **that branch arrives together with the
+  exact-name guard**, inside `db_dsn` itself (rule 2): a separate guard fixture is bypassed by any test
+  that reaches for the connection string directly, and a port heuristic waves through a dev stack
+  remapped to non-default ports. The names it accepts are declared by the project in one constant and
+  compared by whole-name equality. The migration run, the engine scope and both isolation fixtures are
+  unchanged, and the guard is the only line of defence, since the suite still TRUNCATEs every table it
+  can see.
 - **An in-process or file-backed engine** (SQLite through an async driver). Cheapest to start, and it
   costs what this level buys: upsert semantics, generated constraint names and transaction behaviour are
   no longer production's, so `flat-test-persistence`'s constraint-name and conflict-path assertions stop
@@ -222,14 +202,17 @@ pure-unit collection pays nothing for it.
 - **Creating the schema from the metadata instead of replaying the migration history.** Faster, and it
   stops testing that the migrations produce the schema the code expects — which is the drift the history
   exists to prevent. Keep the history wherever the migrations are themselves an artifact the project
-  ships.
+  ships. **For a store the service reads but another project owns, it is the only choice**: the service
+  carries no history for those tables (`flat-persistence` rule 15), so `_migrated_db` becomes one
+  `metadata.create_all` over the tables the service declares, and the round trip of rule 1 lapses.
 
 ## Rules
 
 1. **The migration runs from wherever the schema is defined** — this distribution when it owns its
    store, the owning library when several share one. One store, one history, replayed the same way the
    deploy command replays it, and taken down to the base and up again once per session so every
-   `downgrade()` runs.
+   `downgrade()` runs. A store owned by a project outside the repository has no history here to replay,
+   and the suite creates the tables the service declares from its metadata instead.
 2. **The safety guard lives inside the fixture producing the connection details**, and guards on an
    exact database name drawn from a project-declared constant, never a port or substring heuristic.
 3. **Using a datastore the suite did not start is opt-in and explicit** — `test-principles` reliability
@@ -279,5 +262,6 @@ pure-unit collection pays nothing for it.
   `"ignore:..."` entry after `"error"` with its reason in a comment.
 - The distribution has no relational store at all → stop, none of this applies; there is no transaction to
   roll back and no schema to truncate.
-- The migration fixture is trimmed to `upgrade head` alone → stop, the down-and-up round trip is the only
-  thing that runs each `downgrade()` before a deploy needs it.
+- The migration fixture is trimmed to `upgrade head` alone where this distribution owns the history →
+  stop, the down-and-up round trip is the only thing that runs each `downgrade()` before a deploy needs
+  it.

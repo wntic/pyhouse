@@ -24,7 +24,7 @@ log_ctx.info("import_completed", imported=imported, skipped=skipped)
 ## Event names and fields are a contract
 
 The event name is what a query matches on: `foo_created`, `bar_archived`, `foos_imported`,
-`ingest_run_failed`. These are stable strings — **do not rename once shipped**, because dashboards and
+`run_failed`. These are stable strings — **do not rename once shipped**, because dashboards and
 alerts key on them. `naming` lists them among the frozen external contracts for that reason.
 
 Identifiers and counts are fields: the primary id as `<subject>_id`, the actor as `caller_id` where one

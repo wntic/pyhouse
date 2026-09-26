@@ -64,17 +64,17 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Flat core (4)
 
-- `flat-layered` — Four role kinds carry the rules and each package is named for a role the service actually has; a configured component is a package with its own settings class, built by the process definition, whose contents are `python-settings`'s, and a client holds one pooled transport; one distribution on its own is the default.
-- `flat-persistence` — Confine each store's statements and connections to one package named for its technology, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name.
-- `flat-entrypoint` — Changing the trigger — loop, schedule, stream, a thin HTTP wrapper or durable execution — wraps the same dependency-injected run function without rewriting its work, which holds bounded memory whatever triggers it; a workflow engine is earned, never assumed.
+- `flat-layered` — Four role kinds carry the rules and each package, at the package root, is named for a role the service actually has — the skeleton holds only what most flat services have; a configured component is a package with its own settings class, built by the process definition, whose contents are `python-settings`'s, and a client holds one pooled transport; one distribution on its own is the default.
+- `flat-persistence` — Confine each store's statements and connections to one package named for its technology, with one declared transaction owner per callable and no driver error escaping untranslated; which rules bind follows the store's properties, not its name, and a store another project owns gets no migrations.
+- `flat-entrypoint` — Changing the trigger — one run per process by default, a loop, a stream, a thin HTTP wrapper or durable execution — wraps the same dependency-injected run function without rewriting its work; only a process that outlives one run is guarded, a contained unit is redelivered to a limit and then dead-lettered, and a workflow engine is earned, never assumed.
 - `flat-project-setup` — Lay a flat service down once — which libraries each role brings with the floors this family's templates rely on, and the migration bootstrap with no empty greenfield baseline; the toolchain itself is `python-toolchain`'s, per-change revisions `flat-persistence`'s.
 
 ### Flat tests (4)
 
-- `flat-test-integration-setup` — Choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
-- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception.
+- `flat-test-integration-setup` — The suite starts its own datastore container; choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
+- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception, a paged read's page edge — and atomicity only where one write spans statements.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
-- `flat-test-run-function` — Test the body and the wrapper that invokes it, and the orchestration level above them only where a durable-execution engine was earned.
+- `flat-test-run-function` — Test the body end to end, the containment only where a process outlives one run, and the wrapper that invokes it; the orchestration level above them only where a durable-execution engine was earned.
 
 ### Git (2)
 
