@@ -156,6 +156,7 @@ at module level, because none of them needs anything to exist.
 # no — runs on import, so importing this module is what fails
 settings = Settings()
 
+
 # yes — the caller decides when, and the failure names the missing value
 def get_settings() -> Settings:
     return Settings()
@@ -280,11 +281,11 @@ metadata`.
   within-layer imports relative. One rule, not two.
 
 ```python
-from .create_foo_command import CreateFooCommand          # same dir — relative
-from ..bars.create_bar_command import CreateBarCommand    # one level up — relative
-from myapp.domain.foos import IFooRepository              # cross-package — absolute
+from .create_foo_command import CreateFooCommand  # same dir — relative
+from ..bars.create_bar_command import CreateBarCommand  # one level up — relative
+from myapp.domain.foos import IFooRepository  # cross-package — absolute
 
-from .settings import DbSettings                          # same package — one dot
+from .settings import DbSettings  # same package — one dot
 # NOT: from ..postgres.settings import DbSettings         # up-and-back-down into the same package
 ```
 
