@@ -104,7 +104,7 @@ releases it after its yield when it holds connections — and a capability adapt
 a repository bound to its port in its subdomain's per-operation provider. One adapter satisfying two
 ports is bound once, to both (`AnyOf`), so the two ports share the one instance — the S3 binding is the
 worked case. An aggregate has one authoritative store (`hex-store-repository` rule 1), so no add-on binds
-a second repository for `Foo`; the key-value one binds `Bar`'s.
+a second repository for `Foo`; the key-value one binds `Baz`'s.
 
 Add `FastapiProvider()` to that list **only** when a factory takes `fastapi.Request` or
 `fastapi.WebSocket` as a parameter; the default composition root above takes neither and stays free of

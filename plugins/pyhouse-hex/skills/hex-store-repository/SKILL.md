@@ -27,12 +27,10 @@ Produces one repository class that adapts a domain repository protocol to a clie
 
 One vendor is worked end to end so the shape is concrete; a document store (mongo, dynamo, a
 key-value cache) differs only in the SDK's call names and its exception root. The worked aggregate is
-`Bar` (`hex-domain-model`), whose one authoritative store is the key-value store (rule 1). A key-value
-store answers only reads by key, so the adapter satisfies an `IBarRepository` that declares create,
-fetch by id and delete and nothing else (`hex-domain-ports`), and lives in
-`redis/repositories/bar_repository.py` (`hex-conventions`' protocol-derived stem). The relational
-templates (`hex-persistence`) take the other case — `Bar` in the relational store, which `Foo`'s
-foreign key to it needs; a project keeps `Bar` in one of the two, never both.
+`Baz` (`hex-domain-model`), a placeholder held by no other store, so the key-value store is its one
+authoritative store (rule 1). A key-value store answers only reads by key, so the adapter satisfies an
+`IBazRepository` that declares create, fetch by id and delete and nothing else (`hex-domain-ports`),
+and lives in `redis/repositories/baz_repository.py` (`hex-conventions`' protocol-derived stem).
 
 ```python
 import json
@@ -41,38 +39,38 @@ from uuid import UUID
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from myapp.domain.bars import Bar
+from myapp.domain.bazs import Baz
 from myapp.domain.exceptions import NotFoundError, UpstreamError
 
 from ..settings import RedisSettings
 
-__all__ = ["BarRepository"]
+__all__ = ["BazRepository"]
 
 
-class BarRepository:
+class BazRepository:
     def __init__(self, client: Redis, settings: RedisSettings) -> None:
         self._client = client
-        self._prefix = settings.bars_key_prefix
+        self._prefix = settings.bazs_key_prefix
 
     def _key(self, id: UUID) -> str:
         return f"{self._prefix}:{id}"
 
-    def _entity_to_record(self, bar: Bar) -> dict[str, str]:
-        return {"id": str(bar.id), "name": bar.name}
+    def _entity_to_record(self, baz: Baz) -> dict[str, str]:
+        return {"id": str(baz.id), "name": baz.name}
 
-    def _record_to_entity(self, record: dict[str, str]) -> Bar:
-        return Bar(id=UUID(record["id"]), name=record["name"])
+    def _record_to_entity(self, record: dict[str, str]) -> Baz:
+        return Baz(id=UUID(record["id"]), name=record["name"])
 
-    async def create(self, bar: Bar) -> None:
+    async def create(self, baz: Baz) -> None:
         try:
-            await self._client.set(self._key(bar.id), json.dumps(self._entity_to_record(bar)))
+            await self._client.set(self._key(baz.id), json.dumps(self._entity_to_record(baz)))
         except RedisError as exc:
             raise UpstreamError(
                 "store write failed",
-                {"key": self._key(bar.id), "reason": exc.__class__.__name__},
+                {"key": self._key(baz.id), "reason": exc.__class__.__name__},
             ) from exc
 
-    async def get_by_id(self, id: UUID) -> Bar:
+    async def get_by_id(self, id: UUID) -> Baz:
         try:
             raw = await self._client.get(self._key(id))
         except RedisError as exc:
@@ -81,7 +79,7 @@ class BarRepository:
                 {"key": self._key(id), "reason": exc.__class__.__name__},
             ) from exc
         if raw is None:
-            raise NotFoundError("Bar not found", {"id": str(id)})
+            raise NotFoundError("Baz not found", {"id": str(id)})
         return self._record_to_entity(json.loads(raw))
 
     async def delete(self, id: UUID) -> None:
@@ -93,7 +91,7 @@ class BarRepository:
                 {"key": self._key(id), "reason": exc.__class__.__name__},
             ) from exc
         if removed == 0:
-            raise NotFoundError("Bar not found", {"id": str(id)})
+            raise NotFoundError("Baz not found", {"id": str(id)})
 ```
 
 The settings class the adapter and the store's connection factory (`hex-conventions` block B) read, in
@@ -114,12 +112,12 @@ class RedisSettings(BaseSettings):
     )
 
     url: SecretStr
-    bars_key_prefix: str
+    bazs_key_prefix: str
 ```
 
 The binding, an add-on to the base composition root in `hex-wiring`'s `CONTAINER.md`, which binds no
-client store. A project that keeps `Bar` here merges the first two classes into the base's providers of
-the same name and adds `BarsProvider()` to the `create_container` list: the settings factory, the client
+client store. A project that keeps `Baz` here merges the first two classes into the base's providers of
+the same name and adds `BazsProvider()` to the `create_container` list: the settings factory, the client
 built once by the datastore's connection factory (`hex-conventions` block B) and closed after its yield,
 and the repository bound to its port per operation, like every repository (`hex-wiring`).
 
@@ -129,9 +127,9 @@ from collections.abc import AsyncIterator
 from dishka import Provider, Scope, provide
 from redis.asyncio import Redis
 
-from myapp.domain.bars import IBarRepository
+from myapp.domain.bazs import IBazRepository
 from myapp.infrastructure.redis import RedisSettings, create_archive_client
-from myapp.infrastructure.redis.repositories import BarRepository
+from myapp.infrastructure.redis.repositories import BazRepository
 
 
 class SettingsProvider(Provider):
@@ -152,10 +150,10 @@ class InfrastructureProvider(Provider):
         await client.aclose()
 
 
-class BarsProvider(Provider):
+class BazsProvider(Provider):
     scope = Scope.REQUEST
 
-    bar_repository = provide(BarRepository, provides=IBarRepository)
+    baz_repository = provide(BazRepository, provides=IBazRepository)
 ```
 
 ## Other bindings
@@ -191,7 +189,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 ├── settings.py            # the store's settings class — shown in the template above
 └── repositories/
     ├── __init__.py        # package wiring — python-packaging
-    └── bar_repository.py  # this skill writes this file — the stem is the port's (`hex-conventions`)
+    └── baz_repository.py  # this skill writes this file — the stem is the port's (`hex-conventions`)
 ```
 
 ### Form
@@ -231,7 +229,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.bars import Bar`); the sibling settings module relative (`from ..settings import RedisSettings`). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
+- Domain imports absolute (`from myapp.domain.bazs import Baz`); the sibling settings module relative (`from ..settings import RedisSettings`). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - Raw SDK payloads may be `dict[str, Any]` / `object` at the immediate boundary — convert to the domain type in the mapping helper, never return them.
 - No `from __future__ import annotations`. Full annotations on every method.

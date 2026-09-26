@@ -67,8 +67,8 @@ class Foo:
         return hash(self.id)
 ```
 
-`Bar`, the second aggregate the templates name, is the same form with its own fields, in
-`domain/bars/bar.py`:
+`Baz`, the third placeholder aggregate — held only by the key-value store example in
+`hex-store-repository` — is the same form with its own fields, in `domain/bazs/baz.py`:
 
 ```python
 from dataclasses import dataclass
@@ -76,10 +76,10 @@ from uuid import UUID
 
 from ..exceptions import ValidationError
 
-__all__ = ["Bar"]
+__all__ = ["Baz"]
 
 @dataclass
-class Bar:
+class Baz:
     id: UUID
     name: str
 
@@ -88,7 +88,7 @@ class Bar:
             raise ValidationError("name must be non-empty", {"field": "name"})
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Bar):
+        if not isinstance(other, Baz):
             return NotImplemented
         return self.id == other.id
 

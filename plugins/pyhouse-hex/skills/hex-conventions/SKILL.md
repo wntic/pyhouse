@@ -122,7 +122,7 @@ own (`hex-store-repository` rule 1):
 - a **relational store** repo → `<snake(aggregate)>_repository.py` (`Foo` on `main` →
   `foo_repository.py`).
 - a **client-style store** repo → the **protocol-derived** stem: the implemented protocol name minus its
-  leading `I`, snaked (`IBarRepository` on `archive` → `bar_repository.py`).
+  leading `I`, snaked (`IBazRepository` on `archive` → `baz_repository.py`).
 
 So a `Foo` stored relationally behind `IFooRepository`, with a search index beside it behind an
 `IFooSearchIndex`, lands two distinct files — `<relational-kind>/repositories/foo_repository.py` and

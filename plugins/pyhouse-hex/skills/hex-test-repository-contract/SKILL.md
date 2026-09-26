@@ -289,13 +289,13 @@ tests/integration/
 ├── conftest.py                         # + redis_url, redis_client (session) — hex-test-integration-setup's
 └── redis/
     ├── conftest.py                     # redis_settings — the per-test key prefix
-    └── test_bar_repository.py
+    └── test_baz_repository.py
 ```
 
 A client store gives the test three things and only three: an **SDK client**, a **namespace handle**
 (key prefix, collection, index, database or bucket name) and a **settings object** carrying that handle.
 Redis is the worked binding — `hex-store-repository`'s own — and its namespace is a key prefix. The
-adapter is `hex-store-repository`'s `BarRepository`, whose `IBarRepository` declares three verbs, so the
+adapter is `hex-store-repository`'s `BazRepository`, whose `IBazRepository` declares three verbs, so the
 contract is those three: create, fetch by id and delete, each with its absent-record case, plus the
 translation of a store failure.
 
@@ -319,17 +319,17 @@ from myapp.infrastructure.redis import RedisSettings
 async def redis_settings(redis_url: str, redis_client: Redis) -> AsyncIterator[RedisSettings]:
     """A fresh key prefix per test — namespace isolation, since a key-value store
     has no transaction to roll back. Every key under it is deleted after the test."""
-    settings = RedisSettings(url=SecretStr(redis_url), bars_key_prefix=f"test:{uuid.uuid4().hex}")
+    settings = RedisSettings(url=SecretStr(redis_url), bazs_key_prefix=f"test:{uuid.uuid4().hex}")
     try:
         yield settings
     finally:
-        pattern = f"{settings.bars_key_prefix}:*"
+        pattern = f"{settings.bazs_key_prefix}:*"
         keys = [key async for key in redis_client.scan_iter(match=pattern)]
         if keys:
             await redis_client.delete(*keys)
 ```
 
-### `test_bar_repository.py`
+### `test_baz_repository.py`
 
 ```python
 import uuid
@@ -339,39 +339,39 @@ import pytest
 from pydantic import SecretStr
 from redis.asyncio import Redis
 
-from myapp.domain.bars import Bar
+from myapp.domain.bazs import Baz
 from myapp.domain.exceptions import NotFoundError, UpstreamError
 from myapp.infrastructure.redis import RedisSettings
-from myapp.infrastructure.redis.repositories import BarRepository
+from myapp.infrastructure.redis.repositories import BazRepository
 
 
-def _bar(name: str = "alpha") -> Bar:
-    return Bar(id=uuid.uuid4(), name=name)
+def _baz(name: str = "alpha") -> Baz:
+    return Baz(id=uuid.uuid4(), name=name)
 
 async def test_create_then_get_returns_every_field(
     redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = BarRepository(client=redis_client, settings=redis_settings)
-    bar = _bar()
+    repo = BazRepository(client=redis_client, settings=redis_settings)
+    baz = _baz()
 
-    await repo.create(bar)
+    await repo.create(baz)
 
-    assert asdict(await repo.get_by_id(bar.id)) == asdict(bar)
+    assert asdict(await repo.get_by_id(baz.id)) == asdict(baz)
 
 async def test_create_writes_under_the_configured_prefix(
     redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = BarRepository(client=redis_client, settings=redis_settings)
-    bar = _bar()
+    repo = BazRepository(client=redis_client, settings=redis_settings)
+    baz = _baz()
 
-    await repo.create(bar)
+    await repo.create(baz)
 
-    assert await redis_client.exists(f"{redis_settings.bars_key_prefix}:{bar.id}") == 1
+    assert await redis_client.exists(f"{redis_settings.bazs_key_prefix}:{baz.id}") == 1
 
 async def test_get_by_id_of_absent_record_raises_not_found(
     redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = BarRepository(client=redis_client, settings=redis_settings)
+    repo = BazRepository(client=redis_client, settings=redis_settings)
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc:
@@ -382,19 +382,19 @@ async def test_get_by_id_of_absent_record_raises_not_found(
 async def test_delete_removes_the_record(
     redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = BarRepository(client=redis_client, settings=redis_settings)
-    bar = _bar()
-    await repo.create(bar)
+    repo = BazRepository(client=redis_client, settings=redis_settings)
+    baz = _baz()
+    await repo.create(baz)
 
-    await repo.delete(bar.id)
+    await repo.delete(baz.id)
 
     with pytest.raises(NotFoundError):
-        await repo.get_by_id(bar.id)
+        await repo.get_by_id(baz.id)
 
 async def test_delete_of_absent_record_raises_not_found(
     redis_client: Redis, redis_settings: RedisSettings
 ) -> None:
-    repo = BarRepository(client=redis_client, settings=redis_settings)
+    repo = BazRepository(client=redis_client, settings=redis_settings)
 
     with pytest.raises(NotFoundError):
         await repo.delete(uuid.uuid4())
@@ -402,10 +402,10 @@ async def test_delete_of_absent_record_raises_not_found(
 async def test_get_against_unreachable_store_raises_upstream_error() -> None:
     dead_url = "redis://127.0.0.1:1/0"  # nothing listening
     dead = Redis.from_url(dead_url)
-    settings = RedisSettings(url=SecretStr(dead_url), bars_key_prefix="x")
+    settings = RedisSettings(url=SecretStr(dead_url), bazs_key_prefix="x")
     missing = uuid.uuid4()
     try:
-        repo = BarRepository(client=dead, settings=settings)
+        repo = BazRepository(client=dead, settings=settings)
 
         with pytest.raises(UpstreamError) as exc:
             await repo.get_by_id(missing)
