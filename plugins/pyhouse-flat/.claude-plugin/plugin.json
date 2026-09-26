@@ -1,7 +1,7 @@
 {
   "name": "pyhouse-flat",
   "displayName": "pyhouse — flat layered",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Flat package-by-technical-role Python service skills for workers, crawlers, pipelines, ETL and glue, written for one distribution on its own and equally true of one among several: the one-time project setup — pyproject, toolchain, dependency floors and the migration bootstrap — the four role kinds and the import contract between them, the one package that owns a service's data access and the obligations that come with it, entrypoint trigger choice between loop, schedule, stream, HTTP and durable execution, and the four test families that cover them. Depends on pyhouse-universal, which Claude Code installs with it.",
   "author": {
     "name": "Yegor Vorobyev"
