@@ -28,9 +28,9 @@ them. The two meet at one rule: a settings class is instantiated **only** at a c
 ## Settings
 
 **Read `SETTINGS.md`** in this skill's directory before writing or extending a settings class. It
-carries the pydantic-settings templates — the relational database and one non-engine integration (the
-S3-compatible blob store) — with the note on pool sizing, and says where every other settings class the
-templates read is shown: beside the adapter that reads it; only `SKILL.md` is loaded automatically.
+carries the pydantic-settings template for the relational database, with the note on pool sizing, and
+says where every other settings class the templates read is shown: beside the adapter that reads it;
+only `SKILL.md` is loaded automatically.
 
 ### How this binding spells the settings obligations
 
@@ -125,15 +125,16 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 
 - A **settings class** is the only place this codebase reads environment variables. Adapters always
   receive a settings object; nothing calls `os.getenv`.
-- **`containers.py` is the composition root.** Every concrete class is bound to the protocol it
-  satisfies here and **only** here. Domain and application code never instantiates a concrete type.
+- **The process's container module is the composition root.** Every concrete class is bound to the
+  protocol it satisfies there and **only** there. Domain and application code never instantiates a
+  concrete type.
 - **Every binding declares a lifetime, and the choice is deliberate.** Nothing is bound without an
   answer to "how long does this live".
 - **Anything holding a resource that must be released declares its teardown in the same place as its
   construction**, so construction and release cannot drift apart. The entrypoint closes the composition
   root exactly once, which runs every declared teardown (`hex-restapi-app`).
 - **Bindings are reached by type, not by name.** A call site names the type it needs; the composition
-  root decides what satisfies it. Nothing outside this file may depend on how a binding is spelled.
+  root decides what satisfies it. Nothing outside the composition root may depend on how a binding is spelled.
 
 ### File location and naming
 

@@ -1,9 +1,9 @@
 # hex-wiring — the settings classes
 
 Topic file of `hex-wiring`. The mechanism-free obligations are `### Rules — settings` in
-`SKILL.md`; what follows is the **pydantic-settings** binding that satisfies them, worked on two
-classes: the relational engine's and one non-engine integration's. Every other settings class the
-templates read sits beside the adapter that reads it (settings rule 12), listed at the end.
+`SKILL.md`; what follows is the **pydantic-settings** binding that satisfies them, worked on the
+relational engine's class. Every other settings class the templates read sits beside the adapter that
+reads it (settings rule 12), listed at the end.
 
 ## Template — pydantic-settings, relational database
 
@@ -52,41 +52,15 @@ connection ceiling. `port` defaults to the driver's own well-known port; `pool_p
 to connections the server closed underneath the pool, and `echo=True` in production writes every
 statement, parameters included, into the log. Set the sizes from the deployment; keep the last two.
 
-## Template — pydantic-settings, a non-engine integration (S3-compatible blob store)
-
-Most integrations need a credential plus an endpoint or a resource name and maybe a knob or two — no
-pool, no port, no DSN. This is that shape, worked on the settings class the S3 adapter
-(`hex-capability-adapter`) consumes, in `infrastructure/s3/settings.py` (`hex-conventions` derives the
-path and the name). The endpoint is required, so the same class reaches a hosted store and an
-S3-compatible one; the adapter reads `bucket` and `endpoint_url`, and the composition root builds the SDK
-session from the two credential fields.
-
-```python
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-__all__ = ["S3Settings"]
-
-class S3Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="MYAPP_S3_",
-        env_file=".env",
-        extra="ignore",
-    )
-
-    endpoint_url: str
-    access_key: str
-    secret_key: SecretStr
-    bucket: str
-```
-
 ## Where the other settings classes are
 
-Each is written in the same form — the three `model_config` keys above, its own prefix, the fields its
-consumer reads and nothing else — and each is shown beside what reads it:
+Most integrations need a credential plus an endpoint or a resource name and maybe a knob or two — no
+pool, no port, no DSN. Each is written in the same form as `DbSettings` — the three `model_config` keys
+above, its own prefix, the fields its consumer reads and nothing else — and each is shown beside what
+reads it:
 
-- `BarGatewaySettings` and `IdnaSettings` — beside the HTTP gateway and the idna canonicalizer in
-  `hex-capability-adapter`.
+- `S3Settings`, `BarGatewaySettings` and `IdnaSettings` — beside the S3 storage, the HTTP gateway and
+  the idna canonicalizer in `hex-capability-adapter`. `S3Settings` is the plainest non-engine shape.
 - `RedisSettings` — beside the key-value repository in `hex-store-repository`.
 - `JwtSettings` — beside the token verifier in `hex-restapi-auth`.
 - `ExportSettings` — in `CONTAINER.md`, beside the provider of the tunable value object that is its one
@@ -94,4 +68,4 @@ consumer reads and nothing else — and each is shown beside what reads it:
 
 Every one of them has its factory in the composition root. `DbSettings` and `ExportSettings` have
 theirs in the base in `CONTAINER.md`; each other class has its factory in the binding shown beside its
-adapter, which a project merges into that base — `S3Settings`' included, in `hex-capability-adapter`.
+adapter, which a project merges into that base.

@@ -16,7 +16,7 @@ here, into the classes `exception-catalog` owns.
 - Aggregate-root CRUD over a relational store → `hex-persistence`, not this skill.
 - Aggregate-root persistence on a key-value or document store, or an index kept beside it → `hex-store-repository`; an injected SDK client alone does not make something a capability.
 - The `ICan<Verb>` protocol file this adapter satisfies → `hex-domain-ports`.
-- The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `hex-wiring`, which also shows the S3 adapter's `S3Settings`; the HTTP gateway's and the canonicalizer's classes are shown here, beside their adapters.
+- The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `hex-wiring`; each adapter's own class — the S3 storage's, the HTTP gateway's and the canonicalizer's — is shown here, beside it.
 - The lifetime and declaration-order rules the adapter's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
 - The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-patterns`'.
@@ -108,6 +108,29 @@ class S3FooStorage:
 The adapter satisfies **two** capability ports over one technology — `ICanStoreFoos` (`upload` plus
 `delete`, one reversible action) and `ICanFetchFoos` (`download`) — because a port holds at most two
 methods (`hex-domain-ports`) while nothing limits how many ports one adapter satisfies.
+
+Its settings class, in `infrastructure/s3/settings.py` beside it. The endpoint is required, so the same
+class reaches a hosted store and an S3-compatible one; the adapter reads `bucket` and `endpoint_url`,
+and the composition root builds the SDK session from the two credential fields.
+
+```python
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["S3Settings"]
+
+class S3Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_S3_",
+        env_file=".env",
+        extra="ignore",
+    )
+
+    endpoint_url: str
+    access_key: str
+    secret_key: SecretStr
+    bucket: str
+```
 
 ### Template — async HTTP gateway (httpx)
 
