@@ -177,11 +177,12 @@ catalogue's code and status. `context` names the rejected fields by location (`b
 framework's exception into the catalogue, not a branch in the translator, so rule 3's cap is untouched.
 This is why the shell needs `ValidationError` in the catalogue alongside `DomainError`.
 
-**This handler is the only place a hexagonal app logs an error.** `python-style`'s allocation table gives
-the entrypoint that row — the domain and infrastructure never log, and the application layer logs
-successes only. Without the calls above a generated app logs failures nowhere. The **level rule** lives in `python-style` beside that table
-(4xx → `warning`, 5xx → `error`, non-`DomainError` → `error`); this file owns only the **call** that
-implements it, because the call is framework-shaped and the rule is not.
+**This handler is the only place a hexagonal app logs an error.** `hex-architecture`'s layer table (*Who logs, by layer*)
+gives the entrypoint that row — the domain and infrastructure never log, and the application layer logs
+successes only. Without the calls above a generated app logs failures nowhere. The level guide is
+`python-style`'s (`LOGGING.md`); the non-catalogue → `error` case is `hex-architecture`'s. This
+handler's own binding of them is 4xx → `warning`, 5xx → `error`, non-`DomainError` → `error`; this file
+owns only the **call** that implements it, because the call is framework-shaped and the rule is not.
 
 `INTERNAL_ERROR` is the one response `code` not minted by `exception-catalog`, and deliberately so: by
 definition no catalogue class was raised. It is a constant of this template, not a new catalogue entry.

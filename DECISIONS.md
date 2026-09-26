@@ -215,7 +215,7 @@ first — leaving it would have re-grown the defect phase 0 exists to remove.
 ## Portability audit — phase 1
 
 ### D33 — Left `exception-catalog` rule 15 family-shaped
-It reconciles the two families' upstream-failure class names (`UpstreamError` vs
+**Closed by D94.** It reconciles the two families' upstream-failure class names (`UpstreamError` vs
 `UpstreamUnavailableError`). That is a cross-family naming decision, not something a Django, library or
 CLI reader needs, and it was outside the four defects phase 1 targets. Flagged rather than fixed.
 
@@ -841,7 +841,7 @@ compensation is the one case where a scope that re-raises also stops a second fa
 warning for the failed undo and re-raises the original. A `*_best_effort` method that drops its own
 failure is a hard stop. An upstream rejecting the service's own credential is an `UpstreamError`;
 `UnauthorizedError` is for a credential the service's caller presented.
-**Reverse by:** deleting rule 16 and the subsection from `exception-catalog` and the matching section of
+**Reverse by:** deleting rule 15 (was 16) and the subsection from `exception-catalog` and the matching section of
 `LOGGING.md`.
 
 ### D76 — Names that denote a role are not vague nouns
@@ -999,7 +999,7 @@ branches and arguments stay on: a revision with branching logic is still authore
 **Reverse by:** deleting the per-file line and the sentence beside it in both skills.
 
 ### D88 — Templates are copied, so they show a house pattern and the common variants
-An agent copies a template verbatim — comments, constants and all — and improvises wherever a skeleton
+**Rule 16 superseded by D95.** An agent copies a template verbatim — comments, constants and all — and improvises wherever a skeleton
 is silent. `meta-skill-author` now states it three ways. Rule 4: a
 template is copied, not read, so a comment in it must be true in the reader's file; the API a version
 floor relies on qualifies, which is why `flat-project-setup` rule 3 keeps its reason beside the floor,
@@ -1071,3 +1071,68 @@ what that one call returns. Bounded memory stays `flat-entrypoint` rule 10, stat
 beside the run function; the template no longer accumulates, so it no longer needs to show how.
 `flat-test-service-client` and `flat-test-run-function` test that one call and nothing more.
 **Reverse by:** restoring `fetch_pages` and the per-page loop in `run_once`, with the paging tests.
+
+### D94 — `exception-catalog` rule 15 deleted; the rules after it renumbered
+It reconciled `UpstreamError` with a flat `UpstreamUnavailableError` that no skill defines since D91,
+and its "no `http_status`" contradicted `flat-entrypoint`'s `HTTP.md`. Closes what D33 left open. Rule
+16 (swallowing) is now rule 15, and the citations of it moved with it. Rules 13 and 14 lost their HTTP
+walk-through and RFC-7235 detail to the HTTP owners; the family table became one sentence; the
+compensation code block is `LOGGING.md`'s alone.
+**Reverse by:** restoring the rule as 15 and renumbering swallowing back to 16.
+
+### D95 — `meta-skill-author` rule 16 reversed: a skeleton carries only common lines
+"Show the common variants — a second store, a component with its own settings" pulled every skeleton
+toward the one sample those variants came from. A skeleton now carries only lines most services of its
+family have; a variant is one line marked with the condition that earns it, or one sentence of prose.
+Supersedes rule 16 as D88 stated it.
+**Reverse by:** restoring the "common variants" wording in rule 16, its hard stop and both indexes.
+
+### D96 — The review criteria live in `.claude/review/QUESTIONS.md`
+Earlier reviews graded skills against `meta-skill-author`'s format and one sample application. The
+criteria — generality first, deletion a finding — are one repository file that `/review-skills`, the
+reviewer agent and `CLAUDE.md` point at; no shipped skill names it.
+**Reverse by:** deleting the file and the pointers to it, and reviewing against `meta-skill-author`
+alone.
+
+### D97 — `python-workspace` rule 9 folded into one sentence
+"Infrastructure with its own schema owner gets its own datastore" was a rule most workspaces never
+reach. It is now one sentence in the paragraph on members sharing a store, which keeps the
+`compose down -v` hard stop backed; the rule and its compose walk-through are gone, and rule 8 applies
+only where a member resolves settings files against the working directory.
+**Reverse by:** restoring rule 9 and pointing "rules 1–8" back at 1–9.
+
+### D98 — The framework firewall is `flat-layered` rule 9's, in standard form, with no template
+`test-architecture-rule` rule 9 lost its framework-wrapper walk-through and its multi-member framework
+constants, and a copy of that template briefly sat under `flat-entrypoint` shape 2. Both are gone. Rule 9
+of `flat-layered` holds for any framework, HTTP included, and is enforced by a standard-form firewall
+that forbids the framework's import outside the declared wrapper package; only an earned engine adds its
+one allow-list entry, the guarded helper of durable obligation 10. `test-architecture-rule` rule 9 keeps
+the general obligation — a role's name read from a declared constant, one constant per name.
+**Reverse by:** restoring the framework constants and test to `test-architecture-rule` and pointing
+`flat-layered` and `flat-entrypoint` back at it.
+
+### D99 — Each family lists what is worth a firewall in its own architecture skill
+The two "What is worth a firewall" lists in `test-architecture-rule` were family material in a
+universal skill. The hex list is under `hex-architecture` rules, the flat list beside `flat-layered`'s
+import contract; `test-architecture-rule` says in one sentence where each family keeps it. `print(`
+left both lists — it is the linter's (ruff `T201`), and the skill's own hard stop forbids restating the
+linter — and the allow-list example became `sys.exit(` outside the entry point.
+**Reverse by:** moving both lists back under `test-architecture-rule` `## Rules`.
+
+### D100 — `CONVENTIONS.md` "Read models" removed
+It was guidance for a skill that does not exist, and `hex-application` already owns the read-model
+versus write-model rule. The README backlog entry for a read-model skill went with it.
+**Reverse by:** restoring the section and the backlog entry.
+
+### D101 — `coupling`'s worked example is a library's public surface
+The shared-schema monorepo example taught one repository shape as the case the rule is easiest to see
+in. A library's public surface against its internals is a case every reader has, needs no workspace and
+no store, and leaves the monorepo as one of the cases the same counterbalance decides.
+**Reverse by:** restoring the shared-schema monorepo example.
+
+### D102 — The hex logging table lives in `hex-architecture`
+Which layer logs is a fact about the hexagonal layers, so the table moved from `python-style` to
+`hex-architecture` (*Who logs, by layer*), with a checkable rule and a hard stop. `python-style` keeps
+the universal log-once rule and the level guide in `LOGGING.md`; `hex-restapi-app`, `hex-test-domain`
+and the catalogue README point at the table's new home.
+**Reverse by:** moving the table, its rule and its hard stop back to `python-style`.

@@ -5,7 +5,7 @@ description: Use when forbidding X in layer Y with a static grep firewall — an
 
 # Test — Architectural Firewall Rule
 
-Each function greps the source tree for a forbidden pattern and asserts the result is empty. What the file holds is wider than its name: every rule here is a property of the *source text* that no runtime test can reach, and most but not all of those are architectural — a ban on `print(` outside the entrypoint is a style rule enforced the same way. The name is the established one for this artifact and is worth keeping; read it as "the static source rules", not as a promise that every rule in the file is about layering. Where the file sits follows the shape of the tree, not the architecture family: one distributable puts it at `tests/unit/test_architecture.py`; a repository holding several members puts it at `tests/test_architecture.py` beside them, because its subject is the repository rather than anything in it. The firewall must stay collectable when the tree is broken.
+Each function greps the source tree for a forbidden pattern and asserts the result is empty. What the file holds is wider than its name: every rule here is a property of the *source text* that no runtime test can reach, and most but not all of those are architectural — a ban on exiting the process outside the entry point is a rule about the process, enforced the same way. The name is the established one for this artifact and is worth keeping; read it as "the static source rules", not as a promise that every rule in the file is about layering. Where the file sits follows the shape of the tree, not the architecture family: one distributable puts it at `tests/unit/test_architecture.py`; a repository holding several members puts it at `tests/test_architecture.py` beside them, because its subject is the repository rather than anything in it. The firewall must stay collectable when the tree is broken.
 
 ## When to use vs. neighbours
 
@@ -37,16 +37,10 @@ members replaces the path-constant block with the multi-member fragment below; t
 import subprocess
 from pathlib import Path
 
-# parents[2] walks up from tests/unit/test_architecture.py. A firewall placed directly under
-# tests/ uses parents[1] instead; that constant is the only line the move changes.
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = str(_ROOT / "src" / "myapp")
 _TESTS = str(_ROOT / "tests")
 _UNIT_TESTS = str(_ROOT / "tests" / "unit")
-# One constant per scope a rule names (rule 4). Give the layer or role directories this
-# distributable actually has one line each; the two below are illustrative, not required.
-_DOMAIN = str(_ROOT / "src" / "myapp" / "domain")
-_APP = str(_ROOT / "src" / "myapp" / "application")
 
 
 def _grep(pattern: str, *paths: str) -> list[str]:
@@ -70,14 +64,15 @@ def _grep(pattern: str, *paths: str) -> list[str]:
 Patterns run under `-E`: basic `grep`'s `\|` alternation is a GNU extension that BSD `grep` does not
 reliably carry, while `-E` behaves the same on both. `grep` exits 1 when it finds nothing, which is the
 ordinary case, so the helper must not check the return code — it reads `stdout` and lets an empty result
-be an empty list.
+be an empty list. `parents[2]` walks up from `tests/unit/`; a firewall placed directly under `tests/`
+uses `parents[1]`, and that constant is the only line the move changes.
 
 ### Multi-member path constants
 
 For a repository of several members with the firewall at `tests/test_architecture.py`, replace the
-scaffold's constants from `_ROOT` through `_APP` with the block below. The member directory names
-are a constant for the same reason rule 9 keeps a role name out of a pattern: a repository that
-groups its members differently overrides one tuple and every glob follows.
+scaffold's constants with the block below. The member directory names are a constant so that a
+repository grouping its members differently overrides one tuple and every glob follows. `_TESTS` is a
+list here, so a rule splats it: `_grep(pattern, *_TESTS)`.
 
 ```python
 _ROOT = Path(__file__).resolve().parents[1]
@@ -87,38 +82,9 @@ _MEMBER_DIRS = ("packages", "services")
 # Source trees only: a member's tests/ legitimately names what its src/ may not.
 _SRC_DIRS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src")]
 
-# `myschema` is the shared library the other members import, under whatever name this repository
-# gave it; here it is the member that owns the database schema, and it is also where the framework
-# guard below sits. A repository with no shared library drops these four constants.
-_SCHEMA = str(_ROOT / "packages" / "myschema")
-_SCHEMA_SRC = str(_ROOT / "packages" / "myschema" / "src")
-# The package inside it that owns the data access, under the name this repository gave it. The
-# trailing "/" keeps a prefix match from also exempting a sibling such as postgres_utils.py.
-_SCHEMA_DATA_ACCESS = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "postgres") + "/"
-_SRC_OUTSIDE_SCHEMA = [p for p in _SRC_DIRS if p != _SCHEMA_SRC]
-
-# Tests live beside the member they cover, so a repo-wide test rule sweeps every member's tests/
-# tree plus the root one. Splat these into `_grep`: `_grep(pattern, *_TESTS)`.
+# Tests live beside the member they cover, plus the root's own.
 _TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests")] + [str(_ROOT / "tests")]
 _UNIT_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests/unit")]
-
-# A project may declare that exactly one package wraps a given framework and that nothing else
-# imports it. Both names below are the ones THIS project declared — fill in your own; they are two
-# constants because a project that names the wrapping package for its role rather than for the
-# framework changes one without the other. Neither is inferred from a directory name (rule 9).
-_FRAMEWORK_IMPORT = "myframework"  # the top-level module the framework is imported as
-_FRAMEWORK_WRAPPER_PACKAGE = "myframework"  # the package the declaration allows to import it
-# The one module outside that package the declaration exempts — the shared helper that holds the
-# framework import so its callers stay framework-free. It is exempted by the rule's allow-list
-# below, never by going unswept. A project that declared no such helper drops this constant and the
-# filter that reads it.
-_FRAMEWORK_GUARD_MODULE = str(_ROOT / "packages" / "myschema" / "src" / "myschema" / "myframework.py")
-# Every member's src/ EXCEPT the package holding the wrapper role. Every member directory is
-# swept, and loose top-level modules are kept (no is_dir() filter) — that is what puts the shared
-# helper in front of the allow-list instead of leaving it exempt because nothing looked at it.
-_SRC_OUTSIDE_FRAMEWORK_WRAPPER = [
-    str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src/*/*") if p.name != _FRAMEWORK_WRAPPER_PACKAGE
-]
 ```
 
 ### Standard rule (no allow-list)
@@ -132,80 +98,36 @@ def test_no_<rule_name>() -> None:
 Concrete, in the standalone form:
 
 ```python
-def test_domain_has_no_sqlalchemy() -> None:
-    hits = _grep(r"^[[:space:]]*(import|from) sqlalchemy\b", _DOMAIN)
-    assert hits == [], "sqlalchemy import in domain:\n" + "\n".join(hits)
+def test_no_future_annotations_anywhere() -> None:
+    hits = _grep(r"^from __future__ import annotations\b", _SRC, _TESTS)
+    assert hits == [], "from __future__ import annotations found:\n" + "\n".join(hits)
 ```
 
-The same rule in the multi-member form, where the scope is every member except the one that owns
-the schema:
-
-```python
-def test_no_service_defines_a_table() -> None:
-    hits = _grep(r"^from sqlalchemy import.*\bTable\b|sqlalchemy\.Table", *_SRC_OUTSIDE_SCHEMA)
-    assert hits == [], "a Table defined outside the schema package:\n" + "\n".join(hits)
-```
+The multi-member form is the same function over `*_SRC_DIRS, *_TESTS`.
 
 ### Rule with an in-test allow-list
 
-The invariant this one pins, stated here so the rule is writable on its own: **where one member
-owns the shared database schema, only that member's data-access package may name a table object;
-every other member reaches the data through a method of the class that owns the data access.** (The
-flat family states it as a rule in `flat-persistence`, in the `pyhouse-flat` plugin; the firewall
-does not need that skill installed.)
+The one allow-listed path is a constant at the top of the file, beside the others (rule 4):
 
 ```python
-def test_no_service_reaches_the_shared_tables_directly() -> None:
-    all_hits = _grep(r"\bfoos_table\b|\bbars_table\b", *_SRC_OUTSIDE_SCHEMA, _SCHEMA_SRC)
-    forbidden = [h for h in all_hits if not h.startswith(_SCHEMA_DATA_ACCESS)]
-    assert forbidden == [], "a shared table object reached directly — go through the data-access class:\n" + "\n".join(
-        forbidden
-    )
+_ENTRYPOINT = str(_ROOT / "src" / "myapp" / "__main__.py")
+
+
+def test_no_process_exit_outside_the_entrypoint() -> None:
+    all_hits = _grep(r"\bsys\.exit\(", _SRC)
+    forbidden = [h for h in all_hits if not h.startswith(_ENTRYPOINT)]
+    assert forbidden == [], "sys.exit() outside the entry point:\n" + "\n".join(forbidden)
 ```
 
-The pattern stays simple; the exception is explicit and visible to whoever reads the failure.
-
-The framework-import rule is the second allow-listed one, and the entry is the module the
-declaration exempts. It is not a multi-member rule — a single distributable sweeps `_SRC` with the
-wrapper package's directory filtered out, and every line below is unchanged. The pattern is built
-from the constant rather than spelled out, so the name the project declared and the name the rule
-greps for cannot drift apart:
-
-```python
-def test_no_framework_import_outside_the_wrapper_package() -> None:
-    all_hits = _grep(rf"\b{_FRAMEWORK_IMPORT}\b", *_SRC_OUTSIDE_FRAMEWORK_WRAPPER)
-    forbidden = [h for h in all_hits if not h.startswith(_FRAMEWORK_GUARD_MODULE)]
-    assert forbidden == [], "framework import outside the declared framework-wrapper package:\n" + "\n".join(forbidden)
-```
-
-Widening the sweep over the member that holds the shared helper and allow-listing that helper are
-**one change, not two**. A sweep that stops short of it leaves the helper exempt because nothing
-looked at it, and adding the sweep without the allow-list entry turns the firewall red on its own
-sanctioned exception.
-
-Standalone example — the two allow-listed paths are constants at the top of the file, beside the
-others (rule 4):
-
-```python
-_MAIN_PY = str(_ROOT / "src" / "myapp" / "restapi" / "main.py")
-_CLI = str(_ROOT / "src" / "myapp" / "cli") + "/"
-
-
-def test_no_print_calls_outside_allowed() -> None:
-    all_hits = _grep(r"\bprint\(", _SRC)
-    forbidden = [h for h in all_hits if not h.startswith(_MAIN_PY) and not h.startswith(_CLI)]
-    assert forbidden == [], "print() calls found outside allowed locations:\n" + "\n".join(forbidden)
-```
-
-The pattern stays simple ("no `print(`"); exceptions are explicit and visible to a future maintainer.
+The pattern stays simple; the exception is explicit and visible to whoever reads the failure. A
+library has no entry point, so there the rule is a standard one with no allow-list.
 
 ### Adding a new path constant (when a new scope is needed)
 
 Append at the top of the file, next to the existing constants:
 
 ```python
-_RESTAPI = str(_ROOT / "src" / "myapp" / "restapi")
-_INFRA = str(_ROOT / "src" / "myapp" / "infrastructure")
+_<SCOPE> = str(_ROOT / "src" / "myapp" / "<package>")
 ```
 
 ## Other bindings
@@ -217,7 +139,7 @@ _INFRA = str(_ROOT / "src" / "myapp" / "infrastructure")
   rule are unchanged; the firewall stops being a test, so collectability moves to the linter's run.
 - **A linter's banned-API rule** (`flake8-tidy-imports`' `banned-api` under ruff). Cheapest — it runs
   in a pass the project already has, scoped per directory. It reaches import rules only, so every
-  non-import invariant (`print(`, a sleep, a module-level engine) stays here and most projects carry
+  non-import invariant (a process exit, a sleep, a module-level engine) stays here and most projects carry
   both, and the hard stop on restating what the linter enforces decides which file a rule goes in.
 - **An `ast` walk over the tree.** Distinguishes an import from the same word in a docstring, and a
   module-level call from one nested in a function. Only `_grep` is replaced — every rule below holds,
@@ -235,8 +157,8 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
 2. **A rule's name states its scope and what is absent, in its family's form.** Do not pluralize, do
    not add qualifiers.
    - **hex — layer-scoped:** `test_<layer>_has_no_<thing>`, e.g. `test_domain_has_no_pydantic`.
-   - **flat — service-scoped:** `test_no_service_<verb>_<thing>`, e.g.
-     `test_no_service_defines_a_table`.
+   - **flat — role-scoped:** `test_no_<thing>_outside_<role>`, e.g.
+     `test_no_statement_outside_the_data_access_package`.
    - **either family — repo-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
    A name that does not say where the rule looks sends a reader to the pattern to find out, and the
    file stops being readable as a constitution.
@@ -253,9 +175,8 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
 6. **Exceptions are allow-listed inside the test, by name, and cap at three.** Filter the result
    against named paths — `startswith(...)` against a path constant under the grep binding — rather
    than weakening the pattern, so the pattern stays readable and the exception is visible to whoever
-   reads the failure. The framework-import rule's one entry is `_FRAMEWORK_GUARD_MODULE`, the shared
-   framework-guarded helper module. A fourth entry means the rule has too many exceptions to be a
-   firewall: split it into something more specific, or demote it to prose.
+   reads the failure. A fourth entry means the rule has too many exceptions to be a firewall: split it
+   into something more specific, or demote it to prose.
 7. **A rule never imports what it forbids, or anything from the tree it polices.** Importing it
    defeats the firewall, and the file must stay collectable when the tree is broken — a broken import
    turns "the rule failed" into "the rule could not be collected", which reads as green in some
@@ -264,39 +185,13 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
    `grep -E` that is raw strings wherever a backslash appears, `\b` at both ends of a bare word, and
    plain `|` for alternation. A pattern that also catches a longer identifier, a comment or a
    docstring makes the rule's own name a lie, and the first false hit is what gets it deleted.
-9. **A rule that exempts a package because of the role it holds reads that role from what the
-   project declared, never from a directory name.** The worked case is the framework wrapper: a
-   project declares that exactly one package wraps a framework and that nothing else imports it, so
-   the framework's import name, the wrapping package's name and any exempted module are each a
-   constant a project that chose other names overrides — and the pattern is built from the constant,
-   so the two cannot drift apart. **One constant per declared name.** A repository whose members each
-   chose a different name for the same role widens that constant into its own lookup on the way in;
-   the rule as written carries the single declaration, because a per-member override table is a
-   second allow-list with no cap (rule 6) and it is unreadable to everyone but the repository that
-   needed it. (Both families make such declarations; this rule holds wherever one is made at all.) A
-   rule with the name hardcoded is green on a project where it is checking nothing.
+9. **An exemption for a package because of the role it holds reads the role's name from a constant
+   the project declared, never from a directory name** — a hardcoded name is green on every project
+   that named that package something else, and checks nothing. One constant per declared name; a
+   per-member override table is a second allow-list with no cap (rule 6).
 
-### Candidates, by family
-
-The two lists below are the invariants this catalogue has found worth a firewall, one list per
-architecture family. Each names the skill that *states* the invariant, in `pyhouse-hex` or
-`pyhouse-flat`; the invariant itself is spelled out here, so the list is readable and the rule
-writable with neither family plugin installed. Both templates above are complete in this file.
-
-### What is worth a firewall in hex
-
-- No SQLAlchemy or Pydantic imports in domain code — `hex-architecture`.
-- No infrastructure dependencies in domain or application code — `hex-architecture`.
-- No mocks in tests — `test-principles`.
-- No print calls outside the explicit entrypoint allow-list — `python-style`.
-
-### What is worth a firewall in flat
-
-- No tables or statements constructed outside the package that owns the data access — `flat-persistence`.
-- No sibling-service imports, and no framework import outside the package whose declared role is
-  framework wrapper (plus the shared framework-guarded helper the allow-list names) — `flat-layered`.
-- No module-level engine construction — `python-packaging` rule 8.
-- No engines in unit tests, mocks, or sleeps in tests — `test-principles`.
+Each architecture family lists the invariants worth a firewall in its own architecture skill
+(`hex-architecture`, in `pyhouse-hex`; `flat-layered`, in `pyhouse-flat`).
 
 ## Inlined typing / import rules
 

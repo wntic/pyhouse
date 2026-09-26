@@ -138,7 +138,7 @@ Two further allowances, and no others:
   name, and a split it does not expect fights it at every file.
 
 What the test still refuses: two entities in one module each change for their own reasons (condition
-2); two adapters, or a command beside its handler, put behaviour in a shared file (condition 1); a
+2); two adapters, or a client beside the parser it feeds, put behaviour in a shared file (condition 1); a
 set module named after one of its members hides the rest (condition 3).
 
 Modules holding multiple **functions** — a route module, a module of pure filters — do not engage this
@@ -200,21 +200,21 @@ explicit import is what makes the contract check.
 A single module:
 
 ```python
-from . import manager
-from .manager import *
+from . import foo_client
+from .foo_client import *
 
-__all__ = manager.__all__
+__all__ = foo_client.__all__
 ```
 
 Several modules — name them all in the `from . import …` line, repeat the wildcard per module, and
 concatenate:
 
 ```python
-from . import command, handler
-from .command import *
-from .handler import *
+from . import foo_client, foo_settings
+from .foo_client import *
+from .foo_settings import *
 
-__all__ = command.__all__ + handler.__all__
+__all__ = foo_client.__all__ + foo_settings.__all__
 ```
 
 **A package re-exports its immediate children — direct modules *and* child subpackages** — except the
@@ -281,12 +281,13 @@ metadata`.
   within-layer imports relative. One rule, not two.
 
 ```python
-from .create_foo_command import CreateFooCommand  # same dir — relative
-from ..bars.create_bar_command import CreateBarCommand  # one level up — relative
-from myapp.domain.foos import IFooRepository  # cross-package — absolute
+# in src/myapp/foos/foo_reader.py
+from myapp.bars import BarParser  # another package — absolute
 
-from .settings import DbSettings  # same package — one dot
-# NOT: from ..postgres.settings import DbSettings         # up-and-back-down into the same package
+from ..exceptions import FooError  # one level up — relative
+from .foo_parser import FooParser  # same package — one dot
+
+# NOT: from ..foos.foo_parser import FooParser  # up-and-back-down into the same package
 ```
 
 ### Collapse same-package imports
@@ -295,16 +296,15 @@ Importing several symbols from the same place is **one statement**:
 
 ```python
 # yes
-from myapp.domain.foos import (
-    Foo,
-    FooListFilter,
+from myapp.foos import (
     FooKind,
-    IFooRepository,
+    FooParser,
+    FooRecord,
 )
 
 # no
-from myapp.domain.foos.foo import Foo
-from myapp.domain.foos.foo_kind import FooKind
+from myapp.foos.foo_kind import FooKind
+from myapp.foos.foo_parser import FooParser
 ```
 
 - One symbol per line inside the parens, alphabetically sorted, trailing comma on the last entry. A
@@ -318,9 +318,9 @@ re-export it across a second hop: the intermediate package's `__all__` is a **co
 (`a.__all__ + b.__all__`) that the type checker cannot evaluate through a `from .subpkg import *`, so the
 name resolves at runtime while the checker reports "module has no attribute".
 
-Concretely: a repository class comes from its `repositories` package —
-`from myapp.infrastructure.postgres.repositories import FooRepository` (one hop) — **not** from
-`myapp.infrastructure.postgres` (two hops, the middle `__all__` computed). A class sitting *directly*
+Concretely: a class defined in `myapp/foos/bars/bar_parser.py` comes from its `bars` package —
+`from myapp.foos.bars import BarParser` (one hop) — **not** from
+`myapp.foos` (two hops, the middle `__all__` computed). A class sitting *directly*
 under a package is one hop from it, so importing it from there is correct.
 
 ### Import order inside a module
@@ -407,7 +407,7 @@ hand-written imports land in the right block.
 - `from x import *` outside an `__init__.py` → stop, a wildcard inside a regular module pollutes the
   namespace and breaks linting.
 - A three-or-more-dot relative import → stop, switch to absolute.
-- `import myapp.domain.foos as fs` followed by `fs.Foo` → stop, use `from … import`; a module alias hides
+- `import myapp.foos as fs` followed by `fs.FooParser` → stop, use `from … import`; a module alias hides
   what is actually used.
 - An import inside a function body, or a `TYPE_CHECKING` block, used purely to break a cycle → stop, the
   cycle points at a structural problem; fix the structure.

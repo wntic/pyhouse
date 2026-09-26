@@ -12,15 +12,13 @@ matters more than expressiveness — a reader who has applied one skill should b
 This catalogue is distributed on the Claude Code marketplace, so a skill is written for someone whose
 stack is not yours: state the obligation mechanism-free, then bind it to exactly one concrete stack.
 
-This skill produces one new `SKILL.md`. It does **not** edit other skills (that is an audit task) or
-design the change format.
+This skill produces one new `SKILL.md`; editing other skills is an audit task.
 
 **Read the sibling `CONVENTIONS.md` in this skill's own directory before writing anything.** It carries
 the catalogue's shared placeholder vocabulary (`Foo`, `Bar`, `myapp`, `myschema` and the names derived
 from them), the banned vocabulary, the index of what each existing skill covers, the four-plugin
-packaging layout, and the two standing catalogue decisions — what is deliberately out of scope, and why
-repositories are not split read/write. Only this file is loaded automatically; the sibling is not, so
-open it rather than working from this summary of it.
+packaging layout, and what is deliberately out of scope. Only this file is loaded automatically; the
+sibling is not, so open it rather than working from this summary of it.
 
 ## When to use vs. neighbours
 
@@ -330,9 +328,9 @@ flat-test-<artifact>     flat-test-run-function, ...
     SDK fails this test. A template shows each kind of artifact at most once; a second vendor for the
     same kind is `## Other bindings` bullets, and `### <kind>` subheadings separate different shapes,
     never different vendors (rule 2).
-16. **The skeleton answers the questions the prose does not ask.** A reader copies a layout for cases
-    the skill never discusses, and improvises where it is silent — so a skeleton shows the common
-    variants (a second store, a component with its own settings), one line each, not only the simplest.
+16. **A skeleton carries only lines most services of its family have.** A reader copies every line of
+    it, so a variant is either one line marked with the condition that earns it, or one sentence of
+    prose — never an unmarked line.
 
 ## Ownership — reference, never restate
 
@@ -475,9 +473,8 @@ skill.
   sibling skill.
 - `## When to use vs. neighbours` trimmed to a bullet count, dropping a real routing edge → stop,
   restore the edge.
-- Asked for a skill whose whole content is a handful of rules already stated by an existing skill →
-  stop; that is an edit to the existing skill, not a new one.
-- Asked for a skill whose description overlaps an existing one's by more than half → stop, same reason.
+- Asked for a skill whose whole content is rules an existing skill already states, or whose description
+  overlaps an existing one's by more than half → stop; that is an edit to the existing skill.
 - Asked for a skill built around a frontmatter field outside `name`, `description`, `when_to_use` and
   `paths` → stop, put the information in the body.
 - Publishing to claude.ai or the Skills API with `paths` or `when_to_use` still present → stop, strip
@@ -496,5 +493,5 @@ skill.
   placeholder or delete it; a disclaimer above the example is not a fix.
 - Nothing survives question 5 once the project-bound material is stripped → stop, there is no skill
   here — the material was a case study, not a subject.
-- A skeleton shows only the simplest case while the prose describes common variants → stop, add each
-  variant as one line; a reader improvises wherever the skeleton is silent (rule 16).
+- A skeleton line most services of the family would not have, unmarked → stop, mark it with the
+  condition that earns it or reduce it to one sentence of prose (rule 16).

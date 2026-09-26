@@ -43,7 +43,7 @@ earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely
 - A pure filter or normalize function the body calls → a unit test with no fixtures; it does not belong
   here.
 - The static check that a schedule's routing name matches one a process actually serves →
-  `test-architecture-rule`.
+  `flat-entrypoint` rule 6.
 - The shared groundwork — the substitution ladder, reliability rules, never waiting out real time →
   `test-principles`.
 
@@ -304,7 +304,7 @@ change under any engine, because the body never imports one.
 7. **Schedule creation is not tested here.** It is a one-off deploy-time definition, not application
    code, and a test of it would assert only that the engine's SDK works. What *is* worth pinning
    statically is that every schedule's routing name matches one some process actually serves —
-   `test-architecture-rule`.
+   `flat-entrypoint` rule 6.
 
 ## Hard stops
 
@@ -337,4 +337,4 @@ change under any engine, because the body never imports one.
 - A batch-loop orchestration ships with only the happy-path test → stop, write all three; a continuation
   that drops the cutoff or the total is invisible from the happy path.
 - A schedule definition is being unit-tested → stop, it is deploy-time infrastructure; pin the routing
-  name statically instead (`test-architecture-rule`).
+  name statically instead (`flat-entrypoint` rule 6).

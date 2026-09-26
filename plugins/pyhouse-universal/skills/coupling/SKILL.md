@@ -171,10 +171,9 @@ contract) or lower the distance (co-locate), and choose by which kind of change 
 
 ### Contract or shared knowledge?
 
-What crosses a high-distance boundary crosses as a contract — explicit, named, owned. Where several
-deployables share a store, they integrate through the owning library's methods; otherwise through
-whatever contract the boundary publishes — an endpoint, a message schema, a function signature — and
-never through each other's internals. A client class translates its SDK's world into the service's
+What crosses a high-distance boundary crosses as a contract — explicit, named, owned. Components
+integrate through whatever contract the boundary publishes — an endpoint, a message schema, a function
+signature — and never through each other's internals. A client class translates its SDK's world into the service's
 own types at the boundary, and `exception-catalog` does the same for errors.
 A contract is worth exactly the distance it serves — an interface in front of a same-module call is
 ceremony, and ceremony is how this rule gets a bad name.
@@ -203,24 +202,13 @@ Before creating a module, a package or a whole workspace member, be able to writ
 Both are two sentences in the PR description, not documents. Their value is at creation time: they
 are the cheapest possible test of a boundary, run before any code exists to be coupled.
 
-### Worked example — the shared-schema monorepo
+### Worked example — a library's public surface
 
-Several services, one database. Service-to-service distance is the highest in the repository, so
-service-to-service strength must be the lowest: no service imports a sibling
-(`python-workspace`), and no service defines a table or writes its own SQL — the flat family states
-that under `flat-persistence`, in the `pyhouse-flat` plugin. The schema itself, though, is *shared model knowledge* that cannot be avoided — so
-the house puts it in one owning package and serves it through that package's own data-access methods
-(`flat-persistence` again), which turns every
-service's integration with the store from model coupling into contract coupling, exactly because the
-distance is permanent. That one package is
-consequently the one place where the strictest discipline belongs — every service's changes
-cascade through it — while an individual worker, supporting and low-volatility, stays flat and
-takes its shortcuts.
-
-That is **one shape the rule takes, not the shape**. The same counterbalance decides a library's public
-surface against its internals, a CLI's command modules against the work they call, and two functions in
-one file. The monorepo is only where it is easiest to see, because there the distance is already paid
-and visible; everywhere else it is the same question with a smaller ruler.
+A library's importers sit at the highest distance it has — separate repositories, separate release
+cycles — so what they import is a contract: the names its root re-exports, versioned, and nothing
+else. Its internals sit at the lowest distance and may share model knowledge freely. The same
+counterbalance decides a CLI's command modules against the work they call, several services sharing
+one store, and two functions in one file.
 
 ## Rules
 

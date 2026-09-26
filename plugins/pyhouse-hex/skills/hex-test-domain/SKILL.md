@@ -362,7 +362,7 @@ Identical for all four kinds:
 - Asked to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
 - A test re-implements the rule to compute the expected value → stop, assert literal values.
 - A test asserts on log output or captured logs → stop, the domain layer logs nothing at all
-  (`python-style` allocates logging by layer); assert the return value or the raised exception.
+  (`hex-architecture`, *Who logs, by layer*); assert the return value or the raised exception.
 - Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
   entity's own fields and nothing else. `created_at` / `updated_at` are the usual case: the store
   maintains them, so they are not entity fields (`hex-domain-model`, Entity rule 6).
