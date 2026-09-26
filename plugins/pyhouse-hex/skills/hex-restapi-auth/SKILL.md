@@ -349,6 +349,12 @@ Placement follows `hex-wiring`'s declaration order: settings first, then long-li
 (stateless, parses its key once).
 
 ```python
+from dishka import Provider, Scope, provide
+
+from myapp.domain.auth import ICanVerifyToken
+from myapp.infrastructure.jwt import JwtSettings, PyJwtTokenVerifier
+
+
 class SettingsProvider(Provider):
     scope = Scope.APP
 
