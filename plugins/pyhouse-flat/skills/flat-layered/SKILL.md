@@ -258,7 +258,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_")
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_",
+        env_file=".env",
+        extra="ignore",
+    )
 
     foo_api_url: str
     foo_api_timeout_seconds: float
@@ -267,6 +271,13 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     return Settings()
 ```
+
+Every settings class in the family carries the same three `model_config` keys. `env_prefix` is the
+component's namespace; `env_file` points at the project's dotenv file, so local development reads it
+while production injects real environment and the file simply is not there; and `extra="ignore"` keeps
+the namespace non-strict, so a variable under the prefix that the class does not declare — a nested
+component's (`MYAPP_STORAGE_DSN` under `MYAPP_`), or a stale one — never crashes startup. A process with a thin HTTP wrapper adds two server fields to this class
+(`flat-entrypoint`); it stays one class.
 
 **A settings class belongs to the component whose configuration it holds, and lives in a `settings.py`
 beside it.** The process's own fields sit here; the data-access component declares its connection

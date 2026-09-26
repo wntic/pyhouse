@@ -51,7 +51,11 @@ __all__ = ["StorageSettings", "get_storage_settings"]
 
 
 class StorageSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_STORAGE_")
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_STORAGE_",
+        env_file=".env",
+        extra="ignore",
+    )
 
     dsn: SecretStr
 

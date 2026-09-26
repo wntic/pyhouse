@@ -124,25 +124,11 @@ __all__ = foo_lookup.__all__
 
 ## The process definition — uvicorn
 
-`src/myapp/settings.py` gains the two fields the server binds to, required like every other tunable
-(`flat-layered` rule 10):
-
-```python
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MYAPP_")
-
-    foo_api_url: str
-    foo_api_timeout_seconds: float
-    http_host: str
-    http_port: int
-
-
-def get_settings() -> Settings:
-    return Settings()
-```
+`src/myapp/settings.py` — the `Settings` class `flat-layered` shows, unchanged in every other line —
+gains the two fields the server binds to, below the fields it already declares and required like every
+other tunable (`flat-layered` rule 10): `http_host: str` and `http_port: int`, read from
+`MYAPP_HTTP_HOST` and `MYAPP_HTTP_PORT`. It is one class; add the two lines to it rather than writing a
+second one.
 
 `src/myapp/entrypoints/foo_http.py` — the only place a settings factory is called, exactly as for the
 loop:
