@@ -165,7 +165,7 @@ Names carried over from a real system are banned outright, in templates, rules a
 travels in — snake_case, kebab-case, and the SCREAMING env-var prefix derived from it. A skill that
 teaches through one system's vocabulary is unreadable to everyone else on it.
 
-Use the placeholder vocabulary above instead: `Foo`/`Bar` for aggregates, `myapp` for a service's own
+Use the placeholder vocabulary above instead: `Foo`/`Bar` for aggregates (`Baz` where a third is needed), `myapp` for a service's own
 package, `myschema` for a library several distributions share, `myrepo` for the repo root,
 `myframework` where a rule is about wrapping a framework rather than about that framework. A real
 name with no placeholder to map onto gets a row added to the

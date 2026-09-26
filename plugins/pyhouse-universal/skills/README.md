@@ -4,7 +4,7 @@
 (12), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
-Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar`. The directory names
+Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar` (with `Baz` where an example needs a third aggregate). The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
 **Adapting to a project**.
 Technology names (`postgres`, `redis`, `jwt`, `s3`) stay concrete, because the

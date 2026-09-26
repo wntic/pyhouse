@@ -188,7 +188,7 @@ auto-firing), no application-specific names. `paths` narrows auto-activation, so
 directory prefixed `**/` (`**/domain/**`) and never appears on a universal skill or on
 `architecture-choice`, which must fire on a greenfield tree.
 
-**Placeholders only.** `Foo`/`Bar` aggregates, `myapp` a distribution's own package, `myschema` a
+**Placeholders only.** `Foo`/`Bar` aggregates (`Baz` a third, held by a different kind of store), `myapp` a distribution's own package, `myschema` a
 shared library several distributions depend on, `myrepo` the repo root, `myframework` a framework a
 rule is about *wrapping*. No placeholder asserts a repository shape — one distribution and no
 `myschema` is the ordinary case. Real role, tenant, bucket, queue, database or product names are
