@@ -114,7 +114,7 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 - `main` is the mainline. It always passes the catalogue checks; releases are tags on it, cut by
   `/release`.
 - Every change is made on a short-lived branch named for it — `feature/…` or `fix/…` — started from
-  current `main`.
+  current `main`, or from the `integration/<name>` branch it will land in.
 - A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
   rebase-merge.
 - History on `main` is never rewritten, and a branch is deleted once it has landed.

@@ -815,7 +815,9 @@ repository that did not satisfy its own port, a response schema without the fiel
 `python-style` claimed 3.10 was the floor and that nothing in the catalogue needed more, while templates
 used `StrEnum` and `datetime.UTC` (3.11). The floor is now 3.13 and stated as a house choice — one floor
 means every template runs as pasted — with `type` aliases replacing `TypeAlias`. A project may raise it,
-never lower it. The commits carry `!`: a project on 3.10–3.12 that complied no longer does.
+never lower it. The commits carry `!`: a project on 3.10–3.12 that complied no longer does. *(Narrowed by
+D79: the floor applies to new projects, an existing one below it is not a violation, and the
+templates type-check from 3.12 — "every template runs as pasted" overstated what 3.13 buys.)*
 **Reverse by:** lowering the three settings in `python-style`, both setup skills and `python-workspace`,
 and rewriting the 3.11+ forms in templates.
 
@@ -866,7 +868,8 @@ port — unrunnable, and a vendor disguised as generic. It now binds `qdrant-cli
 says so *(superseded by D79: the vector-store binding is removed)*; key-value stores get their own narrower port (`IFooArchive`, now `IBazRepository` — D79) because they cannot answer the
 aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template, every
 settings class a template constructs has a body and a provider, and settings are constructed at exactly
-three composition roots (the container, the migration environment, the test infrastructure).
+three composition roots (the container, the migration environment, the test infrastructure) *(D79 names
+them by role instead, since a hex service need not have a migration environment)*.
 **Reverse by:** not advisable — each of these was a template that did not run as copied.
 
 ### D79 — The vector store leaves, and optional adapters stop spreading through the base
@@ -887,8 +890,9 @@ verification re-gated every decision and found two more to narrow.
   stores is what `hex-store-repository` rule 1 forbids. `Baz` is a new row in `CONVENTIONS.md`.
 - The same spread came through the two files every hex project copies. `hex-wiring`'s container
   template bound every adapter the catalogue defines, and the root integration conftest wired a blob
-  store into `real_app`. Both are now a relational **base**; each optional adapter carries its own
-  binding and its own fixtures in the skill that owns it, as JWT already did.
+  store into `real_app`. Both are now a relational **base**: each optional adapter carries its own
+  container binding in the skill that owns the adapter, as JWT already did, and its test fixtures are
+  an add-on section of the integration conftest that a project adds only when it has that store.
 - Settings are constructed at composition roots named by role — the process's container, any tool that
   loads configuration outside it, test infrastructure — with the migration environment as the usual
   example, because a hex service need not have a relational store at all.
@@ -897,5 +901,5 @@ verification re-gated every decision and found two more to narrow.
   violation; a floor is raised deliberately, never lowered.
 
 **Reverse by:** reinstating a vector binding would need a workload that most projects share, which is
-the bar it failed; the base/add-on split reverses by folding the add-on snippets back into
-`CONTAINER.md` and `CONFTEST.md`.
+the bar it failed; the base/add-on split reverses by folding each adapter skill's binding snippet back
+into `CONTAINER.md` and the conftest's add-on sections back into its base.
