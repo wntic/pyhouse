@@ -43,8 +43,9 @@ tests/integration/<adapter>/
 └── test_<tech>_<aggregate>_<adapter>.py
 ```
 
-`s3_settings` names a bucket created for this test alone and removed after it
-(`hex-test-integration-setup`), so keys need no per-test prefix and nothing another test wrote is
+`s3_session` and `s3_settings` are the blob-store add-on to the integration conftest
+(`hex-test-integration-setup`), laid down with the S3 adapter; the base conftest has neither.
+`s3_settings` names a bucket created for this test alone and removed after it, so keys need no per-test prefix and nothing another test wrote is
 visible here.
 
 ```python

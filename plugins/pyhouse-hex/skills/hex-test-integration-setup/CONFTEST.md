@@ -11,12 +11,10 @@ the files themselves first, then how this binding spells each obligation.
 import os
 import subprocess
 import sys
-import uuid
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import partial
 from typing import TypedDict
 
-import aioboto3
 import pytest
 from dishka import Provider, Scope, provide
 from fastapi import FastAPI
@@ -29,7 +27,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from myapp.infrastructure.postgres import DbSettings, create_engine
-from myapp.infrastructure.s3 import S3Settings
 
 
 class _PgConn(TypedDict):
@@ -39,14 +36,8 @@ class _PgConn(TypedDict):
     password: str
     name: str
 
-class _BlobStoreConn(TypedDict):
-    endpoint_url: str
-    access_key: str
-    secret_key: str
-
 # A dedicated opt-in variable, never an ambient one like `CI`: this suite wipes what it reaches.
 _EXTERNAL_DB_FLAG = "MYAPP_TEST_USE_EXTERNAL_DB"
-_EXTERNAL_STORAGE_FLAG = "MYAPP_TEST_USE_EXTERNAL_STORAGE"
 
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[_PgConn]:
@@ -75,26 +66,6 @@ def postgres_container() -> Iterator[_PgConn]:
         }
 
 @pytest.fixture(scope="session")
-def minio_container() -> Iterator[_BlobStoreConn]:
-    if os.getenv(_EXTERNAL_STORAGE_FLAG) == "1":
-        yield {
-            "endpoint_url": os.environ["MYAPP_S3_ENDPOINT_URL"],
-            "access_key": os.environ["MYAPP_S3_ACCESS_KEY"],
-            "secret_key": os.environ["MYAPP_S3_SECRET_KEY"],
-        }
-        return
-
-    from testcontainers.community.minio import MinioContainer
-
-    # Same pin rule as the relational image (e.g. a dated `quay.io/minio/minio:RELEASE.…` tag).
-    with MinioContainer("<blob-store-image>:<pinned-tag>") as minio:
-        yield {
-            "endpoint_url": f"http://{minio.get_container_host_ip()}:{minio.get_exposed_port(9000)}",
-            "access_key": minio.access_key,
-            "secret_key": minio.secret_key,
-        }
-
-@pytest.fixture(scope="session")
 def db_settings(postgres_container: _PgConn) -> DbSettings:
     return DbSettings(
         host=postgres_container["host"],
@@ -105,40 +76,6 @@ def db_settings(postgres_container: _PgConn) -> DbSettings:
         # A session-long container never idles a pooled connection stale.
         pool_pre_ping=False,
     )
-
-@pytest.fixture(scope="session")
-def s3_session(minio_container: _BlobStoreConn) -> aioboto3.Session:
-    return aioboto3.Session(
-        aws_access_key_id=minio_container["access_key"],
-        aws_secret_access_key=minio_container["secret_key"],
-    )
-
-@pytest.fixture
-async def s3_settings(
-    minio_container: _BlobStoreConn, s3_session: aioboto3.Session
-) -> AsyncIterator[S3Settings]:
-    """A fresh bucket per test — the blob store's namespace isolation, since it
-    has nothing to roll back. Created before the test, emptied and dropped
-    after it, so no test can see or depend on another's objects."""
-    settings = S3Settings(
-        endpoint_url=minio_container["endpoint_url"],
-        access_key=minio_container["access_key"],
-        secret_key=SecretStr(minio_container["secret_key"]),
-        bucket=f"test-{uuid.uuid4().hex}",
-    )
-    endpoint_url = str(settings.endpoint_url)
-    async with s3_session.client("s3", endpoint_url=endpoint_url) as s3:
-        await s3.create_bucket(Bucket=settings.bucket)
-    try:
-        yield settings
-    finally:
-        async with s3_session.client("s3", endpoint_url=endpoint_url) as s3:
-            paginator = s3.get_paginator("list_objects_v2")
-            async for page in paginator.paginate(Bucket=settings.bucket):
-                keys = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
-                if keys:
-                    await s3.delete_objects(Bucket=settings.bucket, Delete={"Objects": keys})
-            await s3.delete_bucket(Bucket=settings.bucket)
 
 @pytest.fixture(scope="session", autouse=True)
 def _guard_against_real_db(db_settings: DbSettings) -> None:
@@ -230,9 +167,11 @@ class TestInfraProvider(Provider):
     supersedes the production one for the same type; the graph is assembled once
     with this provider last, so nothing can have resolved a production value first.
 
-    An app that declares auth adds one field and one factory here, so that minted
-    tokens verify against the running app — see `hex-test-restapi-auth`, which owns
-    them and the down-tree fixture resolution they rely on.
+    Every add-on binding the app carries adds one parameter, one field and one
+    factory here, and `real_app` one fixture parameter it passes on by name: a
+    blob store (the add-on section below) and, in an app that declares auth, the
+    verifier settings (`hex-test-restapi-auth`, which owns them and the down-tree
+    fixture resolution they rely on).
     """
 
     scope = Scope.APP
@@ -240,22 +179,15 @@ class TestInfraProvider(Provider):
     def __init__(
         self,
         db_settings: DbSettings,
-        s3_settings: S3Settings,
         sf: async_sessionmaker[AsyncSession],
     ) -> None:
         super().__init__()
         self._db_settings = db_settings
-        self._s3_settings = s3_settings
         self._sf = sf
 
     @provide(override=True)
     def db_settings(self) -> DbSettings:
         return self._db_settings
-
-    # Blob-store apps only — see the storage-strip binding trap.
-    @provide(override=True)
-    def s3_settings(self) -> S3Settings:
-        return self._s3_settings
 
     @provide(override=True)
     def session_factory(self) -> async_sessionmaker[AsyncSession]:
@@ -266,14 +198,12 @@ class TestInfraProvider(Provider):
 async def real_app(
     sf: async_sessionmaker[AsyncSession],
     db_settings: DbSettings,
-    s3_settings: S3Settings,
 ) -> AsyncIterator[FastAPI]:
-    """FastAPI app on a composition root whose DB / storage / session-factory
-    bindings are the per-test fixtures. Repositories it builds therefore
-    participate in the same outer transaction the test fixtures use, and
-    ROLLBACK at teardown drops everything they wrote — including rows the
-    route under test committed via its handler. Blobs the route writes land in
-    the test's own bucket, which `s3_settings` drops at teardown.
+    """FastAPI app on a composition root whose DB and session-factory bindings
+    are the per-test fixtures. Repositories it builds therefore participate in
+    the same outer transaction the test fixtures use, and ROLLBACK at teardown
+    drops everything they wrote — including rows the route under test committed
+    via its handler.
 
     This fixture is usable only from tests under `tests/integration/api/`;
     tests in `tests/integration/postgres/` use `sf` directly and do not need
@@ -283,7 +213,7 @@ async def real_app(
     from myapp.restapi.main import create_app
 
     container = create_container(
-        TestInfraProvider(db_settings, s3_settings, sf),
+        TestInfraProvider(db_settings=db_settings, sf=sf),
     )
     app = create_app(container=container)
     try:
@@ -292,9 +222,112 @@ async def real_app(
         await container.close()
 ```
 
-The two connection records are private `TypedDict`s: they never leave this module, so they carry no
-module of their own (`python-packaging`'s private-type allowance), and each is a declared shape rather
-than a bare `dict` (`python-style`).
+This is the base: a relational store and nothing else. Each other store the app carries adds its own
+fixtures to this file — the blob store and the client-style store below are the two worked add-ons.
+
+The connection record is a private `TypedDict`: it never leaves this module, so it carries no module of
+its own (`python-packaging`'s private-type allowance), and it is a declared shape rather than a bare
+`dict` (`python-style`).
+
+## Blob-store fixtures — aioboto3 over MinIO
+
+An app with a blob store (the S3 adapter, `hex-capability-adapter`) adds this to
+`tests/integration/conftest.py`: the container and the SDK session for the whole run, and the per-test
+bucket. The bucket sits here rather than beside the adapter's tests because `real_app` binds it too.
+
+```python
+import os
+import uuid
+from collections.abc import AsyncIterator, Iterator
+from typing import TypedDict
+
+import aioboto3
+import pytest
+from pydantic import SecretStr
+
+from myapp.infrastructure.s3 import S3Settings
+
+
+class _BlobStoreConn(TypedDict):
+    endpoint_url: str
+    access_key: str
+    secret_key: str
+
+_EXTERNAL_STORAGE_FLAG = "MYAPP_TEST_USE_EXTERNAL_STORAGE"
+
+@pytest.fixture(scope="session")
+def minio_container() -> Iterator[_BlobStoreConn]:
+    if os.getenv(_EXTERNAL_STORAGE_FLAG) == "1":
+        yield {
+            "endpoint_url": os.environ["MYAPP_S3_ENDPOINT_URL"],
+            "access_key": os.environ["MYAPP_S3_ACCESS_KEY"],
+            "secret_key": os.environ["MYAPP_S3_SECRET_KEY"],
+        }
+        return
+
+    from testcontainers.community.minio import MinioContainer
+
+    # Same pin rule as the relational image (e.g. a dated `quay.io/minio/minio:RELEASE.…` tag).
+    with MinioContainer("<blob-store-image>:<pinned-tag>") as minio:
+        yield {
+            "endpoint_url": f"http://{minio.get_container_host_ip()}:{minio.get_exposed_port(9000)}",
+            "access_key": minio.access_key,
+            "secret_key": minio.secret_key,
+        }
+
+@pytest.fixture(scope="session")
+def s3_session(minio_container: _BlobStoreConn) -> aioboto3.Session:
+    return aioboto3.Session(
+        aws_access_key_id=minio_container["access_key"],
+        aws_secret_access_key=minio_container["secret_key"],
+    )
+
+@pytest.fixture
+async def s3_settings(
+    minio_container: _BlobStoreConn, s3_session: aioboto3.Session
+) -> AsyncIterator[S3Settings]:
+    """A fresh bucket per test — the blob store's namespace isolation, since it
+    has nothing to roll back. Created before the test, emptied and dropped
+    after it, so no test can see or depend on another's objects."""
+    settings = S3Settings(
+        endpoint_url=minio_container["endpoint_url"],
+        access_key=minio_container["access_key"],
+        secret_key=SecretStr(minio_container["secret_key"]),
+        bucket=f"test-{uuid.uuid4().hex}",
+    )
+    endpoint_url = str(settings.endpoint_url)
+    async with s3_session.client("s3", endpoint_url=endpoint_url) as s3:
+        await s3.create_bucket(Bucket=settings.bucket)
+    try:
+        yield settings
+    finally:
+        async with s3_session.client("s3", endpoint_url=endpoint_url) as s3:
+            paginator = s3.get_paginator("list_objects_v2")
+            async for page in paginator.paginate(Bucket=settings.bucket):
+                keys = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
+                if keys:
+                    await s3.delete_objects(Bucket=settings.bucket, Delete={"Objects": keys})
+            await s3.delete_bucket(Bucket=settings.bucket)
+```
+
+The same app's `real_app` binds that bucket, so a route under test writes into the test's own bucket:
+one fixture parameter passed on to `TestInfraProvider`, and there one constructor parameter, one field
+and one factory.
+
+```python
+    s3_settings: S3Settings,            # in real_app's signature; TestInfraProvider(..., s3_settings=s3_settings)
+```
+
+```python
+        s3_settings: S3Settings,        # in TestInfraProvider.__init__
+    ) -> None:
+        ...
+        self._s3_settings = s3_settings
+
+    @provide(override=True)             # in TestInfraProvider
+    def s3_settings(self) -> S3Settings:
+        return self._s3_settings
+```
 
 ## Client-store session fixtures — redis-py
 
@@ -380,7 +413,7 @@ Per-resource fixtures (`make_foo`, `foo_id`, `bar_id`, …) live in `tests/integ
 5. Test-suite separation and collection by path → `test-principles`; enforcement → `test-architecture-rule`.
 6. **Obligation 10, spelled out** — rollback leaves the DB empty at test start, so `name="alpha"` needs no `uuid4().hex[:8]` suffix and `assert len(items) == N` is correct. Builders may still use unique suffixes for readability; it is no longer load-bearing.
 7. **Obligation 6, spelled out** — `TestInfraProvider` is passed to `create_container` and the graph is assembled once, with the test factories last, so there is no reset, no teardown ordering to get right, and no need to audit what `containers.py` snapshots. Substituting a binding on an already-built composition root is not possible; a test that needs a different binding builds a different composition root.
-8. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings` and `s3_settings`. The return annotation is what binds it, so it must be the exact type the production factory binds.
+8. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's settings (`s3_settings`). The return annotation is what binds it, so it must be the exact type the production factory binds.
 9. **Obligation 8 is one `await container.close()`** in the `real_app` fixture's `finally`; it is function-scoped, so each test gets a clean graph.
-10. **S3 has no transactions.** A bucket per test is obligation 9's spelling here: `s3_settings` creates a uniquely named bucket before the test and empties and drops it after, and `real_app` binds that same `S3Settings`, so a route under test writes into the test's own bucket with no test-only parameter on the route. The container and the `aioboto3.Session` are session-scoped; only the bucket is per test. A test asserts on its own bucket and nothing else.
-11. **Container fixtures are session-scoped; the guard and the migration run are the autouse pair.** The relational and blob-store containers start once per session, on first request — the autouse guard pulls in the relational one — and the container branch is the one place entitled to set the marker obligation 4 requires — an env marker or a settings flag, **never a deduction from the port number or the database name**, because a real database on an unusual port passes that deduction and is then migrated over.
+10. **S3 has no transactions.** In an app with the blob-store add-on, a bucket per test is obligation 9's spelling: `s3_settings` creates a uniquely named bucket before the test and empties and drops it after, and `real_app` binds that same `S3Settings`, so a route under test writes into the test's own bucket with no test-only parameter on the route. The container and the `aioboto3.Session` are session-scoped; only the bucket is per test. A test asserts on its own bucket and nothing else.
+11. **Container fixtures are session-scoped; the guard and the migration run are the autouse pair.** Every container — the relational one and each add-on's — starts once per session, on first request — the autouse guard pulls in the relational one — and the container branch is the one place entitled to set the marker obligation 4 requires — an env marker or a settings flag, **never a deduction from the port number or the database name**, because a real database on an unusual port passes that deduction and is then migrated over.

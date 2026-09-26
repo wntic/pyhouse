@@ -136,7 +136,7 @@ from myapp.infrastructure.jwt import JwtSettings
 ```
 
 ```python
-    jwt_settings: JwtSettings,          # in real_app's signature, passed to TestInfraProvider
+    jwt_settings: JwtSettings,          # in real_app's signature; TestInfraProvider(..., jwt_settings=jwt_settings)
 ```
 
 ```python

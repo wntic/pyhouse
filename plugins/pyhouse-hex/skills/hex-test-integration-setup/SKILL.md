@@ -1,6 +1,6 @@
 ---
 name: hex-test-integration-setup
-description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, the per-test blob-store bucket, and `real_app` on a dishka composition root whose infrastructure providers are overridden — or the same fixtures as one plugin module several hexagonal workspace members share. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's fixtures, which are `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
+description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, the fixtures a blob-store or key-value add-on brings (a per-test bucket, a store client), and `real_app` on a dishka composition root whose infrastructure providers are overridden — or the same fixtures as one plugin module several hexagonal workspace members share. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's fixtures, which are `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
 ---
 
 # Hex Test — Integration Setup
@@ -31,7 +31,8 @@ One-shot per project, and everything else in the integration suite depends on it
 tests/
 ├── conftest.py                       # empty; pytest-asyncio config belongs in pyproject.toml
 └── integration/
-    ├── conftest.py                   # containers, guard, migration run, engine, `sf`, `real_app`
+    ├── conftest.py                   # base: Postgres container, guard, migrations, engine, `sf`, `real_app`
+    │                                 # + each add-on's fixtures (blob store, key-value store)
     └── api/
         ├── conftest.py               # empty unless the app declares auth
         └── <resource>/conftest.py    # per-resource row factories — not this skill's
@@ -39,8 +40,9 @@ tests/
 
 **Read the sibling `CONFTEST.md` before writing or changing any fixture in that hierarchy.** Only this
 file is loaded automatically, so open it rather than reconstructing the fixtures from the obligations
-below: it carries the full `tests/integration/conftest.py`, the session fixtures a client-style store
-adds to it (Redis), the top-level and api sub-templates with the import rule the root conftest must
+below: it carries the base `tests/integration/conftest.py` — relational only — and the two add-ons a
+project with that store lays on top of it, the blob store (MinIO, with its `real_app` substitution) and
+the client-style store's session fixtures (Redis), then the top-level and api sub-templates with the import rule the root conftest must
 obey, and the eleven numbered spellings of the obligations under this
 binding — the one sanctioned sessionmaker, the savepoint mode, the session/function scope split, and the
 disposability marker the container fixture is entitled to set.
@@ -55,7 +57,7 @@ template that names the stack, and they stop wherever this binding is in use.
 - Asked to drop `join_transaction_mode="create_savepoint"` → stop, that flag is the whole point — without it the handler's commits either escape or fail.
 - The `sf` fixture is bound to the engine directly (skipping the outer connection) → stop, that bypasses rollback and every row a test commits survives into the next one.
 - Asked to add a `truncate_all_tables` teardown alongside rollback → stop, rollback alone is sufficient; truncate is the fallback for DBs without nested transactions and is strictly slower.
-- The project does not use S3 / MinIO but the conftest carries the blob-store fixtures (`minio_container`, `s3_session`, `s3_settings`) → stop, strip them with the `real_app` parameter and the `TestInfraProvider` factory; no need to start MinIO every session.
+- The project has no blob store but the conftest carries the blob-store add-on (`minio_container`, `s3_session`, `s3_settings`, the `real_app` parameter and the `TestInfraProvider` factory) → stop, the base is relational only; the add-on goes in with the S3 adapter and not before, so nothing starts MinIO for an app that never writes a blob.
 
 ## Other bindings
 
@@ -89,7 +91,7 @@ schema gets there, and what the disposability marker is set by.
 
 - **One pytest plugin module several hexagonal members load.** Where several members of one workspace
   (`python-workspace`) each need these fixtures, the session-scoped half — containers, guard, migration
-  run, engine, `s3_session` — moves into one importable module the root `pyproject.toml` loads with
+  run, engine, and each add-on's container and client — moves into one importable module the root `pyproject.toml` loads with
   `-p <module>`, and each member keeps only what is its own: the per-test isolation handles and
   `real_app`, which builds that member's composition root. Nothing in the shared module is autouse —
   it loads for every collection, pure-unit runs included — so each member's integration conftest makes
@@ -108,15 +110,15 @@ Consult `test-principles` for the testing constitution.
 - **`tests/integration/api/conftest.py`** — created here, empty by default. Its only current occupant is
   the auth fixture set, which is `hex-test-restapi-auth`'s and exists only for an app that declares auth.
 
-**This is the relational-store isolation strategy.** The engine, the Alembic migration run, and the savepoint-rollback `sf` all assume a relational store — the per-test transaction that ROLLBACKs is a SQL-database mechanism. An app whose only datastore is client-style (redis / a document store / …) has no engine, no migration chain, and cannot use savepoint rollback; it isolates by **per-test namespace + teardown** instead (the per-test bucket `s3_settings` creates in `CONFTEST.md` is exactly that pattern). Lay the Postgres machinery only when the app has a relational store.
+**This is the relational-store isolation strategy.** The engine, the Alembic migration run, and the savepoint-rollback `sf` all assume a relational store — the per-test transaction that ROLLBACKs is a SQL-database mechanism. An app whose only datastore is client-style (redis / a document store / …) has no engine, no migration chain, and cannot use savepoint rollback; it isolates by **per-test namespace + teardown** instead (the blob-store add-on's per-test bucket in `CONFTEST.md` is exactly that pattern). Lay the Postgres machinery only when the app has a relational store.
 
 **What this skill owns, exactly: every session-scoped fixture, for every store kind.** Containers,
 engines, migration runs and long-lived clients belong here because one container per session is the
 guarantee the whole setup rests on, and a fixture duplicated into a store-kind conftest breaks it. The
 **per-test** half — a fresh collection, key-prefix, database or bucket path, and its teardown — belongs
 in the sibling `tests/integration/<store-kind>/conftest.py`, next to the tests that consume it
-(`hex-test-repository-contract`). The per-test bucket in `CONFTEST.md` is the per-test half shown there
-only because `real_app` binds it too, and blob storage has no store-kind conftest of its own in this
+(`hex-test-repository-contract`). The blob-store add-on's per-test bucket in `CONFTEST.md` is the per-test
+half shown there only because `real_app` binds it too, and blob storage has no store-kind conftest of its own in this
 template.
 
 - Per-resource row factories (`make_foo`, `make_bar`, …) → not this skill; declare them in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
@@ -180,7 +182,7 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 
 ## Inlined typing / import rules
 
-- `pytest`, `dishka`, `sqlalchemy.ext.asyncio`, `aioboto3`, `subprocess`, `os`, `sys`, `uuid`, stdlib `collections.abc` and `typing` — and the project's `infrastructure.postgres.*` + `infrastructure.s3`.
+- `pytest`, `dishka`, `sqlalchemy.ext.asyncio`, `subprocess`, `os`, `sys`, stdlib `collections.abc` and `typing` — and the project's `infrastructure.postgres.*`. The blob-store add-on adds `aioboto3`, `uuid` and `infrastructure.s3`; the key-value one, `redis.asyncio`.
 - `create_container` and `create_app` are imported **inside** the `real_app` fixture body, never at module level (see the root-conftest note in `CONFTEST.md`).
 - Full annotations on every fixture signature. `AsyncIterator[T]` for yielding fixtures with cleanup.
 - No `from __future__ import annotations`.
