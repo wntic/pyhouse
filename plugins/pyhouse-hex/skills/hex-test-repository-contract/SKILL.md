@@ -44,7 +44,7 @@ first thing to get right.
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). Isolate exactly as the per-test bucket does for blobs: **each test owns a fresh namespace** — a unique key-prefix (redis), collection or database name (a document store), or bucket — created in a fixture and dropped at teardown. Bring the real store up once per session via testcontainers; create/destroy the per-test namespace per test. **The split is by scope, not by store kind.** `hex-test-integration-setup` owns every **session-scoped** container, engine and client fixture, whatever the store — that is what guarantees one container per session. The sibling `tests/integration/<store-kind>/conftest.py` owns only the **per-test** namespace fixture and its teardown, which is this skill's concern. The per-test bucket of an app with a blob store is the one per-test fixture up-tree, because `real_app` binds it as well as the tests that use it.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). Isolate exactly as the per-test bucket does for blobs: **each test owns a fresh namespace** — a unique key-prefix (redis), collection or database name (a document store), or bucket — created in a fixture and dropped at teardown. Bring the real store up once per session via testcontainers; create/destroy the per-test namespace per test. **The split is by scope, not by store kind.** `hex-test-integration-setup` owns every **session-scoped** container, engine and client fixture, whatever the store — that is what guarantees one container per session. The sibling `tests/integration/<store-kind>/conftest.py` owns only the **per-test** namespace fixture and its teardown — unless `real_app` binds that namespace as well as the tests that use it, in which case it sits up-tree beside the session half. Both worked add-ons are that case: the blob store's per-test bucket and the key-value store's per-test prefix live in `hex-test-integration-setup`'s conftest.
 
 ### Relational
 
@@ -286,9 +286,9 @@ async def test_attachment_with_wrong_parent_raises_not_found(
 
 ```
 tests/integration/
-├── conftest.py                         # + redis_url, redis_client (session) — hex-test-integration-setup's
+├── conftest.py                         # + redis_url, redis_client (session), redis_settings (per test)
+│                                       #   — hex-test-integration-setup's
 └── redis/
-    ├── conftest.py                     # redis_settings — the per-test key prefix
     └── test_baz_repository.py
 ```
 
@@ -299,35 +299,10 @@ adapter is `hex-store-repository`'s `BazRepository`, whose `IBazRepository` decl
 contract is those three: create, fetch by id and delete, each with its absent-record case, plus the
 translation of a store failure.
 
-The session half — the Redis container and one client for the run (`redis_url`, `redis_client`) — is
-`hex-test-integration-setup`'s, in its `CONFTEST.md`; this skill writes only the per-test half below.
-
-### Per-test half — `tests/integration/redis/conftest.py`
-
-```python
-import uuid
-from collections.abc import AsyncIterator
-
-import pytest
-from pydantic import SecretStr
-from redis.asyncio import Redis
-
-from myapp.infrastructure.redis import RedisSettings
-
-
-@pytest.fixture
-async def redis_settings(redis_url: str, redis_client: Redis) -> AsyncIterator[RedisSettings]:
-    """A fresh key prefix per test — namespace isolation, since a key-value store
-    has no transaction to roll back. Every key under it is deleted after the test."""
-    settings = RedisSettings(url=SecretStr(redis_url), bazs_key_prefix=f"test:{uuid.uuid4().hex}")
-    try:
-        yield settings
-    finally:
-        pattern = f"{settings.bazs_key_prefix}:*"
-        keys = [key async for key in redis_client.scan_iter(match=pattern)]
-        if keys:
-            await redis_client.delete(*keys)
-```
+The fixtures — the Redis container and one client for the run (`redis_url`, `redis_client`), and the
+per-test key prefix with its teardown (`redis_settings`) — are `hex-test-integration-setup`'s, in its
+`CONFTEST.md`: the prefix sits up-tree beside the session half because `real_app` binds it too. This
+skill writes only the test module below.
 
 ### `test_baz_repository.py`
 

@@ -169,8 +169,8 @@ class TestInfraProvider(Provider):
 
     Every add-on binding the app carries adds one parameter, one field and one
     factory here, and `real_app` one fixture parameter it passes on by name: a
-    blob store (the add-on section below) and, in an app that declares auth, the
-    verifier settings (`hex-test-restapi-auth`, which owns them and the down-tree
+    blob store and a client-style store (the add-on sections below) and, in an app
+    that declares auth, the verifier settings (`hex-test-restapi-auth`, which owns them and the down-tree
     fixture resolution they rely on).
     """
 
@@ -329,18 +329,22 @@ and one factory.
         return self._s3_settings
 ```
 
-## Client-store session fixtures — redis-py
+## Client-store fixtures — redis-py
 
-An app with a client-style store adds its session half to `tests/integration/conftest.py`: the
-container and one client for the whole run. The per-test key prefix and its teardown sit beside the
-repository tests in `tests/integration/redis/conftest.py` (`hex-test-repository-contract`).
+An app with a client-style store (the key-value repository, `hex-store-repository`) adds this to
+`tests/integration/conftest.py`: the container and one client for the whole run, and the per-test key
+prefix. The prefix sits here rather than beside the repository tests because `real_app` binds it too.
 
 ```python
 import os
+import uuid
 from collections.abc import AsyncIterator, Iterator
 
 import pytest
+from pydantic import SecretStr
 from redis.asyncio import Redis
+
+from myapp.infrastructure.redis import RedisSettings
 
 
 @pytest.fixture(scope="session")
@@ -362,6 +366,39 @@ async def redis_client(redis_url: str) -> AsyncIterator[Redis]:
         yield client
     finally:
         await client.aclose()
+
+@pytest.fixture
+async def redis_settings(redis_url: str, redis_client: Redis) -> AsyncIterator[RedisSettings]:
+    """A fresh key prefix per test — namespace isolation, since a key-value store
+    has no transaction to roll back. Every key under it is deleted after the test."""
+    settings = RedisSettings(url=SecretStr(redis_url), bazs_key_prefix=f"test:{uuid.uuid4().hex}")
+    try:
+        yield settings
+    finally:
+        pattern = f"{settings.bazs_key_prefix}:*"
+        keys = [key async for key in redis_client.scan_iter(match=pattern)]
+        if keys:
+            await redis_client.delete(*keys)
+```
+
+The same app's `real_app` binds that prefix, so a route reaching `Baz` reads and writes the test's own
+store under the test's own prefix, never whatever store the environment's `MYAPP_REDIS_URL` names: one
+fixture parameter passed on to `TestInfraProvider`, and there one constructor parameter, one field and
+one factory.
+
+```python
+    redis_settings: RedisSettings,      # in real_app's signature; TestInfraProvider(..., redis_settings=redis_settings)
+```
+
+```python
+        redis_settings: RedisSettings,  # in TestInfraProvider.__init__
+    ) -> None:
+        ...
+        self._redis_settings = redis_settings
+
+    @provide(override=True)             # in TestInfraProvider
+    def redis_settings(self) -> RedisSettings:
+        return self._redis_settings
 ```
 
 ## `tests/conftest.py` (top-level, optional sub-template)
@@ -383,9 +420,9 @@ pythonpath = ["."]
 filterwarnings = ["error"]
 ```
 
-`--import-mode=importlib` lets two test modules share a basename in different directories
-(`tests/integration/postgres/test_foo_repository.py` and `tests/integration/redis/test_foo_repository.py`)
-without an `__init__.py` in every test directory; because that mode puts nothing on `sys.path`,
+`--import-mode=importlib` lets two test modules with the same basename live in different directories
+(a `test_foo.py` under both `tests/unit/` and `tests/integration/`, say) without an `__init__.py` in
+every test directory; because that mode puts nothing on `sys.path`,
 `pythonpath = ["."]` is what lets a test import `tests.unit.fakes` or `tests.helpers.jwt`.
 `filterwarnings = ["error"]` makes every warning a failure, so a deprecation or an unclosed resource reds
 the run instead of scrolling past (`test-principles`). The loop scopes are **session**, and both keys

@@ -42,7 +42,7 @@ tests/
 file is loaded automatically, so open it rather than reconstructing the fixtures from the obligations
 below: it carries the base `tests/integration/conftest.py` — relational only — and the two add-ons a
 project with that store lays on top of it, the blob store (MinIO, with its `real_app` substitution) and
-the client-style store's session fixtures (Redis), then the top-level and api sub-templates with the import rule the root conftest must
+the client-style store (Redis, likewise with its `real_app` substitution), then the top-level and api sub-templates with the import rule the root conftest must
 obey, and the eleven numbered spellings of the obligations under this
 binding — the one sanctioned sessionmaker, the savepoint mode, the session/function scope split, and the
 disposability marker the container fixture is entitled to set.
@@ -117,9 +117,10 @@ engines, migration runs and long-lived clients belong here because one container
 guarantee the whole setup rests on, and a fixture duplicated into a store-kind conftest breaks it. The
 **per-test** half — a fresh collection, key-prefix, database or bucket path, and its teardown — belongs
 in the sibling `tests/integration/<store-kind>/conftest.py`, next to the tests that consume it
-(`hex-test-repository-contract`). The blob-store add-on's per-test bucket in `CONFTEST.md` is the per-test
-half shown there only because `real_app` binds it too, and blob storage has no store-kind conftest of its own in this
-template.
+(`hex-test-repository-contract`) — **unless `real_app` binds it too**, in which case it sits up-tree
+beside the session half so a route under test reaches it. Both worked add-ons in `CONFTEST.md` are that
+case: the blob store's per-test bucket and the key-value store's per-test prefix are each bound by
+`real_app`, so a route never reaches a store the environment names.
 
 - Per-resource row factories (`make_foo`, `make_bar`, …) → not this skill; declare them in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
 - Cross-cutting "OpenAPI codes match `error_responses(...)`" / CORS / request-size invariants → `hex-test-app-invariants`; the every-protected-route-rejects-an-anonymous-caller probe → `hex-test-restapi-auth`.
@@ -182,7 +183,7 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 
 ## Inlined typing / import rules
 
-- `pytest`, `dishka`, `sqlalchemy.ext.asyncio`, `subprocess`, `os`, `sys`, stdlib `collections.abc` and `typing` — and the project's `infrastructure.postgres.*`. The blob-store add-on adds `aioboto3`, `uuid` and `infrastructure.s3`; the key-value one, `redis.asyncio`.
+- `pytest`, `dishka`, `sqlalchemy.ext.asyncio`, `subprocess`, `os`, `sys`, stdlib `collections.abc` and `typing` — and the project's `infrastructure.postgres.*`. The blob-store add-on adds `aioboto3`, `uuid` and `infrastructure.s3`; the key-value one, `redis.asyncio`, `uuid` and `infrastructure.redis`.
 - `create_container` and `create_app` are imported **inside** the `real_app` fixture body, never at module level (see the root-conftest note in `CONFTEST.md`).
 - Full annotations on every fixture signature. `AsyncIterator[T]` for yielding fixtures with cleanup.
 - No `from __future__ import annotations`.

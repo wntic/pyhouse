@@ -119,7 +119,7 @@ tests/
     │                                            #   - real_app (function) — consumes jwt_settings from down-tree WHEN the app has auth
     │                                            #   add-on sections, each bringing its own fixtures, only when the app has that store:
     │                                            #   - blob store: minio_container, s3_session (session), s3_settings (per-test bucket)
-    │                                            #   - key-value store: redis_url, redis_client (session)
+    │                                            #   - key-value store: redis_url, redis_client (session), redis_settings (per-test prefix)
     ├── postgres/                                # repository contract tests; uses `sf` only
     │   └── test_foo_repository.py
     └── api/
