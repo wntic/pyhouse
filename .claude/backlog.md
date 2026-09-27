@@ -5,6 +5,10 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
+Nothing proposed.
+
+## Agreed
+
 ### 1. Logging becomes its own universal skill
 `python-style` holds three subjects — typing, logging, comments — and its `description` is ~900
 characters because of it, the "two skills wearing one name" pitfall `meta-skill-author` names. Logging
@@ -38,8 +42,6 @@ persistence tests exercise the helper rather than the repository. Proposal: `Foo
 builds its own chunked `insert … on conflict` statement; the chunk constant stays; the helper, its
 `engine.py` export and the helper tests go; the table tests target the repository. Rules 10 and 12
 unchanged. Touches: `flat-persistence` (`SETUP.md`, `REPOSITORY.md`), `flat-test-persistence`.
-
-## Agreed
 
 ### 4. Re-run the short-prompt scenario on the current skills
 The maintainer's GLM run with a short `dns_scanner` prompt was made on the skills before the generality
