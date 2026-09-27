@@ -84,7 +84,7 @@ package root — and none of them imports any of the four.
 
 **"Run function"** is the term used throughout this family for a work unit. The kind is deliberately
 *not* called a "unit of work" — that name belongs to the transactional pattern of that name in the other
-family (`hex-patterns`, in `pyhouse-hex`), and one word for two unrelated things is how names stop
+family (`hex-persistence`, in `pyhouse-hex`), and one word for two unrelated things is how names stop
 identifying anything. What one is called is `naming`'s decision and it names the work done; `run_once` in
 the templates names *one* run function whose work genuinely is one pass, not a convention to copy.
 

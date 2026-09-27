@@ -46,7 +46,7 @@ same rule under its own name (a process exit code, a gRPC status), or far more o
 - Where the error is logged and by whom → `python-logging`.
 - Whether an undo step's own failure may be stopped while another failure propagates → this skill,
   **Swallowing, stopping, and best-effort compensation**; the handler shape that runs the undo is the
-  architecture family's (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
+  architecture family's (`hex-application`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
 - Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and any field the project adds to it, not the rendering.

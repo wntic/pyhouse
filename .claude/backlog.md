@@ -32,7 +32,8 @@ candidate for `/review-skills`, not a decision.
   the run function and `containment.py` bind the logger in a skill that owns triggers. `python-logging`
   owns the logger; the templates could log through it without naming the library, or not log at all
   (the guard is the only line that must). Same question in `hex-application` (7 mentions),
-  `hex-patterns` (4), `hex-restapi-app` (2), `flat-entrypoint/HTTP.md` (2).
+  `hex-application/COMPENSATION.md` (3), `hex-persistence/UNIT_OF_WORK.md` (2), `hex-restapi-app` (2),
+  `flat-entrypoint/HTTP.md` (2).
 - 29 hard stops and 26 rules (15 + 11 durable): the largest skill in the flat family (see item 16).
 
 #### 13. `flat-entrypoint/HTTP.md` is one module of FastAPI doing four jobs
@@ -54,14 +55,6 @@ owner, not a different way to store data.
   session because the unit of work owns it (`hex-persistence/REPOSITORY.md:68,152`). The skill should
   say so in one sentence at the constructor, since a reader asked.
 
-#### 16. No bound on the size of `## Rules` and `## Hard stops`
-`meta-skill-author` bounds the body (~500 lines, then sibling files) and nothing else. Current extremes:
-`hex-application` 27 rules, `test-principles` 27 rules and 18 stops, `flat-entrypoint` 26 and 29,
-`flat-persistence` 20 and 24. Many hard stops restate a rule with "→ stop". Decide on a bound or a test
-(a hard stop only for a wrong turn a rule alone does not catch), and apply it.
-- `meta-skill-author/SKILL.md` is now ~510 lines, past its own ~500-line guideline for moving text to a
-  sibling file.
-
 #### 19. `hex-capability-adapter`'s template is one application's token client
 `HttpBarGateway.fetch_token(subject)` and `BarToken` are a specific upstream's shape. A generic adapter
 shows one capability call with the house pattern (injected client, status mapped to the catalogue at
@@ -71,12 +64,6 @@ the boundary) and nothing a particular vendor supplies. Lens 1, question 2.
 `hex-conventions` holds path and name derivation, store profiles and multi-context apps. Check what of
 that `flat-layered` already covers before adding anything; a new skill is proposed only if the
 derivation rules have no owner in the flat family today.
-
-#### 23. `hex-patterns` is two patterns that happen to span layers
-It holds compensation and the unit of work, and its template spends the most lines on the unit of
-work's SQLAlchemy implementation. Neither is a catalogue of patterns. Decide whether it stays as the home
-for cross-layer patterns (then say which belong), or the unit of work moves beside
-`hex-persistence`'s session repository and compensation beside `hex-application`.
 
 #### 24. Audit the four `hex-restapi-*` skills and their tests
 The maintainer suspects much is buried there. Run `/review-skills` on `hex-restapi-app`,
@@ -92,15 +79,6 @@ and session fakes (item 14), the token adapter's test in `hex-test-capability-ad
 restapi tests (item 24), the template comments (D123, item 30). `hex-test-restapi-auth` and
 `hex-test-application-handler/FAKES.md` are the densest in domain nouns. Run `/review-skills` over the
 test skills after the production skill each one follows has settled.
-
-#### 27. Jinja-style placeholders in place of `Foo`/`Bar`
-Proposed by the maintainer: `{{ aggregate }}` rather than `FooRepository`. Weighed against it: templates
-stop being valid Python, so `tools/check_template_imports.py` and any syntax check stop working; an
-agent copying verbatim can leave the braces in; and names still have to be derived (`{{ Aggregate }}Repository`,
-the plural, the snake case), which is what `naming` states today. What the proposal gets right is that
-some placeholders read as invented concepts (`BarGateway`, `BarToken`). That is a lens-1 defect
-(item 19), not the placeholder syntax. Recommendation: keep `Foo`/`Bar`, and cut the templates that make
-them read as a fictional domain.
 
 #### 28. A single-use helper is a private method in `hex-persistence`, a module function in `python-packaging`
 `hex-persistence` rule 11 and its `REPOSITORY.md` rule 23 say a helper used by exactly one method is a
@@ -124,9 +102,16 @@ Test skills were not swept.
 #### 31. Command sequences the "a template earns its place by being copied" bullet flags
 `flat-persistence/SETUP.md` (the alembic commands) and `python-versioning/SKILL.md` (tag and push) are
 sequences a project runs, not files it copies. Also `meta-skill-author` says the skill shapes "add and
-remove nothing" (~line 368) while a reference skill omits `Template(s)`; reword it.
+remove nothing" (~line 378) while a reference skill omits `Template(s)`; reword it.
 `git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
 rest.
+
+#### 32. No test skill shows a fake unit of work
+`hex-test-application-handler` has no guidance for a handler that takes an `IUnitOfWork`, so an agent
+invents one. Decide whether one rule (not a template) in that skill covers it.
+
+#### 33. `hex-conventions` does not know `domain/uow/`
+`hex-conventions` does not know the `domain/uow/` path `hex-persistence/UNIT_OF_WORK.md` introduces.
 
 ## Agreed
 
@@ -139,3 +124,12 @@ skills loaded, defects → rules).
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.
+
+### 16. Sweep every skill against the hard-stop test
+Sweep every skill's `## Rules` and `## Hard stops` against the new test in `meta-skill-author`.
+`plugins/pyhouse-universal/agents/pyhouse-reviewer.md` (~line 81, "A hard stop is its rule's trigger")
+describes stops as the old test did and is updated in the same sweep; it must land before any release
+that ships the current `meta-skill-author`, or the reviewer judges stops by a test the author no longer
+states. `CLAUDE.md`'s sentence describing the engine rules in `flat-entrypoint` and
+`flat-test-run-function` as having "a matching subsection of `## Hard stops`" (~line 257) is updated
+in the same sweep, to whatever those subsections become.

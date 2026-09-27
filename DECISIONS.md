@@ -1653,3 +1653,100 @@ restoring the import comment in `hex-capability-adapter`, the file-path header c
 `# imports` marker in `python-packaging`, the `TRANSFER.md`, `hex-restapi-schema` and `REPOSITORY.md`
 comments, and `hex-restapi-endpoint`'s shorter router-registration sentence; and dropping the
 optional-marker paragraph from `python-style`'s `## Comments`.
+
+### D124 — A hard stop is a test, not a limit
+`meta-skill-author` bounded the body at ~500 lines and nothing else, and hard stops had grown into a
+second copy of the rules: a skill's `## Hard stops` restated its `## Rules` with "→ stop" appended, so
+one obligation was written twice and paid for twice on every load. A count was weighed and rejected —
+it would be met by merging unrelated rules or dropping real ones, the same defect a bullet cap on
+`## When to use vs. neighbours` was. The skill now states a test instead. Rule 7 says a hard stop
+exists only for a wrong turn no rule in this skill governs — an action taken before any rule
+applies: the request itself, the choice of skill, whether to write at all — stated as that action,
+and every plausible wrong-skill case is one, with a redirect. The remedy decides which a stop is,
+not its phrasing: one whose remedy is another skill, or writing nothing, stays, and one whose remedy
+writes something in this skill differently goes however it is worded — declining and writing it
+otherwise here counts as the latter — its better wording moving into the rule first. A stop can
+always be reworded as an action, so the phrasing alone decides nothing. An intermediate reading
+kept a content stop wherever it named a concrete action an agent is about to take; the maintainer
+chose the narrower criterion over it, because such a stop still guards what a rule already governs and
+is paid for twice. The portability gate's intro gains the remedy one deleted stop carried: whatever a
+question flags is replaced with a placeholder or deleted before the skill ships. The canonical template's `## Rules`
+placeholder says a rule states one obligation once, that there is no numeric limit, and that past ~20
+entries review checks for two concerns to split or move to a sibling file; its `## Hard stops`
+placeholder points at rule 7. `QUESTIONS.md` gains lens 4 question 7. It sits in lens 4, not lens 3,
+because it is answered by reading the skill against `meta-skill-author`, with no test service and no
+generation: a stop that restates a rule changes nothing an agent builds, so lens 3 would not see it;
+what it costs is context, which is a contract matter. `meta-skill-author` applied the test to itself:
+of its 17 hard stops, the 14 that restated one of its own sections or rules (the `description` and
+`when_to_use` ones, the length limits, a library-free rule, a second template, the neighbour count,
+publishing with Claude Code-only keys, application names, template comments, the vendor manual,
+unchecked imports, evidence language, the portability gate and unmarked skeleton lines) are gone, and
+the two that name an action taken before any rule applies stay — asked for a skill an existing one
+covers, and writing one from material nothing survives. The last was reworded as the action. A third,
+asked for a skill built on another frontmatter field, had a remedy that writes it differently here,
+so it moved into `## Frontmatter` as "No other field; information that would need one goes in the
+body." The four shapes' descriptions and examples moved to `## Skill shapes` in the sibling
+`CONVENTIONS.md`, the picking table staying with a pointer, which with the stops brings `SKILL.md`
+from 510 lines to 457. The sweep of every other skill against the
+test is a separate change, backlog item 16.
+**Reverse by:** restoring rule 7 as "**Hard stops are explicit.** Every plausible wrong-skill case
+becomes a hard stop with a redirect. This is how a reader recovers from misclassification without
+overreaching." followed by its unchanged last sentence; dropping the added sentences from the
+`## Rules` and `## Hard stops` placeholders and from the portability gate's intro; restoring the 14
+deleted hard stops and the frontmatter-field stop, dropping its sentence from `## Frontmatter`, and restoring the earlier wording of the question-5 stop; moving the four `###` shape sections back from `CONVENTIONS.md` into
+`## Skill shapes` before `### Picking a shape`, with "(rule 1)" and "this skill" in place of their
+qualified forms, and dropping the pointer and the "four skill shapes" mentions in both files' openings;
+and dropping lens 4 question 7 from `QUESTIONS.md`, with question 2 again asking that "each plausible
+wrong turn has a hard stop".
+
+### D125 — Placeholders stay `Foo`/`Bar`; no template syntax
+Jinja-style placeholders (`{{ aggregate }}` rather than `FooRepository`) were proposed and are
+rejected. A template must stay valid Python: `tools/check_template_imports.py` parses every fenced
+`python` block, and braces would make every block a syntax error, which that script skips silently —
+it returns no imports for a block that does not parse — so no template's imports would be verified
+again. An agent copies a template verbatim and
+could leave the braces in the reader's file. And a slot still needs its names derived —
+`{{ Aggregate }}Repository`, the plural, the snake case — which is `naming`'s job and what `Foo`,
+`foos` and `IFooRepository` already show worked through. What the proposal rightly noticed is that some
+templates read as an invented domain (`BarGateway`, `BarToken`); that is one template carrying one
+application's shape, a lens-1 defect fixed in that template (backlog item 19), not a matter of syntax.
+**Reverse by:** choosing a slot syntax that still parses as Python, rewriting every template and the
+`CONVENTIONS.md` placeholder table to it, teaching `tools/check_template_imports.py` to read it, and
+stating in `naming` how each derived name is spelled from a slot.
+
+### D126 — `hex-patterns` is dissolved: the unit of work joins `hex-persistence`, compensation `hex-application`
+Taken by the maintainer (backlog item 23). The skill held two patterns that share nothing but spanning
+layers, and neither is a catalogue of patterns; each now sits beside the artifact it depends on.
+The unit of work went to `hex-persistence` as a sibling topic file, `UNIT_OF_WORK.md`, next to
+`REPOSITORY.md`'s unit-of-work-managed form it constructs: the domain protocol, the SQLAlchemy
+implementation with its three load-bearing details, its dishka binding, and the handler form that
+opens it. The handler form stayed with the protocol rather than going to `hex-application` because a
+unit of work is never written without its protocol and implementation, so an agent writing a handler
+that writes two repositories has to open that file anyway; `hex-application` fires on the handler and
+routes there in its Command or query bullet, command handler rule 7, `When to use` and a hard stop, and
+splitting the handler off would have made two reads and put the handler-side rules (commit last,
+nothing caught inside, no retry) away from the exit-rolls-back behaviour they rely on. Its eight rules
+became `hex-persistence` rules 15–17 (one per scope and never per aggregate, with the naming section
+reduced to a sentence; one per `execute` from a factory, the binding rule pointing at `hex-wiring`,
+which already owned it; commit last, no catch, no retry) and a sentence added to rule 7 (a joining
+repository is handed the open handle, never a factory). Compensation went to `hex-application`: its
+seven rules became a `Compensation` subsection of Rules (rule 1, the only sanctioned `try/except`, was
+already command handler rule 5(a) and merged there; the when-to-use bullets, the several-side-effects
+and success-path-cleanup paragraphs became rules 1, 6 and 8), and its template — `hex-application`'s
+own `CreateFooHandler` with the undo — went to a sibling `COMPENSATION.md`, because in the body it would
+have taken `SKILL.md` past ~500 lines for a form most hex services do not have. Dropped: the "both
+patterns together" template (a sentence in each file says compensation's `try` wraps the `async with`),
+the separate `CreateFooCommand` block (a sentence says the one command gains `data: bytes`), the
+structured-logger bullet under Other bindings (`hex-application` already has one), the neighbour line
+on CLIs and workers, and the hard stops a rule already catches — one repository only, per-aggregate
+naming, a settable protocol member, a mismatched `__aexit__`, an unguarded undo, and an undo's failure
+stopped anywhere but the handler's guard (its remedy is how to write the undo, now the end of
+Compensation rule 4). Kept as hard stops, because a rule does not route them: no reversing method on
+the port, a saga, and a unit of work spanning two backends. `paths` gained
+`**/domain/uow/**` on `hex-persistence`; `hex-application`'s stays `**/application/**`.
+**Reverse by:** recreating `plugins/pyhouse-hex/skills/hex-patterns/SKILL.md` from the commit before
+this one, deleting `hex-persistence/UNIT_OF_WORK.md`, `hex-application/COMPENSATION.md`,
+`hex-persistence` rules 15–17, the rule-7 sentence and its two-backends hard stop, `hex-application`'s
+Compensation subsection and its two compensation hard stops, restoring both descriptions and the
+`hex-persistence` `paths`, repointing every reference named in this commit back to `hex-patterns`, and
+restoring the counts (48 skills, 24 hex, Hex core 12).

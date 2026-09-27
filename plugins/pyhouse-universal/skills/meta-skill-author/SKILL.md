@@ -17,8 +17,8 @@ This skill produces one new `SKILL.md`; editing other skills is an audit task.
 **Read the sibling `CONVENTIONS.md` in this skill's own directory before writing anything.** It carries
 the catalogue's shared placeholder vocabulary (`Foo`, `Bar`, `myapp`, `myschema` and the names derived
 from them), the banned vocabulary, the index of what each existing skill covers, the four-plugin
-packaging layout, and what is deliberately out of scope. Only this file is loaded automatically; the
-sibling is not, so open it rather than working from this summary of it.
+packaging layout, the four skill shapes, and what is deliberately out of scope. Only this file is
+loaded automatically; the sibling is not, so open it rather than working from this summary of it.
 
 ## When to use vs. neighbours
 
@@ -42,7 +42,8 @@ sibling is reached by an explicit instruction to read it.
 
 ## Frontmatter
 
-Two fields are required. Two more are valid, documented and used deliberately.
+Two fields are required. Two more are valid, documented and used deliberately. No other field;
+information that would need one goes in the body.
 
 ```yaml
 ---
@@ -78,7 +79,7 @@ paths: <optional — activation globs, Claude Code only>
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue** — 48 skills at ~400 characters is ~2% of a 200k
+- **There is no total budget across the catalogue** — 47 skills at ~400 characters is ~2% of a 200k
   window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
@@ -148,7 +149,9 @@ second full template.>
 
 <Numbered list of the obligations specific to this artifact, stated mechanism-free. Don't restate
 cross-cutting rules (typing, imports, packaging) — reference the cross-cutting skill instead. Each rule
-is one short paragraph or one bold-led bullet.>
+is one short paragraph or one bold-led bullet, and states one obligation once — two rules saying the
+same thing are one rule. There is no numeric limit; past ~20 entries, review checks whether the skill
+holds two concerns and should split, or move part to a sibling file.>
 
 ## Inlined typing / import rules
 
@@ -162,8 +165,9 @@ artifact, so the reader need not pull the full cross-cutting skill when only a f
 
 ## Hard stops
 
-<Bullet list of "asked for X → stop, use `<other-skill>` (or fix the request)". One line each. These
-are how a reader self-detects "I'm in the wrong skill".>
+<Bullet list of "asked for X → stop, use `<other-skill>` (or fix the request)". One line each, and
+only for a wrong turn taken before any rule applies (rule 7). These are how a reader self-detects "I'm
+in the wrong skill".>
 ```
 
 ## The two layers — principle and binding
@@ -216,7 +220,8 @@ lands in the wrong skill and finds no route out does the work in the wrong place
 
 A skill ships to projects the author has never seen, so it is written against five questions and
 re-read against them before every edit. The swap test above answers question 3 only — a skill can pass
-it while saturated with one project's directory roles and workload assumptions.
+it while saturated with one project's directory roles and workload assumptions. Whatever a question
+flags is replaced with a placeholder or deleted before the skill ships.
 
 1. **Provenance** — does anything name or imply one particular application: its domain, services,
    tables, queues, env prefixes, role names, or vocabulary invented for it?
@@ -279,9 +284,14 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
    is fine, and so is one skill covering several artifacts a single change always adds at once.
 6. **Cross-cutting rules are referenced, not restated.** Point to the owner in the table below rather
    than copying its rules; an inlined slice of 3–6 load-bearing bullets is the one exception.
-7. **Hard stops are explicit.** Every plausible wrong-skill case becomes a hard stop with a redirect.
-   This is how a reader recovers from misclassification without overreaching. A hard stop keeps its
-   *reason*; softening "X → stop, use `Y`" into advice deletes the rule.
+7. **A hard stop catches a wrong turn no rule in this skill governs.** It exists only for an action
+   taken before any rule applies — the request itself, the choice of skill, whether to write at all —
+   stated as that action. The remedy decides it, not the phrasing: a stop whose remedy is another
+   skill, or writing nothing, stays; one whose remedy writes something in this skill differently is
+   deleted however it is worded — declining and writing it otherwise here counts as the latter — its
+   better wording moving into the rule first. Every plausible wrong-skill case is one, with a
+   redirect. A hard stop keeps its *reason*; softening "X → stop, use `Y`" into advice deletes the
+   rule.
 8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `myapp` for
    a distribution's own root package, `myschema` for a library several distributions share, `myrepo`
    for the repository root, `myframework` for a framework a rule is about wrapping. Never name a real
@@ -370,41 +380,8 @@ and only when those bullets are load-bearing for the artifact at hand.
 
 Every skill falls into one of four shapes. The section format is universal — shapes add and remove
 nothing; they signal which sections will be load-bearing rather than ceremonial. Identify the shape
-before writing, so the content matches skills already in the same shape.
-
-### Producer — the default
-
-Creates one or more new files. Emphasis: `Template(s)` carries full literal file content with
-placeholders, under a heading naming its stack; `Package wiring` appears when a new module needs
-registering in an `__init__.py`.
-
-Examples: `hex-domain-model`, `hex-application`, `hex-persistence`, `hex-restapi-endpoint`,
-`hex-test-domain`.
-
-### Modifier
-
-Extends an existing file rather than creating one. Emphasis: `Template(s)` shows what gets inserted — a
-class body, a function, a decorator argument — not a whole file; `Package wiring` is usually absent
-because the file already lives in a package.
-
-Examples: `hex-wiring` (modifies the composition root), `hex-patterns` (shapes a handler body),
-`test-architecture-rule` (appends a test function).
-
-### Bootstrap
-
-Produces a fixed set of files, once per project. Emphasis: `Template(s)` carries several full file
-templates under `###` subheadings, one per file; `When to use vs. neighbours` says plainly that it is
-one-shot and names what other skills depend on it having run.
-
-Examples: `hex-restapi-app`, `hex-test-integration-setup`, `hex-test-app-invariants`.
-
-### Reference
-
-Produces no file — documents conventions other skills consult. Keeps `When to use vs. neighbours`,
-`Rules` and `Hard stops`; omits `Template(s)`, `Other bindings` and `Package wiring`; may organise its
-body under topical `##` headings that name the subject matter (rule 1).
-
-Examples: `hex-conventions`, `hex-architecture`, `python-style`, `test-principles`, this skill.
+before writing, so the content matches skills already in the same shape. What each shape emphasises,
+with the skills already in it, is under `## Skill shapes` in the sibling `CONVENTIONS.md`.
 
 ### Picking a shape
 
@@ -474,37 +451,7 @@ skill.
 
 ## Hard stops
 
-- A `description` that cannot be told apart from its siblings without `when_to_use` → stop, rewrite the
-  `description` until it stands alone.
-- A fact that exists only in `when_to_use` → stop, move it into `description` or the body;
-  `when_to_use` carries extra trigger phrasings, nothing else.
-- `description` past ~1,024 characters, or `description` + `when_to_use` past 1,536 → stop, rewrite as
-  complete sentences that fit. Never truncate mid-sentence.
-- A rule in `## Rules` that says nothing once the library name is removed → stop, it belongs in the
-  template.
-- A second full template for an alternative stack → stop, make it `## Other bindings` bullets or a
-  sibling skill.
-- `## When to use vs. neighbours` trimmed to a bullet count, dropping a real routing edge → stop,
-  restore the edge.
 - Asked for a skill whose whole content is rules an existing skill already states, or whose description
   overlaps an existing one's by more than half → stop; that is an edit to the existing skill.
-- Asked for a skill built around a frontmatter field outside `name`, `description`, `when_to_use` and
-  `paths` → stop, put the information in the body.
-- Publishing to claude.ai or the Skills API with `paths` or `when_to_use` still present → stop, strip
-  them first; that channel fails hard on unknown keys.
-- Templates use application-specific names (`Order`, `Material`, `Invoice`) → stop, replace with
-  `Foo`/`Bar`.
-- A template comment explains the template rather than the reader's code → stop, move it to prose
-  or `## Rules`; the comment is copied into every file generated from it.
-- A template left with no house pattern once its vendor calls are stripped, or a second template for
-  another vendor of the same kind → stop, delete it or make it `## Other bindings` bullets.
-- A template imports a symbol nobody ran → stop, import it and confirm the name resolves in the version
-  the template binds; a name that does not exist ships as working code.
-- A rule leans on "measured", "in practice" or "this has been hit" without saying what was observed →
-  stop, state the observation so a reader can repeat it, or delete the evidence language.
-- A skill fails any of the five portability questions → stop, replace what the question flagged with a
-  placeholder or delete it; a disclaimer above the example is not a fix.
-- Nothing survives question 5 once the project-bound material is stripped → stop, there is no skill
-  here — the material was a case study, not a subject.
-- A skeleton line most services of the family would not have, unmarked → stop, mark it with the
-  condition that earns it or reduce it to one sentence of prose (rule 16).
+- About to write a skill from supplied material that leaves nothing once question 5 strips the
+  project-bound part → stop, there is no skill here — the material was a case study, not a subject.

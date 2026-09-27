@@ -23,7 +23,7 @@ whole point of the infrastructure rule is that the folder is named after the rea
 - Resolving a `<subdomain>:<Name>` reference, or deciding what is shared across contexts → block C.
 - Layer boundaries → `hex-architecture`; `__all__`, the re-export contract and import forms → `python-packaging`.
 - What goes *inside* the artifact whose name you just derived → the skill that owns it
-  (`hex-persistence`, `exception-catalog`, `hex-patterns`). This skill is consulted **alongside**
+  (`hex-persistence`, `exception-catalog`, `hex-application`). This skill is consulted **alongside**
   them, never instead of them — it produces no file of its own.
 - Which libraries the project carries → `hex-project-setup`; how the toolchain is configured → `python-toolchain`.
 - Choosing what an identifier should be *called* once you know where it goes — the derivation procedure and the naming tests → `naming`. This skill maps a name to a place; `naming` picks the name.

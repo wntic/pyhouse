@@ -86,7 +86,7 @@ The mechanical checks. They matter and they are the easiest, which is why they c
 1. Frontmatter per `meta-skill-author`: `name` equals the directory, `description` opens `Use when`,
    has no bare `: `, stays within its length limits.
 2. Section order and headings; a template heading names its stack; rules are stated without the
-   mechanism; each plausible wrong turn has a hard stop.
+   mechanism; each plausible wrong-skill case has a hard stop (question 7).
 3. Every cross-reference resolves — skill names, `rule N` citations, sibling files.
 4. Plugin direction: a universal skill reads correctly with every family plugin absent; a hex↔flat
    reference names the plugin.
@@ -94,6 +94,12 @@ The mechanical checks. They matter and they are the easiest, which is why they c
 6. Every template's imports resolve (`tools/check_template_imports.py`). Templates are checked **one at
    a time**; they are not assembled into one runnable application — that pressure is what turns a set
    of templates into one sample app.
+7. **Does every hard stop catch a wrong turn no rule in this skill catches?** A stop is an action
+   taken before any rule applies. Judge by the remedy, not the wording: a remedy that is another
+   skill, or writing nothing, keeps the stop; a remedy that writes something in this skill
+   differently makes it `DELETE`, its better wording moving into the rule first. Two rules stating one
+   obligation are one rule. A `## Rules` past ~20 entries: does the skill hold two concerns — split
+   it, or move part to a sibling file?
 
 ## How a finding is written
 
