@@ -78,11 +78,6 @@ adds its fields to this one (rule 17). The process definition constructs `Postgr
 migration environment is the migration run's process definition and does the same
 (`flat-project-setup`).
 
-**No `@lru_cache` on the engine factory.** Memoising an engine keyed by its connection string pins a live
-pool for the life of the process, outliving the shutdown path and the test that wanted to dispose of it;
-with one caller there is nothing for a cache to collapse, and when to cache a factory at all is
-`python-packaging` rule 8.
-
 ## Engine factory — SQLAlchemy async, asyncpg
 
 The engine is built by a **factory taking the connection string**, never as a module-level object:
@@ -101,8 +96,8 @@ def get_engine(dsn: str) -> AsyncEngine:
     return create_async_engine(dsn, pool_pre_ping=True)
 ```
 
-The statements themselves — the chunked bulk write, its conflict clause and any read-back — are built by
-the repository class that runs them (`REPOSITORY.md`), never by a table-agnostic helper here.
+No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the test that disposes it
+(`python-packaging` rule 8).
 
 ## Migrations — Alembic
 

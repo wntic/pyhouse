@@ -14,15 +14,13 @@ this class's declared half of rule 3, and it builds the statements it runs.
 
 ```python
 from collections.abc import Sequence
-from datetime import UTC
 
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from myapp.exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
-from myapp.schemas import Foo, FooReference
+from myapp.schemas import Foo
 
 from .foo_table import foo_table
 
@@ -32,19 +30,6 @@ _DRIVER_ERRORS = (DBAPIError, OSError)
 _REFUSED_DATA_CLASSES = frozenset({"22", "23"})  # SQLSTATE classes: data exception, integrity violation
 _BIND_PARAMETER_CAP = 32767
 _CHUNK_SIZE = _BIND_PARAMETER_CAP // len(foo_table.columns)
-
-
-def _to_row(foo: Foo) -> dict[str, object]:
-    return {"reference": foo.reference, "name": foo.name, "observed_at": foo.observed_at}
-
-
-def _to_foo(row: RowMapping) -> Foo:
-    observed_at = row["observed_at"]
-    return Foo(
-        reference=FooReference(row["reference"]),
-        name=row["name"],
-        observed_at=observed_at if observed_at.tzinfo else observed_at.replace(tzinfo=UTC),
-    )
 
 
 def _translate(exc: DBAPIError | OSError) -> MyappError:
@@ -68,7 +53,11 @@ class FooRepository:
         self._chunk_size = chunk_size
 
     async def record_batch(self, foos: Sequence[Foo]) -> None:
-        rows = [_to_row(foo) for foo in {foo.reference: foo for foo in foos}.values()]
+        latest_by_reference = {foo.reference: foo for foo in foos}
+        rows = [
+            {"reference": foo.reference, "name": foo.name, "observed_at": foo.observed_at}
+            for foo in latest_by_reference.values()
+        ]
         try:
             async with self._engine.begin() as conn:
                 for start in range(0, len(rows), self._chunk_size):
@@ -83,6 +72,11 @@ class FooRepository:
             raise _translate(exc) from exc
 ```
 
+**The batch is optional.** A method that takes one `Foo` — a webhook's `record(foo)` — runs one
+`insert(foo_table).values(...).on_conflict_do_update(...)` inside its `engine.begin()`: no cap, no chunk
+constant, no `chunk_size` argument, no collapse and no loop. Those exist only where a method takes a
+batch.
+
 The class takes its engine as a **constructor argument**, never reaching for the factory itself, so a
 test can point it at a container without touching the environment. The chunk size defaults to the named
 constant and is keyword-only, so a test can cross a chunk boundary with five rows.
@@ -90,12 +84,12 @@ constant and is keyword-only, so a test can cross a chunk boundary with five row
 **The chunk size is computed once, from the driver's cap and the table's width, never written as a
 literal** (rule 10): 32,767 bind parameters under asyncpg, because the Postgres wire protocol carries the
 count in a 16-bit field, divided by the columns one row binds. The cap is the store's and the width the
-table's, so a second repository class divides the same cap, held once in the package, by its own. Each
-chunk is one multi-row statement (rule 9), and its conflict clause is derived from that same statement's
-`excluded` row, so the update set names the incoming values of the row that conflicted (rule 12). The set
-is declared here, per write, and never holds the key matched on; a write with nothing to update on
-conflict says `on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax
-error.
+table's: with one class the cap sits beside the statement, and with a second it moves to `engine.py`
+(below). Each chunk is one multi-row statement (rule 9), and its conflict clause is derived from that
+same statement's `excluded` row, so the update set names the incoming values of the row that conflicted
+(rule 12). The set is declared here, per write, and never holds the key matched on; a write with nothing
+to update on conflict says `on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET`
+is a syntax error.
 
 `record_batch` is rule 18's worked case: a foo already recorded is resolved by the statement's own
 conflict clause, never by asking which references exist before writing. **Two foos in one batch sharing
@@ -134,14 +128,13 @@ check, matched on the generated constraint name (rule 8)** and returning the cla
 with the offending field and that name in its `context` (rule 6).
 
 **A second repository class in the package shares the driver-error tuple and the fallback rather than
-copying them.** Only the constraint branches belong to one class; the tuple, the SQLSTATE classes and
-the final two returns are the store's, so when a second class arrives they move into one module of the
-package — `errors.py`, exposing a public translator each class calls after checking its own
-constraints — instead of travelling into every repository module.
+copying them.** Only the constraint branches belong to one class; the tuple, the SQLSTATE classes and the
+final two returns are the store's, so when a second class arrives they move into one module of the
+package — `errors.py`, exposing a public translator each class calls after checking its own constraints —
+instead of travelling into every repository module. The bind-parameter cap moves the same way, to
+`engine.py` as a public `BIND_PARAMETER_CAP` beside `get_engine`, and each class divides it by its own
+table's width.
 
-`_to_foo` is a **pure function**, the one every read the class has maps its rows through: no IO, no
-logging. It normalizes what the driver hands back — a naive
-timestamp's offset — so one unit test pins it and nothing above this package sees a column name.
-
-The conflict column is never in the update set: writing back the key you matched on is a no-op at best
-and, on a partial index, a way to make the statement fail.
+Where the class reads, every read maps its rows through one **pure function** (`_to_foo`): no IO, no
+logging. It normalizes what the driver hands back — a naive timestamp's offset — so one unit test pins it
+and nothing above this package sees a column name.

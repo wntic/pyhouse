@@ -125,7 +125,7 @@ atomicity to pin. Gave `record_batch` an ordinary parent-and-children shape in o
 This is not the deleted registry: no cross-service identity, no junction, no view, no kinds.
 
 ### D20 — The record rule reaches test code, but not a table-generic column mapping
-**Superseded by D113.** Handed to plan 04 as an open question. A mapping passed to a `Table`-parameterised bulk helper is
+**The table-generic mapping exemption superseded by D113.** Handed to plan 04 as an open question. A mapping passed to a `Table`-parameterised bulk helper is
 genuinely data — there is no fixed field set for a type to declare. So builders keep a mapping return
 but are annotated `dict[str, object]`, never bare `dict`; a builder constructing the service's own type
 returns that type. `python-style` untouched.
@@ -1344,19 +1344,27 @@ chunk size held as a named constant below the driver's bind-parameter cap (rule 
 conflict resolution with a declared update set that never holds the key (rule 12) — and the generic
 helper was not: its mapping-typed rows needed an exemption from `python-style`'s declared-record rule
 (D20), and six of the persistence tests exercised the helper rather than the class a caller uses.
-`FooRepository.record_batch` now builds its own `insert … on conflict do update` per chunk, with the
-update set spelled from the statement's `excluded` row; `_CHUNK_SIZE` is computed in the repository
+`FooRepository.record_batch` now builds its own `insert … on conflict do update` per chunk from the
+collapsed `Foo`s, the column mapping built inline so no function returns a record-shaped dict; the
+update set is spelled from the statement's `excluded` row. `_CHUNK_SIZE` is computed in the repository
 module from the cap and `len(foo_table.columns)`, and the constructor takes a keyword-only `chunk_size`
-defaulting to it so a test can cross a boundary. `engine.py` holds the engine factory alone.
-`flat-test-persistence` has one template, the repository's: the update set from both sides in one
-test (the name changed, the minted id kept), the unique constraint on a plain insert, the chunk
-boundary, the in-batch duplicate and the translation; the empty-update-set no-op is a test "where a
-write declares one", and the mapping-builder exemption is gone with the helper tests. Rules 9 and 11 no
-longer name a helper, rule 10 computes from the written table's width rather than the widest table's,
-and rule 12 says the write rather than the caller names the columns; no obligation changed. `SETUP.md`
-binds rules 8, 14, 15, 16, 17 and 20, `REPOSITORY.md` gains 9, 10, 11 and 12.
+defaulting to it. The batch is optional: a method taking one `Foo` runs one statement with no cap, chunk
+constant, collapse or loop, and rules 9 and 10 bind only where a method takes a batch. With a second
+repository class the cap moves to `engine.py` as a public `BIND_PARAMETER_CAP`; otherwise `engine.py`
+holds the engine factory alone, and a hard stop forbids re-extracting a table-generic write helper. The
+unused `_to_foo` left the template and is named in prose for a class that reads. `flat-test-persistence`
+has one template, the repository's: the update set from both sides in one test (the name changed, the
+minted id kept), the chunk boundary and the in-batch duplicate marked as batch-only, and the
+translation. The plain-insert constraint test is gone; test rules 2 and 3 apply where the translator
+branches on a constraint's name, rules 5, 6 and 13 are conditional on their case, rule 8 points at
+`test-principles` rule 5, and a third restatement of "expect the catalogue exception" is removed. Rules 9
+and 11 no longer name a helper, rule 10 computes from the written table's width rather than the widest
+table's, and rule 12 says the write rather than the caller names the columns. No persistence obligation
+changed; the mapping-builder exemption D20 granted is withdrawn, which is breaking for a project that
+carried the helper.
 **Reverse by:** restoring `bulk_upsert` and its `__all__` entry in `SETUP.md`, the `record_batch`
-call to it in `REPOSITORY.md`, the table-contract template and the row-builder paragraph in
-`flat-test-persistence`, and the helper wording in `flat-persistence` rules 9–12, its tree, its
-description and the neighbour lines in `flat-test-integration-setup` and `flat-test-run-function`, from
-the parent of the commit that added this entry; and removing the superseded marker on D20.
+call to it, `_to_row` and `_to_foo` in `REPOSITORY.md`, the table-contract template and the row-builder
+paragraph in `flat-test-persistence`, and the helper wording in `flat-persistence` rules 9–12, its tree,
+its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
+`flat-test-run-function`, from the parent of the commits that added this entry, with D20's
+superseded marker removed.
