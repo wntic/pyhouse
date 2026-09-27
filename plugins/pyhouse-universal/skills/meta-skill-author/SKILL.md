@@ -42,7 +42,8 @@ sibling is reached by an explicit instruction to read it.
 
 ## Frontmatter
 
-Two fields are required. Two more are valid, documented and used deliberately.
+Two fields are required. Two more are valid, documented and used deliberately. No other field;
+information that would need one goes in the body.
 
 ```yaml
 ---
@@ -283,14 +284,14 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
    is fine, and so is one skill covering several artifacts a single change always adds at once.
 6. **Cross-cutting rules are referenced, not restated.** Point to the owner in the table below rather
    than copying its rules; an inlined slice of 3–6 load-bearing bullets is the one exception.
-7. **A hard stop catches a wrong turn no rule governs.** It exists only for an action taken before
-   any rule applies — the request itself, the choice of skill, whether to write at all — stated as
-   that action. The remedy decides it, not the phrasing: a stop whose remedy is another skill, or not
-   doing the request as asked, stays; one whose remedy is how to write something in this skill is
-   deleted however it is worded, its better wording moving into the rule first. Every plausible
-   wrong-skill case is one, with a redirect. A stop about content a rule already governs is deleted;
-   if its wording names the mistake better, that wording moves into the rule first. A hard stop keeps
-   its *reason*; softening "X → stop, use `Y`" into advice deletes the rule.
+7. **A hard stop catches a wrong turn no rule in this skill governs.** It exists only for an action
+   taken before any rule applies — the request itself, the choice of skill, whether to write at all —
+   stated as that action. The remedy decides it, not the phrasing: a stop whose remedy is another
+   skill, or writing nothing, stays; one whose remedy writes something in this skill differently is
+   deleted however it is worded — declining and writing it otherwise here counts as the latter — its
+   better wording moving into the rule first. Every plausible wrong-skill case is one, with a
+   redirect. A hard stop keeps its *reason*; softening "X → stop, use `Y`" into advice deletes the
+   rule.
 8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `myapp` for
    a distribution's own root package, `myschema` for a library several distributions share, `myrepo`
    for the repository root, `myframework` for a framework a rule is about wrapping. Never name a real
@@ -452,7 +453,5 @@ skill.
 
 - Asked for a skill whose whole content is rules an existing skill already states, or whose description
   overlaps an existing one's by more than half → stop; that is an edit to the existing skill.
-- Asked for a skill built around a frontmatter field outside `name`, `description`, `when_to_use` and
-  `paths` → stop, put the information in the body.
 - About to write a skill from supplied material that leaves nothing once question 5 strips the
   project-bound part → stop, there is no skill here — the material was a case study, not a subject.

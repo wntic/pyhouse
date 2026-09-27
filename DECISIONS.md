@@ -1660,13 +1660,13 @@ second copy of the rules: a skill's `## Hard stops` restated its `## Rules` with
 one obligation was written twice and paid for twice on every load. A count was weighed and rejected —
 it would be met by merging unrelated rules or dropping real ones, the same defect a bullet cap on
 `## When to use vs. neighbours` was. The skill now states a test instead. Rule 7 says a hard stop
-exists only for a wrong turn no rule governs — an action taken before any rule applies: the request
-itself, the choice of skill, whether to write at all — stated as that action, and every plausible
-wrong-skill case is one, with a redirect. A stop about content a rule already governs is deleted; if
-its wording names the mistake better, that wording moves into the rule first. The remedy decides
-which a stop is, not its phrasing: one whose remedy is another skill, or not doing the request as
-asked, stays, and one whose remedy is how to write something in this skill goes however it is worded —
-a stop can always be reworded as an action, so the phrasing alone decides nothing. An intermediate reading
+exists only for a wrong turn no rule in this skill governs — an action taken before any rule
+applies: the request itself, the choice of skill, whether to write at all — stated as that action,
+and every plausible wrong-skill case is one, with a redirect. The remedy decides which a stop is,
+not its phrasing: one whose remedy is another skill, or writing nothing, stays, and one whose remedy
+writes something in this skill differently goes however it is worded — declining and writing it
+otherwise here counts as the latter — its better wording moving into the rule first. A stop can
+always be reworded as an action, so the phrasing alone decides nothing. An intermediate reading
 kept a content stop wherever it named a concrete action an agent is about to take; the maintainer
 chose the narrower criterion over it, because such a stop still guards what a rule already governs and
 is paid for twice. The portability gate's intro gains the remedy one deleted stop carried: whatever a
@@ -1681,17 +1681,19 @@ of its 17 hard stops, the 14 that restated one of its own sections or rules (the
 `when_to_use` ones, the length limits, a library-free rule, a second template, the neighbour count,
 publishing with Claude Code-only keys, application names, template comments, the vendor manual,
 unchecked imports, evidence language, the portability gate and unmarked skeleton lines) are gone, and
-the three that name an action taken before any rule applies stay — asked for a skill an existing one
-covers, asked for one built on another frontmatter field, and writing one from material nothing
-survives. The last was reworded as the action. The four shapes' descriptions and examples moved to
-`## Skill shapes` in the sibling `CONVENTIONS.md`, the picking table staying with a pointer, which
-with the stops brings `SKILL.md` from 510 lines to 458. The sweep of every other skill against the
+the two that name an action taken before any rule applies stay — asked for a skill an existing one
+covers, and writing one from material nothing survives. The last was reworded as the action. A third,
+asked for a skill built on another frontmatter field, had a remedy that writes it differently here,
+so it moved into `## Frontmatter` as "No other field; information that would need one goes in the
+body." The four shapes' descriptions and examples moved to `## Skill shapes` in the sibling
+`CONVENTIONS.md`, the picking table staying with a pointer, which with the stops brings `SKILL.md`
+from 510 lines to 457. The sweep of every other skill against the
 test is a separate change, backlog item 16.
 **Reverse by:** restoring rule 7 as "**Hard stops are explicit.** Every plausible wrong-skill case
 becomes a hard stop with a redirect. This is how a reader recovers from misclassification without
 overreaching." followed by its unchanged last sentence; dropping the added sentences from the
 `## Rules` and `## Hard stops` placeholders and from the portability gate's intro; restoring the 14
-deleted hard stops and the earlier wording of the question-5 stop; moving the four `###` shape sections back from `CONVENTIONS.md` into
+deleted hard stops and the frontmatter-field stop, dropping its sentence from `## Frontmatter`, and restoring the earlier wording of the question-5 stop; moving the four `###` shape sections back from `CONVENTIONS.md` into
 `## Skill shapes` before `### Picking a shape`, with "(rule 1)" and "this skill" in place of their
 qualified forms, and dropping the pointer and the "four skill shapes" mentions in both files' openings;
 and dropping lens 4 question 7 from `QUESTIONS.md`, with question 2 again asking that "each plausible

@@ -94,11 +94,11 @@ The mechanical checks. They matter and they are the easiest, which is why they c
 6. Every template's imports resolve (`tools/check_template_imports.py`). Templates are checked **one at
    a time**; they are not assembled into one runnable application — that pressure is what turns a set
    of templates into one sample app.
-7. **Does every hard stop catch a wrong turn no rule catches?** A stop is an action taken before any
-   rule applies; one about content a rule governs is `DELETE`, and where it names the action better,
-   the rule is reworded and the stop still goes. Judge by the remedy, not the wording: a remedy that is
-   another skill, or not doing the request as asked, keeps the stop; a remedy that is how to write
-   something in this skill makes it `DELETE`. Two rules stating one
+7. **Does every hard stop catch a wrong turn no rule in this skill catches?** A stop is an action
+   taken before any rule applies; one about content a rule in this skill governs is `DELETE`, and
+   where it names the action better, the rule is reworded and the stop still goes. Judge by the
+   remedy, not the wording: a remedy that is another skill, or writing nothing, keeps the stop; a
+   remedy that writes something in this skill differently makes it `DELETE`. Two rules stating one
    obligation are one rule. A `## Rules` past ~20 entries: does the skill hold two concerns — split
    it, or move part to a sibling file?
 
