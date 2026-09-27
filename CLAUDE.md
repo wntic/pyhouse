@@ -266,8 +266,8 @@ re-set the precedent by adding another.
 package in prose are gone, and its validation-constraint rule is stated as an obligation with the
 library named once as an example. The two library names it kept — a structured logger, and a driver
 exception in a logging example — left with logging for `python-logging`, which names the logger's
-library in the sentence that introduces its one example and uses the exception only as an example in
-a rule that reads without it.
+library in the sentence that introduces its one example and uses a driver exception only in the code
+example beside its log-once rule, which reads without it.
 
 ## Two indexes, kept in step by hand
 

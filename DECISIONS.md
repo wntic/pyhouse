@@ -1398,21 +1398,30 @@ superseded marker removed.
 ### D114 — `python-logging` sends a CLI's diagnostics to stderr, renders per sink, and is Reference-shaped
 A CLI tool is one of the universal test services, and `python-logging` told it that its stdout result is
 not a log event without saying where the log events go — so nothing stopped a logger writing to stdout
-from interleaving diagnostics with the data a caller pipes onward. Rule 1 now adds that a program whose stdout
-is its product writes every log event to stderr, stated beside the stdout sentence in `## The event`
-and backed by a hard stop. Rule 3 no longer renders every event in one machine-readable format: the one
-configuration picks the rendering for the sink — machine-readable wherever a collector reads it,
-human-readable only on an interactive terminal — and routes a framework's and a driver's loggers
-through it, with a new hard stop for a library's records that bypass it. Rule 1 and its `print()` hard
+from interleaving diagnostics with the data a caller pipes onward. Rule 1 now adds that a program
+whose stdout is its product writes every log event to stderr, stated beside the stdout sentence in
+`## The event` and backed by a hard stop; the description and both index lines state it as conditional
+on such a program. Rule 3 no longer renders every event in one machine-readable format: the one
+configuration picks the rendering for the sink — machine-readable wherever a collector reads it; on an
+interactive terminal it may be human-readable — and routes a framework's and a driver's loggers
+through it, with a new hard stop, addressed to an application's entry point, for a library's records
+that bypass it. Rule 1 and its `print()` hard
 stop now name one condition, "an entry-point debug path behind a flag", where rule 1 had said
 "deliberate". Separately, the skill produces no file, so it is Reference-shaped: the `## Template —
 structlog` heading is gone and its snippet, distributed-package comment included, is the example in
-`## The event`, beside the interpolated-sentence counter-example. A Reference skill omits
-`## Other bindings` (`meta-skill-author`, *Skill shapes*), so its two stdlib bullets are folded into one
-paragraph of `## Configuring the logger`, keeping what the binding changes, what it buys and what it
-costs. No rule was renumbered, so the citations of rules 1 and 3 elsewhere stand.
+`## The event`, beside the interpolated-sentence counter-example; its lead-in names the library and
+says that, unconfigured, it renders for a terminal on stdout, so the entry point sets both. A Reference
+skill omits `## Other bindings` (`meta-skill-author`, *Skill shapes*), so its two stdlib bullets are
+folded into one paragraph of `## Configuring the logger` that keeps who the binding is for (a
+distributed package, and an application that chooses it), how fields reach the record, what it buys and
+what it costs. With no template heading left to name a stack, the translate-and-stay-silent example's
+lead-in names SQLAlchemy as one example, and `## Never log and re-raise the same event` is renamed
+`## Logging a re-raised error` to name its subject; nothing cited the old heading. No rule was
+renumbered, so the citations of rules 1 and 3 elsewhere stand.
 **Reverse by:** restoring the `## Template — structlog (an application; …)` and `## Other bindings`
-sections ahead of `## The event`, the `# yes` line in its example, the "deliberate entrypoint debug
-path" wording and the one-format clause of rule 3, and deleting the stderr sentences, the rendering
-paragraph, the stdlib paragraph and the two new hard stops in `python-logging`; with the stderr clause in
-its description, both index lines and the `python-style` paragraph of `CLAUDE.md` put back.
+sections ahead of `## The event`, the `# yes` line in its example and its plain lead-in, the
+`## Never log and re-raise the same event` heading without the SQLAlchemy lead-in, the "deliberate
+entrypoint debug path" wording and the one-format clause of rule 3, and deleting the stderr sentences,
+the rendering paragraph, the stdlib paragraph and the two new hard stops in `python-logging`; with its
+description, both index lines and the `python-style` paragraph of `CLAUDE.md` restored to their
+wording before this entry.

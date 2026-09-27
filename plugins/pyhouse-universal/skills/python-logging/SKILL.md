@@ -1,6 +1,6 @@
 ---
 name: python-logging
-description: Use when writing code that reports what it did or what went wrong — a log call, a `print` for progress or errors, an `except` that records a failure, or logging setup in an entry point, a CLI or a library. Owns one structured event per occurrence with a stable `<subject>_<past_tense_verb>` name and identifiers as fields, the rule that an error is logged once by the scope that stops it and never by a scope that re-raises, the warning a failed undo under compensation earns, logging configured once at the entry point and never inside a distributed package, what never reaches a log line, and a program's result on stdout as output rather than a log event, its log events going to stderr. Annotation forms and comments are `python-style`; the error classes and their `context` are `exception-catalog`.
+description: Use when writing code that reports what it did or what went wrong — a log call, a `print` for progress or errors, an `except` that records a failure, or logging setup in an entry point, a CLI or a library. Owns one structured event per occurrence with a stable `<subject>_<past_tense_verb>` name and identifiers as fields, the rule that an error is logged once by the scope that stops it and never by a scope that re-raises, the warning a failed undo under compensation earns, logging configured once at the entry point and never inside a distributed package, what never reaches a log line, and a program's result on stdout as output rather than a log event, and a program whose stdout is its result logging to stderr. Annotation forms and comments are `python-style`; the error classes and their `context` are `exception-catalog`.
 ---
 
 # Python Logging
@@ -46,7 +46,8 @@ alerts key on them. `naming` lists them among the frozen external contracts for 
 
 Identifiers and counts are fields: the primary id as `<subject>_id`, the actor as `caller_id` where one
 exists, counts (`imported`, `skipped`, `errors`) for a bulk operation. Under `structlog`, in an
-application:
+application — unconfigured, it renders for a terminal on stdout, so the entry point sets both the
+rendering and the stream (rules 1 and 3):
 
 ```python
 import structlog
@@ -72,15 +73,16 @@ logs through the stdlib's `logging.getLogger(__name__)`, the one interface every
 adds no handler and sets no level, and leaves every one of those choices to the application that imports
 it.
 
-**The rendering follows the sink**: machine-readable wherever a collector reads it, human-readable only
-on an interactive terminal.
+**The rendering follows the sink**: machine-readable wherever a collector reads it; on an interactive
+terminal it may be human-readable.
 
-An application may bind the stdlib `logging` module instead of a structured logger: its entry point
-configures a JSON formatter once, the event name is the record's message, and the fields reach the record
-through `extra=` or a `LoggerAdapter` (or the module sits behind a thin structured wrapper). That buys one
-stream with no bridge, since third-party libraries already log through `logging`; it costs enforcement,
-since nothing in the module holds the field discipline, so the author holds it where a keyword-field
-interface would have made it the path of least resistance. How the logger is obtained, configured and
+The stdlib `logging` module is the binding for a distributed package (rule 4) and an alternative for an
+application: the event name is the record's message, the fields reach the record through `extra=` or a
+`LoggerAdapter` (or the module sits behind a thin structured wrapper), and an application that chooses it
+configures a JSON formatter once at its entry point. That buys one stream with no bridge, since
+third-party libraries already log through `logging`; it costs enforcement, since nothing in the module
+holds the field discipline, so the author holds it where a keyword-field interface would have made it
+the path of least resistance. How the logger is obtained, configured and
 fed its fields changes with the binding; nothing in `## Rules` does.
 
 ## Who logs an error
@@ -107,11 +109,11 @@ Level guide, for the scope that does log: `warning` for an expected rule violati
 boundary — uniqueness, a foreign key; `error` for an unexpected failure — a network timeout, a
 third-party 5xx, malformed data.
 
-## Never log and re-raise the same event
+## Logging a re-raised error
 
 `log.x(...)` immediately followed by `raise` in the same scope is two entries for one event, and there is
 **no sanctioned exception** — a failed undo stopped under compensation, below, logs a different event
-from the one it re-raises.
+from the one it re-raises. With SQLAlchemy, for one:
 
 ```python
 # yes — translate, carry the detail forward, stay silent
@@ -164,8 +166,8 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
    the old string.
 3. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
    the entry point configures logging, and that one configuration picks the rendering for the sink —
-   machine-readable wherever a collector reads it, human-readable only on an interactive terminal — and
-   routes the standard library's loggers (a framework's, a driver's) through it.
+   machine-readable wherever a collector reads it; on an interactive terminal it may be human-readable —
+   and routes the standard library's loggers (a framework's, a driver's) through it.
 4. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
    nothing** — no handler, no level, no format; the application importing it owns all three.
 5. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
@@ -198,8 +200,8 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
   importer owns every one of those choices.
 - A second logging mechanism introduced beside the one already configured → stop, one logger everywhere;
   two split the event stream and neither half is complete.
-- A library's or framework's records bypass the configured logger — their own handler, their own format
-  → stop, route them through the one configuration (rule 3).
+- An application's entry point leaves a library's or framework's records bypassing the configured logger
+  — their own handler, their own format → stop, route them through the one configuration (rule 3).
 - An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
   `foo_created`. Once shipped, never rename — dashboards depend on the string.
 - Logging a full body, a secret, or a bare `UUID` object → stop.
