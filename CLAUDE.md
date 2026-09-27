@@ -265,9 +265,9 @@ re-set the precedent by adding another.
 `python-style` was the other item and is done: the two bullets that named a DI library and a UUID
 package in prose are gone, and its validation-constraint rule is stated as an obligation with the
 library named once as an example. The two library names it kept — a structured logger, and a driver
-exception in a logging example — left with logging for `python-logging`, which binds the logger under
-a template heading that names it and uses the exception only as an example in a rule that reads
-without it.
+exception in a logging example — left with logging for `python-logging`, which names the logger's
+library in the sentence that introduces its one example and uses a driver exception only in the code
+example beside its log-once rule, which reads without it.
 
 ## Two indexes, kept in step by hand
 
