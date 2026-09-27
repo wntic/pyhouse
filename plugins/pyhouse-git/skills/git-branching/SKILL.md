@@ -52,8 +52,9 @@ gh api -X PATCH repos/{owner}/{repo} \
 ```
 
 A fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before the request lands
-by `git rebase -i --autosquash` onto the mainline (rule 4); before git 2.44, `--autosquash` without
-`-i` is silently ignored and the fixups land as they are.
+by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <mainline>` (rule 4), which accepts the folded plan
+without opening an editor; before git 2.44, `--autosquash` without `-i` is silently ignored and the
+fixups land as they are.
 
 ## Other bindings
 

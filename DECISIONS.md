@@ -1535,7 +1535,10 @@ request — that no repository takes as written, that rule 4 does not need, and 
 file or block of text most projects would take as written, and anything else is prose beside the rule
 or nothing. `git-branching` keeps the branching section a repository records and the forge settings
 that enforce it, and the script becomes one sentence carrying the only fact it had that an agent may
-not know (the git 2.44 `--autosquash` behaviour). `git-commit-message` keeps its format block: every
+not know (the git 2.44 `--autosquash` behaviour), keeping `GIT_SEQUENCE_EDITOR=:` in the fold command,
+without which a non-interactive agent's `rebase -i` opens an editor and hangs. A skill left with
+nothing to copy omits `## Template(s)`, as a reference or process skill does, and the required-sections
+sentence points at that exception. `git-commit-message` keeps its format block: every
 commit message is written from it. No other skill was swept against the new line; that is lens-1 work
 for `/review-skills` as each skill comes up.
 **Reverse by:** deleting the bullet in `meta-skill-author`'s universal rules and restoring the script

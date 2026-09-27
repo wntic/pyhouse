@@ -113,7 +113,8 @@ this catalogue's channel — is unaffected.
 ## Body — the canonical sections
 
 Every skill has these sections, in this order, with these exact headings — templates have one
-allowance, stated in rule 1. Four sections are required; three (`Other bindings`, `Inlined typing /
+allowance, stated in rule 1. Four sections are required (`Template(s)` only where the skill has
+something to copy — see the universal rules); three (`Other bindings`, `Inlined typing /
 import rules`, `Package wiring`) are optional, included only when load-bearing.
 
 ```markdown
@@ -420,11 +421,13 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
 - No section describing what the skill returns or who invokes it (rule 10).
 - Hard stops use the canonical phrasing: "X → stop, use `<other-skill>`" or "X → stop, <action>".
 - A reference skill omits `Template(s)`, `Other bindings` and `Package wiring`; everything else keeps
-  all four required sections, under the allowances of rule 1.
+  all four required sections, under the allowances of rule 1, except that a skill with nothing to copy
+  omits `Template(s)` (below).
 - **A template earns its place by being copied.** It shows a file, or a block of text, that most
   projects using the skill would take as written. A sequence of commands, a walkthrough or a
   demonstration of the mechanism behind a rule is not a template: it becomes a sentence of prose beside
-  the rule, or nothing.
+  the rule, or nothing. A skill left with nothing to copy omits `## Template(s)`, as a reference or
+  process skill does.
 - A universal (unprefixed) skill may name a `hex-*` or `flat-*` skill as an example, but may not
   *require* one — the `pyhouse-universal` plugin must be installable alone. See the packaging table in
   the sibling `CONVENTIONS.md`.
