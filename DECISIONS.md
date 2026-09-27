@@ -1394,3 +1394,25 @@ paragraph in `flat-test-persistence`, and the helper wording in `flat-persistenc
 its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
+
+### D114 — `python-logging` sends a CLI's diagnostics to stderr, renders per sink, and is Reference-shaped
+A CLI tool is one of the universal test services, and `python-logging` told it that its stdout result is
+not a log event without saying where the log events go — so nothing stopped a logger writing to stdout
+from interleaving diagnostics with the data a caller pipes onward. Rule 1 now adds that a program whose stdout
+is its product writes every log event to stderr, stated beside the stdout sentence in `## The event`
+and backed by a hard stop. Rule 3 no longer renders every event in one machine-readable format: the one
+configuration picks the rendering for the sink — machine-readable wherever a collector reads it,
+human-readable only on an interactive terminal — and routes a framework's and a driver's loggers
+through it, with a new hard stop for a library's records that bypass it. Rule 1 and its `print()` hard
+stop now name one condition, "an entry-point debug path behind a flag", where rule 1 had said
+"deliberate". Separately, the skill produces no file, so it is Reference-shaped: the `## Template —
+structlog` heading is gone and its snippet, distributed-package comment included, is the example in
+`## The event`, beside the interpolated-sentence counter-example. A Reference skill omits
+`## Other bindings` (`meta-skill-author`, *Skill shapes*), so its two stdlib bullets are folded into one
+paragraph of `## Configuring the logger`, keeping what the binding changes, what it buys and what it
+costs. No rule was renumbered, so the citations of rules 1 and 3 elsewhere stand.
+**Reverse by:** restoring the `## Template — structlog (an application; …)` and `## Other bindings`
+sections ahead of `## The event`, the `# yes` line in its example, the "deliberate entrypoint debug
+path" wording and the one-format clause of rule 3, and deleting the stderr sentences, the rendering
+paragraph, the stdlib paragraph and the two new hard stops in `python-logging`; with the stderr clause in
+its description, both index lines and the `python-style` paragraph of `CLAUDE.md` put back.

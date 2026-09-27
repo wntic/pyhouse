@@ -1,6 +1,6 @@
 ---
 name: python-logging
-description: Use when writing code that reports what it did or what went wrong — a log call, a `print` for progress or errors, an `except` that records a failure, or logging setup in an entry point, a CLI or a library. Owns one structured event per occurrence with a stable `<subject>_<past_tense_verb>` name and identifiers as fields, the rule that an error is logged once by the scope that stops it and never by a scope that re-raises, the warning a failed undo under compensation earns, logging configured once at the entry point and never inside a distributed package, what never reaches a log line, and a program's result on stdout as output rather than a log event. Annotation forms and comments are `python-style`; the error classes and their `context` are `exception-catalog`.
+description: Use when writing code that reports what it did or what went wrong — a log call, a `print` for progress or errors, an `except` that records a failure, or logging setup in an entry point, a CLI or a library. Owns one structured event per occurrence with a stable `<subject>_<past_tense_verb>` name and identifiers as fields, the rule that an error is logged once by the scope that stops it and never by a scope that re-raises, the warning a failed undo under compensation earns, logging configured once at the entry point and never inside a distributed package, what never reaches a log line, and a program's result on stdout as output rather than a log event, its log events going to stderr. Annotation forms and comments are `python-style`; the error classes and their `context` are `exception-catalog`.
 ---
 
 # Python Logging
@@ -25,7 +25,28 @@ project's errors propagate to decides which scope that is. Everything else is un
 - Whether a test may assert on what was logged → `test-principles`.
 - An event name as a frozen external contract among the others → `naming`.
 
-## Template — structlog (an application; a distributed package uses the stdlib binding below)
+## The event
+
+Four obligations, whichever library provides them:
+
+- **One logger, obtained at module level.** Not per call, not per instance, and not a second logging
+  mechanism running alongside the first — two mechanisms split one event stream in half and neither half
+  is complete. `print()` is not one of them, outside an entry-point debug path behind a flag. **What a
+  program writes to stdout as its result is not a log event** — a CLI's report, a table, the JSON a
+  caller pipes onward is the product, and `print()` or `sys.stdout` is the right way to emit it; this
+  rule is about diagnostics, which never share that stream: **a program whose stdout is its product
+  writes every log event to stderr**, so a caller reading the result never parses a diagnostic as data.
+- **One event per occurrence.** The same occurrence logged twice is two incidents on the dashboard.
+- **The event name is a stable contract** — snake_case, `<subject>_<past_tense_verb>`.
+- **Identifiers and counts ride as fields**, never interpolated into the message.
+
+The event name is what a query matches on: `foo_created`, `bar_archived`, `foos_imported`,
+`run_failed`. These are stable strings — **do not rename once shipped**, because dashboards and
+alerts key on them. `naming` lists them among the frozen external contracts for that reason.
+
+Identifiers and counts are fields: the primary id as `<subject>_id`, the actor as `caller_id` where one
+exists, counts (`imported`, `skipped`, `errors`) for a bulk operation. Under `structlog`, in an
+application:
 
 ```python
 import structlog
@@ -36,47 +57,7 @@ log = structlog.get_logger()
 log.info("foo_created", foo_id=str(foo.id))
 ```
 
-## Other bindings
-
-- **Stdlib `logging` plus a structured adapter** — the binding for a distributed package (rule 4),
-  which calls `logging.getLogger(__name__)` and stops there, and an alternative for an application,
-  whose entry point configures `logging` once with a JSON formatter, the event name as the record's
-  message and the fields passed through `extra=` or a `LoggerAdapter` (or the whole module kept behind a
-  thin structured wrapper). What changes: how the logger is obtained and configured, and how fields
-  reach the record. What does not: one event per occurrence, the `<subject>_<past_tense_verb>` name and
-  its never-rename contract, identifiers and counts as fields rather than interpolated text, the
-  never-log-and-re-raise rule, and the allocation rule.
-- **What that binding buys**, so it reads as a choice rather than a fallback: third-party libraries log
-  through `logging`, so on this binding their records land in the same stream with no bridge to
-  configure. What it costs is that nothing in the library enforces the field discipline — the
-  obligations below have to be held by the author, where a keyword-field interface makes them the path
-  of least resistance.
-
-## The event
-
-Four obligations, whichever library provides them:
-
-- **One logger, obtained at module level.** Not per call, not per instance, and not a second logging
-  mechanism running alongside the first — two mechanisms split one event stream in half and neither half
-  is complete. `print()` is not one of them, outside a deliberate entrypoint debug path. **What a
-  program writes to stdout as its result is not a log event** — a CLI's report, a table, the JSON a
-  caller pipes onward is the product, and `print()` or `sys.stdout` is the right way to emit it; this
-  rule is about diagnostics, which never share that stream.
-- **One event per occurrence.** The same occurrence logged twice is two incidents on the dashboard.
-- **The event name is a stable contract** — snake_case, `<subject>_<past_tense_verb>`.
-- **Identifiers and counts ride as fields**, never interpolated into the message.
-
-The event name is what a query matches on: `foo_created`, `bar_archived`, `foos_imported`,
-`run_failed`. These are stable strings — **do not rename once shipped**, because dashboards and
-alerts key on them. `naming` lists them among the frozen external contracts for that reason.
-
-Identifiers and counts are fields: the primary id as `<subject>_id`, the actor as `caller_id` where one
-exists, counts (`imported`, `skipped`, `errors`) for a bulk operation.
-
 ```python
-# yes
-log.info("foo_created", foo_id=str(foo.id))
-
 # no — nothing in this line can be filtered by foo, grouped, or counted
 log.info(f"created foo {foo.id}")
 ```
@@ -90,6 +71,17 @@ whatever defaults the library happens to have. **A distributed package configure
 logs through the stdlib's `logging.getLogger(__name__)`, the one interface every importer already routes,
 adds no handler and sets no level, and leaves every one of those choices to the application that imports
 it.
+
+**The rendering follows the sink**: machine-readable wherever a collector reads it, human-readable only
+on an interactive terminal.
+
+An application may bind the stdlib `logging` module instead of a structured logger: its entry point
+configures a JSON formatter once, the event name is the record's message, and the fields reach the record
+through `extra=` or a `LoggerAdapter` (or the module sits behind a thin structured wrapper). That buys one
+stream with no bridge, since third-party libraries already log through `logging`; it costs enforcement,
+since nothing in the module holds the field discipline, so the author holds it where a keyword-field
+interface would have made it the path of least resistance. How the logger is obtained, configured and
+fed its fields changes with the binding; nothing in `## Rules` does.
 
 ## Who logs an error
 
@@ -162,17 +154,18 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
 ## Rules
 
 1. **One logger, obtained at module level, and one structured event per occurrence.** No `print()` for
-   diagnostics outside a deliberate entrypoint debug path, and no second logging mechanism beside the
-   configured one — two mechanisms split the event stream and neither half is complete. Output a program
-   writes to stdout as its result is not a log event, and this rule does not reach it.
+   diagnostics outside an entry-point debug path behind a flag, and no second logging mechanism beside
+   the configured one — two mechanisms split the event stream and neither half is complete. Output a
+   program writes to stdout as its result is not a log event, and this rule does not reach it. A
+   program whose stdout is its product writes every log event to stderr.
 2. **Give every event a stable snake_case `<subject>_<past_tense_verb>` name, and carry its identifiers
    and counts as fields rather than interpolating them into the message.** A value inside a sentence
    cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
    the old string.
 3. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
-   the entry point configures logging, and that one configuration renders every event in one
-   machine-readable format and routes the standard library's loggers (the server's, the drivers')
-   through it.
+   the entry point configures logging, and that one configuration picks the rendering for the sink —
+   machine-readable wherever a collector reads it, human-readable only on an interactive terminal — and
+   routes the standard library's loggers (a framework's, a driver's) through it.
 4. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
    nothing** — no handler, no level, no format; the application importing it owns all three.
 5. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
@@ -196,13 +189,17 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
 - A log call emitting an interpolated sentence — no event name, no fields (`log.info(f"created foo
   {foo.id}")`) → stop, nothing in that line can be filtered, grouped or alerted on; emit an event name
   plus the identifiers as fields. This fires on every binding, the stdlib one included.
-- `print()` used for diagnostics outside an entrypoint debug path behind a flag → stop, use the
+- `print()` used for diagnostics outside an entry-point debug path behind a flag → stop, use the
   structured logger. A program's result written to stdout is not a diagnostic.
+- Log events written to the stdout that carries a program's result → stop, send them to stderr (rule 1);
+  a caller reading the result would parse them as data.
 - Logging configured — a handler added, a level or format set — anywhere but the process's entry point,
   or inside a distributed package at all → stop, the entry point configures once and a package's
   importer owns every one of those choices.
 - A second logging mechanism introduced beside the one already configured → stop, one logger everywhere;
   two split the event stream and neither half is complete.
+- A library's or framework's records bypass the configured logger — their own handler, their own format
+  → stop, route them through the one configuration (rule 3).
 - An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
   `foo_created`. Once shipped, never rename — dashboards depend on the string.
 - Logging a full body, a secret, or a bare `UUID` object → stop.
