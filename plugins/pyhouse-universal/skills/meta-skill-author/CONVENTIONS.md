@@ -1,6 +1,7 @@
 # Skill conventions
 
-Shared vocabulary and index for the catalogue. The authoritative format lives in `meta-skill-author`.
+Shared vocabulary, index and skill shapes for the catalogue. The authoritative format lives in
+`meta-skill-author`.
 
 ## Index
 
@@ -126,6 +127,45 @@ follows exactly once, by installing the other plugin. Write those with the plugi
 resolve the name learns why. A cross-family reference that carries a rule the referring skill needs is
 a different thing and is a defect — restate the rule, or move it to a universal skill both families
 reach, as the interpreter floor was moved to `python-style`.
+
+## Skill shapes
+
+The four shapes `meta-skill-author` names, what each emphasises, and the skills already in each. Pick
+the shape with the table there; the section format is the same for all four.
+
+### Producer — the default
+
+Creates one or more new files. Emphasis: `Template(s)` carries full literal file content with
+placeholders, under a heading naming its stack; `Package wiring` appears when a new module needs
+registering in an `__init__.py`.
+
+Examples: `hex-domain-model`, `hex-application`, `hex-persistence`, `hex-restapi-endpoint`,
+`hex-test-domain`.
+
+### Modifier
+
+Extends an existing file rather than creating one. Emphasis: `Template(s)` shows what gets inserted — a
+class body, a function, a decorator argument — not a whole file; `Package wiring` is usually absent
+because the file already lives in a package.
+
+Examples: `hex-wiring` (modifies the composition root), `hex-patterns` (shapes a handler body),
+`test-architecture-rule` (appends a test function).
+
+### Bootstrap
+
+Produces a fixed set of files, once per project. Emphasis: `Template(s)` carries several full file
+templates under `###` subheadings, one per file; `When to use vs. neighbours` says plainly that it is
+one-shot and names what other skills depend on it having run.
+
+Examples: `hex-restapi-app`, `hex-test-integration-setup`, `hex-test-app-invariants`.
+
+### Reference
+
+Produces no file — documents conventions other skills consult. Keeps `When to use vs. neighbours`,
+`Rules` and `Hard stops`; omits `Template(s)`, `Other bindings` and `Package wiring`; may organise its
+body under topical `##` headings that name the subject matter (`meta-skill-author` rule 1).
+
+Examples: `hex-conventions`, `hex-architecture`, `python-style`, `test-principles`, `meta-skill-author`.
 
 ## Placeholder vocabulary
 

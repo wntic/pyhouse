@@ -54,14 +54,6 @@ owner, not a different way to store data.
   session because the unit of work owns it (`hex-persistence/REPOSITORY.md:68,152`). The skill should
   say so in one sentence at the constructor, since a reader asked.
 
-#### 16. No bound on the size of `## Rules` and `## Hard stops`
-`meta-skill-author` bounds the body (~500 lines, then sibling files) and nothing else. Current extremes:
-`hex-application` 27 rules, `test-principles` 27 rules and 18 stops, `flat-entrypoint` 26 and 29,
-`flat-persistence` 20 and 24. Many hard stops restate a rule with "→ stop". Decide on a bound or a test
-(a hard stop only for a wrong turn a rule alone does not catch), and apply it.
-- `meta-skill-author/SKILL.md` is now ~510 lines, past its own ~500-line guideline for moving text to a
-  sibling file.
-
 #### 19. `hex-capability-adapter`'s template is one application's token client
 `HttpBarGateway.fetch_token(subject)` and `BarToken` are a specific upstream's shape. A generic adapter
 shows one capability call with the house pattern (injected client, status mapped to the catalogue at
@@ -139,3 +131,6 @@ skills loaded, defects → rules).
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.
+
+### 16. Sweep every skill against the hard-stop test
+Sweep every skill's `## Rules` and `## Hard stops` against the new test in `meta-skill-author`.

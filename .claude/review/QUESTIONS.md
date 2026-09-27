@@ -94,6 +94,11 @@ The mechanical checks. They matter and they are the easiest, which is why they c
 6. Every template's imports resolve (`tools/check_template_imports.py`). Templates are checked **one at
    a time**; they are not assembled into one runnable application — that pressure is what turns a set
    of templates into one sample app.
+7. **Does every hard stop catch a wrong turn no rule catches?** A stop is the action an agent takes
+   before it would reach the rule; one that restates a rule as "X → stop" is `DELETE`, and where it
+   names the action better, the rule is reworded and the stop still goes. Two rules stating one
+   obligation are one rule. A `## Rules` past ~20 entries: does the skill hold two concerns — split
+   it, or move part to a sibling file?
 
 ## How a finding is written
 
