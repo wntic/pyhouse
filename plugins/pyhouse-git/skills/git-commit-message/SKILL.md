@@ -82,7 +82,8 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
 3. **A break is marked where a tool finds it, and says what breaks and what to do instead.** `!` before
    the colon, and a `BREAKING CHANGE:` footer — the one token that must be uppercase. `!` alone is
    enough only when the description already says what broke. The footer is written for the caller who
-   has to change something: what stopped working, and its replacement.
+   has to change something: what stopped working, and its replacement. An unmarked break makes the
+   release computed from the history a minor or a patch that breaks everyone who upgrades.
 4. **The description can be understood without the diff, and does not repeat the type.** Imperative
    mood, no trailing period, specific enough that someone scanning `git log --oneline` knows what
    happened.
@@ -99,8 +100,8 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    the repository already carries it or the author asked for it in this commit. A trailer asserting
    authorship or sign-off makes a claim the author did not make.
 9. **The convention holds wherever the surviving message is written.** Under a squash merge the
-   request's title replaces every commit on the branch, so the title is what must be conventional, and
-   one request is one logical change. Under a merge commit every branch commit lands, so each must be.
+   request's title replaces every commit on the branch, so the title is what must be conventional —
+   fixed before merging, never after — and one request is one logical change. Under a merge commit every branch commit lands, so each must be.
    Either is fine and both at once is not: the check then has to sit in two places, and usually sits in
    one. Pick one, state it where contributors read, and enforce it there — `git-branching` rule 2.
    Where it is not recorded, the forge's merge setting is the answer; failing that, the mainline's
@@ -110,16 +111,6 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
 
 ## Hard stops
 
-- A type is being chosen by how large or important the change feels → stop, classify it by what it is.
-- A commit that is not a release edits the version → stop, the release derives the number from the
-  types since the last tag; this commit records a kind, it does not bump.
-- A change that breaks a caller is being committed without a break marker → stop, the release computed
-  from the history will be a minor or a patch that breaks everyone who upgrades.
-- A `BREAKING CHANGE` footer names what broke and not what to do instead → stop, the reader of that
-  footer is the caller who has to change something.
-- The description needs "and" → stop, split the commit.
-- A trailer is being added by habit → stop, drop it unless the repository or the author asked for it.
-- A squash-merging repository's request title is not conventional → stop, the title is the message that
-  survives; fix it before merging.
-- A scope is being invented in the first commit that uses it → stop, use the repository's vocabulary or
-  none.
+- Asked which merge method a repository uses, or to rebase, fold or clean up a branch before it lands
+  → stop, use `git-branching`.
+- Asked what the next version is, or to cut a release → stop, use `/release`.
