@@ -1577,7 +1577,7 @@ table module is imported, and offline mode is refused. Checked against Alembic 1
 its `env.py` builds the engine from the ini section, sets `target_metadata = None` (autogenerate then
 refuses to run), disposes only after a clean run and carries an offline branch; its `script.py.mako`
 annotates with `typing.Union`/`typing.Sequence` and orders `from alembic import op` before
-`import sqlalchemy as sa`, which breaks `python-style` and the `I` selection — so the template's one edit
+`import sqlalchemy as sa`, which breaks `python-style` and the `I` selection — so the template's edits
 is stated as a rule rather than the house forms being assumed. The baseline's obligations were already
 rule 7 (now 8) and the hard stops; its code block is reduced to a sentence. Rules 5 and 6 absorb what the
 templates carried (disposal, the metadata target), a new rule 7 states that the generated bootstrap is
