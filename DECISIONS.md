@@ -1300,3 +1300,19 @@ owner or actor. The base composition root carries one handler line. The blob-sto
 endpoint is tested like any endpoint. The page-size default is the filter's alone.
 **Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
 this one.
+
+### D111 — Settings are built by calling the class; no factory function that only returns it
+`get_foo_settings()`, `get_postgres_settings()`, `get_foo_api_settings()` and `get_settings()` each
+returned their class's no-argument construction and added nothing. The obligation behind them is
+`python-packaging` rule 8 — nothing is built at import time — and calling the class inside the function
+that composes the process meets it. The settings templates in `python-settings` and `flat-persistence`'s
+`SETUP.md` declare the class alone; the process definitions in `flat-entrypoint` and its `HTTP.md`, and
+the migration environment in `flat-project-setup`, call `FooApiSettings()`, `PostgresSettings()` and
+`Settings()` where they build the rest. `python-settings` rule 13 says the root constructs each class
+once and that a factory function is written only when it adds something — a cache, assembly from
+several sources — with a hard stop for one that only returns the construction; `python-packaging`'s
+"yes" example is the class called inside `main()`, and `flat-layered` rules 7 and 8, `flat-persistence`
+rule 14 and the hard stops that named a factory say "build" or "construct". A module-level instance
+stays forbidden. The hex family was already this shape — a container's provider method calls the class.
+**Reverse by:** restoring the factory functions, their `__all__` entries and the call sites, and the
+wording of the rules and hard stops above, from the commit before this one.

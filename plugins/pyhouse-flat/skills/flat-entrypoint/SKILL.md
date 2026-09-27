@@ -115,15 +115,15 @@ import asyncio
 
 import httpx
 
-from myapp.foo_api import FooClient, get_foo_api_settings
+from myapp.foo_api import FooApiSettings, FooClient
 from myapp.foo_sync import run_once
 from myapp.logging import configure_logging
-from myapp.postgres import FooRepository, get_engine, get_postgres_settings
+from myapp.postgres import FooRepository, PostgresSettings, get_engine
 
 
 async def _run() -> None:
-    api = get_foo_api_settings()
-    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
+    api = FooApiSettings()
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())
     try:
         async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:
             await run_once(FooClient(http), FooRepository(engine))
@@ -162,7 +162,7 @@ things takes them from one builder rather than a copy (rule 14).
 
 A loop or a consumer wraps each run in one guard and, for a loop, sleeps between runs on an interval
 read from the process's settings — a required field with no default (`python-settings` rule 5). The
-fragment sits inside `_run`, after `settings = get_settings()`, the process's `Settings` declaring
+fragment sits inside `_run`, after `settings = Settings()`, the process's `Settings` declaring
 `poll_interval_seconds: float` with no default:
 
 ```python

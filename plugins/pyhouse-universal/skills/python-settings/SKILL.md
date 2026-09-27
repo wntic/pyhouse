@@ -1,7 +1,7 @@
 ---
 name: python-settings
 description: Use when a program reads configuration from its environment — writing or extending a settings class, deciding whether a field gets a default, carrying a secret, or deciding where the settings object is built and how its values reach the code that uses them. Owns one settings class per configured component, the non-strict namespace, no default on a required field or a tunable, the secret type and where it is unwrapped, derived values, validation that only normalizes or rejects, construction at the composition root, and what a library reads (nothing, when published). The prefix's name is `naming`; nothing built at import time is `python-packaging`.
-when_to_use: Also when asked for a config class, an env var, a `.env` file, a `BaseSettings` subclass, an API key or password field, a timeout or pool-size default, `os.getenv` in a module, or where to call `get_settings()`.
+when_to_use: Also when asked for a config class, an env var, a `.env` file, a `BaseSettings` subclass, an API key or password field, a timeout or pool-size default, `os.getenv` in a module, or where to build the settings object.
 ---
 
 # Python — Settings
@@ -17,7 +17,7 @@ handed it.
 - What a settings class or its environment prefix is called, the nested-prefix collision, and the stem a
   shared library reads → `naming` (its rule 7 and **One environment prefix per settings class**).
 - A settings object, client or engine built at module level → `python-packaging` rule 8, which owns
-  building nothing at import time; this skill owns where the factory is called instead.
+  building nothing at import time; this skill owns where the settings object is built instead.
 - A field's annotation, and keeping a secret out of a log line → `python-style`.
 - Building settings inside a test, `monkeypatch.setenv`, and dotenv files leaking into a test run →
   `test-principles`.
@@ -31,13 +31,13 @@ handed it.
 
 ## Template — pydantic-settings
 
-The settings module of the component it configures — one component, one class, one factory:
+The settings module of the component it configures — one component, one class:
 
 ```python
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["FooSettings", "get_foo_settings"]
+__all__ = ["FooSettings"]
 
 
 class FooSettings(BaseSettings):
@@ -50,10 +50,6 @@ class FooSettings(BaseSettings):
     url: str
     api_key: SecretStr
     timeout_seconds: float
-
-
-def get_foo_settings() -> FooSettings:
-    return FooSettings()
 ```
 
 Each `model_config` key is one rule: `env_prefix` is the component's namespace (rule 2), `env_file` reads
@@ -61,8 +57,9 @@ the local dotenv file where one exists and the real environment where it does no
 `extra="ignore"` keeps the namespace non-strict (rule 2). `url` and `api_key` are required and have no
 default (rules 4 and 8); `timeout_seconds` is a tunable and has none either (rule 5). `SecretStr` is
 this binding's secret type and `.get_secret_value()` its unwrap (rules 7 and 9); a derived value is a
-`@property` on the class (rule 10), a validator a `@field_validator` (rule 12). Under a dependency-injection container the
-container's provider method is the factory and `get_foo_settings` is not written.
+`@property` on the class (rule 10), a validator a `@field_validator` (rule 12). The module builds
+nothing: the composition root calls the class — `settings = FooSettings()` inside `main()`, or in the
+container's provider method — and a missing required variable fails there (rule 13).
 
 ## Other bindings
 
@@ -121,10 +118,12 @@ container's provider method is the factory and `get_foo_settings` is not written
 13. **Settings are built at the program's composition root and passed down as values.** The composition
     root is the one place a program assembles its objects: a service's container or process
     definition, a CLI command's entry function, a migration environment, the test infrastructure. It
-    calls each settings factory once and hands the object, or the values it holds, to what it
-    constructs. Never at import time (`python-packaging` rule 8), and never below the root — owning a
-    settings class is not permission for a component to build it, and a client, repository or unit of
-    work that builds its own settings cannot be given different ones.
+    constructs each settings class once — calling the class is enough — and hands the object, or the
+    values it holds, to what it constructs. A factory function around the constructor is written only
+    when it adds something the call does not, a cache or assembly from several sources. Never at
+    import time (`python-packaging` rule 8), and never below the root — owning a settings class is not
+    permission for a component to build it, and a client, repository or unit of work that builds its
+    own settings cannot be given different ones.
 14. **A published library reads no environment.** Its importer is the program with a composition root,
     so the library's constructors and functions take plain values and the importer's own settings supply
     them. A library shared inside one repository may declare a settings class under its own stem
@@ -145,7 +144,7 @@ container's provider method is the factory and `get_foo_settings` is not written
 
 ## Package wiring
 
-The settings module re-exports its class and factory like any other module (`python-packaging`).
+The settings module re-exports its class like any other module (`python-packaging`).
 
 ## Hard stops
 
@@ -169,6 +168,8 @@ The settings module re-exports its class and factory like any other module (`pyt
 - A settings object built at module level → stop, `python-packaging` rule 8; built inside a client, a
   repository, a handler or a run function → stop, the composition root builds it and passes it down
   (rule 13).
+- A function whose whole body returns the settings class's no-argument construction → stop, delete it
+  and call the class at the composition root (rule 13).
 - A published library reading an environment variable → stop, take the value as a parameter (rule 14).
 - A value the caller picks per run or per call read from the environment → stop, make it an argument
   or a parameter (rule 15).

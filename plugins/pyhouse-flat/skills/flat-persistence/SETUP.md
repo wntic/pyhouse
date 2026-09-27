@@ -48,7 +48,7 @@ than borrowing a field from the service's class (`flat-layered` rule 8).
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["PostgresSettings", "get_postgres_settings"]
+__all__ = ["PostgresSettings"]
 
 
 class PostgresSettings(BaseSettings):
@@ -65,10 +65,6 @@ class PostgresSettings(BaseSettings):
     def _use_async_driver(cls, dsn: SecretStr) -> SecretStr:
         scheme, separator, rest = dsn.get_secret_value().partition("://")
         return SecretStr(f"postgresql+asyncpg{separator}{rest}") if scheme in {"postgres", "postgresql"} else dsn
-
-
-def get_postgres_settings() -> PostgresSettings:
-    return PostgresSettings()
 ```
 
 The variable holds the platform's connection string; the class normalizes its scheme to the async
@@ -78,14 +74,13 @@ is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the pr
 `postgres` is a reserved segment there (`naming`); where the package is shared between distributions its
 prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
 changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
-adds its fields to this one (rule 17). The process definition calls the factory, unwraps `dsn` and hands
-the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the migration
+adds its fields to this one (rule 17). The process definition constructs `PostgresSettings()`, unwraps
+`dsn` and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the migration
 environment is the migration run's process definition and does the same (`flat-project-setup`).
 
 **No `@lru_cache` on the engine factory.** Memoising an engine keyed by its connection string pins a live
 pool for the life of the process, outliving the shutdown path and the test that wanted to dispose of it;
-the settings factory's cache is `python-packaging`'s rule, and with one caller there is nothing for
-either cache to collapse.
+with one caller there is nothing for a cache to collapse.
 
 ## Engine and bulk write — SQLAlchemy async, asyncpg
 
