@@ -1653,3 +1653,58 @@ restoring the import comment in `hex-capability-adapter`, the file-path header c
 `# imports` marker in `python-packaging`, the `TRANSFER.md`, `hex-restapi-schema` and `REPOSITORY.md`
 comments, and `hex-restapi-endpoint`'s shorter router-registration sentence; and dropping the
 optional-marker paragraph from `python-style`'s `## Comments`.
+
+### D124 — A hard stop is a test, not a limit
+`meta-skill-author` bounded the body at ~500 lines and nothing else, and hard stops had grown into a
+second copy of the rules: a skill's `## Hard stops` restated its `## Rules` with "→ stop" appended, so
+one obligation was written twice and paid for twice on every load. A count was weighed and rejected —
+it would be met by merging unrelated rules or dropping real ones, the same defect a bullet cap on
+`## When to use vs. neighbours` was. The skill now states a test instead. Rule 7 says a hard stop
+exists only for a wrong turn no rule governs — an action taken before any rule applies: the request
+itself, the choice of skill, whether to write at all — stated as that action, and every plausible
+wrong-skill case is one, with a redirect. A stop about content a rule already governs is deleted; if
+its wording names the mistake better, that wording moves into the rule first. An intermediate reading
+kept a content stop wherever it named a concrete action an agent is about to take; the maintainer
+chose the narrower criterion over it, because such a stop still guards what a rule already governs and
+is paid for twice. The portability gate's intro gains the remedy one deleted stop carried: whatever a
+question flags is replaced with a placeholder or deleted before the skill ships. The canonical template's `## Rules`
+placeholder says a rule states one obligation once, that there is no numeric limit, and that past ~20
+entries review checks for two concerns to split or move to a sibling file; its `## Hard stops`
+placeholder points at rule 7. `QUESTIONS.md` gains lens 4 question 7. It sits in lens 4, not lens 3,
+because it is answered by reading the skill against `meta-skill-author`, with no test service and no
+generation: a stop that restates a rule changes nothing an agent builds, so lens 3 would not see it;
+what it costs is context, which is a contract matter. `meta-skill-author` applied the test to itself:
+of its 17 hard stops, the 14 that restated one of its own sections or rules (the `description` and
+`when_to_use` ones, the length limits, a library-free rule, a second template, the neighbour count,
+publishing with Claude Code-only keys, application names, template comments, the vendor manual,
+unchecked imports, evidence language, the portability gate and unmarked skeleton lines) are gone, and
+the three that name an action taken before any rule applies stay — asked for a skill an existing one
+covers, asked for one built on another frontmatter field, and writing one from material nothing
+survives. The last was reworded as the action. The four shapes' descriptions and examples moved to
+`## Skill shapes` in the sibling `CONVENTIONS.md`, the picking table staying with a pointer, which
+with the stops brings `SKILL.md` from 510 lines to 455. The sweep of every other skill against the
+test is a separate change, backlog item 16.
+**Reverse by:** restoring rule 7 as "**Hard stops are explicit.** Every plausible wrong-skill case
+becomes a hard stop with a redirect. This is how a reader recovers from misclassification without
+overreaching." followed by its unchanged last sentence; dropping the added sentences from the
+`## Rules` and `## Hard stops` placeholders and from the portability gate's intro; restoring the 14
+deleted hard stops and the earlier wording of the question-5 stop; moving the four `###` shape sections back from `CONVENTIONS.md` into
+`## Skill shapes` before `### Picking a shape`, with "(rule 1)" and "this skill" in place of their
+qualified forms, and dropping the pointer and the "four skill shapes" mentions in both files' openings;
+and dropping lens 4 question 7 from `QUESTIONS.md`, with question 2 again asking that "each plausible
+wrong turn has a hard stop".
+
+### D125 — Placeholders stay `Foo`/`Bar`; no template syntax
+Jinja-style placeholders (`{{ aggregate }}` rather than `FooRepository`) were proposed and are
+rejected. A template must stay valid Python: `tools/check_template_imports.py` parses every fenced
+`python` block, and braces would make every block a syntax error, which that script skips silently —
+it returns no imports for a block that does not parse — so no template's imports would be verified
+again. An agent copies a template verbatim and
+could leave the braces in the reader's file. And a slot still needs its names derived —
+`{{ Aggregate }}Repository`, the plural, the snake case — which is `naming`'s job and what `Foo`,
+`foos` and `IFooRepository` already show worked through. What the proposal rightly noticed is that some
+templates read as an invented domain (`BarGateway`, `BarToken`); that is one template carrying one
+application's shape, a lens-1 defect fixed in that template (backlog item 19), not a matter of syntax.
+**Reverse by:** choosing a slot syntax that still parses as Python, rewriting every template and the
+`CONVENTIONS.md` placeholder table to it, teaching `tools/check_template_imports.py` to read it, and
+stating in `naming` how each derived name is spelled from a slot.

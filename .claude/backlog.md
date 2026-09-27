@@ -54,14 +54,6 @@ owner, not a different way to store data.
   session because the unit of work owns it (`hex-persistence/REPOSITORY.md:68,152`). The skill should
   say so in one sentence at the constructor, since a reader asked.
 
-#### 16. No bound on the size of `## Rules` and `## Hard stops`
-`meta-skill-author` bounds the body (~500 lines, then sibling files) and nothing else. Current extremes:
-`hex-application` 27 rules, `test-principles` 27 rules and 18 stops, `flat-entrypoint` 26 and 29,
-`flat-persistence` 20 and 24. Many hard stops restate a rule with "→ stop". Decide on a bound or a test
-(a hard stop only for a wrong turn a rule alone does not catch), and apply it.
-- `meta-skill-author/SKILL.md` is now ~510 lines, past its own ~500-line guideline for moving text to a
-  sibling file.
-
 #### 19. `hex-capability-adapter`'s template is one application's token client
 `HttpBarGateway.fetch_token(subject)` and `BarToken` are a specific upstream's shape. A generic adapter
 shows one capability call with the house pattern (injected client, status mapped to the catalogue at
@@ -93,15 +85,6 @@ restapi tests (item 24), the template comments (D123, item 30). `hex-test-restap
 `hex-test-application-handler/FAKES.md` are the densest in domain nouns. Run `/review-skills` over the
 test skills after the production skill each one follows has settled.
 
-#### 27. Jinja-style placeholders in place of `Foo`/`Bar`
-Proposed by the maintainer: `{{ aggregate }}` rather than `FooRepository`. Weighed against it: templates
-stop being valid Python, so `tools/check_template_imports.py` and any syntax check stop working; an
-agent copying verbatim can leave the braces in; and names still have to be derived (`{{ Aggregate }}Repository`,
-the plural, the snake case), which is what `naming` states today. What the proposal gets right is that
-some placeholders read as invented concepts (`BarGateway`, `BarToken`). That is a lens-1 defect
-(item 19), not the placeholder syntax. Recommendation: keep `Foo`/`Bar`, and cut the templates that make
-them read as a fictional domain.
-
 #### 28. A single-use helper is a private method in `hex-persistence`, a module function in `python-packaging`
 `hex-persistence` rule 11 and its `REPOSITORY.md` rule 23 say a helper used by exactly one method is a
 private method, which contradicts `python-packaging`'s "a helper that does not need `self` is a module
@@ -124,7 +107,7 @@ Test skills were not swept.
 #### 31. Command sequences the "a template earns its place by being copied" bullet flags
 `flat-persistence/SETUP.md` (the alembic commands) and `python-versioning/SKILL.md` (tag and push) are
 sequences a project runs, not files it copies. Also `meta-skill-author` says the skill shapes "add and
-remove nothing" (~line 368) while a reference skill omits `Template(s)`; reword it.
+remove nothing" (~line 378) while a reference skill omits `Template(s)`; reword it.
 `git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
 rest.
 
@@ -139,3 +122,8 @@ skills loaded, defects → rules).
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.
+
+### 16. Sweep every skill against the hard-stop test
+Sweep every skill's `## Rules` and `## Hard stops` against the new test in `meta-skill-author`.
+`plugins/pyhouse-universal/agents/pyhouse-reviewer.md` (~line 81, "A hard stop is its rule's trigger")
+describes stops as the old test did and is updated in the same sweep.
