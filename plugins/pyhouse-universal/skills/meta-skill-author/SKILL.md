@@ -57,7 +57,10 @@ paths: <optional — activation globs, Claude Code only>
 - **`description`** — what the skill covers and when to apply it. This is what gets matched to decide
   whether to load the skill, and it is the **only** field every client reads.
 - **`when_to_use`** — a valid, documented Claude Code field carrying additional invocation context.
-  Optional. It supplements `description`; it never replaces part of it.
+  Optional, and read by Claude Code only. It supplements `description`; it never replaces part of it.
+  Write it when there are trigger phrasings worth adding beyond what `description` already carries. A
+  skill without it is not missing anything, and one with it is not a defect — `description` must stand
+  alone either way.
 - **`paths`** — a valid, documented Claude Code field carrying glob patterns that limit when a skill
   auto-activates. Optional, and not restricted to test skills. It **narrows** auto-activation, so a
   too-tight glob makes a skill unfindable in a project whose layout differs slightly. Glob the layer

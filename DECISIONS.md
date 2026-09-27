@@ -1538,3 +1538,12 @@ asked: modules made only of functions — test modules, `__main__`, an app facto
 where they are, and 17 of them put helpers first; widening the rule to them is a separate decision.
 **Reverse by:** deleting the sentence and the clause of rule 3 in `python-packaging`, and moving
 `_translate` and `_map_integrity_error` back above their classes.
+
+### D120 — `when_to_use` is optional, and neither its presence nor its absence is a defect
+18 skills carry `when_to_use` and 30 do not, nearly all of `pyhouse-hex` among the latter. The
+maintainer chose to legalize that state as it is rather than even it out: the field is Claude Code
+only, every other client matches on `description` alone, so it is written where there are trigger
+phrasings worth adding beyond what `description` already carries, and `description` must stand alone
+either way. `meta-skill-author` now says so beside the field. No skill changes, and no sweep follows.
+**Reverse by:** deleting that sentence, and then either adding the field to the 30 or removing it
+from the 18.
