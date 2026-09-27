@@ -237,9 +237,9 @@ in-process one alone.
    removes the only thing this level can prove.
 3. **Where a run can repeat over the same input, its test file pins what the second run does.** A
    scheduled pass over a feed that mostly repeats, and any run a trigger may retry after a partial
-   failure, both meet that condition — run twice, assert the observable state is unchanged. A run whose
-   input is consumed once, or that is by construction never repeated, has nothing to pin and the test
-   would assert a coincidence.
+   failure, both meet that condition — run twice, assert the second run added no row and changed nothing its
+   input determines. A run whose input is consumed once, or that is by construction never repeated, has
+   nothing to pin and the test would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
    logged `"ok"` and wrote nothing must fail, and a process's containment is asserted on what its guard
    returns. A service with no store asserts on the requests the stubbed transport recorded and on the

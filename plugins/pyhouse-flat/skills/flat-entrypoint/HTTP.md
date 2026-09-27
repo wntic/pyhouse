@@ -101,7 +101,7 @@ instant is aware (`python-style`):
 ```python
 from pydantic import AwareDatetime
 
-from myapp.schemas.foo_payload import FooPayload
+from .foo_payload import FooPayload
 
 __all__ = ["FooDelivery"]
 
@@ -151,7 +151,7 @@ from myapp.web import build_app
 
 async def _serve() -> None:
     settings = Settings()
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store, and the try/finally
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())
     try:
         app = build_app(FooRepository(engine))
         config = uvicorn.Config(app, host=settings.http_host, port=settings.http_port, log_config=None)

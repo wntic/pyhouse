@@ -113,17 +113,17 @@ serializes the return value into a durable history makes this load-bearing rathe
 ```python
 import asyncio
 
-import httpx
+import httpx  # only with an upstream
 
-from myapp.foo_api import FooApiSettings, FooClient
+from myapp.foo_api import FooApiSettings, FooClient  # only with an upstream
 from myapp.foo_sync import run_once
 from myapp.logging import configure_logging
-from myapp.postgres import FooRepository, PostgresSettings, get_engine
+from myapp.postgres import FooRepository, PostgresSettings, get_engine  # only with a store
 
 
 async def _run() -> None:
-    api = FooApiSettings()  # only with an upstream, like the block below; without one the run leaves it
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store, and the try/finally
+    api = FooApiSettings()  # only with an upstream, as is the block below; without one the run moves out of it
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store (so are try/finally, repository)
     try:
         async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:  # only with an upstream
             await run_once(FooClient(http), FooRepository(engine))
