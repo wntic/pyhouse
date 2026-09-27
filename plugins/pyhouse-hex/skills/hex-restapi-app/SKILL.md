@@ -24,7 +24,7 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - Middleware class naming and the `restapi/middleware/` package layout → `naming` and `python-packaging`.
 - The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-app-invariants`.
 
-**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes and the upload/download kinds in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no middleware** — no CORS, no request-size cap, no request id. `main.py` leaves a placeholder where they are wired in, and the middleware section below is the form each one takes.
+**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes and the upload/download kinds in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no middleware** — no CORS, no request-size cap, no request id. The notes under `main.py` say where they are wired in, and the middleware section below is the form each one takes.
 
 ## Template(s) — FastAPI, dishka-wired
 
@@ -66,13 +66,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
 def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app = FastAPI(title="myapp", lifespan=_lifespan)
 
-    # Middleware is added here (`## Middleware`); none is presumed.
-
     register_error_handlers(app)
-
-    # Routers added by hex-restapi-endpoint:
-    # from .routers.foos import router as foos_router
-    # app.include_router(foos_router)
 
     setup_dishka(container=container or create_container(), app=app)
     return app
@@ -82,10 +76,10 @@ Notes:
 
 - **`lifespan` is the resource-teardown hook**, and closing the composition root is the whole of it. Each long-lived handle declares its own release beside its construction (`hex-wiring`) and runs in reverse order of construction, so this file never names a datastore and never grows a per-app variant; an app that opens nothing disposable still closes cleanly.
 - **Where browsers call the API cross-origin, add `CORSMiddleware` first, with every value from settings** — never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
-- **No other middleware is presumed** — not even a request-size cap. Starlette wraps the last-added outermost, so the last one listed is the request's outermost layer (rule 10).
+- **No other middleware is presumed** — not even a request-size cap. A declared one is added right after the app is constructed, before the error handlers are registered (`## Middleware`). Starlette wraps the last-added outermost, so the last one listed is the request's outermost layer (rule 10).
 - **`setup_dishka` is called last**, after the routers are included: it attaches the composition root to the app (as `app.state.dishka_container`) and installs the middleware that opens and closes a per-request scope. Every construction path must reach it before the app is served.
 - **The `container` parameter is the test seam.** `hex-test-integration-setup`'s `real_app` add-on passes its `container` fixture — a composition root built with test bindings; production passes nothing and gets `create_container()`.
-- **The router-include block is a placeholder.** Subsequent `hex-restapi-endpoint` invocations add their own `app.include_router(...)` line.
+- **Routers are included between the error handlers and `setup_dishka`.** The template includes none; each `hex-restapi-endpoint` invocation adds its router's import at the top of the file and its own `app.include_router(...)` line there.
 
 ### `restapi/error_handler.py`
 
@@ -211,7 +205,6 @@ class ErrorResponse(BaseModel):
     context: dict[str, object] = Field(default_factory=dict)
 
 
-# Codes no MyappError class produces; INTERNAL_ERROR is the unhandled-exception code.
 MIDDLEWARE_ERRORS: dict[str, int] = {"INTERNAL_ERROR": 500}
 
 

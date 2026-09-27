@@ -190,8 +190,9 @@ class ListFoosQuery:
 
 ### Query handler — single entity
 
+`get_foo_query.py`, then `get_foo_handler.py`.
+
 ```python
-# get_foo_query.py
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -204,7 +205,6 @@ class GetFooQuery:
 ```
 
 ```python
-# get_foo_handler.py
 from myapp.domain.foos import Foo, IFooRepository
 
 from .get_foo_query import GetFooQuery
@@ -225,8 +225,9 @@ For an entity-or-none read the annotation is `Foo | None` and the repository met
 
 ### Query handler — list, plus its Result DTO
 
+`list_foos_handler.py`, then `list_foos_result.py`.
+
 ```python
-# list_foos_handler.py
 from myapp.domain.foos import IFooRepository
 
 from .list_foos_query import ListFoosQuery
@@ -246,7 +247,6 @@ class ListFoosHandler:
 ```
 
 ```python
-# list_foos_result.py
 from collections.abc import Sequence
 from dataclasses import dataclass
 

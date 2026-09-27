@@ -1526,3 +1526,36 @@ before and after. The flat/hex difference in the test engine's pool pre-ping is 
 neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
+
+### D124 — Production templates carry only the comments `python-style` sanctions
+An agent copies a template verbatim, so every comment and docstring in one lands in every project, and
+`python-style` allows a comment only as a single short line of non-obvious *why*. The production
+templates carried more. `hex-wiring`'s `CONTAINER.md` had a docstring on each provider class and on
+`create_container`, a two-line note on where the repository binding is merged from and a per-line
+`# one line per handler`; all are gone and their content is a paragraph before the block. In
+`hex-restapi-app`, `main.py`'s middleware placeholder comment and its commented-out router include
+are gone — the notes under the block say where a middleware and a router are added — and so is the
+comment above `MIDDLEWARE_ERRORS`, which the prose after the block already states. In
+`hex-restapi-auth`, the field comment on `CurrentUser.id` (restated by the prose below it), the
+"protocol is NOT imported" import comment (now named in the paragraph that points at
+`hex-capability-adapter`) and `_RoleDependency`'s docstring (now the sentence introducing the gate)
+are gone. `hex-application`'s `# <file>.py` headers in its two-file query blocks became a line of
+prose naming the files, as its other two-file sections already do without them. `python-logging`'s
+note that a distributed package uses the stdlib logger moved into the sentence before its example.
+Kept, and why: the two one-line *why* comments in `hex-restapi-app`'s `schemas/errors.py` (the bare
+number for an unknown status; the annotation that strict mypy needs at the decorator), which are true
+in the reader's file; every optional-line marker (`# only with …`, `# only where …`), including
+`flat-entrypoint`'s extended ones, because D117 put that instruction in the template precisely because
+an agent does not copy the sentence after it; and the `# yes` / `# no` contrast labels and per-line
+annotations in `python-packaging` and `python-logging`, which are illustrations of a rule rather than
+files a project copies, along with `python-packaging`'s `# imports` elision marker. No template here
+had a suppression to keep. Test skills are not covered by this change.
+**Reverse by:** restoring the docstrings on `SettingsProvider`, `InfrastructureProvider`,
+`FoosProvider` and `create_container`, the repository-binding comment and the per-handler comment in
+`CONTAINER.md`, and dropping the paragraph before its block; restoring the middleware comment and the
+commented-out router include in `hex-restapi-app`'s `main.py`, its "router-include block is a
+placeholder" note, the shorter "No other middleware is presumed" note and "`main.py` leaves a
+placeholder where they are wired in", and the comment above `MIDDLEWARE_ERRORS`; restoring the
+`CurrentUser.id` field comment, the import comment and the `_RoleDependency` docstring in
+`hex-restapi-auth` and dropping the prose that replaced them; restoring the `# <file>.py` headers in
+`hex-application`; and moving the distributed-package note in `python-logging` back into its example.

@@ -45,13 +45,13 @@ The event name is what a query matches on: `foo_created`, `bar_archived`, `foos_
 alerts key on them. `naming` lists them among the frozen external contracts for that reason.
 
 Identifiers and counts are fields: the primary id as `<subject>_id`, the actor as `caller_id` where one
-exists, counts (`imported`, `skipped`, `errors`) for a bulk operation. Under `structlog`, in an
+exists, counts (`imported`, `skipped`, `errors`) for a bulk operation. A distributed package uses
+`logging.getLogger(__name__)` instead and configures nothing (rule 4). Under `structlog`, in an
 application — unconfigured, it renders for a terminal on stdout, so the entry point sets both the
 rendering and the stream (rules 1 and 3):
 
 ```python
 import structlog
-# a distributed package uses logging.getLogger(__name__) instead and configures nothing (rule 4)
 
 log = structlog.get_logger()
 

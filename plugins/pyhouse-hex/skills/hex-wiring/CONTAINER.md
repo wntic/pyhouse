@@ -14,6 +14,16 @@ project merges the ones it has into the providers below, each line into the prov
 name, in declaration order; a provider class a binding adds (a second subdomain's) joins the
 `create_container` list.
 
+`SettingsProvider` holds the settings, at process lifetime, and everything else may depend on them.
+`InfrastructureProvider` holds the long-lived handles, each released after its yield, and the
+cross-cutting adapters, which the binding beside each adapter adds. There is one per-operation provider
+class per subdomain — `FoosProvider` here — declaring the repository, then the services that use it,
+then the handlers that use them, one `provide` line per handler; `IFooRepository`'s line is merged in
+from the skill of the store `Foo` lives in (`hex-persistence` for a relational store,
+`hex-store-repository` for a key-value one). `provides=` is what binds an adapter to its port; every
+constructor argument is resolved from its annotation, so nothing is passed. The `overrides` of
+`create_container` are the test seam and nothing else appends to them (`hex-test-integration-setup`).
+
 ```python
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 
@@ -23,35 +33,20 @@ __all__ = ["create_container"]
 
 
 class SettingsProvider(Provider):
-    """Settings — process lifetime; everything else may depend on them."""
-
     scope = Scope.APP
 
 
 class InfrastructureProvider(Provider):
-    """Long-lived handles, each released after its yield, and cross-cutting adapters,
-    which the binding beside each adapter adds here."""
-
     scope = Scope.APP
 
 
 class FoosProvider(Provider):
-    """One provider class per subdomain: repository, then the services that use it,
-    then the handlers that use them. `provides=` is what binds the adapter to the port;
-    every constructor argument is resolved from its annotation, so nothing is passed here.
-    """
-
     scope = Scope.REQUEST
 
-    # IFooRepository's binding is merged in from the skill of the store Foo lives in —
-    # hex-persistence for a relational store, hex-store-repository for a key-value one.
-
-    create_foo_handler = provide(CreateFooHandler)  # one line per handler the subdomain has
+    create_foo_handler = provide(CreateFooHandler)
 
 
 def create_container(*overrides: Provider) -> AsyncContainer:
-    """The composition root. `overrides` is the test seam and nothing else appends to it
-    (`hex-test-integration-setup`)."""
     return make_async_container(
         SettingsProvider(),
         InfrastructureProvider(),
