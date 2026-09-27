@@ -1687,3 +1687,16 @@ wording of the question-5 stop; moving the four `###` shape sections back from `
 `## Skill shapes` before `### Picking a shape`, with "(rule 1)" and "this skill" in place of their
 qualified forms, and dropping the pointer and the "four skill shapes" mentions in both files' openings;
 and dropping lens 4 question 7 from `QUESTIONS.md`.
+
+### D125 — Placeholders stay `Foo`/`Bar`; no template syntax
+Jinja-style placeholders (`{{ aggregate }}` rather than `FooRepository`) were proposed and are
+rejected. A template must stay valid Python: `tools/check_template_imports.py` parses every fenced
+`python` block, and braces would stop it and any syntax check. An agent copies a template verbatim and
+could leave the braces in the reader's file. And a slot still needs its names derived —
+`{{ Aggregate }}Repository`, the plural, the snake case — which is `naming`'s job and what `Foo`,
+`foos` and `IFooRepository` already show worked through. What the proposal rightly noticed is that some
+templates read as an invented domain (`BarGateway`, `BarToken`); that is one template carrying one
+application's shape, a lens-1 defect fixed in that template (backlog item 19), not a matter of syntax.
+**Reverse by:** choosing a slot syntax that still parses as Python, rewriting every template and the
+`CONVENTIONS.md` placeholder table to it, teaching `tools/check_template_imports.py` to read it, and
+stating in `naming` how each derived name is spelled from a slot.

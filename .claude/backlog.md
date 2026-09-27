@@ -85,15 +85,6 @@ restapi tests (item 24), the template comments (D123, item 30). `hex-test-restap
 `hex-test-application-handler/FAKES.md` are the densest in domain nouns. Run `/review-skills` over the
 test skills after the production skill each one follows has settled.
 
-#### 27. Jinja-style placeholders in place of `Foo`/`Bar`
-Proposed by the maintainer: `{{ aggregate }}` rather than `FooRepository`. Weighed against it: templates
-stop being valid Python, so `tools/check_template_imports.py` and any syntax check stop working; an
-agent copying verbatim can leave the braces in; and names still have to be derived (`{{ Aggregate }}Repository`,
-the plural, the snake case), which is what `naming` states today. What the proposal gets right is that
-some placeholders read as invented concepts (`BarGateway`, `BarToken`). That is a lens-1 defect
-(item 19), not the placeholder syntax. Recommendation: keep `Foo`/`Bar`, and cut the templates that make
-them read as a fictional domain.
-
 #### 28. A single-use helper is a private method in `hex-persistence`, a module function in `python-packaging`
 `hex-persistence` rule 11 and its `REPOSITORY.md` rule 23 say a helper used by exactly one method is a
 private method, which contradicts `python-packaging`'s "a helper that does not need `self` is a module
