@@ -5,47 +5,7 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-Found by the four-lens reviews of items 1, 2, 3 and 5, outside what those items changed.
-
-### 6. `python-logging` rule 3 gives a CLI tool JSON on its terminal
-"Renders every event in one machine-readable format" holds for a service a collector reads, not for a
-CLI tool run by a person, and "(the server's, the drivers')" assumes a server. Proposal: "…in one
-format, machine-readable wherever a collector reads it, and routes the standard library's loggers (a
-framework's, a driver's) through it." Also: rule 1 says "a deliberate entrypoint debug path" where its
-hard stop says "behind a flag" — make them one condition; no hard stop covers stdlib loggers left
-unrouted.
-
-### 7. `flat-test-integration-setup` restates and over-states
-- Rule 2 (the safety guard) is unconditional, but the guard exists only for a database the suite did
-  not start; say so, as rule 3 already does.
-- The hard stop near the end repeating "guard relaxed → stop" is a duplicate; fold it into the first.
-- Rule 4 restates `test-principles` *Fixture scope rules*; the `filterwarnings` hard stop restates
-  `test-principles` reliability rule 9; the prose after the pytest config restates rule 8, and the
-  `truncate_all` prose restates rule 7. Point instead.
-- The crawler writing to two stores gets no word on fixtures for its second, non-relational store —
-  at most one sentence.
-
-### 8. `pytest.raises` names the narrowest class — a universal rule stated in family skills
-"Never a bare `Exception`" is stated in `flat-test-persistence` and `hex-test-capability-adapter` and
-holds in any Python test; `test-principles` does not state it. Add one line to its assert-strength
-rules and point the family skills at it.
-
-### 9. Flat entrypoint templates carry a store the service may not have
-- `flat-entrypoint` Shape 1 imports and builds a Postgres engine; a queue consumer that stores nothing
-  copies it and relies on prose to remove it.
-- `flat-entrypoint/HTTP.md` calls `record_batch([foo])` with the default `DO UPDATE`, so every
-  redelivered webhook rewrites `observed_at`; a webhook's natural write is one row, often
-  `DO NOTHING`. Now that `flat-persistence` says the batch is optional, the webhook template can
-  show the single-row write.
-
-### 10. Smaller leftovers from this round
-- `exception-catalog`'s good `context` example still carries `"constraint": "uq_foos_name"`, the
-  invented relational key removed from `python-logging`.
-- `python-logging` carries a template and still puts six topical `##` sections between
-  `## Other bindings` and `## Rules`, which `meta-skill-author` rule 1 allows only in Reference bodies.
-- `tools/check_template_imports.py` still lists `mycommon`, deleted by D29, in `PLACEHOLDERS`.
-- Flat's test engine takes the driver default (no pre-ping); hex's reuses the production builder
-  (pre-ping on). No test-only setting remains, but the two are not built the same way.
+Nothing proposed.
 
 ## Agreed
 
@@ -58,3 +18,66 @@ skills loaded, defects → rules).
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.
+
+### 6. `python-logging` — where a CLI's diagnostics go, and one rendering per sink
+Branch `feature/logging-cli`, together with the headings bullet of item 10. A minor for
+`pyhouse-universal`.
+- Rule 3 → "…and that one configuration picks the rendering for the sink — machine-readable wherever a
+  collector reads it, human-readable only on an interactive terminal — and routes the standard
+  library's loggers (a framework's, a driver's) through it."
+- Rule 1 gains: "A program whose stdout is its product writes every log event to stderr."
+- Rule 1 and its `print()` hard stop name one condition: "an entry-point debug path behind a flag".
+- New hard stop: "A library's or framework's records bypass the configured logger — their own handler,
+  their own format → stop, route them through the one configuration (rule 3)."
+
+### 7. `flat-test-integration-setup` — point instead of restating
+Branch `fix/flat-test-setup-pointers`. A patch for `pyhouse-flat`; about −14 lines, +3.
+- Rule 2 opens "**Where the suite can reach a database it did not start**, the safety guard lives
+  inside…", as rule 3 is already conditional.
+- Delete the hard stop "the guard is being relaxed because someone wants to run against a local
+  database"; the first guard stop ends "…a developer's database; the suite TRUNCATEs every table it can
+  see."
+- Rule 4 → "One pool per run, one transaction per test — the scopes `test-principles` *Fixture scope
+  rules* set. A session-scoped connection would serialize the suite onto one connection."
+- The `filterwarnings` hard stop → "…→ stop, add the exception as `test-principles` reliability rule 9
+  states it."
+- The prose after the pytest configuration becomes "Both loop-scope lines are load-bearing (rule 8)."; the
+  `truncate_all` paragraph keeps only the lock explanation rule 7 lacks.
+- `## Other bindings` gains: "**A second, non-relational store** gets its own session-scoped container
+  and client beside these, and isolates by a per-test namespace deleted at teardown — there is no
+  transaction to roll back."
+
+### 8. `test-principles` — expect the narrowest class on a raise path
+Branch `feature/raise-assert`. A minor for `pyhouse-universal`.
+- *Assert strength* gains recipe 6: "**On a raise path, expect the narrowest class the contract raises**,
+  never `Exception` or a base shared with unrelated failures, and assert the one field that
+  distinguishes it (`code`, a key in `context`). A bare `Exception` passes a body that fails for any
+  reason at all."
+- `flat-test-persistence`'s hard stop keeps only its family half ("…or the driver's own exception class
+  → stop, expect the translated catalogue class").
+- `hex-test-capability-adapter` rule 7 stays — the probe's SDK class is the legitimate exception — and
+  cites recipe 6.
+
+### 9. `flat-entrypoint` — mark the optional lines; a webhook redelivery changes nothing
+Branch `fix/flat-entrypoint-optional`. A minor for `pyhouse-flat` (rule 9 gains an obligation).
+- Shape 1 and the `HTTP.md` process template mark `# only with a store` on the settings / engine /
+  dispose lines and `# only with an upstream` on the HTTP-client block; the prose sentence saying so
+  goes.
+- Rule 9's clause → "…a redelivery of one already recorded is answered as a success **and changes
+  nothing**", agreeing with the queue trigger's idempotency rule.
+- The `HTTP.md` run function takes the time from the event (`observed_at=payload.sent_at`, with the
+  field on `FooPayload`), not `datetime.now(UTC)`, so a redelivery rewrites identical values.
+  `record_batch([foo])` stays; no single-row method is added to the template.
+
+### 10. Smaller leftovers
+Branch `fix/leftovers`, except the headings bullet, which goes with item 6. Patches.
+- `exception-catalog`'s `context` example drops `"constraint": "uq_foos_name"` for a key that names
+  the input (`{"foo_name": …}`), as `python-logging` now shows.
+- `python-logging` becomes Reference-shaped: its structlog snippet moves into `## The event` as that
+  section's example, the `## Template` heading goes, and its topical `##` headings then fall under
+  `meta-skill-author` rule 1's Reference allowance. The snippet and its distributed-package comment stay
+  where an agent copies them.
+- `tools/check_template_imports.py` drops `mycommon` and `store_sdk` from `PLACEHOLDERS` after a grep
+  confirms no template imports either; rerun the checker.
+- The flat/hex test-engine pre-ping difference is closed with no change: neither family states a rule
+  about it.
