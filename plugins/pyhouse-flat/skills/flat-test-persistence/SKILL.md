@@ -196,8 +196,8 @@ could not observe another connection's rollback either way.
   assertion.
 - A write spanning statements has only happy-path tests → stop, add the failing-last-statement test
   (rule 11); without it a refactor splitting the statements into two transactions passes every test.
-- A test forcing a driver error expects a bare `Exception`, or the driver's own exception class → stop;
-  name the catalogue exception the translator produces, or the test pins nothing the package promises.
+- A test forcing a driver error expects the driver's own exception class → stop, expect the translated
+  catalogue class (rule 7).
 - The constraint under test does not exist in a migration yet → stop, add the revision first; a test
   asserting a constraint the schema never had passes for the wrong reason.
 - A test asserts on rows written by a *different* test → stop, isolation wipes everything between tests;

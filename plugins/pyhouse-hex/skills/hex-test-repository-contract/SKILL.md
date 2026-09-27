@@ -105,8 +105,10 @@ async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> N
 
     await repo.delete(foo.id)
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(NotFoundError) as exc:
         await repo.get_by_id(foo.id)
+
+    assert exc.value.context["id"] == str(foo.id)
 
 
 async def test_duplicate_name_on_insert_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
@@ -298,15 +300,20 @@ async def test_delete_removes_the_record(redis_client: Redis) -> None:
 
     await repo.delete(baz.id)
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(NotFoundError) as exc:
         await repo.get_by_id(baz.id)
+
+    assert exc.value.context["id"] == str(baz.id)
 
 
 async def test_delete_of_absent_record_raises_not_found(redis_client: Redis) -> None:
     repo = BazRepository(client=redis_client)
+    missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError):
-        await repo.delete(uuid.uuid4())
+    with pytest.raises(NotFoundError) as exc:
+        await repo.delete(missing)
+
+    assert exc.value.context["id"] == str(missing)
 
 
 async def test_get_against_unreachable_store_raises_upstream_error() -> None:
