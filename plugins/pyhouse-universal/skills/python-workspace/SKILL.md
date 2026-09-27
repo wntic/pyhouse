@@ -193,7 +193,7 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
 - **Another workspace tool in place of uv.** Poetry path dependencies, PDM local sources, Pants and
   Bazel all express the same two things: the member list declared once at the root, and each member
   pinning its in-repo dependencies through an edge the tool itself resolves. The member-glob syntax,
-  the lock file and the sync command change; rules 1–8 do not. Rule 5 is the one to carry over
+  the lock file and the sync command change; rules 1–9 do not. Rule 5 is the one to carry over
   literally — whatever the tool, the edge is *declared*, never faked with a path insert.
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
   `invoke` and `nox` give the same one-discoverable-command-set-at-the-root property; a dev Kubernetes
@@ -207,7 +207,8 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
 1. **One workspace, two member groups.** One group holds libraries with no entrypoint of their own;
    the other holds runnable distributions, one directory per deployable. `packages/*` and `services/*`
    are this example's names for them. Never put runnable code in the library group or shared library
-   code in the runnable one.
+   code in the runnable one, and never runtime code in the root project, which is a container: code
+   that has no member gets one.
 2. **A new member is admitted with two sentences, not just a directory.** Before creating the
    directory, the change that adds it names the member's **encapsulated knowledge** — the tables it
    owns, the upstream it speaks, the vocabulary it defines, none of which another member may assume —
@@ -246,6 +247,9 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
    does. A member's settings, and a shared library's that reads its own stem, then resolve their env
    files against the process working directory, so a member started from the repo root silently reads
    none of them. Migrations and syncs have no such restriction.
+9. **A cleanup command names what it destroys.** It removes the one volume or artifact it is for, never
+   everything the project holds — `docker compose down -v` drops every volume, application data
+   included.
 
 ## Hard stops
 
@@ -254,15 +258,9 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
   is one reason members end up in one repository, not the test of whether they belong there — a
   repository of libraries and CLIs that share no store needs every rule here except the ones about a
   schema owner.
-- A new member is being created and its encapsulated knowledge cannot be named in one sentence →
-  stop; write the two sentences first (`coupling`) — the boundary, not the directory, is what needs
-  to exist.
-- A runnable member needs its own private tables in the store the members share → stop, put the
-  `Table` in the one owning library; a second schema owner over one store means two migration
-  histories, and the second to run decides what the first one's tables look like.
-- A runnable member imports a sibling runnable member → stop, promote the shared code into a library
-  member.
-- Runtime code is being added to the root `pyproject.toml`'s project → stop, the root is a container;
-  create a member for it.
-- A cleanup target runs `docker compose down -v` → stop, name the one volume to remove; `-v` drops
-  every volume in the project, application data included.
+- Asked for a member's internal layout — its layer or role packages, its clients, its work units → stop,
+  use that member's architecture skill (`hex-architecture`, in `pyhouse-hex`, or `flat-layered`, in
+  `pyhouse-flat`).
+- The members' architecture family is not settled → stop, use `architecture-choice`, once per member.
+- Asked whether a proposed member is a boundary at all → stop, use `coupling`; rule 2 is the check this
+  skill runs once that is settled.
