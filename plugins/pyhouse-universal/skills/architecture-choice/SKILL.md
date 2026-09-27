@@ -243,14 +243,19 @@ so installing one keeps everything here.
 
 1. **Answer the invariants question first, and let it decide.** The other questions are read after it,
    to confirm or to flip a borderline case. A family chosen before that question is answered was chosen
-   on something else.
+   on something else. No invariants is flat, and that is the answer, not a concession; real invariants
+   are hexagonal however heavy the integration work beside them, because flat has no answer for
+   invariants and hexagonal has one for integrations.
 2. **Never score the criteria.** No points, no weights, no tally. The criteria are not commensurable,
    and a total lets a reader accumulate weak signals into an answer the deciding question already
    refused.
 3. **Name the invariant, or accept that there is none.** State the rule in one sentence — what is
    valid, and what the service refuses. A rule that cannot be written in a sentence is not yet an
-   invariant, and "there might be rules later" is never one.
-4. **Decide per service, never per repository.** A workspace is not a family.
+   invariant, and "there might be rules later" is never one: flat → hexagonal is additive, so the
+   structure is taken when the rule arrives, not in anticipation of it.
+4. **Decide per service, never per repository, and give each service exactly one family.** A workspace
+   is not a family, and a service is hexagonal or flat, never both — no `domain/` package beside role
+   packages, no ports with one implementation each in a flat service.
 5. **State the cost of the choice alongside the choice.** Both families have one, and a reader deciding
    needs the one they are buying named.
 6. **Record the answer and its reason where the service's readers will find it** — a sentence or two in
@@ -259,9 +264,10 @@ so installing one keeps everything here.
    reason gets copied into a service that does not warrant it.
 7. **Re-run the decision on an event, not on a schedule.** The events are the first rule two callers
    share, a second entrypoint over the same logic, and a dependency gaining a second real
-   implementation.
-8. **A service with no invariants gets flat, and that is the answer, not a concession.**
-9. **When neither family applies, say so and route nowhere.** Two different cases end the same way —
+   implementation. An audit finding a working hexagonal service has no invariants is not one:
+   over-structure costs less than the demolition, so hexagonal → flat is recommended only when the
+   structure is actively blocking the work.
+8. **When neither family applies, say so and route nowhere.** Two different cases end the same way —
    a project too small to need an architecture, and one whose shape this catalogue does not cover.
    Name what does apply and stop. Handing a script an architecture is as wrong an outcome as handing a
    rules-heavy service the wrong family, and routing an uncovered shape to the nearer family is worse
@@ -269,25 +275,15 @@ so installing one keeps everything here.
 
 ## Hard stops
 
-- A score, a weighting or a points total is being assembled from the questions → stop, that is not how
-  this decides; answer the invariants question and read the rest as evidence.
-- A family is being chosen before the invariants question has an answer → stop, answer it first.
-- "No domain yet, but there might be one later" is offered as the reason for hexagonal → stop, that is
-  anticipatory structure. Flat → hexagonal is additive; take the structure when the rule arrives.
-- The service has real invariants and flat is being chosen because the integration work is heavier →
-  stop, the asymmetry decides it — flat has no answer for invariants.
-- A single style is being imposed across every member of a workspace → stop, the choice is per service.
-- Both families are being combined — a `domain/` package beside role packages, or ports with one
-  implementation each in a flat service → stop, pick one family; a service is hexagonal or flat, never
-  both.
 - A script, a lambda body or a one-shot migration is being given an architecture → stop, it needs none;
   name the universal skills and finish.
 - A project whose layout a framework, an orchestrator or a packaging form already fixes — a Django or
   Flask tree, a package-by-feature service, a library, a CLI tool, an Airflow or Dagster repo, a
   modular monolith — is being assigned hexagonal or flat → stop, this catalogue does not cover that
   shape; name it, name the universal skills, and finish.
-- A working hexagonal service is being demolished into flat because an audit found no invariants →
-  stop, over-structure is not a defect worth a rewrite; migrate only when the structure blocks work.
-- This skill is being asked for the layer contract, the package layout or a file template → stop, use
-  `hex-architecture` or `flat-layered` — install `pyhouse-hex` or `pyhouse-flat` if it is absent.
+- This skill is being asked for the layer contract, the package layout or a file template, or to review
+  a service against the family it already has → stop, use `hex-architecture` or `flat-layered` —
+  install `pyhouse-hex` or `pyhouse-flat` if it is absent.
 - Asked where a boundary should go, or whether two components split or merge → stop, use `coupling`.
+- Asked for the root of a workspace holding several services → stop, use `python-workspace`; the family
+  is still chosen here, once per member.
