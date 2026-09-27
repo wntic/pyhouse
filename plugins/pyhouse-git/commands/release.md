@@ -134,13 +134,14 @@ which is the case the types exist to prevent and cannot always catch.
 3. Tag that commit, annotated, spelled as step 3 settled — once per member under per-member tags. Pass
    the annotation on standard input, so no editor opens; it names the version and each member's bump:
 
-   ```
-   git tag -a -F - <tag> <release commit> <<'EOF'
-   <tag>
+```
+git tag -a -F - <tag> <release commit> <<'EOF'
+<tag>
 
-   <member> <current> -> <next>
-   EOF
-   ```
+<member> <current> -> <next>
+EOF
+```
+
 4. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so
    many words: once the tag leaves this machine it cannot be taken back.
 
