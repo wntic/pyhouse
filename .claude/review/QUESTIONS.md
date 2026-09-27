@@ -95,10 +95,9 @@ The mechanical checks. They matter and they are the easiest, which is why they c
    a time**; they are not assembled into one runnable application — that pressure is what turns a set
    of templates into one sample app.
 7. **Does every hard stop catch a wrong turn no rule in this skill catches?** A stop is an action
-   taken before any rule applies; one about content a rule in this skill governs is `DELETE`, and
-   where it names the action better, the rule is reworded and the stop still goes. Judge by the
-   remedy, not the wording: a remedy that is another skill, or writing nothing, keeps the stop; a
-   remedy that writes something in this skill differently makes it `DELETE`. Two rules stating one
+   taken before any rule applies. Judge by the remedy, not the wording: a remedy that is another
+   skill, or writing nothing, keeps the stop; a remedy that writes something in this skill
+   differently makes it `DELETE`, its better wording moving into the rule first. Two rules stating one
    obligation are one rule. A `## Rules` past ~20 entries: does the skill hold two concerns — split
    it, or move part to a sibling file?
 
