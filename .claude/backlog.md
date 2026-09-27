@@ -48,12 +48,7 @@ The maintainer's GLM run with a short `dns_scanner` prompt was made on the skill
 rework. Run it again on current `main` and review the output the same way (layout, module size, which
 skills loaded, defects → rules).
 
-### 5. Release
-`main` carries unreleased `feat!` changes in `pyhouse-universal`, `pyhouse-hex` and `pyhouse-flat`
-(`pyhouse-git` unchanged). Below 1.0 each takes a minor; the marketplace a minor. Cut with `/release`
-when the maintainer decides.
-
-### 6. Small leftovers from the generality rework
+### 5. Small leftovers from the generality rework
 - `hex-test-integration-setup` lost the `pool_pre_ping=False` opt-out that `flat-test-integration-setup`
   keeps — decide one position for both.
 - `.claude/commands/commit.md` lists `foo_parser` among the placeholders; `CONVENTIONS.md` does not
