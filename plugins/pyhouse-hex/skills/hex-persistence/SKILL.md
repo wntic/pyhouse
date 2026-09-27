@@ -1,7 +1,7 @@
 ---
 name: hex-persistence
-description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, the paired Alembic revision, or the store's settings class with its engine and repository binding. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, and integrity-error translation. Not a flat-layered service's data-access package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
-paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**"]
+description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, the paired Alembic revision, or the store's settings class with its engine and repository binding — or when one command must write two or more repositories atomically through a unit of work. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, integrity-error translation, and the unit-of-work protocol, implementation and the handler form that opens it. Not compensation for an external write (`hex-application`), not a flat-layered service's data-access package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
+paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**", "**/domain/uow/**"]
 ---
 
 # Hexagonal Persistence (relational)
@@ -31,14 +31,15 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - The store's settings class and its container binding → `REPOSITORY.md`; what a settings class
   declares → `python-settings`; lifetimes, declaration order and the base they merge into → `hex-wiring`.
 - The engine and session factories the binding calls → `REPOSITORY.md`, beside the settings class.
-- The unit-of-work protocol and implementation, when the repository joins multi-repository transactions →
-  `hex-patterns`.
+- A command writing two or more repositories that must commit together — the unit-of-work protocol, its
+  implementation and binding, and the handler form that opens it → `UNIT_OF_WORK.md`.
+- An external write undone when a later store write fails (compensation) → `hex-application`.
 - The exception classes the translator raises → `exception-catalog`.
 - The integration test that drives this adapter against a real database → `hex-test-repository-contract`.
 - A data-only migration (`backfill_*`, `seed_*`) with no DDL → its own revision file; this skill covers
   DDL only.
 - Asked for an ORM, a declarative base or relationships → still this skill: the templates here
-  are Core, and an ORM project satisfies rules 1–14 through the ORM bullet under `## Other bindings`;
+  are Core, and an ORM project satisfies rules 1–17 through the ORM bullet under `## Other bindings`;
   do not copy a Core template into a mapped class.
 
 ## Template(s) — SQLAlchemy Core, asyncpg, Alembic
@@ -59,8 +60,9 @@ migrations/versions/
 └── <revision>_create_foos.py      # authored via `alembic revision`, hand-edited to the rules below
 ```
 
-The full file templates live in three topic files, one per artifact in that layout. **Read the topic
-file for the artifact before writing or changing it** — only this file is loaded automatically:
+The full file templates live in topic files, one per artifact in that layout plus one for the unit of
+work. **Read the topic file for the artifact before writing or changing it** — only this file is
+loaded automatically:
 
 - **`TABLE.md`** — the naming convention, the table template, and the column, foreign-key, index,
   constraint, child-table and default rules.
@@ -68,6 +70,9 @@ file for the artifact before writing or changing it** — only this file is load
   translation and mapping rules, the shared-mapper extraction threshold, and the store's settings class
   with its engine factories and container binding.
 - **`REVISION.md`** — the revision template, the drift check and the downgrade rule.
+- **`UNIT_OF_WORK.md`** — only where a command writes two or more repositories atomically: the
+  protocol in `domain/uow/`, its implementation beside the repositories, its binding, and the handler
+  form that opens it.
 
 ## Other bindings
 
@@ -78,7 +83,7 @@ file for the artifact before writing or changing it** — only this file is load
   runs is the SQL in the file, so a query's cost is readable at the call site and lazy loading cannot
   appear behind an attribute access. Under the ORM the mapped class is *not* the domain entity — keep the
   two separate and keep the mapper, or the domain grows a persistence dependency.
-- **Another engine or driver.** Rules 1–14 hold; the dialect-specific column types, the SQLSTATE codes
+- **Another engine or driver.** Rules 1–17 hold; the dialect-specific column types, the SQLSTATE codes
   and the attribute path the translator reads the constraint name through all change together. The skill
   states that coupling where it bites (`REPOSITORY.md`), because it is the one place a driver swap is not
   mechanical.
@@ -108,7 +113,9 @@ file for the artifact before writing or changing it** — only this file is load
 7. **One owner of the transaction, chosen per class.** A standalone adapter opens its own unit of work
    and commits only on a mutation; a unit-of-work-managed one receives a live one and never commits or
    rolls back. The two forms are mutually exclusive for one class, and no session is held in instance
-   state between methods.
+   state between methods. A joining repository is handed the open transactional handle, never a
+   factory: one that opens its own is in a different transaction, and the defect shows up as a partial
+   write rather than an error.
 8. **The read contract is the port's.** Fetch-by-identity raises rather than returning nothing, a
    secondary lookup may return an optional, a list returns a sequence ordered by *the caller's* chosen
    sort, a count returns an integer. A hardcoded default order that ignores the filter's sort is a bug,
@@ -134,6 +141,19 @@ file for the artifact before writing or changing it** — only this file is load
     reads or writes — a column removed, a `NOT NULL` added, a constraint narrowed — ships in a later
     release, once no running code depends on it. A change that needs both halves is two revisions in two
     releases, never one.
+15. **A unit of work exists only where one command writes two or more repositories that must commit
+    together, and there is one per transactional scope, never one per aggregate.** Every repository that
+    may join the transaction is a member of the same domain protocol, typed by its port. A second one is
+    earned only by a genuinely different scope and is named for that scope's role, never for its backend.
+16. **One unit of work per `execute`, opened by the handler from an injected zero-argument factory.**
+    Never shared across calls, never pooled: a shared one merges two callers' writes into one
+    transaction, so one caller's failure rolls back the other's work. The composition root binds the
+    factory, never an instance (`hex-wiring`).
+17. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
+    Nothing after the commit may fail non-idempotently. Nothing inside the block catches — only
+    compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
+    the transaction is unusable once a statement in it failed, so a retry policy belongs to the central
+    error handler.
 
 ## Inlined typing / import rules
 
@@ -184,6 +204,8 @@ environment import it from its module (`from ..metadata import metadata`,
 - A constraint name changes → stop, that is a breaking change; the table, the repository's
   translator and the revision all change in the same commit.
 - The repository is asked to commit inside the unit-of-work-managed form → stop, that breaks atomicity.
+- A unit of work is asked to span two backends (a table plus object storage or a cache) → stop, that is
+  compensation in `hex-application`, not a unit of work.
 - The repository is asked to log → stop, a repository never logs; the central error handler or the
   calling handler owns that (`hex-architecture`).
 - Asked for id generation inside the repository → stop, the application handler generates ids.

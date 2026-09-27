@@ -1,6 +1,6 @@
 ---
 name: hex-application
-description: Use when writing a use case — a CQRS command handler, a query handler, or its frozen input DTO. Owns the command/query split and the read-model versus write-model rule deciding whether a query returns the entity or a row-projected read-model. Not the entity (`hex-domain-model`) nor the wire model (`hex-restapi-schema`); undo-on-failure or a two-repository commit is `hex-patterns`.
+description: Use when writing a use case — a CQRS command handler, a query handler, or its frozen input DTO — including a command that needs compensation, undoing an external write such as an upload when a later store write fails. Owns the command/query split, the read-model versus write-model rule deciding whether a query returns the entity or a row-projected read-model, and the try/undo/re-raise compensation body. Not the entity (`hex-domain-model`) nor the wire model (`hex-restapi-schema`); a unit of work making two repositories commit together is `hex-persistence`.
 paths: ["**/application/**"]
 ---
 
@@ -11,9 +11,13 @@ data. Both are thin — a frozen DTO plus a handler class whose only public meth
 
 ## When to use vs. neighbours
 
-Command or query, an undo-on-failure body or a unit of work → Command or query, at the head of Rules;
-whether a query returns the entity or a read-model → Read models, beside it. Outside it:
+Command or query → Command or query, at the head of Rules; whether a query returns the entity or a
+read-model → Read models, beside it; an undo-on-failure body → Compensation, under Rules, and its template in `COMPENSATION.md`. Outside it:
 
+- A handler writing two or more repositories in one transaction — the unit of work, its protocol and
+  the handler form that opens it → `hex-persistence` (`UNIT_OF_WORK.md`).
+- The reversing method a compensation calls → declared beside its forward operation by
+  `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`.
 - The entity, value object or filter record the DTOs mention → `hex-domain-model`.
 - The `IFooRepository` a handler depends on → `hex-domain-ports`.
 - A rule needing another aggregate's state, which the handler calls rather than inlines → `hex-domain-service`.
@@ -86,6 +90,10 @@ class CreateFooHandler:
         logger.info("foo_created", foo_id=str(foo.id))
         return foo.id
 ```
+
+Where the command makes an externally visible write before a store write that can still fail, this
+body gains the try/undo/re-raise form — **read `COMPENSATION.md`**, in this skill's directory, before
+writing it; the obligations are Compensation, under Rules.
 
 ### Command DTO and handler — update (returns `None`)
 
@@ -286,9 +294,10 @@ Artifact names follow `naming`; module boundaries follow `python-packaging`.
 - A mutation — create, update, delete, rename, move → **command**.
 - A read — get, list, count, search, detect → **query**.
 - The mutation performs an external IO step before the DB write and must undo it on failure → still a
-  command, but the handler body follows `hex-patterns` (the compensating-transaction form).
+  command, whose body follows Compensation, below.
 - Two or more repositories must commit atomically → still a command, with a unit-of-work factory
-  injected that the handler opens itself; see `hex-patterns`.
+  injected that the handler opens itself; read `hex-persistence`'s `UNIT_OF_WORK.md`, which carries the
+  protocol, its implementation and this handler form together.
 - A handler never returns a transport model. The use case must be callable from a second entrypoint —
   a CLI, a consumer — which has no web framework in it.
 
@@ -365,8 +374,8 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    services enforce the rules. The handler orchestrates: load, mutate, call the repository.
    **Normalization — strip, lowercase, reformat — is a domain concern** living in the entity's
    `__post_init__` or a value object. Pass `cmd.name`, not `cmd.name.strip()`.
-5. **No `try/except`, with two sanctioned exceptions.** (a) The compensating-transaction pattern, see
-   `hex-patterns`. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
+5. **No `try/except`, with two sanctioned exceptions.** (a) Compensation, below — its `try/except
+   Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
    to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
    a later read or retry sees it — the handler may
    `try: <pipeline> except <Err>: <load-or-mutate>; entity.status = FAILED; await repo.update(entity); raise`.
@@ -380,13 +389,33 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    repository leaves the transaction to it: the standalone repository form opens and commits its own
    (`hex-persistence`). The one earned exception is a handler that writes through **two or more**
    repositories atomically: it opens a unit of work itself, one per `execute`, from an injected factory —
-   `hex-patterns` owns that form.
+   `hex-persistence` owns that form (`UNIT_OF_WORK.md`).
 8. **Entity ids are `uuid.uuid4()`, minted by the handler before the write, unless the command carries
    an identity its caller supplied** — one scheme across every
    template, production and test alike. Stdlib only, on the interpreter floor `python-style` sets;
    `uuid.uuid7()` is standard library only from **Python 3.14**. Time-ordered v7 ids index better when
    rows created together are read together, and a project that wants them takes a third-party generator
    and applies it everywhere at once — never in half the templates.
+
+### Compensation — when a command handler undoes an external write
+
+1. **Compensate only an externally visible write — a blob upload, a third-party POST, a file write —
+   that lands before a store write that can still fail.** A side effect harmless if left behind, the last
+   step with nothing after it, or one that can be reordered after the store write needs no `try/except`.
+2. **The side effect runs outside the `try`, and only the fallible next step inside it.** Validation —
+   building the entity, whose invariants run in its constructor — comes before the side effect, so a
+   malformed command fails with nothing to undo.
+3. **Catch `Exception`, not specific classes**, so the undo runs whatever the cause.
+4. **The undo is the port's plain reversing method (`delete`, `retract`), which raises like any other
+   call, wrapped in its own guard inside the `except`** — `exception-catalog`'s best-effort
+   compensation, logging its one warning in `python-logging`'s shape.
+5. **The original failure is re-raised unchanged with a bare `raise` and not logged here** — a
+   re-raising scope stays silent (`python-logging`).
+6. **Several side effects are recorded as each lands, and on failure each recorded one is undone behind
+   its own guard**, so a failure part-way still cleans what already landed.
+7. **Compensation wraps a unit of work, never the reverse.**
+8. **Disposing of a replaced resource after a successful commit is not compensation** — no failure is
+   propagating, so its failure propagates like any other step's.
 
 ### Query handler
 
@@ -434,9 +463,15 @@ provider that constructs a handler is `hex-wiring`.
 - A query handler is asked to mutate state → stop, split the mutation out into a command handler.
 - A handler is asked to catch a `MyappError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
 - A handler is asked to validate cross-aggregate state inline → stop, use `hex-domain-service` and inject it.
-- Several writes must be atomic → stop, use `hex-patterns` for the unit-of-work factory the handler opens.
-- An external IO step comes before the DB write → stop, use `hex-patterns` for the command
-  body's compensating-transaction form.
+- Several repository writes must be atomic → stop, read `hex-persistence`'s `UNIT_OF_WORK.md` for the
+  factory the handler opens.
+- The undo a compensation needs has no reversing method on the port → stop, declare it beside the
+  forward operation first (`hex-domain-ports`).
+- The undo's failure is stopped anywhere but the handler's `except` that caught the original — inside a
+  dedicated `*_best_effort` method, or swallowed with no event logged → stop, the undo raises and only
+  that guard may stop it (`exception-catalog`).
+- Compensation would span two unrelated backends in both directions → stop, that is a saga, and out of
+  scope.
 - Asked for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.
 - A `*Result` grows past about three fields and starts looking like a different concept → stop, model the
   response as a domain value object or a read-model and return that.

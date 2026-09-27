@@ -78,7 +78,7 @@ paths: <optional — activation globs, Claude Code only>
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue** — 48 skills at ~400 characters is ~2% of a 200k
+- **There is no total budget across the catalogue** — 47 skills at ~400 characters is ~2% of a 200k
   window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.

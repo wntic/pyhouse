@@ -5,7 +5,7 @@ Shared vocabulary, index and skill shapes for the catalogue. The authoritative f
 
 ## Index
 
-The 48 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 47 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -31,17 +31,16 @@ too. The counts in every heading are the number of directories on disk.
 
 - `meta-skill-author` — Consult this sibling's vocabulary and index before adding a skill so its scope fits the existing catalogue; a template is copied verbatim, shows a house pattern rather than a vendor's manual, and a skeleton carries only lines most services of its family have, a variant marked with its condition.
 
-### Hex core (12)
+### Hex core (11)
 
 - `hex-architecture` — Once the family is hexagonal, decides which layer a module belongs in and which way an import may cross; whether hexagonal fits at all is `architecture-choice`'s.
 - `hex-conventions` — Resolve artifact locations and context ownership before applying an artifact's file template; it names each store profile's connection factory, while the factory itself is written by the store's own skill.
 - `hex-project-setup` — Run the bootstrap once — which libraries each role brings with the floors this family's templates rely on, and migrations with a baseline only over an existing schema; the toolchain itself is `python-toolchain`'s, later table changes the persistence skill's paired revision.
-- `hex-patterns` — Extend a handler when an external effect needs undo or several repositories must commit together; it carries no entrypoint or run function.
-- `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction; the relational store's settings class, its engine and session factories, and its container binding sit beside the adapter.
+- `hex-persistence` — Choose the standalone or unit-of-work-managed form according to who owns the transaction; the relational store's settings class, its engine and session factories, and its container binding sit beside the adapter. A command writing two or more repositories atomically reads its unit-of-work file.
 - `hex-domain-model` — Decides when a constrained primitive becomes a value object, on a stdlib-only substrate separate from transport models; a tunable threshold carries no default.
 - `hex-domain-ports` — Defines the signatures that adapters satisfy without inheriting or importing the protocol; a capability is async unless it is pure CPU, and a reversible action declares its undo beside it.
 - `hex-domain-service` — Place rules beside their primary aggregate; use an entity for rules enforceable from its own fields, and a module function for a transformation with nothing to inject.
-- `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface.
+- `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface; an external write undone when a later store write fails is its compensation body, the one sanctioned `try/except` beside a failure-state transition.
 - `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler; it builds and binds settings classes, whose contents are `python-settings`'s.
 - `hex-capability-adapter` — Implements an external action, templated once as an HTTP gateway with the SDK-client and pure-CPU forms in prose; aggregate persistence belongs to a repository skill.
 - `hex-store-repository` — Use for client-style storage, bound to redis, other stores under Other bindings; it writes the store's connection factory and fixes the key prefix in code, while relational tables and Alembic revisions belong to the persistence skill.
@@ -94,7 +93,7 @@ skill only as an example and must read correctly in a repository with no Python 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 13 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
-| `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
+| `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |
 
@@ -148,8 +147,8 @@ Extends an existing file rather than creating one. Emphasis: `Template(s)` shows
 class body, a function, a decorator argument — not a whole file; `Package wiring` is usually absent
 because the file already lives in a package.
 
-Examples: `hex-wiring` (modifies the composition root), `hex-patterns` (shapes a handler body),
-`test-architecture-rule` (appends a test function).
+Examples: `hex-wiring` (modifies the composition root), `test-architecture-rule` (appends a test
+function).
 
 ### Bootstrap
 
