@@ -133,7 +133,7 @@ async def test_db_failure_after_upload_deletes_blob() -> None:
     storage = FakeFooStorage()
     handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="simulated DB failure"):
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
     assert len(storage.uploads) == 1

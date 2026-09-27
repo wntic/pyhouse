@@ -1399,8 +1399,9 @@ superseded marker removed.
 `test-principles`' *Assert strength* had five recipes and no word on the raise path, so the rule that a
 test never expects a bare `Exception` lived only as family restatements: a hard stop in
 `flat-test-persistence` and a clause in `hex-test-capability-adapter` rule 7. Recipe 6 now owns it for
-any project: expect the narrowest class the contract raises, never `Exception` or a base shared with
-unrelated failures, and assert the one attribute that distinguishes the failure from others of its
+any project: expect the narrowest class the contract raises, never `Exception` or any ancestor of that
+class shared with unrelated failures — so a library whose contract raises `ValueError` still expects
+`ValueError` — and assert the one attribute that distinguishes the failure from others of its
 class — an error code, a context key, the offending input — or, where the class carries none, the part
 of its message that does, so a library or CLI tool with no error catalogue still applies it. The
 `flat-test-persistence` hard stop keeps only its family half (the driver's own class → expect the
@@ -1408,10 +1409,16 @@ translated catalogue class, rule 7); `hex-test-capability-adapter` rule 7 keeps 
 as the legitimate exception and cites recipe 6 for it; `hex-test-application-handler`'s list of the
 universal recipes names the sixth. Three `pytest.raises(NotFoundError)` blocks in
 `hex-test-repository-contract` asserted the class alone and now assert `context["id"]`, which the
-repository templates already set.
+repository templates already set. `hex-test-application-handler` rule 7 keeps only its fake-specific
+half and points at recipe 6 for the rest; `hex-test-domain`'s unknown-enum-value test and rule 15, and
+the first undo test in `hex-test-application-handler/FAKES.md`, expect their class with a `match=` on
+the message, since for those classes the message is the only distinguishing part.
 **Reverse by:** deleting recipe 6 and restoring "Five recipes" in `test-principles`, restoring
 "expects a bare `Exception`, or the driver's own exception class → stop; name the catalogue exception
 the translator produces, or the test pins nothing the package promises." in `flat-test-persistence`,
 "never a bare `Exception`" in `hex-test-capability-adapter` rule 7, the five-item list in
-`hex-test-application-handler`, and the class-only `NotFoundError` asserts in
-`hex-test-repository-contract`.
+`hex-test-application-handler` and the full text of its rule 7 ("pins the exception's machine-readable
+context, not just its class. Capture the raised catalogue exception … and assert the `context` entries
+that are the contract."), the class-only `NotFoundError` asserts in `hex-test-repository-contract`,
+and the `match=`-free `pytest.raises(ValueError)` in `hex-test-domain` (template and rule 15) and
+`pytest.raises(RuntimeError)` in the first undo test of `hex-test-application-handler/FAKES.md`.
