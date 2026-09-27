@@ -421,6 +421,10 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
 - Hard stops use the canonical phrasing: "X → stop, use `<other-skill>`" or "X → stop, <action>".
 - A reference skill omits `Template(s)`, `Other bindings` and `Package wiring`; everything else keeps
   all four required sections, under the allowances of rule 1.
+- **A template earns its place by being copied.** It shows a file, or a block of text, that most
+  projects using the skill would take as written. A sequence of commands, a walkthrough or a
+  demonstration of the mechanism behind a rule is not a template: it becomes a sentence of prose beside
+  the rule, or nothing.
 - A universal (unprefixed) skill may name a `hex-*` or `flat-*` skill as an example, but may not
   *require* one — the `pyhouse-universal` plugin must be installable alone. See the packaging table in
   the sibling `CONVENTIONS.md`.

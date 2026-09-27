@@ -1526,3 +1526,17 @@ before and after. The flat/hex difference in the test engine's pool pre-ping is 
 neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
+
+### D121 — A template earns its place by being copied
+The maintainer's read-through found `## Template(s)` filled where nothing is copied: `git-branching`
+carried a fourteen-line script — switch, fixup, autosquash, force-with-lease push, open and merge the
+request — that no repository takes as written, that rule 4 does not need, and that named its branch
+`feat/…` where this repository's own flow says `feature/…`. `meta-skill-author` now says a template is a
+file or block of text most projects would take as written, and anything else is prose beside the rule
+or nothing. `git-branching` keeps the branching section a repository records and the forge settings
+that enforce it, and the script becomes one sentence carrying the only fact it had that an agent may
+not know (the git 2.44 `--autosquash` behaviour). `git-commit-message` keeps its format block: every
+commit message is written from it. No other skill was swept against the new line; that is lens-1 work
+for `/review-skills` as each skill comes up.
+**Reverse by:** deleting the bullet in `meta-skill-author`'s universal rules and restoring the script
+in `git-branching`.
