@@ -1,6 +1,6 @@
 # flat-entrypoint — the HTTP trigger
 
-Topic file of `flat-entrypoint`. The obligations are rule 9 and the HTTP hard stops in `SKILL.md`; what
+Topic file of `flat-entrypoint`. The obligations are rule 9 in `SKILL.md`; what
 follows is the **FastAPI + uvicorn** binding that satisfies them, for one route receiving a body and
 handing it to one run function.
 
