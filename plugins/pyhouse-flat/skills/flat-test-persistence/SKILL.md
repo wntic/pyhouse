@@ -175,7 +175,7 @@ could not observe another connection's rollback either way.
    read, it is forced to fail once too: a translation written only around the writes leaves every read
    leaking the driver's type, and no write test notices. The failure is forced through something the store itself refuses, never
    through a value that only happens to be rejected today.
-8. **A timestamp the store assigns is asserted as `test-principles` reliability rule 5 states**; under the
+8. **A timestamp the store assigns is asserted as `test-principles` reliability rule 4 states**; under the
    rollback-scoped `conn` every write shares one transaction, and so one fixed clock.
 9. **A repository-class test constructs the class with the `engine` fixture**, never with the production
    engine factory — that builds a second pool the suite never disposes (`flat-test-integration-setup`).
