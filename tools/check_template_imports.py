@@ -27,7 +27,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 FENCE = re.compile(r"```python\n(.*?)```", re.S)
 
 # Modules the catalogue means not to exist: a reader substitutes their own.
-PLACEHOLDERS = ("myapp", "myschema", "myrepo", "myframework", "mycommon", "store_sdk", "shared", "tests")
+PLACEHOLDERS = ("myapp", "myschema", "myrepo", "myframework", "tests")
 
 
 def _placeholder(module: str) -> bool:

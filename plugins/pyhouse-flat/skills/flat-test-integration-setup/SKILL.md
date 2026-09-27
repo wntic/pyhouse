@@ -143,11 +143,9 @@ then runs against the schema the history produces. The subprocess runs from the 
 environment reads — the data-access component's own, `MYAPP_POSTGRES_DSN` (`flat-project-setup`).
 
 `truncate_all` is autouse **here** because this conftest is scoped to one directory of integration tests,
-all of which reach code that commits. Its teardown ordering is what keeps it safe: `TRUNCATE` takes an
-`ACCESS EXCLUSIVE` lock, so it must run after `conn`'s transaction has been rolled back and its connection
-returned to the pool. Because it is autouse, pytest sets it up before any fixture the test requests by
-name and therefore finalizes it last. Request it by name alongside `conn` and that ordering is no longer
-guaranteed, and the wipe can deadlock against the still-open transaction.
+all of which reach code that commits. Autouse is also what orders it: pytest sets it up before any fixture
+the test requests by name and so finalizes it last, after `conn`'s transaction has rolled back and its
+connection returned to the pool — which `TRUNCATE`'s `ACCESS EXCLUSIVE` lock needs (rule 7).
 
 ## Template — pytest configuration (pytest, pytest-asyncio)
 
@@ -162,12 +160,7 @@ asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
 ```
 
-Both loop-scope lines are load-bearing, not decoration. The `engine` fixture is session-scoped, so every
-test and fixture must share **one** event loop. Under pytest-asyncio's default function loop scope, the
-session engine's connections outlive the loop they were opened on, and the first test running a
-statement that *errors* — a constraint violation through the repository class, the ordinary contract case —
-crashes at teardown with `RuntimeError: Event loop is closed`, because the driver cannot cancel the
-aborted command on a closed loop.
+Both loop-scope lines are load-bearing (rule 8).
 
 No placeholder connection string is set for collection: nothing in the service builds settings or an
 engine at import (`flat-persistence` rule 14), so an unset variable fails only the code that reads it.
@@ -199,6 +192,8 @@ pure-unit collection pays nothing for it.
   costs what this level buys: upsert semantics, generated constraint names and transaction behaviour are
   no longer production's, so `flat-test-persistence`'s constraint-name and conflict-path assertions stop
   meaning anything. Never for the data-access package's own suite.
+- **A second, non-relational store** gets its own session-scoped container and client beside these, and
+  isolates by a per-test namespace deleted at teardown — there is no transaction to roll back.
 - **Creating the schema from the metadata instead of replaying the migration history.** Faster, and it
   stops testing that the migrations produce the schema the code expects — which is the drift the history
   exists to prevent. Keep the history wherever the migrations are themselves an artifact the project
@@ -213,14 +208,14 @@ pure-unit collection pays nothing for it.
    deploy command replays it, and taken down to the base and up again once per session so every
    `downgrade()` runs. A store owned by a project outside the repository has no history here to replay,
    and the suite creates the tables the service declares from its metadata instead.
-2. **The safety guard lives inside the fixture producing the connection details**, and guards on an
-   exact database name drawn from a project-declared constant, never a port or substring heuristic.
+2. **Where the suite can reach a database it did not start, the safety guard lives inside the fixture
+   producing the connection details**, and guards on an exact database name drawn from a
+   project-declared constant, never a port or substring heuristic.
 3. **Using a datastore the suite did not start is opt-in and explicit** — `test-principles` reliability
    rules 1 and 7. Raise a named error listing every missing variable rather than letting a `KeyError`
    escape.
-4. **The connection pool is session-scoped, the transaction function-scoped.** One datastore and one
-   pool per run; one transaction per test. A function-scoped pool re-establishes itself every test and
-   adds seconds to the run; a session-scoped connection serializes the suite onto one connection.
+4. **One pool per run, one transaction per test** — the scopes `test-principles` *Fixture scope rules*
+   set. A session-scoped connection would serialize the suite onto one connection.
 5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** A second pool
    against the same datastore runs outside the session's loop and teardown and is never disposed. Tests
    take the shared fixture and pass it explicitly to whatever needs one.
@@ -239,7 +234,8 @@ pure-unit collection pays nothing for it.
 ## Hard stops
 
 - The guard is being moved into its own fixture, or relaxed to a port or substring heuristic → stop,
-  both are how a suite ends up truncating a developer's database.
+  both are how a suite ends up truncating a developer's database; the suite TRUNCATEs every table it can
+  see.
 - The external-database branch is being keyed on `CI` or any other ambient variable → stop, use
   `test-principles` reliability rule 7.
 - An autouse fixture is being added to a fixture module shared with other distributions → stop, it fires
@@ -253,10 +249,8 @@ pure-unit collection pays nothing for it.
   while asserting nothing.
 - A test calls `create_async_engine` itself instead of taking the `engine` fixture → stop, that is a
   second pool against the same container and it will not be disposed.
-- The guard is being relaxed because someone wants to run against a local database → stop, the suite
-  TRUNCATEs every table in the schema; that is exactly the accident the guard prevents.
-- `filterwarnings = ["error"]` is being dropped because a dependency is noisy → stop, write one narrow
-  `"ignore:..."` entry after `"error"` with its reason in a comment.
+- `filterwarnings = ["error"]` is being dropped because a dependency is noisy → stop, add the exception
+  as `test-principles` reliability rule 9 states it.
 - The distribution has no relational store at all → stop, none of this applies; there is no transaction to
   roll back and no schema to truncate.
 - The migration fixture is trimmed to `upgrade head` alone where this distribution owns the history →

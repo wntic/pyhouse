@@ -105,7 +105,7 @@ async def test_a_run_reports_what_it_recorded(
 ```
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
-mostly repeats has "the second run over the same batch changes nothing" as its central behaviour, and it
+mostly repeats has "the second run over the same batch adds no row" as its central behaviour, and it
 is the one a wrong conflict-column list breaks.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
@@ -188,7 +188,7 @@ async def http(engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
 
 
 async def test_a_posted_foo_reaches_the_run_function(http: httpx.AsyncClient) -> None:
-    response = await http.post("/foos", json={"ref": "alpha", "name": "a"})
+    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "sent_at": "2024-01-01T00:00:00Z"})
 
     assert response.json() == {"recorded": 1}
 
@@ -237,9 +237,9 @@ in-process one alone.
    removes the only thing this level can prove.
 3. **Where a run can repeat over the same input, its test file pins what the second run does.** A
    scheduled pass over a feed that mostly repeats, and any run a trigger may retry after a partial
-   failure, both meet that condition — run twice, assert the observable state is unchanged. A run whose
-   input is consumed once, or that is by construction never repeated, has nothing to pin and the test
-   would assert a coincidence.
+   failure, both meet that condition — run twice, assert the second run added no row and changed nothing its
+   input determines. A run whose input is consumed once, or that is by construction never repeated, has
+   nothing to pin and the test would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
    logged `"ok"` and wrote nothing must fail, and a process's containment is asserted on what its guard
    returns. A service with no store asserts on the requests the stubbed transport recorded and on the

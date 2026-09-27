@@ -120,7 +120,7 @@ def test_values() -> None:
     assert FooStatus.ALPHA == "ALPHA"
     assert FooStatus.BETA == "BETA"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="GAMMA"):
         FooStatus("GAMMA")
 ```
 
@@ -204,7 +204,9 @@ async def test_assert_name_available_passes_when_free() -> None:
 14. **Never loop over members.** `for m in FooStatus: assert m.value == m.name` masks the very bug it
     looks like it catches — a renamed value still passes.
 15. **Always include the unknown-value rejection**:
-    `with pytest.raises(ValueError): FooStatus("<unknown>")` proves the enum is closed.
+    `with pytest.raises(ValueError, match="<unknown>"): FooStatus("<unknown>")` proves the enum is
+    closed — the value in the message is the only thing distinguishing the failure (`test-principles`
+    *Assert strength* recipe 6).
 16. **One `test_*` per pure-logic method**, named after the method, asserting every relevant
     input/output pair; a boolean is asserted as `test-principles` states (`is True` / `is False`).
 

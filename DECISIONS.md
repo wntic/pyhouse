@@ -1394,3 +1394,135 @@ paragraph in `flat-test-persistence`, and the helper wording in `flat-persistenc
 its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
+
+### D114 — `python-logging` sends a CLI's diagnostics to stderr, renders per sink, and is Reference-shaped
+A CLI tool is one of the universal test services, and `python-logging` told it that its stdout result is
+not a log event without saying where the log events go — so nothing stopped a logger writing to stdout
+from interleaving diagnostics with the data a caller pipes onward. Rule 1 now adds that a program
+whose stdout is its product writes every log event to stderr, stated beside the stdout sentence in
+`## The event` and backed by a hard stop; the description and both index lines state it as conditional
+on such a program. Rule 3 no longer renders every event in one machine-readable format: the one
+configuration picks the rendering for the sink — machine-readable wherever a collector reads it; on an
+interactive terminal it may be human-readable — and routes a framework's and a driver's loggers
+through it, with a new hard stop, addressed to an application's entry point, for a library's records
+that bypass it. Rule 1 and its `print()` hard
+stop now name one condition, "an entry-point debug path behind a flag", where rule 1 had said
+"deliberate". Separately, the skill produces no file, so it is Reference-shaped: the `## Template —
+structlog` heading is gone and its snippet, distributed-package comment included, is the example in
+`## The event`, beside the interpolated-sentence counter-example; its lead-in names the library and
+says that, unconfigured, it renders for a terminal on stdout, so the entry point sets both. A Reference
+skill omits `## Other bindings` (`meta-skill-author`, *Skill shapes*), so its two stdlib bullets are
+folded into one paragraph of `## Configuring the logger` that keeps who the binding is for (a
+distributed package, and an application that chooses it), how fields reach the record, what it buys and
+what it costs. With no template heading left to name a stack, the translate-and-stay-silent example's
+lead-in names SQLAlchemy as one example, and `## Never log and re-raise the same event` is renamed
+`## Logging a re-raised error` to name its subject; nothing cited the old heading. No rule was
+renumbered, so the citations of rules 1 and 3 elsewhere stand.
+**Reverse by:** restoring the `## Template — structlog (an application; …)` and `## Other bindings`
+sections ahead of `## The event`, the `# yes` line in its example and its plain lead-in, the
+`## Never log and re-raise the same event` heading without the SQLAlchemy lead-in, the "deliberate
+entrypoint debug path" wording and the one-format clause of rule 3, and deleting the stderr sentences,
+the rendering paragraph, the stdlib paragraph and the two new hard stops in `python-logging`; with its
+description, both index lines and the `python-style` paragraph of `CLAUDE.md` restored to their
+wording before this entry.
+
+### D115 — `flat-test-integration-setup` points at `test-principles` instead of restating it
+The skill restated what its own rules and `test-principles` already carry. Rule 4's pool and transaction
+scopes are now the *Fixture scope rules* subsection's, cited, with only the one-connection consequence
+kept. The `filterwarnings` hard stop points at reliability rule 9, which states the narrow `"ignore:…"`
+entry and its reason. The prose after the pytest configuration shrinks to a pointer at rule 8, which
+already explains the closed-loop crash, and the `truncate_all` paragraph keeps only the autouse
+finalization order that rule 7 relies on without explaining. Rule 2 opens with its condition — where the
+suite can reach a database it did not start — as rule 3 already did, since the template's `db_dsn`
+yields only the suite's own container and has nothing to guard. The hard stop against relaxing the
+guard for a local database duplicated the first guard stop, whose reason now ends that stop.
+`## Other bindings` gains one sentence for a second, non-relational store: its own session-scoped
+container and client, isolated by a per-test namespace deleted at teardown. No obligation changed.
+**Reverse by:** restoring rule 2's unconditional opening, rule 4's two-sentence scope argument, the
+local-database hard stop, the `filterwarnings` stop's `"ignore:..."` wording, the loop-scope paragraph
+and the full `truncate_all` paragraph in `flat-test-integration-setup`, and removing its second-store
+bullet under `## Other bindings`.
+
+### D116 — A raise path expects the narrowest class and the field that distinguishes it
+`test-principles`' *Assert strength* had five recipes and no word on the raise path, so the rule that a
+test never expects a bare `Exception` lived only as family restatements: a hard stop in
+`flat-test-persistence` and a clause in `hex-test-capability-adapter` rule 7. Recipe 6 now owns it for
+any project: expect the narrowest class the contract raises, never `Exception` or any ancestor of that
+class shared with unrelated failures — so a library whose contract raises `ValueError` still expects
+`ValueError` — and assert the one attribute that distinguishes the failure from others of its
+class — an error code, a context key, the offending input — or, where the class carries none, the part
+of its message that does, so a library or CLI tool with no error catalogue still applies it. The
+`flat-test-persistence` hard stop keeps only its family half (the driver's own class → expect the
+translated catalogue class, rule 7); `hex-test-capability-adapter` rule 7 keeps the probe's SDK class
+as the legitimate exception and cites recipe 6 for it; `hex-test-application-handler`'s list of the
+universal recipes names the sixth. Three `pytest.raises(NotFoundError)` blocks in
+`hex-test-repository-contract` asserted the class alone and now assert `context["id"]`, which the
+repository templates already set. `hex-test-application-handler` rule 7 keeps only its fake-specific
+half and points at recipe 6 for the rest; `hex-test-domain`'s unknown-enum-value test and rule 15, and
+the first undo test in `hex-test-application-handler/FAKES.md`, expect their class with a `match=` on
+the message, since for those classes the message is the only distinguishing part.
+**Reverse by:** deleting recipe 6 and restoring "Five recipes" in `test-principles`, restoring
+"expects a bare `Exception`, or the driver's own exception class → stop; name the catalogue exception
+the translator produces, or the test pins nothing the package promises." in `flat-test-persistence`,
+"never a bare `Exception`" in `hex-test-capability-adapter` rule 7, the five-item list in
+`hex-test-application-handler` and the full text of its rule 7 ("pins the exception's machine-readable
+context, not just its class. Capture the raised catalogue exception … and assert the `context` entries
+that are the contract."), the class-only `NotFoundError` asserts in `hex-test-repository-contract`,
+and the `match=`-free `pytest.raises(ValueError)` in `hex-test-domain` (template and rule 15) and
+`pytest.raises(RuntimeError)` in the first undo test of `hex-test-application-handler/FAKES.md`.
+
+### D117 — The flat entrypoint templates mark their optional blocks; a delivered record is timed by its sender
+Shape 1's process definition in `flat-entrypoint` and the uvicorn process definition in its `HTTP.md`
+built an engine and, in Shape 1, an HTTP client, followed by a sentence saying each block exists only
+for a role the service has. An agent copies the template and not the sentence after it, so a queue
+consumer that stores nothing got an engine. Shape 1 now marks every line that exists only with a
+store or an upstream, imports included, so honouring the markers leaves valid code: `httpx` and the
+`foo_api` import `# only with an upstream`, the `postgres` import `# only with a store`, the engine line
+`# only with a store (so are try/finally, repository)`, the `api` line saying the run moves out of the
+client block without one, and that block's line `# only with an upstream` — the way the family's trees
+mark theirs. The sentence is gone. The uvicorn template carries no marker: its route and run function
+exist only with a store, so the engine there is not optional. The longer comment wordings the review
+proposed did not fit the catalogue's 120-column line length (`python-toolchain`).
+Rule 9 said a redelivered request already recorded is answered as a success, which a route satisfies
+while rewriting the row with a new timestamp; it now also changes nothing, agreeing with rule 15's
+idempotency under redelivery, and the hard stop names both failures. The `HTTP.md` run function took
+`observed_at` from the wall clock, so every redelivery rewrote the row. The stamp belongs to what a
+sender delivers, not to the shared wire record a fetched upstream also returns — putting it on
+`FooPayload` would have failed every poll's validation — so `HTTP.md` declares
+`FooDelivery(FooPayload)` with `sent_at: AwareDatetime` in `schemas/`, the route validates it and
+`record_foo` writes its `sent_at`, and a sentence states the split: a delivered record is timed by its
+sender, a fetched one by the run. The prose after `record_foo` claims only that an exact redelivery
+writes what the row holds, and leaves keeping the newer of two out-of-order deliveries to the conflict
+clause (`flat-persistence`); Shape 3's consumer paragraph gains the same clock clause. In
+`flat-test-run-function` the HTTP wrapper test posts `sent_at`, and the poll idempotence paragraph says
+the second run "adds no row" rather than "changes nothing", since the run's own clock rewrites
+`observed_at`; its rule 3 asks the second run to have added no row and changed nothing its input
+determines, rather than an unchanged observable state. `FooDelivery` imports `FooPayload` from its
+sibling module by one dot (`python-packaging`). `record_batch([foo])` stays; no single-row method was
+added.
+**Reverse by:** in `flat-entrypoint/SKILL.md`, removing the `# only with …` comments from Shape 1's
+imports and body, restoring the paragraph "Each block here exists only for a role the service has: a
+service with no store builds no engine, one with no upstream builds no transport." after it, dropping
+"and changes nothing" from rule 9, restoring its hard stop to "…answered as a failure → stop (rule 9).",
+and dropping ", the run writing values taken from the message, never the clock" from Shape 3; in
+`HTTP.md`, restoring `FooPayload` in `web/app.py`'s `myapp.schemas` import and the route's parameter to
+`payload: FooPayload` passed on as `payload`, "validates the body with the payload model", removing the
+delivered-record paragraph, the `FooDelivery` template and the paragraph after `record_foo`, and
+restoring `record_foo(repository, payload: FooPayload)` with `observed_at=datetime.now(UTC)` and its
+`datetime` import; in `flat-test-run-function`, removing `sent_at` from the HTTP test's body, restoring
+"changes nothing" in the idempotence paragraph and "run twice, assert the observable state is
+unchanged" in rule 3.
+
+### D118 — Smaller leftovers: a `context` key names the input, and the checker's dead placeholders go
+`exception-catalog` states that a `context` key names the input, not the failure, and then showed
+`{"field": "name", "constraint": "uq_foos_name"}` as its example — a key that names the constraint that
+failed. The example is now `{"foo_name": foo.name}`, the spelling `python-logging` raises with. The
+constraint name stays where it is a contract rather than an example: the relational adapter in
+`hex-persistence` sets it and `hex-test-repository-contract` and `hex-test-application-handler` assert
+on it. `tools/check_template_imports.py` listed `mycommon`, `store_sdk` and `shared` as placeholder
+modules; no fenced `python` block imports any of them, and none is in the `CONVENTIONS.md` placeholder
+table, so all three are dropped. The checker reports the same 231 resolved, 0 missing, 0 unchecked
+before and after. The flat/hex difference in the test engine's pool pre-ping is closed with no change:
+neither family states a rule about it, so there is nothing to align.
+**Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
+`exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
