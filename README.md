@@ -2,7 +2,7 @@
 
 House-style rules for writing Python services, as Claude Code skills.
 
-Forty-five skills covering naming, packaging, settings, the toolchain, versioning, errors and tests — plus two mutually exclusive service
+Forty-six skills covering naming, packaging, settings, the toolchain, versioning, errors and tests — plus two mutually exclusive service
 architectures. They are project-neutral: worked examples use `myapp` and `Foo`, never a real service
 name. The skills are plain `SKILL.md` files, so Claude Code, opencode and Codex all read them.
 

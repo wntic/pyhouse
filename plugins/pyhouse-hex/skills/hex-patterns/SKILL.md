@@ -49,7 +49,7 @@ Elsewhere:
 - The repository that joins a unit of work → `hex-persistence`.
 - The reversing method a compensation calls (`delete`, `retract`) → declared on a port beside its forward operation by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`; the guard that lets the handler stop its failure is stated here, as `exception-catalog`'s best-effort compensation exception.
 - The lifetime and declaration-order rules the unit-of-work binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here.
-- What the handler may log → `python-logging`.
+- What the handler may log → `hex-architecture`; the event's shape → `python-logging`.
 
 ## Template — compensation, a single side effect
 
@@ -325,7 +325,7 @@ except Exception:
   atomic group becomes compensation, under the same composition rule — compensation wraps the
   transaction, never the reverse.
 - **A different structured logger.** Only the log call in the handler templates changes; what a handler
-  may log is `python-logging`'s rule, not this skill's.
+  may log is `hex-architecture`'s rule, not this skill's.
 
 ## Rules
 

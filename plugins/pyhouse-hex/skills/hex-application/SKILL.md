@@ -373,7 +373,8 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    The `except` writes the caller-visible state and **re-raises**. Follow `python-logging`
    for logging and `exception-catalog` for exception propagation and boundary translation. Anything beyond
    these two stays forbidden.
-6. **Command success logging:** follow `python-logging`; include the caller's identity **only when the
+6. **Command success logging:** the application layer logs successes only, after the write
+   (`hex-architecture`), in `python-logging`'s event shape; include the caller's identity **only when the
    command carries one**.
 7. **No transaction management inside the handler — the default.** A handler that writes through one
    repository leaves the transaction to it: the standalone repository form opens and commits its own
