@@ -191,16 +191,14 @@ runs; the literal route is never reached.
 extending an existing router file, place a new literal route **above** the `get` / `update` / `delete`
 routes for `/{id}`.
 
-- A literal collection path would be declared after `/{id}` in the file → stop, reorder.
-
-A framework that resolves by specificity instead has no such stop: the obligation is unchanged, and
-nothing in the file's layout can violate it.
+A framework that resolves by specificity instead has no such ordering to get wrong: the obligation is
+unchanged, and nothing in the file's layout can violate it.
 
 ### File transfer
 
 **Read `TRANSFER.md`** in this skill's directory before writing an upload or a download route. It
 carries the multipart upload template, the streaming download with its filename helper, the one
-sanctioned route-body `try/except` for a mixed multipart + JSON body, and rules 24–32 with the hard
+sanctioned route-body `try/except` for a mixed multipart + JSON body, and rules 24–33 with the hard
 stops that hold for file-transfer routes only; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
@@ -241,7 +239,7 @@ For 204 endpoints, the function return annotation is `-> Response` and the body 
 The per-operation code sets and the helper are in the sibling `CONTRACTS.md`; registering a middleware's status is `hex-restapi-app`'s.
 
 8. **Routes only advertise.** A route never builds an error response itself: one translator owns the error body's shape, and a hand-built body is the copy that drifts from it. The error catalogue and boundary translation are `exception-catalog`'s; logging is `python-logging`'s.
-9. **Advertise exactly what the route can produce.** The set follows from the operation — which domain exceptions its handler can raise, which middleware sits in front of it, and whether it takes any validated input. A code that cannot occur is removed; a code that can occur and is missing makes the published document wrong in the direction clients notice last.
+9. **Advertise exactly what the route can produce.** The set follows from the operation — which domain exceptions its handler can raise, which middleware sits in front of it, and whether it takes any validated input. A code that cannot occur is removed — an auth code follows the attached auth dependency (`hex-restapi-auth`), so a route with none advertises no `401` or `403`; a code that can occur and is missing makes the published document wrong in the direction clients notice last.
 10. **Never hand-write the advertisement mapping** — `responses={404: {...}}` typed out at the decorator. Always go through the helper, because the helper is what checks the code against the set of codes something can actually produce; a hand-written entry is the one path by which a status nothing raises reaches the document.
 11. **One hand-maintained registry, and only one.** A status a middleware introduces, with no domain exception behind it, is the only kind registered by hand; everything domain-side derives from the error catalogue's own exported set.
 12. **A middleware-introduced status is registered before it is advertised.** The helper validates against the known set, so an unregistered status fails loudly at import rather than reaching the document.
@@ -256,23 +254,23 @@ handler: FromDishka[ListFoosHandler],
 14. **The handler is named by its type, not by a container attribute.** The composition root (`hex-wiring`) decides what satisfies `ListFoosHandler`; the route never spells a binding's name, so renaming a handler class is a single rename that the type checker follows.
 15. **The annotation is the concrete handler class**, which is also what gives the type checker `execute`.
 16. **Never resolve at module level, and never hold a container reference in the module.** Injection happens per request; a module-level resolution captures state too early and defeats the per-test composition root.
-17. **For create/update with read-back**, take `handler` and `get_handler` as two separate injected parameters with distinct names.
+17. **A response needing fields the command's result does not carry is a read-back** through the matching query handler, or the query's result DTO is extended (`hex-application`). For create/update with read-back, take `handler` and `get_handler` as two separate injected parameters with distinct names.
 
 ### Route reachability
 
-18. **Every route the file declares must be the one a matching request actually reaches.** A path a more general sibling can also match is dead, and it fails silently — the wrong handler runs and answers, so there is no routing error to see. Where the framework resolves paths by a rule the file's own layout can violate — declaration order, a first-match table — satisfying that rule is part of writing the route. The FastAPI spelling and its stop are under `### Route ordering` above.
+18. **Every route the file declares must be the one a matching request actually reaches.** A path a more general sibling can also match is dead, and it fails silently — the wrong handler runs and answers, so there is no routing error to see. Where the framework resolves paths by a rule the file's own layout can violate — declaration order, a first-match table — satisfying that rule is part of writing the route. The FastAPI spelling is under `### Route ordering` above.
 
 ### What never goes in a route
 
 19. **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is the mixed multipart+JSON parse in `TRANSFER.md`.
 20. **No logging.** Which layer logs is `hex-architecture`'s; the event's shape is `python-logging`'s.
-21. **No business logic, no policy checks, no domain construction beyond mapping body→command.**
+21. **No business logic, no policy checks, no domain construction beyond mapping body→command.** Constructing the entity is the handler's job.
 22. **No infrastructure imports.** Only `application/*` and `domain/*` types.
 23. **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
 
 ### File-transfer routes
 
-Rules 24–32 are stated in `TRANSFER.md`, beside the templates they govern; they hold for upload and download routes only.
+Rules 24–33 are stated in `TRANSFER.md`, beside the templates they govern; they hold for upload and download routes only.
 
 ## Inlined typing / import rules
 
@@ -297,12 +295,6 @@ app.include_router(foos_router)
 
 ## Hard stops
 
-- The route is asked to reach a composition root off `request.app.state`, or to name a binding rather than a type → stop, declare the handler as a `FromDishka[<Handler>]` parameter.
-- The route is asked to log → stop, routes do not log; which layer logs is `hex-architecture`'s.
-- The route is asked to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
-- Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
-- Asked for a `try/except` in a route body → stop; the one sanctioned case is the mixed multipart + JSON parse in `TRANSFER.md`, and nothing else is.
 - A route is asked to catch a domain exception and translate it → stop, use `exception-catalog`.
-- A route that attaches no auth dependency advertises `401` or `403` → stop, those codes follow the dependency; see `hex-restapi-auth`, and in an auth-less app there is no class behind them at all.
 - A third auth dependency type, or any other auth machinery, is proposed → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.
-- The input-validation status is omitted on a route that takes a path param, query param, filter or body → stop. Where the framework publishes that response itself — FastAPI does — its entry describes the framework's error body rather than the app's, so the decorator names it too; where the framework publishes nothing of its own, the decorator is the only thing documenting the status at all.
+- Asked for the request or response models a route maps → stop, use `hex-restapi-schema`.
