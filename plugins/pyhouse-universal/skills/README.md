@@ -1,7 +1,7 @@
 # House-style skills
 
-48 skills: 46 project-neutral Python skills in seven families — Universal (13), Meta (1), Hex core
-(12), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
+47 skills: 45 project-neutral Python skills in seven families — Universal (13), Meta (1), Hex core
+(11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar` (with `Baz` where an example needs a third aggregate). The directory names
@@ -16,7 +16,7 @@ repository:
 | Plugin | Directory | Skills |
 |---|---|---|
 | `pyhouse-universal` | `plugins/pyhouse-universal/` | the 13 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
-| `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
+| `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
 
@@ -108,19 +108,18 @@ monoliths — that this catalogue does not cover at all. Run `/choose-architectu
 interactively, or read the skill. When the choice turns on how much
 the protected rules will keep changing, load `coupling` alongside it — it owns that judgment.
 
-## Hex core (12)
+## Hex core (11)
 
 | Skill | Owns |
 |---|---|
 | `hex-architecture` | Once the family is hexagonal — layer boundaries, dependency direction, the composition root, ports vs adapters |
 | `hex-conventions` | Identifier → file path and class name; the two store profiles and their connection-factory names (the factories themselves sit with their store skills); multi-context resolution |
 | `hex-project-setup` | Which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap — a baseline only over a schema that already exists; the toolchain is `python-toolchain`'s |
-| `hex-patterns` | Compensating transactions, units of work over two repositories, and their nesting order |
-| `hex-persistence` | The relational table, repository adapter (standalone and unit-of-work-joining), and paired migration revision, and the store's settings class, engine and session factories, and container binding |
+| `hex-persistence` | The relational table, repository adapter (standalone and unit-of-work-joining), and paired migration revision, and the store's settings class, engine and session factories, and container binding; the unit of work over two repositories and the handler form that opens it |
 | `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filter records with their sort enum, and tunable thresholds with no default |
 | `hex-domain-ports` | Aggregate repository protocols, including one for a store that answers only some reads, and external-capability protocols — async by default, a reversible pair, sync for pure CPU |
 | `hex-domain-service` | Stateless domain rules that need state one entity cannot see, with injected ports; a pure transformation stays a module function |
-| `hex-application` | CQRS commands, queries, handlers, and read-result forms |
+| `hex-application` | CQRS commands, queries, handlers, and read-result forms; the compensating handler body that undoes an external write |
 | `hex-wiring` | DI providers, lifetimes, container declaration order, and where each settings class is built and bound |
 | `hex-capability-adapter` | Concrete capability implementations — one template, an HTTP gateway with its settings and binding; the SDK-client and pure-CPU forms in prose |
 | `hex-store-repository` | Aggregate repositories for nonrelational stores, their record mappings, settings and connection factory, with the key prefix a module constant; bound to redis, other stores under Other bindings |

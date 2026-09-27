@@ -19,7 +19,7 @@ here, into the classes `exception-catalog` owns.
 - The obligations the settings class (`<Tech>Settings`) the adapter consumes must meet → `python-settings`; the HTTP gateway's own is shown here, beside it.
 - The lifetime and declaration-order rules the adapter's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
-- The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-patterns`'.
+- The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-application`'s (Compensation).
 - An in-memory test stand-in for this capability (the `Fake<Capability>` flavor) → `hex-test-application-handler`.
 - Testing the real adapter — containerized backend, `respx`-intercepted HTTP, or pure CPU → `hex-test-capability-adapter`.
 - A token verifier — its port, its adapter and the dependency that resolves it → `hex-restapi-auth`; it is a pure-CPU adapter in this skill's sense, bound there.
@@ -244,7 +244,7 @@ class InfrastructureProvider(Provider):
     verifier, `hex-restapi-auth`); `NotFoundError` when the object or subject does not exist; `ValidationError` only when the upstream rejected the inputs as malformed; `context` carries
     the key, subject or id plus the upstream's own code or status, and never the token or key. An adapter
     never swallows a failure, and never stops one either — a failed undo during compensation is stopped
-    in the calling handler (`hex-patterns`), which logs it; an adapter cannot.
+    in the calling handler (`hex-application`, Compensation), which logs it; an adapter cannot.
 
 ### No business logic, no logging
 
@@ -258,7 +258,7 @@ class InfrastructureProvider(Provider):
 
 ### Compensating-transaction contract
 
-14. **Mutating capabilities expose both the forward operation and the undo.** A storage adapter has `upload` *and* `delete`; a publisher that supports retraction has `publish` *and* `retract`. The catch-and-undo logic lives in the application handler (see `hex-patterns`), not in the adapter. The adapter's job is to make the undo callable; like every other method it raises a catalogue exception when it fails, and the handler decides whether that failure may be tolerated.
+14. **Mutating capabilities expose both the forward operation and the undo.** A storage adapter has `upload` *and* `delete`; a publisher that supports retraction has `publish` *and* `retract`. The catch-and-undo logic lives in the application handler (`hex-application`, Compensation), not in the adapter. The adapter's job is to make the undo callable; like every other method it raises a catalogue exception when it fails, and the handler decides whether that failure may be tolerated.
 
 ## Inlined typing / import rules
 

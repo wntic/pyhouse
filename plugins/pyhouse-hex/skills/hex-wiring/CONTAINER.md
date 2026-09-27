@@ -9,7 +9,7 @@ store's add-on. Each of those — a relational store, an HTTP gateway, a key-val
 store, a token verifier, a tunable value object, a unit of work — ships its own binding beside what it
 binds, in the skill that owns it: the relational engine, session factory and `Foo` repository in
 `hex-persistence`, the HTTP gateway in `hex-capability-adapter`, the Redis repository in `hex-store-repository`, the token verifier in
-`hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-patterns`. A
+`hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-persistence`. A
 project merges the ones it has into the providers below, each line into the provider class of the same
 name, in declaration order; a provider class a binding adds (a second subdomain's) joins the
 `create_container` list.

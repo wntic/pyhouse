@@ -35,7 +35,7 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
 - Deriving a concrete path or class name from an identifier → `hex-conventions`.
 - Library substrate and the migration bootstrap → `hex-project-setup`; toolchain config → `python-toolchain`.
 - A table, a relational repository, a migration → `hex-persistence`.
-- Compensation or a unit of work → `hex-patterns`.
+- Compensation → `hex-application`; a unit of work → `hex-persistence`.
 - What the composition root actually binds — providers, lifetimes, settings, teardown, declaration
   order → `hex-wiring`. This skill owns only that the root exists — one module, `src/myapp/containers.py`
   — and that nothing else imports a concrete adapter.

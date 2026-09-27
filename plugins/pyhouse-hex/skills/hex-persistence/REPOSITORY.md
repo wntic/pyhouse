@@ -12,7 +12,7 @@ protocol — structural subtyping at the injection site is the contract.
 - **Standalone (`session_factory`-injected).** The default. CRUD on a single aggregate: opens its own
   session, commits per call.
 - **Unit-of-work-managed (`session`-injected).** Joins a unit of work for multi-repository atomicity.
-  Receives a live session and **never commits** (`hex-patterns`).
+  Receives a live session and **never commits** (`UNIT_OF_WORK.md`).
 
 The two forms are mutually exclusive for one class. If both call styles are genuinely needed, write two
 adapters.
@@ -160,7 +160,7 @@ class FooSessionRepository:
             raise _map_integrity_error(exc) from exc
 ```
 
-`BarSessionRepository`, which the unit of work in `hex-patterns` also constructs, is this same joining
+`BarSessionRepository`, which the unit of work in `UNIT_OF_WORK.md` also constructs, is this same joining
 form for `Bar` — a second aggregate written in the same transaction, not a second template.
 
 ## Rules — form

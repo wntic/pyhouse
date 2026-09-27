@@ -24,7 +24,7 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 - The token-verifier port, its adapter and the route dependency that resolves it → `hex-restapi-auth`; it is the sync shape, bound to auth, and exists only in an app whose entrypoint authenticates.
 - The `i_` and `i_can_` filename prefixes and the rest of the identifier derivation → `naming`.
 - The command or query handler that consumes one of these protocols → `hex-application`.
-- The reversing method a compensating handler calls on one of these ports (`delete` beside `upload`) → a port method like any other, which raises on failure; the handler-side guard that tolerates its failure is `hex-patterns`'.
+- The reversing method a compensating handler calls on one of these ports (`delete` beside `upload`) → a port method like any other, which raises on failure; the handler-side guard that tolerates its failure is `hex-application`'s (Compensation).
 
 ## Template(s) — stdlib `typing.Protocol`
 

@@ -78,7 +78,7 @@ paths: <optional — activation globs, Claude Code only>
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
   the only hard number the platform documents.
-- **There is no total budget across the catalogue** — 48 skills at ~400 characters is ~2% of a 200k
+- **There is no total budget across the catalogue** — 47 skills at ~400 characters is ~2% of a 200k
   window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
@@ -387,8 +387,8 @@ Extends an existing file rather than creating one. Emphasis: `Template(s)` shows
 class body, a function, a decorator argument — not a whole file; `Package wiring` is usually absent
 because the file already lives in a package.
 
-Examples: `hex-wiring` (modifies the composition root), `hex-patterns` (shapes a handler body),
-`test-architecture-rule` (appends a test function).
+Examples: `hex-wiring` (modifies the composition root), `test-architecture-rule` (appends a test
+function).
 
 ### Bootstrap
 

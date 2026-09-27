@@ -106,7 +106,7 @@ The `uploads` and `deletes` lists are the test-side observation surface. **No `f
 
 ### The compensating handler's tests — upload, then the write fails, assert the undo
 
-The handler under test is `hex-patterns`' compensating `CreateFooHandler`, whose command carries the
+The handler under test is `hex-application`'s compensating `CreateFooHandler` (`COMPENSATION.md`), whose command carries the
 uploaded bytes. The file is that handler's own `tests/unit/application/test_create_foo_handler.py`.
 
 ```python
@@ -152,7 +152,7 @@ async def test_failed_undo_still_raises_the_original_failure() -> None:
 
 The simulated exception type is incidental — `RuntimeError` here, or any uncaught exception. The
 contract is: **the upload landed, then something failed, then the same key was deleted, and the caller
-sees the failure that started it.** The undo raises like any other call (`hex-patterns`); the second
+sees the failure that started it.** The undo raises like any other call (`hex-application`, Compensation); the second
 test pins that the handler swallows the *undo's* failure and re-raises the original — an
 `UpstreamError` escaping instead fails `pytest.raises(RuntimeError)`.
 

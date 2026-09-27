@@ -23,7 +23,7 @@ it is constructed and bound — at a composition root and nowhere else (`python-
 - Which libraries the project carries and the Alembic bootstrap → `hex-project-setup`; the ruff and mypy configuration → `python-toolchain`. Both are laid once, not per binding.
 - What a settings class, its env prefix or a provider method is called → `naming`.
 - Whether a class may be bound here at all, and which layer it belongs to → `hex-architecture`; it owns the layer contract this composition root sits outside of.
-- The unit-of-work factory binding a multi-repository transaction needs, and the compensating-handler shape → `hex-patterns`.
+- The unit-of-work factory binding a multi-repository transaction needs → `hex-persistence` (`UNIT_OF_WORK.md`); the compensating-handler shape → `hex-application`.
 
 ## Settings in the composition root
 
@@ -44,7 +44,7 @@ template is the **base** a project extends — the provider classes and the hand
 store, no optional adapter and no feature. **A store's or an add-on's binding lives with what it
 binds**: the relational engine, session factory and repository in `hex-persistence`, the HTTP gateway
 in `hex-capability-adapter`, the Redis repository in `hex-store-repository`, the token verifier in
-`hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-patterns`; a project merges the ones it has.
+`hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-persistence`; a project merges the ones it has.
 
 **Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
 carries the base composition root — the provider classes in declaration order and `create_container` —
@@ -97,7 +97,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   root exactly once, which runs every declared teardown (`hex-restapi-app`).
 - **Bindings are reached by type, not by name.** A call site names the type it needs; the composition
   root decides what satisfies it. Nothing outside the composition root may depend on how a binding is spelled.
-- **A unit of work is bound as its factory callable, never as an instance** (`hex-patterns`).
+- **A unit of work is bound as its factory callable, never as an instance** (`hex-persistence`, `UNIT_OF_WORK.md`).
 
 ### Where a settings class sits
 
@@ -212,10 +212,10 @@ distribution's root package, and the root `__init__.py` does not re-export it �
   problem.
 - Asked to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
 - The composition root is asked to hand out a unit of work → stop, it hands out the factory callable;
-  the unit of work's lifetime is the handler's `async with` (`hex-patterns`).
+  the unit of work's lifetime is the handler's `async with` (`hex-persistence`).
 - The composition root is asked to bind a store connection or transaction handle per operation, so a
   repository can be injected with one outside a unit of work → stop, nothing would then own the commit;
   use the standalone repository form, which opens and owns its own (`hex-persistence` for a relational
-  store, `hex-store-repository` for a client-style one), or a unit of work (`hex-patterns`). A store
+  store, `hex-store-repository` for a client-style one), or a unit of work (`hex-persistence`). A store
   whose client is the connection and has nothing to commit is bound at process lifetime, not per
   operation.

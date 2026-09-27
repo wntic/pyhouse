@@ -148,7 +148,7 @@ rule 5).
 
 ### `compensating-tx` handler
 
-Where a handler undoes an external write when a later step fails (`hex-patterns`), its tests live in
+Where a handler undoes an external write when a later step fails (`hex-application`, Compensation), its tests live in
 that handler's file and drive it over the storage fake's call record. The template — two tests, the
 undo and a failed undo — sits beside the storage fake in `FAKES.md`.
 

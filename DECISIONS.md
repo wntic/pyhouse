@@ -1653,3 +1653,39 @@ restoring the import comment in `hex-capability-adapter`, the file-path header c
 `# imports` marker in `python-packaging`, the `TRANSFER.md`, `hex-restapi-schema` and `REPOSITORY.md`
 comments, and `hex-restapi-endpoint`'s shorter router-registration sentence; and dropping the
 optional-marker paragraph from `python-style`'s `## Comments`.
+
+### D126 — `hex-patterns` is dissolved: the unit of work joins `hex-persistence`, compensation `hex-application`
+Taken by the maintainer (backlog item 23). The skill held two patterns that share nothing but spanning
+layers, and neither is a catalogue of patterns; each now sits beside the artifact it depends on.
+The unit of work went to `hex-persistence` as a sibling topic file, `UNIT_OF_WORK.md`, next to
+`REPOSITORY.md`'s unit-of-work-managed form it constructs: the domain protocol, the SQLAlchemy
+implementation with its three load-bearing details, its dishka binding, and the handler form that
+opens it. The handler form stayed with the protocol rather than going to `hex-application` because a
+unit of work is never written without its protocol and implementation, so an agent writing a handler
+that writes two repositories has to open that file anyway; `hex-application` fires on the handler and
+routes there in its Command or query bullet, command handler rule 7, `When to use` and a hard stop, and
+splitting the handler off would have made two reads and put the handler-side rules (commit last,
+nothing caught inside, no retry) away from the exit-rolls-back behaviour they rely on. Its eight rules
+became `hex-persistence` rules 15–17 (one per scope and never per aggregate, with the naming section
+reduced to a sentence; one per `execute` from a factory, the binding rule pointing at `hex-wiring`,
+which already owned it; commit last, no catch, no retry) and a sentence added to rule 7 (a joining
+repository is handed the open handle, never a factory). Compensation went to `hex-application`: its
+seven rules became a `Compensation` subsection of Rules (rule 1, the only sanctioned `try/except`, was
+already command handler rule 5(a) and merged there; the when-to-use bullets, the several-side-effects
+and success-path-cleanup paragraphs became rules 1, 6 and 7), and its template — `hex-application`'s
+own `CreateFooHandler` with the undo — went to a sibling `COMPENSATION.md`, because in the body it would
+have taken `SKILL.md` past ~500 lines for a form most hex services do not have. Dropped: the "both
+patterns together" template (a sentence in each file says compensation's `try` wraps the `async with`),
+the separate `CreateFooCommand` block (a sentence says the one command gains `data: bytes`), the
+structured-logger bullet under Other bindings (`hex-application` already has one), the neighbour line
+on CLIs and workers, and the hard stops a rule already catches — one repository only, per-aggregate
+naming, a settable protocol member, a mismatched `__aexit__`, and an unguarded undo. Kept as hard stops,
+because a rule does not route them: no reversing method on the port, an undo's failure stopped anywhere
+but the handler's guard, a saga, and a unit of work spanning two backends. `paths` gained
+`**/domain/uow/**` on `hex-persistence`; `hex-application`'s stays `**/application/**`.
+**Reverse by:** recreating `plugins/pyhouse-hex/skills/hex-patterns/SKILL.md` from the commit before
+this one, deleting `hex-persistence/UNIT_OF_WORK.md`, `hex-application/COMPENSATION.md`,
+`hex-persistence` rules 15–17, the rule-7 sentence and its two-backends hard stop, `hex-application`'s
+Compensation subsection and its three compensation hard stops, restoring both descriptions and the
+`hex-persistence` `paths`, repointing every reference named in this commit back to `hex-patterns`, and
+restoring the counts (48 skills, 24 hex, Hex core 12).

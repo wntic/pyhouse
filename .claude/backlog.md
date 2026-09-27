@@ -32,7 +32,7 @@ candidate for `/review-skills`, not a decision.
   the run function and `containment.py` bind the logger in a skill that owns triggers. `python-logging`
   owns the logger; the templates could log through it without naming the library, or not log at all
   (the guard is the only line that must). Same question in `hex-application` (7 mentions),
-  `hex-patterns` (4), `hex-restapi-app` (2), `flat-entrypoint/HTTP.md` (2).
+  `hex-application/COMPENSATION.md` and `hex-persistence/UNIT_OF_WORK.md` (2 each), `hex-restapi-app` (2), `flat-entrypoint/HTTP.md` (2).
 - 29 hard stops and 26 rules (15 + 11 durable): the largest skill in the flat family (see item 16).
 
 #### 13. `flat-entrypoint/HTTP.md` is one module of FastAPI doing four jobs
@@ -71,12 +71,6 @@ the boundary) and nothing a particular vendor supplies. Lens 1, question 2.
 `hex-conventions` holds path and name derivation, store profiles and multi-context apps. Check what of
 that `flat-layered` already covers before adding anything; a new skill is proposed only if the
 derivation rules have no owner in the flat family today.
-
-#### 23. `hex-patterns` is two patterns that happen to span layers
-It holds compensation and the unit of work, and its template spends the most lines on the unit of
-work's SQLAlchemy implementation. Neither is a catalogue of patterns. Decide whether it stays as the home
-for cross-layer patterns (then say which belong), or the unit of work moves beside
-`hex-persistence`'s session repository and compensation beside `hex-application`.
 
 #### 24. Audit the four `hex-restapi-*` skills and their tests
 The maintainer suspects much is buried there. Run `/review-skills` on `hex-restapi-app`,
