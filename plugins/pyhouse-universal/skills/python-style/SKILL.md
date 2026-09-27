@@ -277,8 +277,8 @@ never *what*, never a multi-line block. The scope of that rule is not uniform ac
 - **In tests**: the same holds inside a test body. Additionally legal is a **multi-line section banner**
   above a group of tests, when it says *what* the group pins and *why* it is pinned that way — which
   behaviour the group stands as evidence for, that the clock is the real one and not a substituted
-  double, that both routes have to be exercised. A banner that retells what the tests below it do →
-  stop; that is the code said twice, and it is the form that goes stale. *This allowance rests on banners
+  double, that both routes have to be exercised. A banner that retells what the tests below it do is
+  not this allowance; that is the code said twice, and it is the form that goes stale. *This allowance rests on banners
   having held so far, not on a test of failure, so it carries its withdrawal condition: if a banner is
   ever found lying or silently out of date, the allowance goes and tests fall under the source form.*
 
@@ -291,8 +291,13 @@ never lands in the project's file.
 
 ## Rules
 
-1. Apply the union, generic and runtime-annotation forms in **Typing**, including validation models.
-2. Check complete signature coverage in source and tests; use named functions for business logic.
+1. Apply the union, generic and runtime-annotation forms in **Typing**, including validation models:
+   `X | None` and `A | B`, never `Optional` or `Union`; never `from __future__ import annotations`,
+   whose stringified annotations break runtime introspection silently; and a class's reference to its
+   own name inside its body as the one quoted annotation.
+2. Check complete signature coverage in source and tests — fixtures, builders and test helpers
+   included; use named functions for business logic, and no untyped `*args` or `**kwargs` there — a
+   declared type is missing.
 3. **Settle the interpreter floor once, at setup — for a new project at the house floor of 3.13 or
    above** — and keep `requires-python`, the linter's `target-version` and the type checker's
    `python_version` naming that same oldest supported interpreter. An existing project below the house
@@ -312,54 +317,25 @@ never lands in the project's file.
 8. Apply **Protocols** only where the architecture calls for an interface; reserve runtime checking for
    the documented need.
 9. Check validation constraints and abstract collection imports against their dedicated typing sections.
-10. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
-    their stated limits.
+10. **A comment is a single short line of non-obvious *why*** — never *what*, never a structural label
+    (`# Arrange`, `# helpers`) — applied by location under **Comments**, preserving its
+    revision-docstring and test-banner allowances and their stated limits; a test banner says what the
+    group pins, never what the tests do.
 11. **A type error is fixed, not silenced; an inline type-ignore is the last resort, names its error
     code and gives its reason**, and a missing stub is silenced only by a per-package configuration
-    override. Check casts and untyped variadic arguments against the typing hard stops below.
+    override. `cast` narrows only after a runtime guard the checker cannot follow; it never silences
+    an error.
 12. **A closed set of named constants is an `Enum` — a `StrEnum` for string values (`class Foo(str, Enum)` below 3.11) — never a class of bare
     attributes**, in any module.
 
 ## Hard stops
 
-Typing:
-
-- `from __future__ import annotations` anywhere → stop, runtime annotation introspection breaks silently
-  with stringified annotations.
-- A class annotating with its own bare name inside its own body → stop, quote that one annotation
-  (`required: "Foo"`); unquoted it is a `NameError` at class-definition time, and the future import that
-  would defer it is banned.
-- `Optional[X]` or `Union[A, B]` → stop, use `X | None` / `A | B`.
-- `requires-python`, `target-version` and `python_version` naming different interpreters → stop, make
-  all three name the project's oldest supported one; three disagreeing settings let a form pass the
-  linter that fails at runtime.
-- A floor being lowered, or a new deployable being laid down below 3.13 → stop, keep the floor where it
-  is or start at the house floor. An existing project already below it is not a violation; it raises its
-  floor as its own change when it decides to. A distributed package whose consumers run an older
-  interpreter is not this case; its floor is theirs.
-- Bare `Any` outside the documented external-boundary cases → stop, introduce a `type` alias or a small
-  dataclass; do not let `Any` spread.
-- Untyped `**kwargs` / `*args` in business logic → stop, a dataclass is missing.
-- A `dict` or tuple with a fixed set of known fields crossing a boundary — returned from a client,
-  passed between packages, handed to a function that unpacks it → stop, declare the record as a type.
-  A mapping whose keys are data is not this case.
-- `float` for money or any other exact decimal quantity, or a naive `datetime` for an instant → stop,
-  `Decimal` and an aware `datetime`; the first disagrees with itself under reordering, the second under
-  a second timezone.
-- An unannotated fixture, builder or test helper → stop, the test surface is type-checked at parity with
-  source.
-- `cast(...)` to silence a type error → stop, fix the type. `cast` is acceptable only to narrow after a
-  runtime guard the checker cannot follow, which is rare.
-- A type-ignore comment that names no error code or gives no reason → stop, name the specific code and
-  give a brief explanation — or, first, restate the type so none is needed.
-- A missing-stub error silenced inline → stop, one per-package override in the type checker's
-  configuration (`python-toolchain`).
-- A mutable collection on a frozen dataclass field → stop, use the immutable equivalent.
-- A class of bare attributes standing in for a closed set of values (`class Status: ACTIVE = "active"`)
-  → stop, declare an `Enum` or `StrEnum`.
-
-Comments:
-
-- A comment that is not a non-obvious *why*, or one running past a single short line → stop.
-- A structural label (`# Arrange`, `# helpers`) → stop, delete it.
-- A test banner that retells what the tests do rather than what they pin → stop.
+- Writing a log call, an event name or logging configuration → stop, use `python-logging`.
+- Asked about one class per module, `__all__`, the `__init__.py` re-exports or an import form → stop,
+  use `python-packaging`.
+- Choosing what a class, module or variable is called → stop, use `naming`.
+- Defining an exception class → stop, use `exception-catalog`.
+- Writing the linter's or type checker's configuration → stop, use `python-toolchain`; this skill
+  settles the floor it names.
+- Asked whether a constrained scalar earns a named type of its own in a hexagonal service → stop, use
+  `hex-domain-model`, in the `pyhouse-hex` plugin.
