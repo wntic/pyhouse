@@ -20,18 +20,6 @@ in `meta-skill-author`, every pointer to `python-style` for logging (grep "pytho
 "log"), both indexes, counts (universal 12 → 13 + meta), `architecture-choice`'s list of universal
 skills, `DECISIONS.md`. A minor for `pyhouse-universal`.
 
-### 3. Replace the generic `bulk_upsert` helper with the repository's own statement
-`bulk_upsert(conn, table, rows: Iterable[Mapping[str, Any]], conflict_columns, update_columns)` is a
-table-agnostic helper carried over from the application the first skills were written from. The
-obligations it binds — chunk below the driver's bind-parameter cap with a named constant (rule 10),
-resolve a conflict explicitly with a declared update set (rule 12) — are the house pattern; the
-generic, mapping-typed helper is not: it needs its own excuse for breaking `python-style`'s
-declared-record rule ("the row builder returns a mapping, deliberately"), and six of the
-persistence tests exercise the helper rather than the repository. Proposal: `FooRepository.record_batch`
-builds its own chunked `insert … on conflict` statement; the chunk constant stays; the helper, its
-`engine.py` export and the helper tests go; the table tests target the repository. Rules 10 and 12
-unchanged. Touches: `flat-persistence` (`SETUP.md`, `REPOSITORY.md`), `flat-test-persistence`.
-
 ### 4. Re-run the short-prompt scenario on the current skills
 The maintainer's GLM run with a short `dns_scanner` prompt was made on the skills before the generality
 rework. Run it again on current `main` and review the output the same way (layout, module size, which

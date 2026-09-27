@@ -1,6 +1,6 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a datastore — its table definitions, its bulk write helpers, its component-owned settings class, the repository class that owns each write's transaction, and where its migration history lives. Owns one data-access package per store named for the store's technology, the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, conflict resolution left to the store's own write-time or merge-time mechanism, cursor reads over a total order, application-minted time-ordered keys, and one migration directory per store at the distribution root. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a data-access library several distributions share is `python-workspace`.
+description: Use when a flat-layered service reads or writes a datastore — its table definitions, its component-owned settings class, the repository class that owns each write's transaction and builds its statements, and where its migration history lives. Owns one data-access package per store named for the store's technology, the constraint-naming convention, the single declared transaction owner per callable, driver-error translation into the service's catalogue with a mandatory fallback, the pure row-to-service-type mapping, chunked writes sized from the driver's bind-parameter cap, conflict resolution left to the store's own write-time or merge-time mechanism, cursor reads over a total order, application-minted time-ordered keys, and one migration directory per store at the distribution root. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a data-access library several distributions share is `python-workspace`.
 when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a repository class in a flat service, a second store beside the first, a constraint naming convention, a migration for a flat service or where its files go, paging through a table by cursor, deduplicating writes, or where a service's SQL is allowed to live.
 ---
 
@@ -47,7 +47,7 @@ rule 15 says what that changes.
 - Several distributions sharing one repository, and where a shared data-access library sits inside it →
   `python-workspace`.
 - What triggers a run and hands this package its connection handle → `flat-entrypoint`.
-- Testing these tables, helpers and the repository class against the real datastore →
+- Testing these tables and the repository class against the real datastore →
   `flat-test-persistence`.
 - The container, migration and isolation fixtures those tests run on → `flat-test-integration-setup`.
 - The store's dependencies and the relational migration environment laid once, before the first
@@ -66,12 +66,12 @@ rule 15 says what that changes.
 
 ```
 src/myapp/postgres/
-├── __init__.py            # re-exports the repository class, the settings and the engine helpers
+├── __init__.py            # re-exports the repository class, the settings and the engine factory
 ├── metadata.py            # the one MetaData, carrying the naming convention
 ├── settings.py            # this package's own settings class
-├── engine.py              # the engine factory and the chunked bulk write helpers
+├── engine.py              # the engine factory
 ├── foo_table.py           # the Table definitions
-└── foo_repository.py      # the class that owns each write's transaction
+└── foo_repository.py      # the class that owns each write's transaction and builds its statements
 
 alembic.ini                # at the distribution root — `flat-project-setup`
 migrations/
@@ -96,11 +96,11 @@ migrations/
 The full file templates live in three topic files beside this one, one per group of artifacts in that
 layout. Only this file is loaded automatically, so open the one you need:
 
-- **Read `SETUP.md`** before writing the metadata module, the settings class, the engine factory, a bulk
-  write helper or a migration revision — it binds rules 8, 9, 10, 11, 12, 14, 15, 16, 17, 18 and 20.
+- **Read `SETUP.md`** before writing the metadata module, the settings class, the engine factory or a
+  migration revision — it binds rules 8, 14, 15, 16, 17 and 20.
 - **Read `TABLE.md`** before defining a table, a column or a key — it binds rules 8 and 13.
-- **Read `REPOSITORY.md`** before writing the repository class, its error translator, its row mapper or
-  a write that spans statements — it binds rules 2, 3, 4, 5, 6, 7 and 18.
+- **Read `REPOSITORY.md`** before writing the repository class, a bulk write, its error translator, its
+  row mapper or a write that spans statements — it binds rules 2, 3, 4, 5, 6, 7, 9, 10, 11, 12 and 18.
 
 ## Other bindings
 
@@ -167,19 +167,19 @@ layout. Only this file is loaded automatically, so open the one you need:
    translator branch and a test must be able to name the same constraint without any of them inventing
    it. This rule and rule 5 are paired: the translator can only match on a name the convention makes
    predictable.
-9. **Bulk writes go through one helper, never a per-row statement in a loop** — that is what keeps a
-   ten-thousand-row batch to a handful of round trips instead of ten thousand.
+9. **A bulk write is one multi-row statement per chunk, never a per-row statement in a loop** — that is
+   what keeps a ten-thousand-row batch to a handful of round trips instead of ten thousand.
 10. **Chunk below the driver's bind-parameter limit, and hold the chunk size as a named constant.** One
     statement binds chunk size × columns-per-row parameters, and a batch that crosses the cap fails at
-    execute time on size alone, whatever the data says. The number is computed once, from the widest
-    table's column count and the driver's cap, and written where the helpers read it — never sprinkled as
-    a literal at each call site.
-11. **Where a later statement needs keys an earlier one resolved, exactly one helper reads back the rows
-    it wrote, as one multi-row statement per chunk.** Whether a driver's batched-parameter
+    execute time on size alone, whatever the data says. The number is computed once, from the driver's
+    cap and the column count of the table the statement writes, and named beside the statement that
+    reads it — never sprinkled as a literal at each call site.
+11. **Where a later statement needs keys an earlier one resolved, the earlier statement reads back the
+    rows it wrote, as one multi-row statement per chunk.** Whether a driver's batched-parameter
     (`executemany`) path returns rows at all differs by driver and by library, so a read-back built on it
     can hand back nothing for most of the batch. Every other write returns nothing.
 12. **A conflicting row is resolved explicitly, the key matched on is never among the columns updated,
-    and an empty update set resolves to *do nothing*.** The caller names the conflict columns and the
+    and an empty update set resolves to *do nothing*.** The write names its conflict columns and its
     update columns; writing back the key you matched on is a no-op at best and a statement failure on a
     partial index. "Nothing to update" is a real case and must not become an update with an empty
     assignment list, which is a syntax error.
@@ -257,8 +257,8 @@ layout. Only this file is loaded automatically, so open the one you need:
   wrap the whole engine block; a refused connection escapes as the driver's type otherwise.
 - A row leaves this package as a bare mapping → stop, map it to the service's declared type here; the
   mapping is this package's, and nothing above it should learn column names.
-- A single-row insert path is being written for a batch known to exceed a few hundred rows → stop, use
-  the bulk helper.
+- A single-row insert path is being written for a batch known to exceed a few hundred rows → stop, write
+  one multi-row statement per chunk (rules 9 and 10).
 - A new primary key this service mints uses a random UUID or a database-side default → stop, mint a
   time-ordered identifier application-side.
 - The `MetaData` is being declared inside a table module → stop, it belongs in its own module; hosting it
