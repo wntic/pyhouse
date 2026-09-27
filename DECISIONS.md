@@ -1395,21 +1395,36 @@ its description, its hard stops and the neighbour lines in `flat-test-integratio
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
 
-### D117 — The flat entrypoint templates mark their optional lines; a webhook redelivery changes nothing
+### D117 — The flat entrypoint templates mark their optional blocks; a delivered record is timed by its sender
 Shape 1's process definition in `flat-entrypoint` and the uvicorn process definition in its `HTTP.md`
 built an engine and, in Shape 1, an HTTP client, followed by a sentence saying each block exists only
 for a role the service has. An agent copies the template and not the sentence after it, so a queue
-consumer that stores nothing got an engine. The lines now carry `# only with a store` (the engine and
-its disposal) and `# only with an upstream` (the client's settings and the client block), the way the
-family's trees already mark theirs, and the sentence is gone. Rule 9 said a redelivered request already
-recorded is answered as a success, which a route satisfies while rewriting the row with a new
-timestamp; it now also changes nothing, agreeing with rule 15's idempotency under redelivery, and the
-hard stop names both failures. The `HTTP.md` run function took `observed_at` from the wall clock, so
-every redelivery rewrote the row; it now takes it from the event, and `FooPayload` in `flat-layered`
-gains `sent_at: AwareDatetime`, the instant the source stamped, which the upstream-client, run-function
-and HTTP-wrapper test templates now send. `record_batch([foo])` stays; no single-row method was added.
-**Reverse by:** removing the `# only with …` comments from both process definitions and restoring the
-"Each block here exists only for a role the service has" paragraph after Shape 1; dropping "and changes
-nothing" from rule 9 and "or changes what was recorded" from its hard stop; restoring
-`observed_at=datetime.now(UTC)` and its import in `HTTP.md`'s `record_foo`; and removing `sent_at` from
-`FooPayload` and from the payload bodies in `flat-test-service-client` and `flat-test-run-function`.
+consumer that stores nothing got an engine. The block-opening lines now carry the marker — the engine
+line `# only with a store, and the try/finally` in both, and in Shape 1 the client's settings and the
+`async with` line `# only with an upstream` — the way the family's trees mark theirs, and the sentence
+is gone. The longer wording the review proposed for the comments did not fit the catalogue's
+120-column line length (`python-toolchain`), so the explanation sits on the `api` line instead.
+Rule 9 said a redelivered request already recorded is answered as a success, which a route satisfies
+while rewriting the row with a new timestamp; it now also changes nothing, agreeing with rule 15's
+idempotency under redelivery, and the hard stop names both failures. The `HTTP.md` run function took
+`observed_at` from the wall clock, so every redelivery rewrote the row. The stamp belongs to what a
+sender delivers, not to the shared wire record a fetched upstream also returns — putting it on
+`FooPayload` would have failed every poll's validation — so `HTTP.md` declares
+`FooDelivery(FooPayload)` with `sent_at: AwareDatetime` in `schemas/`, the route validates it and
+`record_foo` writes its `sent_at`, and a sentence states the split: a delivered record is timed by its
+sender, a fetched one by the run. The prose after `record_foo` claims only that an exact redelivery
+writes what the row holds, and leaves keeping the newer of two out-of-order deliveries to the conflict
+clause (`flat-persistence`); Shape 3's consumer paragraph gains the same clock clause. In
+`flat-test-run-function` the HTTP wrapper test posts `sent_at`, and the poll idempotence paragraph says
+the second run "adds no row" rather than "changes nothing", since the run's own clock rewrites
+`observed_at`. `record_batch([foo])` stays; no single-row method was added.
+**Reverse by:** in `flat-entrypoint/SKILL.md`, removing the `# only with …` comments from Shape 1,
+restoring the paragraph "Each block here exists only for a role the service has: a service with no
+store builds no engine, one with no upstream builds no transport." after it, dropping "and changes
+nothing" from rule 9, restoring its hard stop to "…answered as a failure → stop (rule 9).", and dropping
+", the run writing values taken from the message, never the clock" from Shape 3; in `HTTP.md`,
+removing the engine-line comment, the delivered-record paragraph, the `FooDelivery` template and the
+paragraph after `record_foo`, and restoring `FooPayload` in the route, in `record_foo` (as `payload`)
+and in "validates the body with the payload model", with `observed_at=datetime.now(UTC)` and its
+import; in `flat-test-run-function`, removing `sent_at` from the HTTP test's body and restoring
+"changes nothing" in the idempotence paragraph.

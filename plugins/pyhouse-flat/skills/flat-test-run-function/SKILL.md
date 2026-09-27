@@ -68,10 +68,7 @@ from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
 from myapp.schemas import RunResult
 
-_SENT_AT = "2024-01-01T00:00:00Z"
-_TWO_FOOS = {
-    "items": [{"ref": "alpha", "name": "a", "sent_at": _SENT_AT}, {"ref": "beta", "name": "b", "sent_at": _SENT_AT}]
-}
+_TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b"}]}
 
 
 async def test_a_run_records_what_it_fetched(
@@ -108,7 +105,7 @@ async def test_a_run_reports_what_it_recorded(
 ```
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
-mostly repeats has "the second run over the same batch changes nothing" as its central behaviour, and it
+mostly repeats has "the second run over the same batch adds no row" as its central behaviour, and it
 is the one a wrong conflict-column list breaks.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored

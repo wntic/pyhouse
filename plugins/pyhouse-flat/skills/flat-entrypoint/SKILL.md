@@ -122,13 +122,13 @@ from myapp.postgres import FooRepository, PostgresSettings, get_engine
 
 
 async def _run() -> None:
-    api = FooApiSettings()  # only with an upstream
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store
+    api = FooApiSettings()  # only with an upstream, like the block below; without one the run leaves it
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store, and the try/finally
     try:
         async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:  # only with an upstream
             await run_once(FooClient(http), FooRepository(engine))
     finally:
-        await engine.dispose()  # only with a store
+        await engine.dispose()
 
 
 def main() -> None:
@@ -226,8 +226,9 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, runs the run function under `guarded`, and
-acknowledges on `True` or returns the message on `False` (rules 11, 15). A broker the service publishes
-to is an external system with a package of its own (`flat-layered` rule 16).
+acknowledges on `True` or returns the message on `False` (rules 11, 15), the run writing values taken
+from the message, never the clock. A broker the service publishes to is an external system with a
+package of its own (`flat-layered` rule 16).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 
