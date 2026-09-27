@@ -89,13 +89,6 @@ triggers the `description` cannot hold carries one. The present split is acciden
 shows one capability call with the house pattern (injected client, status mapped to the catalogue at
 the boundary) and nothing a particular vendor supplies. Lens 1, question 2.
 
-#### 20. Where a module's private helpers go is unstated, and templates disagree
-`python-packaging:96` allows one class plus private functions but says nothing about order.
-`hex-persistence/REPOSITORY.md` puts `_map_integrity_error` above `FooRepository` and `_apply_filter`
-below it in the same module; `hex-capability-adapter` puts `_map_status` after the class, and
-`flat-persistence/REPOSITORY.md` puts `_translate` before. Pick one (the owner is `python-packaging` or
-`python-style`), state it as a rule, and align the templates.
-
 #### 21. A conventions skill for the flat family
 `hex-conventions` holds path and name derivation, store profiles and multi-context apps. Check what of
 that `flat-layered` already covers before adding anything; a new skill is proposed only if the
@@ -142,6 +135,11 @@ the plural, the snake case), which is what `naming` states today. What the propo
 some placeholders read as invented concepts (`BarGateway`, `BarToken`). That is a lens-1 defect
 (item 19), not the placeholder syntax. Recommendation: keep `Foo`/`Bar`, and cut the templates that make
 them read as a fictional domain.
+
+#### 28. A single-use helper is a private method in `hex-persistence`, a module function in `python-packaging`
+`hex-persistence` rule 11 and its `REPOSITORY.md` rule 23 say a helper used by exactly one method is a
+private method, which contradicts `python-packaging`'s "a helper that does not need `self` is a module
+function, not a private method". Decide which holds and align the other.
 
 ## Agreed
 
