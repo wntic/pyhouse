@@ -148,7 +148,7 @@ adapter. A project that has one merges its binding into the base: each line into
 the same name, after the lines already there. It is process-lifetime — an adapter keeps no state across
 calls (rule 13).
 
-The HTTP gateway: the settings factory, one shared client closed after its yield — the timeout is read
+The HTTP gateway: the settings provider, one shared client closed after its yield — the timeout is read
 here, where the client is built — and the adapter bound to its port.
 
 ```python
@@ -224,7 +224,7 @@ class InfrastructureProvider(Provider):
 7. **A secret is unwrapped once, in the constructor of the adapter that sends it**
    (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
    private attribute and never unwrapped again per call — the point of use `python-settings` rule 9
-   names. A secret never reaches a log line (`python-style`) and never reaches an exception's `context`
+   names. A secret never reaches a log line (`python-logging`) and never reaches an exception's `context`
    (rule 10).
 
 ### Exception translation

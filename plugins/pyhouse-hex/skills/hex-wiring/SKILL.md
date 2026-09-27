@@ -148,8 +148,8 @@ adding a binding, find the right section and insert it after the latest declarat
 ### Settings lifecycle in the composition root
 
 - Each `*Settings` is process-lifetime, built by a provider method that constructs it with no arguments
-  — the provider is the settings factory, so a missing required variable fails when the container is
-  first resolved.
+  — the provider method builds it, so a missing required variable fails when the container is first
+  resolved.
 - A consumer that needs the whole settings object declares it as a constructor parameter and receives it
   by type.
 - A **tunable value object** that needs a single field gets a factory of its own, which reads the field

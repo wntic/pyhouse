@@ -5,43 +5,49 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-Nothing proposed.
+Found by the four-lens reviews of items 1, 2, 3 and 5, outside what those items changed.
+
+### 6. `python-logging` rule 3 gives a CLI tool JSON on its terminal
+"Renders every event in one machine-readable format" holds for a service a collector reads, not for a
+CLI tool run by a person, and "(the server's, the drivers')" assumes a server. Proposal: "…in one
+format, machine-readable wherever a collector reads it, and routes the standard library's loggers (a
+framework's, a driver's) through it." Also: rule 1 says "a deliberate entrypoint debug path" where its
+hard stop says "behind a flag" — make them one condition; no hard stop covers stdlib loggers left
+unrouted.
+
+### 7. `flat-test-integration-setup` restates and over-states
+- Rule 2 (the safety guard) is unconditional, but the guard exists only for a database the suite did
+  not start; say so, as rule 3 already does.
+- The hard stop near the end repeating "guard relaxed → stop" is a duplicate; fold it into the first.
+- Rule 4 restates `test-principles` *Fixture scope rules*; the `filterwarnings` hard stop restates
+  `test-principles` reliability rule 9; the prose after the pytest config restates rule 8, and the
+  `truncate_all` prose restates rule 7. Point instead.
+- The crawler writing to two stores gets no word on fixtures for its second, non-relational store —
+  at most one sentence.
+
+### 8. `pytest.raises` names the narrowest class — a universal rule stated in family skills
+"Never a bare `Exception`" is stated in `flat-test-persistence` and `hex-test-capability-adapter` and
+holds in any Python test; `test-principles` does not state it. Add one line to its assert-strength
+rules and point the family skills at it.
+
+### 9. Flat entrypoint templates carry a store the service may not have
+- `flat-entrypoint` Shape 1 imports and builds a Postgres engine; a queue consumer that stores nothing
+  copies it and relies on prose to remove it.
+- `flat-entrypoint/HTTP.md` calls `record_batch([foo])` with the default `DO UPDATE`, so every
+  redelivered webhook rewrites `observed_at`; a webhook's natural write is one row, often
+  `DO NOTHING`. Now that `flat-persistence` says the batch is optional, the webhook template can
+  show the single-row write.
+
+### 10. Smaller leftovers from this round
+- `exception-catalog`'s good `context` example still carries `"constraint": "uq_foos_name"`, the
+  invented relational key removed from `python-logging`.
+- `python-logging` carries a template and still puts six topical `##` sections between
+  `## Other bindings` and `## Rules`, which `meta-skill-author` rule 1 allows only in Reference bodies.
+- `tools/check_template_imports.py` still lists `mycommon`, deleted by D29, in `PLACEHOLDERS`.
+- Flat's test engine takes the driver default (no pre-ping); hex's reuses the production builder
+  (pre-ping on). No test-only setting remains, but the two are not built the same way.
 
 ## Agreed
-
-### 1. Logging becomes its own universal skill
-`python-style` holds three subjects — typing, logging, comments — and its `description` is ~900
-characters because of it, the "two skills wearing one name" pitfall `meta-skill-author` names. Logging
-is the largest and most self-contained: the event shape, levels, who logs an error, configuring once at
-the entry point, a library that configures nothing, what never reaches a log line, stdout that is a
-program's product rather than a log. Move the `## Logging` section and `LOGGING.md` into a new
-`python-logging`; `python-style` keeps a one-line pointer. Touches: `python-style`, the ownership table
-in `meta-skill-author`, every pointer to `python-style` for logging (grep "python-style" near
-"log"), both indexes, counts (universal 12 → 13 + meta), `architecture-choice`'s list of universal
-skills, `DECISIONS.md`. A minor for `pyhouse-universal`.
-
-### 2. No settings factory functions in the templates
-`get_foo_settings()` only returns `FooSettings()`; it adds nothing. The obligation behind it is
-`python-packaging` rule 8 — nothing is built at import time — and that is met by calling the class in
-the composition root. Proposal: templates call the class where the process is composed
-(`settings = FooSettings()` inside `main()` / the provider method); a module-level instance stays
-forbidden; a factory function is written only when it adds something (a cache, assembly from several
-sources). Touches: `python-settings` (template, rule 13, hard stops), `flat-layered` (rule 7 wording,
-`FooApiSettings`), `flat-persistence` (`get_postgres_settings`, rule 14, `SETUP.md`), `flat-entrypoint`
-and `HTTP.md` process templates, `flat-project-setup` migration env, `hex-wiring` (already says a
-container's provider replaces the factory), test templates that call the factories.
-
-### 3. Replace the generic `bulk_upsert` helper with the repository's own statement
-`bulk_upsert(conn, table, rows: Iterable[Mapping[str, Any]], conflict_columns, update_columns)` is a
-table-agnostic helper carried over from the application the first skills were written from. The
-obligations it binds — chunk below the driver's bind-parameter cap with a named constant (rule 10),
-resolve a conflict explicitly with a declared update set (rule 12) — are the house pattern; the
-generic, mapping-typed helper is not: it needs its own excuse for breaking `python-style`'s
-declared-record rule ("the row builder returns a mapping, deliberately"), and six of the
-persistence tests exercise the helper rather than the repository. Proposal: `FooRepository.record_batch`
-builds its own chunked `insert … on conflict` statement; the chunk constant stays; the helper, its
-`engine.py` export and the helper tests go; the table tests target the repository. Rules 10 and 12
-unchanged. Touches: `flat-persistence` (`SETUP.md`, `REPOSITORY.md`), `flat-test-persistence`.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 The maintainer's GLM run with a short `dns_scanner` prompt was made on the skills before the generality
@@ -49,10 +55,6 @@ rework. Run it again on current `main` and review the output the same way (layou
 skills loaded, defects → rules).
 
 ### 5. Small leftovers from the generality rework
-- `hex-test-integration-setup` lost the `pool_pre_ping=False` opt-out that `flat-test-integration-setup`
-  keeps — decide one position for both.
-- `.claude/commands/commit.md` lists `foo_parser` among the placeholders; `CONVENTIONS.md` does not
-  define it.
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.

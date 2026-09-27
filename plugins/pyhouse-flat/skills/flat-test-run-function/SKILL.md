@@ -37,7 +37,7 @@ otherwise.
 
 - The HTTP client the body calls → `flat-test-service-client`; this level substitutes that client's
   transport, never the client object itself.
-- The tables, helpers and repository class the body writes through → `flat-test-persistence`.
+- The tables and repository class the body writes through → `flat-test-persistence`.
 - The container and isolation fixtures → `flat-test-integration-setup`; the code here owns its
   transactions, so it takes the whole-schema wipe.
 - Writing the run function, the `guarded` wrapper or the trigger, rather than testing it →

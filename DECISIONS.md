@@ -125,7 +125,7 @@ atomicity to pin. Gave `record_batch` an ordinary parent-and-children shape in o
 This is not the deleted registry: no cross-service identity, no junction, no view, no kinds.
 
 ### D20 — The record rule reaches test code, but not a table-generic column mapping
-Handed to plan 04 as an open question. A mapping passed to a `Table`-parameterised bulk helper is
+**The table-generic mapping exemption superseded by D113.** Handed to plan 04 as an open question. A mapping passed to a `Table`-parameterised bulk helper is
 genuinely data — there is no fixed field set for a type to declare. So builders keep a mapping return
 but are annotated `dict[str, object]`, never bare `dict`; a builder constructing the service's own type
 returns that type. `python-style` untouched.
@@ -1300,3 +1300,97 @@ owner or actor. The base composition root carries one handler line. The blob-sto
 endpoint is tested like any endpoint. The page-size default is the filter's alone.
 **Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
 this one.
+
+### D110 — Logging is its own universal skill, `python-logging`
+`python-style` held three subjects — typing, logging, comments — and its `description` ran to about 900
+characters listing all three, the "two skills wearing one name" pitfall `meta-skill-author` names. Its
+`## Logging` section, the logging rules and hard stops, and the sibling `LOGGING.md` moved into one new
+universal skill, `python-logging`, as a single `SKILL.md` (about 210 lines, so no sibling): the event
+shape, levels, who logs an error, the failed undo under compensation, configuring once at the entry
+point, a distributed package that configures nothing, what never reaches a log line, and a program's
+stdout result as output rather than a log. Its trigger names the code that reports, not the word
+"log" — a `print` for progress, an `except` that records a failure, setup in a CLI or a library. The
+rules were renumbered 1–6 (`python-style` 10, 11, 17, 18, 12, 13 in that order), moved verbatim but
+for rule 6, which now leaves the `context` ban to `exception-catalog`, its owner;
+`python-style`'s remaining rules 14–16 became 10–12, and its `description` now covers typing and
+comments only. The move was also a review: the template shrank to the one event line, marked as the
+application binding; the bulk-import `bind` block, the failed-undo code block and a repeated passage
+went; and the hard stop that duplicated the log-and-re-raise one went, as did the two
+`exception-catalog` hard stops restating it. The ownership table in `meta-skill-author` gives logging
+its own row; every pointer to `python-style` about an event's shape, and the two citations of its old
+rule 17, now name `python-logging` (rule 3), while a pointer asking *which layer* logs names
+`hex-architecture`, which owns that table. Universal goes from 12 to 13 skills, the catalogue from 47
+to 48.
+**Reverse by:** moving the body of `python-logging` back under `python-style`'s `## Logging` (the
+binding, examples and level guide into a sibling `LOGGING.md`), restoring its rules 10–13, 17 and 18,
+its logging hard stops and its three-subject `description`, deleting the `python-logging` directory,
+repointing the references, the ownership row, both indexes and the counts, and restoring the deleted
+template lines, code blocks and hard stops from the commit before this one.
+
+### D111 — Settings are built by calling the class; no factory function that only returns it
+`get_foo_settings()`, `get_postgres_settings()`, `get_foo_api_settings()` and `get_settings()` each
+returned their class's no-argument construction and added nothing. The obligation behind them is
+`python-packaging` rule 8 — nothing is built at import time — and calling the class inside the function
+that composes the process meets it. The settings templates in `python-settings` and `flat-persistence`'s
+`SETUP.md` declare the class alone; the process definitions in `flat-entrypoint` and its `HTTP.md`, and
+the migration environment in `flat-project-setup`, call `FooApiSettings()`, `PostgresSettings()` and
+`Settings()` where they build the rest. `python-settings` rule 13 says the root constructs each class
+once and that a factory function is written only when it adds something — a cache, assembly from
+several sources — with a hard stop for an uncached one outside the composition root; a container's
+provider method is the composition root and stays. When to cache a factory is `python-packaging` rule 8
+alone, and its "yes" example is the class called inside `main()`. `flat-layered` rules 7 and 8,
+`flat-persistence` rule 14 and the hard stops that named a factory say "build" or "construct", and the
+`flat-layered` sentences restating rule 7 or `python-packaging` rule 8 are gone. A module-level instance
+stays forbidden. The hex family was already this shape — its provider methods call the class — and its
+prose now says "settings provider" rather than "settings factory".
+**Reverse by:** restoring the factory functions, their `__all__` entries and the call sites, and the
+wording of the rules, hard stops and hex prose above, from before the change that added this
+entry.
+
+### D112 — The test engine drops its pool-liveness opt-out, and `/commit` points at the placeholder table
+`flat-test-integration-setup` rule 9 told the suite to turn off the pool's per-checkout liveness check
+against its own container (`pool_pre_ping=False` in the conftest template); `hex-test-integration-setup`
+had already lost the same opt-out. It is a small per-checkout saving with no correctness stake, which
+is not worth a rule, so it is gone from flat too: rule 9 and the argument are removed, and both families
+build the test engine without a test-only pool setting. It was the last rule, so nothing was renumbered,
+and no skill cited it. The production `pool_pre_ping=True` in `hex-persistence` and `flat-persistence`
+is unchanged. Separately, step 2 of `.claude/commands/commit.md` still listed `foo_parser` among the
+placeholders a diff is checked against, after D29 deleted it, and lacked `Baz` and `myframework`. A copy
+of the table goes stale with every row added to it, so the step now points at the `CONVENTIONS.md`
+placeholder table instead of listing it. Dropping rule 9 is typed `fix`: it withdraws an obligation no
+conforming project breaks on, so nothing a reader carries needs to change.
+**Reverse by:** restoring rule 9 and `pool_pre_ping=False` in `flat-test-integration-setup` from the
+parent of the commit that removed them; the `/commit` pointer is not reversed on its own.
+
+### D113 — The repository builds its own chunked upsert; the table-generic `bulk_upsert` is gone
+`flat-persistence` shipped `bulk_upsert(conn, table, rows, conflict_columns, update_columns)` in
+`engine.py`, a table-agnostic helper carried over from the application the first skills were written
+from. The obligations it bound are the house pattern — one multi-row statement per chunk (rule 9), a
+chunk size held as a named constant below the driver's bind-parameter cap (rule 10), an explicit
+conflict resolution with a declared update set that never holds the key (rule 12) — and the generic
+helper was not: its mapping-typed rows needed an exemption from `python-style`'s declared-record rule
+(D20), and six of the persistence tests exercised the helper rather than the class a caller uses.
+`FooRepository.record_batch` now builds its own `insert … on conflict do update` per chunk from the
+collapsed `Foo`s, the column mapping built inline so no function returns a record-shaped dict; the
+update set is spelled from the statement's `excluded` row. `_CHUNK_SIZE` is computed in the repository
+module from the cap and `len(foo_table.columns)`, and the constructor takes a keyword-only `chunk_size`
+defaulting to it. The batch is optional: a method taking one `Foo` runs one statement with no cap, chunk
+constant, collapse or loop, and rules 9 and 10 bind only where a method takes a batch. With a second
+repository class the cap moves to `engine.py` as a public `BIND_PARAMETER_CAP`; otherwise `engine.py`
+holds the engine factory alone, and a hard stop forbids re-extracting a table-generic write helper. The
+unused `_to_foo` left the template and is named in prose for a class that reads. `flat-test-persistence`
+has one template, the repository's: the update set from both sides in one test (the name changed, the
+minted id kept), the chunk boundary and the in-batch duplicate marked as batch-only, and the
+translation. The plain-insert constraint test is gone; test rules 2 and 3 apply where the translator
+branches on a constraint's name, rules 5, 6 and 13 are conditional on their case, rule 8 points at
+`test-principles` reliability rule 5, and a third restatement of "expect the catalogue exception" is removed. Rules 9
+and 11 no longer name a helper, rule 10 computes from the written table's width rather than the widest
+table's, and rule 12 says the write rather than the caller names the columns. No persistence obligation
+changed; the mapping-builder exemption D20 granted is withdrawn, which is breaking for a project that
+carried the helper.
+**Reverse by:** restoring `bulk_upsert` and its `__all__` entry in `SETUP.md`, the `record_batch`
+call to it, `_to_row` and `_to_foo` in `REPOSITORY.md`, the table-contract template and the row-builder
+paragraph in `flat-test-persistence`, and the helper wording in `flat-persistence` rules 9–12, its tree,
+its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
+`flat-test-run-function`, from the parent of the commits that added this entry, with D20's
+superseded marker removed.

@@ -1,12 +1,11 @@
 # flat-persistence — the shared plumbing
 
-Topic file of `flat-persistence`. The mechanism-free obligations are rules 8, 9, 10, 11, 12, 14, 15,
-16, 17, 18 and 20 in `SKILL.md`; what follows is the **SQLAlchemy Core + asyncpg + Alembic** binding
-that satisfies them.
+Topic file of `flat-persistence`. The mechanism-free obligations are rules 8, 14, 15, 16, 17 and 20 in
+`SKILL.md`; what follows is the **SQLAlchemy Core + asyncpg + Alembic** binding that satisfies them.
 
 These are the modules written once per package and then left alone — the one `MetaData`, the component's
-own settings class, and the engine factory with the bulk write helper every repository class calls — plus
-the per-change migration revision that reads the metadata back.
+own settings class, and the factory building the engine every repository class is handed — plus the
+per-change migration revision that reads the metadata back.
 
 ## The metadata module — SQLAlchemy Core (once)
 
@@ -48,7 +47,7 @@ than borrowing a field from the service's class (`flat-layered` rule 8).
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["PostgresSettings", "get_postgres_settings"]
+__all__ = ["PostgresSettings"]
 
 
 class PostgresSettings(BaseSettings):
@@ -65,10 +64,6 @@ class PostgresSettings(BaseSettings):
     def _use_async_driver(cls, dsn: SecretStr) -> SecretStr:
         scheme, separator, rest = dsn.get_secret_value().partition("://")
         return SecretStr(f"postgresql+asyncpg{separator}{rest}") if scheme in {"postgres", "postgresql"} else dsn
-
-
-def get_postgres_settings() -> PostgresSettings:
-    return PostgresSettings()
 ```
 
 The variable holds the platform's connection string; the class normalizes its scheme to the async
@@ -78,90 +73,31 @@ is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the pr
 `postgres` is a reserved segment there (`naming`); where the package is shared between distributions its
 prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
 changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
-adds its fields to this one (rule 17). The process definition calls the factory, unwraps `dsn` and hands
-the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the migration
-environment is the migration run's process definition and does the same (`flat-project-setup`).
+adds its fields to this one (rule 17). The process definition constructs `PostgresSettings()`, unwraps
+`dsn` and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the
+migration environment is the migration run's process definition and does the same
+(`flat-project-setup`).
 
-**No `@lru_cache` on the engine factory.** Memoising an engine keyed by its connection string pins a live
-pool for the life of the process, outliving the shutdown path and the test that wanted to dispose of it;
-the settings factory's cache is `python-packaging`'s rule, and with one caller there is nothing for
-either cache to collapse.
+## Engine factory — SQLAlchemy async, asyncpg
 
-## Engine and bulk write — SQLAlchemy async, asyncpg
+The engine is built by a **factory taking the connection string**, never as a module-level object:
+`import myapp.postgres.engine` must not fail in an environment that has set nothing (`python-packaging`
+rule 8).
 
-The engine is built by a **factory taking the connection string**, never as a module-level object: the
-process definition reads this package's settings once and hands the value down (`flat-layered` rule 7),
-and `import myapp.postgres.engine` must not fail in an environment that has set nothing
-(`python-packaging` rule 8).
-
-`src/myapp/postgres/engine.py` — the engine factory and one chunked bulk write, the helper only where the
-service writes:
+`src/myapp/postgres/engine.py`:
 
 ```python
-from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from sqlalchemy import Table
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
-
-__all__ = ["bulk_upsert", "get_engine"]
-
-_BIND_PARAMETER_CAP = 32767
-_WIDEST_TABLE_COLUMNS = 4  # foos
-_CHUNK_SIZE = _BIND_PARAMETER_CAP // _WIDEST_TABLE_COLUMNS
+__all__ = ["get_engine"]
 
 
 def get_engine(dsn: str) -> AsyncEngine:
     return create_async_engine(dsn, pool_pre_ping=True)
-
-
-async def bulk_upsert(
-    conn: AsyncConnection,
-    table: Table,
-    rows: Iterable[Mapping[str, Any]],
-    *,
-    conflict_columns: Sequence[str],
-    update_columns: Sequence[str],
-    chunk_size: int = _CHUNK_SIZE,
-) -> None:
-    rows = list(rows)
-    for start in range(0, len(rows), chunk_size):
-        ins = pg_insert(table).values(rows[start : start + chunk_size])
-        if update_columns:
-            stmt = ins.on_conflict_do_update(
-                index_elements=conflict_columns,
-                set_={col: ins.excluded[col] for col in update_columns},
-            )
-        else:
-            stmt = ins.on_conflict_do_nothing(index_elements=conflict_columns)
-        await conn.execute(stmt)
 ```
 
-The helper takes an **already-open `AsyncConnection`** and never commits: it is the connection-accepting
-half of rule 3, which is what lets one caller run several statements inside one transaction, and what
-makes it testable inside a rolled-back one.
-
-Each chunk builds its insert once and derives the conflict clause from that same statement's `excluded`
-row, so the update set names the incoming values of the row that conflicted.
-
-**The rows handed to it are already distinct on the conflict columns.** Postgres refuses a `DO UPDATE`
-that touches one row twice in one statement (SQLSTATE `21000`), so the caller collapses its batch by key
-first — `record_batch` in `REPOSITORY.md` is the worked case (rule 18).
-
-**Where a later statement needs keys an earlier one resolved** (rule 11), one second helper beside this
-one appends `.returning(...)` to the same chunked statement and collects each chunk's rows. Under an
-empty update set `DO NOTHING` returns no row for the conflict it skipped, so a caller that needs every
-row's key passes a non-empty update set.
-
-The chunk size is **computed once, from two named constants, not written as a literal at the call site**
-(rule 10): the driver's bind-parameter cap — 32,767 under asyncpg, because the Postgres wire protocol
-carries the parameter count in a 16-bit field — divided by the column count of the widest table the
-helper writes. A table wider than `foos` means updating `_WIDEST_TABLE_COLUMNS`, and the chunk size
-follows.
-
-An empty `update_columns` list must become `ON CONFLICT DO NOTHING`, not an `UPDATE` with an empty
-`SET` — the latter is a syntax error, and "the row already exists and that is fine" is a real case.
+No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the test that disposes it
+(`python-packaging` rule 8).
 
 ## Migrations — Alembic
 

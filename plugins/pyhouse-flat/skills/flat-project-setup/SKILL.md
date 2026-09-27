@@ -111,7 +111,7 @@ from alembic import context
 from sqlalchemy.engine import Connection
 
 import myapp.postgres.foo_table  # noqa: F401 — registers its tables on the metadata
-from myapp.postgres import get_engine, get_postgres_settings
+from myapp.postgres import PostgresSettings, get_engine
 from myapp.postgres.metadata import metadata
 
 
@@ -122,7 +122,7 @@ def _run_migrations(connection: Connection) -> None:
 
 
 async def _run_online() -> None:
-    engine = get_engine(get_postgres_settings().dsn.get_secret_value())
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())
     try:
         async with engine.connect() as connection:
             await connection.run_sync(_run_migrations)
@@ -136,7 +136,7 @@ asyncio.run(_run_online())
 ```
 
 **The migration environment is the migration run's process definition**, so it is the one place outside
-the service's own entrypoints that calls the data-access component's settings factory: it reads the
+the service's own entrypoints that builds the data-access component's settings: it reads the
 connection string from the variable that component owns (`MYAPP_POSTGRES_DSN`), unwraps it where the
 engine is built, and disposes of the engine when the run ends (`flat-layered` rules 7 and 8). Nothing in
 `alembic.ini` names a database. **Every table module is imported here, one line each**, because a table
@@ -256,7 +256,7 @@ suite's — runs it like any revision.
    the line length — and the interpreter floor is `python-style`'s. Block B's two suppressions are
    sanctioned here, and only where block B is laid.
 5. **The migration environment reads the connection string through the data-access component's own
-   settings factory, and only there among migration files.** It is the migration run's process
+   settings class, and only there among migration files.** It is the migration run's process
    definition; `alembic.ini` names no database, and the variable the environment reads is the one the
    integration suite sets for it.
 6. **Every table module is imported by the migration environment**, so autogenerate compares the whole

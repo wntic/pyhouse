@@ -56,9 +56,10 @@ what Fowler calls **transaction scripts** above it.
   created → `flat-project-setup`; the src layout and the lint and type-check configuration →
   `python-toolchain`.
 
-Five skills apply here unchanged and are not restated: `python-packaging` (one class per module,
+Six skills apply here unchanged and are not restated: `python-packaging` (one class per module,
 `__all__`, re-exports, import forms), `python-style` (annotations, collection types, the shape a record
-takes across a boundary, logging, comments), `python-settings` (what a settings class declares, its
+takes across a boundary, comments), `python-logging` (the event, who logs a failure, configuring
+once at the entry point), `python-settings` (what a settings class declares, its
 defaults and secrets, and construction at the composition root), `exception-catalog` (the catalog and
 translating SDK errors into it) and `coupling` (where boundaries go at all, and how much structure a
 component deserves).
@@ -74,7 +75,7 @@ names it for that role, and declares which kind it is when it creates it.
 | **data access** | one package per store: its table definitions, its write path, and the mapping from its rows back to this service's own types. **The only role that constructs a statement or opens a connection.** | payload packages, and the settings values handed to it | work units, the framework wrapper, process definitions |
 | **work unit** | one plain function per complete run — whatever one invocation of the trigger is for. Takes every dependency as a parameter, imports no framework, returns an aggregate rather than its individual results. | client, payload and data-access packages | the framework wrapper, process definitions |
 | **framework wrapper** | the framework's own decorators, classes or handlers adapting a work unit to a trigger. **The only role that imports the framework, and it holds no logic of its own.** | work units, plus payload packages | process definitions |
-| **process definition** | calls every settings factory once, builds the dependencies, wires them, runs one process. | everything | nothing |
+| **process definition** | builds every settings object once, builds the dependencies, wires them, runs one process. | everything | nothing |
 
 The **columns are the contract**; a service that can fill this table for its own packages has applied
 this skill. Everything else in a flat service is a supporting package the four reach for — payload models
@@ -234,16 +235,15 @@ class FooClient:
 (`exception-catalog`); what its
 `context` carries when a method takes an input is `exception-catalog`'s.
 
-`src/myapp/foo_api/settings.py` is `python-settings`' template under `MYAPP_FOO_API_`,
-declaring the client's `url` and `timeout_seconds`. The process's own `src/myapp/settings.py`, at the
-package root beside the rest of the cross-cutting setup, has the same shape — `Settings` and
-`get_settings()` under `MYAPP_` — holding only the fields that configure the process itself; a process
+`src/myapp/foo_api/settings.py` is `python-settings`' template — `FooApiSettings` under
+`MYAPP_FOO_API_`, declaring the client's `url` and `timeout_seconds`. The process's own
+`src/myapp/settings.py`, at the package root beside the rest of the cross-cutting setup, has the same
+shape — `Settings` under `MYAPP_` — holding only the fields that configure the process itself; a process
 with none has no such module, and a thin HTTP wrapper adds two server fields to it (`flat-entrypoint`).
 The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
 re-exports the settings and client modules (`python-packaging`), so a caller writes
-`from myapp.foo_api import FooClient`. The data-access package exposes factories for its
-settings and its engine in the same shape (`flat-persistence`), and the process definition calls every
-one of them (rule 7).
+`from myapp.foo_api import FooApiSettings, FooClient`. The data-access package declares its settings
+class the same way (`flat-persistence`).
 
 **The client is handed its transport; it never builds one** (rule 14). The process-definition package
 builds the pooled HTTP client once from the system's settings — `httpx.AsyncClient(base_url=settings.url,
@@ -311,19 +311,18 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
 6. **One exception catalog**, and SDK/library exceptions are translated into it at the boundary — inside
    the client class that called the SDK. Shape and translation rules: `exception-catalog`.
 7. **The process definition builds settings and passes them down as values** — it is this family's
-   composition root (`python-settings` rule 13). It calls each component's settings factory once and
+   composition root (`python-settings` rule 13). It constructs each component's settings class once and
    hands concrete arguments, and the transports it built, to the clients and work units it constructs.
-   The migration environment is the process definition of a migration run and calls the data-access
-   component's factory the same way (`flat-project-setup`). Nothing below the process-definition role
-   imports settings, and no module below it calls a settings factory, its own component's included.
+   The migration environment is the process definition of a migration run and builds the data-access
+   component's settings the same way (`flat-project-setup`). Nothing below the process-definition role
+   imports settings, and no module below it builds a settings object, its own component's included.
 8. **Every component that has configuration is a package, and declares its own settings class in a
    `settings.py` inside that package** (`python-settings` rule 1). The process's configuration, an
    external system's and a store's are three components and three classes, never a client module with
-   a `*_settings.py` sibling in a package it shares with other systems. Each class exposes a factory and
-   stops there — declaring one is not licence to call it below the process definition (rule 7). Its
-   prefix, and the nested-prefix collision between the process's `MYAPP_` and a component's
-   `MYAPP_POSTGRES_`, are `naming`'s rule 7, the same whether the second component is a package inside
-   this distribution or a library shared with siblings (`flat-persistence` states that package's half).
+   a `*_settings.py` sibling in a package it shares with other systems. Its prefix, and the nested-prefix
+   collision between the process's `MYAPP_` and a component's `MYAPP_POSTGRES_`, are `naming`'s rule 7,
+   the same whether the second component is a package inside this distribution or a library shared with
+   siblings (`flat-persistence` states that package's half).
 9. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
    durable-execution engine is earned, the one framework-guarded helper module the firewall's allow-list
    names by path, so the exemption stays one entry a reviewer can read. For one distribution that is a
@@ -336,7 +335,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
 11. **An enum lives beside the module that owns it.** A shared vocabulary module holds only what is
     genuinely used across packages, and admission to it runs `coupling`'s test — a blanket category
     package pulls single-owner types away from their owner and stops naming anything.
-12. **Which scope logs a failure is `python-style`'s rule, and it applies here unchanged.** In a flat
+12. **Which scope logs a failure is `python-logging`'s rule, and it applies here unchanged.** In a flat
     service the scope that stops a failure is usually the loop's guard or the framework wrapper's error
     handler; a client translating an SDK error re-raises and so stays silent, with the detail riding in
     the translated exception's `context` (`exception-catalog`).
@@ -375,10 +374,8 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
   move the wrapper into the framework-wrapper package and leave the body where it was.
 - A package cannot be placed in one row of the import-contract table → stop, it holds two roles or none;
   split it or delete it before writing code into it.
-- A module builds its settings instance at import time → stop, expose `get_settings()` for the process
-  definition to call (`python-packaging` rule 8).
-- A module below the process definition calls a settings factory, its own component's included → stop,
-  the process definition calls it and passes the values down; owning a settings class is not permission
+- A module below the process definition builds a settings object, its own component's included → stop,
+  the process definition builds it and passes the values down; owning a settings class is not permission
   to read it from inside the component.
 - A client module and a `*_settings.py` sit side by side in a package shared with other components, or
   one settings class holds two components' fields → stop, the component is a package with its own

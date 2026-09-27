@@ -25,7 +25,7 @@ What they do *not* decide is which package a module belongs in. That is the arch
   a structural problem and the hard stops below say so.
 - Which package a module belongs in → `hex-architecture` (in the `pyhouse-hex` plugin) or
   `flat-layered` (in `pyhouse-flat`).
-- Annotation forms, logging, comments → `python-style`.
+- Annotation forms, comments → `python-style`; logging → `python-logging`.
 - The exception catalog's contents and where its file sits → `exception-catalog`; that it may hold many
   classes is this skill's set test, of which it is the first worked example.
 - Whether the boundary between two modules or packages should exist at all → `coupling`, first; this skill owns the mechanics once it is drawn.
@@ -148,8 +148,9 @@ rule at all. It is about classes.
 
 **Importing a module binds names.** It does not reach the network or the filesystem, read an environment
 variable, or build anything that needs either — a settings object, a client, an engine, a session
-factory, a connection pool. Those are built **behind a factory function** the caller calls. Declaring is
-not building: a class, a constant, a type alias, or a schema object that only describes a shape may sit
+factory, a connection pool. Those are built **inside a function the caller runs** — the entry function
+calling the class, or a factory function where building takes more than the call. Declaring is not
+building: a class, a constant, a type alias, or a schema object that only describes a shape may sit
 at module level, because none of them needs anything to exist.
 
 ```python
@@ -158,18 +159,18 @@ settings = Settings()
 
 
 # yes — the caller decides when, and the failure names the missing value
-def get_settings() -> Settings:
-    return Settings()
+def main() -> None:
+    settings = Settings()
+    ...
 ```
 
 Reading the installed distribution's own metadata is a filesystem read like any other, so it gets no
 exemption: a `__version__` computed at module level is a build, and the version a program reports is
 read behind a function the caller calls (`python-versioning` owns the number and where it is declared).
 
-Cache the factory only once a second caller genuinely exists — a framework resolving it per request,
-say. Where the entrypoint reads settings once and hands concrete values down, nothing calls it twice
-and the cache buys nothing; needing one is usually a sign something below the entrypoint is reading
-configuration instead of being handed values.
+Where a factory function is written, cache it only once a second caller genuinely exists — a framework
+resolving it per request, say; needing one usually means something below the composition root is
+building what it should be handed.
 
 The reason is the import graph, which is why it lives here. A module-level construction runs for every
 importer, including ones that never touch the object: a test collector importing a sibling symbol, a
@@ -355,7 +356,7 @@ hand-written imports land in the right block.
 7. Select relative or absolute reach using **Relative vs absolute**, without routing a sibling import
    through its parent. A layer boundary is a package boundary and takes the absolute form.
 8. **Build nothing at import time.** Importing a module binds names; anything that reaches the network
-   or filesystem, reads the environment, or needs either goes behind a factory the caller calls — so
+   or filesystem, reads the environment, or needs either is built inside a function the caller runs — so
    importing a module never demands the environment of an object the importer did not ask for.
 9. Collapse symbols from the same direct package into the documented sorted import form; keep the
    re-export reach to one hop.
@@ -398,8 +399,8 @@ hand-written imports land in the right block.
 - A module with import-time side effects being wildcarded into its package → stop, importing the package
   would now run it.
 - A module-level `settings = Settings()`, client, engine, connection or metadata-read `__version__` →
-  stop, put it behind a factory; as written, every importer pays for it and the failure names the
-  import instead of the missing value.
+  stop, build it inside a function the caller runs; as written, every importer pays for it and the
+  failure names the import instead of the missing value.
 - Importing an inner module rather than its package (`from pkg.foo.foo import Foo`) → stop, import from
   the package.
 - Reaching a symbol through a grandparent package → stop, one hop; the middle `__all__` is computed and

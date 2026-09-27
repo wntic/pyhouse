@@ -202,9 +202,10 @@ only where it accepts passes a body that accepts everything.
 **Never assert on what the subject logged.** A log line is a side effect of a successful run, not the
 contract: a subject that logs the right event and writes nothing must red, and it passes every test
 that watches the log instead of the result. Event names are also a stable operational contract that
-dashboards key on (`python-style`), so a test asserting on one couples the suite to the observability
+dashboards key on (`python-logging`), so a test asserting on one couples the suite to the observability
 surface and reddens on a rename that broke nothing. Assert the returned value and the persisted
-state. Which layer may log at all, and what a line may carry → `python-style`.
+state. Who logs an error, and what a line may carry → `python-logging`; which layer may log at all is
+the architecture family's.
 
 Artifact-specific coverage for domain behavior → `hex-test-domain`; repository contracts → `hex-test-repository-contract` or `flat-test-persistence`; request shape and error translation → `flat-test-service-client`. Pin the observable contract those tests own.
 

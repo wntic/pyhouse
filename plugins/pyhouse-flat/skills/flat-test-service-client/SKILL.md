@@ -208,5 +208,5 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
   else's uptime; record the shape as a fixture and assert against that.
 - The client returns raw `httpx.Response` objects to its caller → stop, the boundary leaks; the client
   owns parsing, and a test cannot pin behaviour that lives in the caller.
-- The test builds the client's transport with no explicit base URL, or through a settings factory → stop,
+- The test builds the client's transport with no explicit base URL, or from a settings object → stop,
   it is now coupled to the environment.

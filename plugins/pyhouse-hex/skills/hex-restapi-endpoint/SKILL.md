@@ -240,7 +240,7 @@ For 204 endpoints, the function return annotation is `-> Response` and the body 
 
 The per-operation code sets and the helper are in the sibling `CONTRACTS.md`; registering a middleware's status is `hex-restapi-app`'s.
 
-8. **Routes only advertise.** A route never builds an error response itself: one translator owns the error body's shape, and a hand-built body is the copy that drifts from it. The error catalogue and boundary translation are `exception-catalog`'s; logging is `python-style`'s.
+8. **Routes only advertise.** A route never builds an error response itself: one translator owns the error body's shape, and a hand-built body is the copy that drifts from it. The error catalogue and boundary translation are `exception-catalog`'s; logging is `python-logging`'s.
 9. **Advertise exactly what the route can produce.** The set follows from the operation — which domain exceptions its handler can raise, which middleware sits in front of it, and whether it takes any validated input. A code that cannot occur is removed; a code that can occur and is missing makes the published document wrong in the direction clients notice last.
 10. **Never hand-write the advertisement mapping** — `responses={404: {...}}` typed out at the decorator. Always go through the helper, because the helper is what checks the code against the set of codes something can actually produce; a hand-written entry is the one path by which a status nothing raises reaches the document.
 11. **One hand-maintained registry, and only one.** A status a middleware introduces, with no domain exception behind it, is the only kind registered by hand; everything domain-side derives from the error catalogue's own exported set.
@@ -265,7 +265,7 @@ handler: FromDishka[ListFoosHandler],
 ### What never goes in a route
 
 19. **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is the mixed multipart+JSON parse in `TRANSFER.md`.
-20. **No logging.** Logging ownership follows `python-style`.
+20. **No logging.** Which layer logs is `hex-architecture`'s; the event's shape is `python-logging`'s.
 21. **No business logic, no policy checks, no domain construction beyond mapping body→command.**
 22. **No infrastructure imports.** Only `application/*` and `domain/*` types.
 23. **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
@@ -298,7 +298,7 @@ app.include_router(foos_router)
 ## Hard stops
 
 - The route is asked to reach a composition root off `request.app.state`, or to name a binding rather than a type → stop, declare the handler as a `FromDishka[<Handler>]` parameter.
-- The route is asked to log → stop, use `python-style` for logging ownership.
+- The route is asked to log → stop, routes do not log; which layer logs is `hex-architecture`'s.
 - The route is asked to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
 - Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
 - Asked for a `try/except` in a route body → stop; the one sanctioned case is the mixed multipart + JSON parse in `TRANSFER.md`, and nothing else is.
