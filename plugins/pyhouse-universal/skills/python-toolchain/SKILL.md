@@ -147,7 +147,8 @@ there. Either is compliant once written; the setting drives the formatter as wel
    at 6 and statements at 50, pylint's long-standing defaults. Arguments are capped twice: positional
    ones at 5, and all of them at 7, because a keyword-only argument names itself at every call site. The
    numbers are written even where they equal the tool's default, because an unwritten threshold moves
-   when the tool's default does. A function that trips a bound is split, never suppressed.
+   when the tool's default does. No bound is dropped from the selection or raised, and a function that
+   trips one is split, never suppressed.
 5. **A lint suppression is sanctioned only where a skill names it.** One is sanctioned everywhere — the
    wildcard ignore on `__init__.py` (`python-packaging`). Where a family's migration bootstrap is laid,
    its setup skill sanctions at most two more — for generated revisions and for registration-only
@@ -155,7 +156,7 @@ there. Either is compliant once written; the setting drives the formatter as wel
 6. **Type checking is strict, with the validation library's plugin where the project uses one that
    ships it.** A package with no type information gets one per-package override in the configuration;
    every other type suppression follows `python-style`'s policy.
-7. **The line length is written down once, and the number is the project's.** Settled at setup; a later
+7. **The line length is written down once, in one file, and the number is the project's.** Settled at setup; a later
    change reformats the tree and travels as its own commit, never inside a feature change.
 8. **The interpreter floor is written in the three settings `python-style` names, all naming one
    interpreter**, and its value is `python-style`'s — for a deployable and for a distributed package
@@ -175,26 +176,11 @@ there. Either is compliant once written; the setting drives the formatter as wel
 
 ## Hard stops
 
-- The project is being laid down as a single module or a flat tree with no `src/` → stop, use the src
-  layout.
-- A dependency is pinned in `pyproject.toml`, or given a floor with no named break → stop, names only;
-  the lock file pins, and a floor names the API it relies on.
-- A floor is being written from a recollection of what version is "recent" → stop, a floor states a
-  known break or it does not exist.
-- A development tool is declared as a runtime dependency, or in a deprecated tool-specific table →
-  stop, it goes in the default development group.
-- `tests` is excluded from the type checker or the linter, or checked less strictly than `src` → stop,
-  they are held at parity.
-- A size or complexity rule is being dropped from the selection, its threshold raised or left unwritten,
-  or a function exempted with `noqa` to get it through → stop, split the function; the bound is the
-  point.
-- A `noqa` or a per-file ignore no skill sanctions → stop, fix the code (rule 5).
-- A missing-stub error silenced anywhere but a per-package override in the configuration → stop, write
-  the override; any other type suppression → `python-style`.
-- `line-length` left unwritten, or restated in a second file → stop, write it once.
-- `line-length` changed inside a feature change on an established tree → stop, it reformats the tree;
-  make it its own commit.
-- `requires-python`, `target-version` and `python_version` disagree → stop, `python-style`; all three
-  name the project's oldest supported interpreter.
 - Asked which runtime libraries a service needs → stop, that is its roles', under the family's setup
-  skill; this skill says only how they are declared.
+  skill (`flat-project-setup`, in `pyhouse-flat`, or `hex-project-setup`, in `pyhouse-hex`); this skill
+  says only how they are declared.
+- Asked for the interpreter floor's value, or whether an inline type-ignore or a `cast` is allowed →
+  stop, use `python-style`.
+- Asked what version this distribution declares → stop, use `python-versioning`.
+- Laying the root of a repository holding several distributions → stop, use `python-workspace`; the
+  values it writes there are still this skill's.
