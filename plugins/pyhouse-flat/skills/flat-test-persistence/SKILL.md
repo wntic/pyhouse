@@ -108,7 +108,8 @@ The tests drive the class a caller uses and assert through `conn`, a query again
 
 The first test pins the declared update set from both sides in one comparison: one row, not two; the
 name the set covers changed; the id it does not cover kept the value the first write minted. Where the
-translator branches on a constraint's name, a test pins that name on a plain insert.
+translator branches on a constraint's name, a test pins that name on a plain insert and one exercises
+the conflict clause against the same constraint (rules 2 and 3).
 
 Where a write chunks, the chunk-boundary test constructs the class with `chunk_size=2` against five foos
 deliberately: it crosses the boundary three times with an uneven last chunk, which is where an off-by-one
@@ -157,12 +158,11 @@ could not observe another connection's rollback either way.
    type.** The name comes from the metadata naming convention, and asserting it catches a migration that
    dropped the intended index.
 3. **A unique constraint the translator branches on is tested on the plain insert *and* on the
-   conflict-resolution path.** A
-   partial or expression index can be honoured by an insert and silently not matched by the conflict
-   clause; only exercising both paths separates those two outcomes.
+   conflict-resolution path.** A partial or expression index can be honoured by an insert and silently
+   not matched by the conflict clause; only exercising both paths separates those two outcomes.
 4. **Test the declared update set from both sides.** The second write must change what the set names
-   *and* leave every column outside it alone — that is the whole contract of an upsert, and it is two
-   assertions, not one.
+   *and* leave every column outside it alone — that is the whole contract of an upsert, and both are
+   pinned, whether in one comparison or two.
 5. **An empty update set means "do nothing on conflict".** Where a write declares one, test it as a
    no-op that raises nothing and changes nothing; a write that meets a key already recorded and must
    leave it alone relies on exactly that.
@@ -175,7 +175,7 @@ could not observe another connection's rollback either way.
    read, it is forced to fail once too: a translation written only around the writes leaves every read
    leaking the driver's type, and no write test notices. The failure is forced through something the store itself refuses, never
    through a value that only happens to be rejected today.
-8. **A timestamp the store assigns is asserted as `test-principles` rule 5 states**; under the
+8. **A timestamp the store assigns is asserted as `test-principles` reliability rule 5 states**; under the
    rollback-scoped `conn` every write shares one transaction, and so one fixed clock.
 9. **A repository-class test constructs the class with the `engine` fixture**, never with the production
    engine factory — that builds a second pool the suite never disposes (`flat-test-integration-setup`).

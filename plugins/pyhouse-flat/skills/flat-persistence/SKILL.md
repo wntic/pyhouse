@@ -26,8 +26,8 @@ reading the rules, because a rule whose property is absent has nothing to be tru
 **Rules 1, 2, 5, 6, 7, 9, 14, 15, 17, 18 and 19 hold for any store at all**, SQL or not, and are what
 carries across to a columnar store, a document store, a key-value store or a vendor-managed index; rules
 16 and 20 hold wherever the schema is versioned by migrations at all, and rule 13 wherever the
-service mints keys. Rule 10 holds everywhere but
-inverts its reason: where a driver caps bind parameters the constant exists to stay under a ceiling,
+service mints keys. Rule 10 holds on any store wherever a
+write chunks, but inverts its reason: where a driver caps bind parameters the constant exists to stay under a ceiling,
 and on a columnar store that penalises small writes it exists to stay above a floor. The number is the
 store's; that it is named once and read by the test is not. A store answering *no* four times is not a
 poor fit for this skill — the rules that lapse lapse because their subject does not exist.

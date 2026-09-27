@@ -1357,7 +1357,7 @@ has one template, the repository's: the update set from both sides in one test (
 minted id kept), the chunk boundary and the in-batch duplicate marked as batch-only, and the
 translation. The plain-insert constraint test is gone; test rules 2 and 3 apply where the translator
 branches on a constraint's name, rules 5, 6 and 13 are conditional on their case, rule 8 points at
-`test-principles` rule 5, and a third restatement of "expect the catalogue exception" is removed. Rules 9
+`test-principles` reliability rule 5, and a third restatement of "expect the catalogue exception" is removed. Rules 9
 and 11 no longer name a helper, rule 10 computes from the written table's width rather than the widest
 table's, and rule 12 says the write rather than the caller names the columns. No persistence obligation
 changed; the mapping-builder exemption D20 granted is withdrawn, which is breaking for a project that
