@@ -169,7 +169,9 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
 ## Rules
 
 1. **The transport is stubbed, never the client.** A test that patches `FooClient.fetch_foos` is testing
-   nothing; the parsing and translation under test live inside that method.
+   nothing; the parsing and translation under test live inside that method. Nor is a `Protocol`
+   extracted so the client can be swapped (`flat-layered` rule 3): the transport stub already
+   substitutes at the right seam.
 2. **Assert the translation, not just the type.** Every error status and every transport failure must
    surface as the service's own catalog exception — carrying the identifying input in its `context`
    where the call takes one — and the original must still be reachable as that exception's cause: that
@@ -193,20 +195,14 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
    all-called check off (`assert_all_called=False` here).
 8. **Every test in the file intercepts the transport; none may reach a real host.** A test that escapes
    the stub — an unmatched URL, a client that builds a transport the stub does not cover — is
-   non-deterministic, slow, and fails in CI on the day the vendor has an outage.
+   non-deterministic, slow, and fails in CI on the day the vendor has an outage. A response shape is
+   recorded as a fixture and asserted against, never read live — that is a contract test against
+   someone else's uptime.
 
 ## Hard stops
 
-- A test patches a method of the class under test → stop, stub the transport; patching the subject
-  leaves nothing tested.
-- A `Protocol` is being extracted so the client can be substituted → stop, forbidden by the flat-layered
-  style; the transport stub already substitutes at the right seam.
 - The client swallows a transport or parsing failure internally, returning a default instead of raising
-  → stop, fix the client; a boundary that hides its failures cannot be tested, and its caller cannot
-  tell a failure from an empty answer.
-- A test asserts on a live third-party response shape → stop, that is a contract test against someone
-  else's uptime; record the shape as a fixture and assert against that.
-- The client returns raw `httpx.Response` objects to its caller → stop, the boundary leaks; the client
-  owns parsing, and a test cannot pin behaviour that lives in the caller.
-- The test builds the client's transport with no explicit base URL, or from a settings object → stop,
-  it is now coupled to the environment.
+  → stop, fix the client (`flat-layered` rule 5); a boundary that hides its failures cannot be tested,
+  and its caller cannot tell a failure from an empty answer.
+- The client returns raw `httpx.Response` objects to its caller → stop, fix the client (`flat-layered`);
+  the client owns parsing, and a test cannot pin behaviour that lives in the caller.
