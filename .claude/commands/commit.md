@@ -53,7 +53,7 @@ for p in plugins/*/; do echo "$p $(ls $p/skills | grep -v README | wc -l)"; done
 **Read the diff for contract breaks** — no tool catches these:
 
 - A real project, service, tenant, bucket, queue or product name where a placeholder belongs
-  (`Foo`/`Bar`/`myapp`/`myschema`/`myrepo`/`foo_parser`), in any spelling including env-var prefixes
+  (`Foo`/`Bar`/`Baz`/`myapp`/`myschema`/`myframework`/`myrepo`), in any spelling including env-var prefixes
 - A rule in `## Rules` that says nothing once the library name is removed — it belongs in the template
 - A second full template for an alternative stack — that is `## Other bindings` bullets or a sibling skill
 - A `## Template` heading that does not name its stack
