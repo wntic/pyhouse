@@ -66,6 +66,11 @@ the `pyhouse-reviewer` subagent, which decides which skills apply and applies th
 overlap — running the review command on this repository finds no architecture family and nothing to
 review, which is correct.
 
+`/kickoff` (in `.claude/commands/`) starts a session: it carries why this catalogue exists, the lessons
+every change is made under, and points at `.claude/backlog.md` for open work. **When the purpose, the
+families, the review setup or the way work is done changes, update `kickoff.md` in the same change;**
+an edit agreed but not made goes in `.claude/backlog.md`.
+
 `/review-skills` (in `.claude/commands/`) reviews **this repository's skills**. It runs the
 `catalogue-reviewer` subagent (`.claude/agents/`) once per lens and merges the findings; the questions
 are in `.claude/review/QUESTIONS.md`.
@@ -156,7 +161,8 @@ DECISIONS.md                             why things are the way they are, and ho
 tools/check_template_imports.py          resolves every import in every template (see above)
 .claude/review/QUESTIONS.md              the questions a review of a skill answers
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
-.claude/commands/                        /commit and /review-skills, this repository's own
+.claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
+.claude/backlog.md                       catalogue edits agreed or proposed, not yet made
 plugins/pyhouse-universal/               13 skills (12 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
