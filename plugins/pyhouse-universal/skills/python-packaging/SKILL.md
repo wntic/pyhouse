@@ -58,14 +58,14 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 - A module filename must describe its contents, by the rules in `naming`.
 
 ```python
-from dataclasses import dataclass
+import httpx
 
 __all__ = ["FooClient"]
 
 
-@dataclass
 class FooClient:
-    pass
+    def __init__(self, http: httpx.AsyncClient) -> None:
+        self._http = http
 ```
 
 ### When a module needs a class at all

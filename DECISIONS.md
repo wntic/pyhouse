@@ -1583,8 +1583,8 @@ rule 7 (now 8) and the hard stops; its code block is reduced to a sentence. Rule
 templates carried (disposal, the metadata target), a new rule 7 states that the generated bootstrap is
 changed before the first revision, and a hard stop names the unchanged-output failure; rule 7 and that
 hard stop restate what the deleted templates enforced by being the file itself. One thing is not a
-restatement: the generated `env.py` calls `fileConfig` on `alembic.ini`, whose `[loggers]`, `[handlers]`
-and `[formatters]` sections give Alembic's records their own handler and format beside the service's
+restatement: the generated `env.py` calls `fileConfig` on `alembic.ini`, whose logging sections — `[loggers]`,
+`[handlers]`, `[formatters]` and the `[logger_*]`, `[handler_*]`, `[formatter_*]` sections they list — give Alembic's records their own handler and format beside the service's
 structured stream — `python-logging` rule 3 and its hard stop on a library's records bypassing the
 configured logger. The deleted `env.py` configured no logging at all, so the skill said nothing either
 way; block B now has the environment configure logging as the service's other process definitions do,

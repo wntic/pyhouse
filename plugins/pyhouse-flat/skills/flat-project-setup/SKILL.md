@@ -90,8 +90,9 @@ it writes is the tool's generic starting point, not this family's bootstrap; bef
 the generated files are changed to do what follows.
 
 **Nothing in `alembic.ini` names a database.** The `sqlalchemy.url` line `init` writes is deleted, and so
-are the `[loggers]`, `[handlers]` and `[formatters]` sections, which only the generated logging setup
-reads; the rest may stay as generated.
+is every logging section — `[loggers]`, `[handlers]`, `[formatters]` and the `[logger_*]`, `[handler_*]`,
+`[formatter_*]` sections they list — which only the generated logging setup reads; the rest may stay as
+generated.
 
 **The migration environment is the migration run's process definition**, so it is the one place outside
 the service's own entrypoints that builds the data-access component's settings. `env.py` is changed so
@@ -115,7 +116,8 @@ that:
   error, because every migration runs against a live connection;
 - the tool's explanatory comments go, as they do from any source file (`python-style`, Comments).
 
-**The revision template is kept as `init` writes it, with one edit: the forms it renders.** The
+**The revision template is kept as `init` writes it, with three edits: its annotations, its import order
+and its comments.** The
 generated `script.py.mako` annotates its revision identifiers with `typing.Union` and `typing.Sequence`
 and places `from alembic import op` ahead of `import sqlalchemy as sa`, so every revision it rendered
 would break `python-style`'s annotation forms and fail the linter's import sort. Its annotations become

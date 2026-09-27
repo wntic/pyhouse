@@ -59,6 +59,8 @@ owner, not a different way to store data.
 `hex-application` 27 rules, `test-principles` 27 rules and 18 stops, `flat-entrypoint` 26 and 29,
 `flat-persistence` 20 and 24. Many hard stops restate a rule with "→ stop". Decide on a bound or a test
 (a hard stop only for a wrong turn a rule alone does not catch), and apply it.
+- `meta-skill-author/SKILL.md` is now ~510 lines, past its own ~500-line guideline for moving text to a
+  sibling file.
 
 #### 19. `hex-capability-adapter`'s template is one application's token client
 `HttpBarGateway.fetch_token(subject)` and `BarToken` are a specific upstream's shape. A generic adapter
@@ -109,8 +111,8 @@ function, not a private method". Decide which holds and align the other. The sta
 #### 29. `hex-project-setup`'s migration bootstrap trails what `flat-project-setup` now states
 Block B takes `script.py.mako` as `alembic init` writes it, which renders `typing.Union` forms and an
 import order the linter rejects, contradicting `python-style` and `hex-persistence/REVISION.md`. Its
-`env.py` disposes the engine only on a clean run, does not refuse offline mode and leaves the generated
-file-based logging. Align it with what `flat-project-setup` now states.
+`env.py` disposes the engine only on a clean run, does not refuse offline mode and configures no logging, so
+the tool's records reach no configured handler (`python-logging` rule 3). Align it with what `flat-project-setup` now states.
 
 #### 30. Comments left in production templates after D123
 Most likely to break `python-style`: `hex-persistence/REVISION.md` (the check-constraint suffix note) and
@@ -123,6 +125,8 @@ Test skills were not swept.
 `flat-persistence/SETUP.md` (the alembic commands) and `python-versioning/SKILL.md` (tag and push) are
 sequences a project runs, not files it copies. Also `meta-skill-author` says the skill shapes "add and
 remove nothing" (~line 368) while a reference skill omits `Template(s)`; reword it.
+`git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
+rest.
 
 ## Agreed
 
