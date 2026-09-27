@@ -246,13 +246,18 @@ in-process one alone.
    aggregate.
 5. **A wrapper test proves the wrapper, not the body.** One happy path and one exception translation:
    that the trigger reaches the body, and that a service failure arrives at the framework as a typed
-   failure carrying the original's identity rather than an opaque one.
+   failure carrying the original's identity rather than an opaque one. A wrapper test that re-asserts the
+   run-function file's coverage makes the two files change together for one reason.
 6. **The wrapper body never diverges from the run function** — it calls it and holds no logic of its own.
    A divergence means two triggers of the same work are drifting apart, and the tests must not paper
    over it.
 7. **A run that fans out over independent units is tested with one unit failing inside its write**,
    asserting that the other units' rows landed and that the run's failure names the failed unit
    (`flat-entrypoint` rules 11 and 13).
+8. **A process's containment is tested through its guard's single-run call, never by driving the loop.**
+   A `while True` under test needs an escape, and building one — a patched `asyncio.sleep` that raises,
+   a counter that breaks out — asserts the mechanism instead of the behaviour; the loop around the guard
+   is one sleep and needs no coverage of its own.
 
 ### Once a durable-execution engine is earned
 
@@ -268,7 +273,9 @@ change under any engine, because the body never imports one.
 2. **An orchestration test asserts orchestration only** — that the step ran, that the retry policy is
    what it claims, that the loop terminates and aggregates. No datastore, no transport stub, no
    assertions about stored rows. That is what keeps this form from re-running the run function's
-   coverage.
+   coverage: an orchestration test that needs a datastore is exercising I/O `flat-entrypoint`'s durable
+   obligation 1 forbids there, and one that needs a transport stub is reaching the real step body
+   instead of the stub obligation 3 below registers.
 3. **A stub stands in under the registered wire name the orchestration resolves, not by function
    identity.** The orchestration names its steps by string; a stub that is the right function under the
    wrong name is never reached, and the test then exercises the real body against no datastore
@@ -290,30 +297,7 @@ change under any engine, because the body never imports one.
 - `run_once` reaches for a module-level engine instead of taking one → stop, use `flat-entrypoint`
   rule 3 and add the parameter.
 - A run-once process gets a containment test → stop, it has no guard; its failure is its exit status.
-- A test drives the `while True` loop directly → stop, extract the guarded single-run call and test that;
-  the loop itself is one `await asyncio.sleep` and needs no coverage.
-- A test monkeypatches `asyncio.sleep` to break out of a loop → stop, that asserts the mechanism, not the
-  behaviour.
-- A wrapper test re-asserts everything the run-function test already covers → stop, the two files then
-  change together for one reason; keep the wrapper test to the wrapper.
-- The wrapper body contains logic the run function does not → stop, move it down; the wrapper holds no
-  logic.
-- A test of the run function substitutes the datastore → stop, that removes the only thing this level can
-  prove; substitute the upstream transport and keep the real store.
+- The wrapper body contains logic the run function does not → stop, use `flat-entrypoint` rule 2 and
+  move it down; the wrapper holds no logic.
 - An orchestration, a continuation or a declared retry policy is about to be tested with no engine in
   the service → stop, that level exists only once an engine has been earned (`flat-entrypoint` rule 1).
-
-### Under a durable-execution engine
-
-- An orchestration test starts a datastore container → stop, the orchestration does no I/O by design; if
-  it does, that I/O belongs in a unit of work and the orchestration is wrong.
-- An orchestration test stubs the HTTP transport → stop, that means it is reaching the real step body;
-  register a stub under the wire name instead.
-- An orchestration test re-asserts what a step wrote → stop, that is the run-function file's job;
-  duplicating it makes both files change together for one reason.
-- A retry is asserted by waiting out the real backoff → stop, use the engine's time-skipping clock.
-- A batch-loop orchestration ships with only the happy-path test → stop, test the empty-batch end and
-  the carried values (`flat-entrypoint` durable obligation 6); a continuation that drops a value is
-  invisible from the happy path.
-- A schedule definition is being unit-tested → stop, it is deploy-time infrastructure; pin the routing
-  name statically instead (`flat-entrypoint` rule 6).
