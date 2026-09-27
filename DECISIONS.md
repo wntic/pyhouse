@@ -1526,3 +1526,11 @@ before and after. The flat/hex difference in the test engine's pool pre-ping is 
 neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
+
+### D120 — `when_to_use` is written only where `description` cannot hold the phrasings
+19 skills carry `when_to_use` and 29 do not, nearly all of `pyhouse-hex` among the latter. The
+maintainer chose to make that the rule rather than even it out: the field is Claude Code only, every
+other client matches on `description` alone, so a skill whose `description` already holds its
+triggers gains nothing from it. `meta-skill-author` now says so beside the field. No skill changes.
+**Reverse by:** deleting that sentence, and then either adding the field to the 29 or removing it
+from the 19.
