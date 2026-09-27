@@ -1394,3 +1394,17 @@ paragraph in `flat-test-persistence`, and the helper wording in `flat-persistenc
 its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
+
+### D118 — Smaller leftovers: a `context` key names the input, and the checker's dead placeholders go
+`exception-catalog` states that a `context` key names the input, not the failure, and then showed
+`{"field": "name", "constraint": "uq_foos_name"}` as its example — a key that names the constraint that
+failed. The example is now `{"foo_name": foo.name}`, the spelling `python-logging` raises with. The
+constraint name stays where it is a contract rather than an example: the relational adapter in
+`hex-persistence` sets it and `hex-test-repository-contract` and `hex-test-application-handler` assert
+on it. `tools/check_template_imports.py` listed `mycommon`, `store_sdk` and `shared` as placeholder
+modules; no fenced `python` block imports any of them, and none is in the `CONVENTIONS.md` placeholder
+table, so all three are dropped. The checker reports the same 231 resolved, 0 missing, 0 unchecked
+before and after. The flat/hex difference in the test engine's pool pre-ping is closed with no change:
+neither family states a rule about it, so there is nothing to align.
+**Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
+`exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
