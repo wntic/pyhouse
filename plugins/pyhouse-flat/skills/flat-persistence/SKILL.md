@@ -23,7 +23,7 @@ reading the rules, because a rule whose property is absent has nothing to be tru
 | a conflict clause on write | rule 12, unless the store has a `MERGE` — otherwise resolution is the store's merge-time mechanism (rule 18) |
 | a write readable immediately after it returns | rule 11 — a read-back can only be a separate, later read |
 
-**Rules 1, 2, 5, 6, 7, 9, 14, 15, 17, 18 and 19 hold for any store at all**, SQL or not, and are what
+**Rules 1, 2, 5, 6, 7, 9, 14, 15, 17, 18, 19 and 21 hold for any store at all**, SQL or not, and are what
 carries across to a columnar store, a document store, a key-value store or a vendor-managed index; rules
 16 and 20 hold wherever the schema is versioned by migrations at all, and rule 13 wherever the
 service mints keys. Rule 10 holds on any store wherever a
@@ -100,7 +100,8 @@ layout. Only this file is loaded automatically, so open the one you need:
   migration revision — it binds rules 8, 14, 15, 16, 17 and 20.
 - **Read `TABLE.md`** before defining a table, a column or a key — it binds rules 8 and 13.
 - **Read `REPOSITORY.md`** before writing the repository class, a bulk write, its error translator, its
-  row mapper or a write that spans statements — it binds rules 2, 3, 4, 5, 6, 7, 9, 10, 11, 12 and 18.
+  row mapper or a write that spans statements — it binds rules 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 18 and
+  21.
 
 ## Other bindings
 
@@ -165,8 +166,10 @@ layout. Only this file is loaded automatically, so open the one you need:
    arrives. The declared-type obligation itself is `python-style`'s.
 8. **Constraint names are a contract, generated from one convention declared once.** A migration, a
    translator branch and a test must be able to name the same constraint without any of them inventing
-   it. This rule and rule 5 are paired: the translator can only match on a name the convention makes
-   predictable.
+   it; names left to the backend break all three. This rule and rule 5 are paired: the translator can
+   only match on a name the convention makes predictable. The convention is declared in a module of its
+   own that every table module imports — never inside a table module, which would make that table the
+   root of the import graph.
 9. **Where a method takes a batch, its write is one multi-row statement per chunk, never a per-row
    statement in a loop** — that is what keeps a ten-thousand-row batch to a handful of round trips
    instead of ten thousand.
@@ -244,59 +247,14 @@ layout. Only this file is loaded automatically, so open the one you need:
     the store provides where it has one, the migration tool's own where it takes one, or else the deploy
     mechanism's: migrations run as one dedicated job per deploy, never from every replica at start-up.
 
+21. **Each repository class builds its own statements from its own declared type.** What several
+    classes in one package share is the store's — the driver-error translation and its fallback, the
+    bind-parameter cap — never a write helper taking a table, rows as mappings and conflict columns,
+    which moves every class's statement out of the class that owns it and its rows back to untyped
+    mappings.
+
 ## Hard stops
 
-- A statement is being built or a connection opened outside this package → stop, the call belongs behind
-  a method here; that is what makes the service's SQL findable and its writes testable.
-- One callable both accepts a connection and opens its own → stop, pick one; a caller cannot compose it
-  and a test cannot isolate it.
-- A write spanning statements is being split across two separate transactions → stop, that reopens the
-  partial-write race; keep it inside one (rule 4).
-- A driver exception is allowed to escape this package, or the translator ends by re-raising it → stop,
-  the fallback is mandatory: return a catalogue exception when no case matched.
-- A read, or the opening of a connection or a transaction, sits outside the translated scope → stop,
-  wrap the whole engine block; a refused connection escapes as the driver's type otherwise.
-- A row leaves this package as a bare mapping → stop, map it to the service's declared type here; the
-  mapping is this package's, and nothing above it should learn column names.
-- A single-row insert path is being written for a batch known to exceed a few hundred rows → stop, write
-  one multi-row statement per chunk (rules 9 and 10).
-- A write helper that takes a table, rows as mappings and conflict columns is being extracted so several
-  repository classes can share it → stop, each class builds its own statement from its own declared
-  type; what the package shares is the driver's cap and the translator's fallback.
-- A new primary key this service mints uses a random UUID or a database-side default → stop, mint a
-  time-ordered identifier application-side.
-- The `MetaData` is being declared inside a table module → stop, it belongs in its own module; hosting it
-  in a table module makes that table the root of the import graph.
-- A `MetaData` is created without the naming convention → stop, the constraint names are a contract
-  shared by migrations, error handling and tests; backend-assigned names break all three.
-- A module-level `engine = create_async_engine(...)` is being added → stop, use the factory; the bare
-  object makes importing the module fail wherever the environment is incomplete, and it is the object
-  every test skill forbids importing.
-- A second store's connection, settings or tables are being added to the first store's package or
-  settings class → stop, give it a package of its own named for its technology, with its own settings
-  class, factory and migration directory (rule 17).
-- Rows that already exist are being looked up so the application can skip or merge them before writing,
-  or to keep an earliest or aggregated value → stop, resolve it in the write (rule 12) or in the store's
-  merge-time engine (rule 18).
-- One statement is built from a batch that can hold two inputs with the same key → stop, collapse the
-  batch by that key first; a store resolving conflicts per statement may refuse to touch one row twice
-  (rule 18).
-- A limited read resumes from the last row's value of a column that is not unique → stop, add a unique
-  tiebreaker to the order and to the cursor, or drop the limit (rule 19).
-- Migration files are being placed under `src/`, or in `migrations/` without a directory named for their
-  store → stop, the history is data at the distribution root in `migrations/<store>/` (rule 20).
-- A migration runner is being hand-written for a store that has a migration tool, or one without an
-  applied-version record, or one that every replica runs at start-up with nothing excluding the others →
-  stop, use the tool; where none fits, the runner does all four things rule 20 names and runs as one job.
-- A runner finds its migration files through the package's import path, or the image that runs
-  migrations does not carry `migrations/` → stop, pass the directory in and ship it with the deployable
-  (rule 20).
-- A revision is being written for a table another project owns → stop, that project owns its history;
-  declare only the tables read and let the suite create them from metadata (rule 15).
-- One revision drops or renames something the running release still reads → stop, split it: expand in
-  this release, contract in a later one.
-- A revision ships without a `downgrade()`, or with one that does not reverse its `upgrade()` → stop,
-  write it; the migration round trip fails on it, and that test is the reason it exists.
 - The relational migration environment or a baseline revision is being laid → stop, use
   `flat-project-setup`; this skill owns the revisions that follow it.
 - The service has business invariants that must outlive a change of datastore → stop, this family is the
