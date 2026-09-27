@@ -1527,7 +1527,7 @@ neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
 
-### D124 — Production templates carry only the comments `python-style` sanctions
+### D124 — Fifteen skills' production templates drop the comments `python-style` does not sanction
 An agent copies a template verbatim, so every comment and docstring in one lands in every project, and
 `python-style` allows a comment only as a single short line of non-obvious *why*. The production
 templates carried more. `hex-wiring`'s `CONTAINER.md` had a docstring on each provider class and on
@@ -1542,14 +1542,29 @@ comment above `MIDDLEWARE_ERRORS`, which the prose after the block already state
 are gone. `hex-application`'s `# <file>.py` headers in its two-file query blocks became a line of
 prose naming the files, as its other two-file sections already do without them. `python-logging`'s
 note that a distributed package uses the stdlib logger moved into the sentence before its example.
+`hex-capability-adapter`'s "protocol is NOT imported" import comment is gone; its rule 2 and its import
+rules already state it. The file-path header comment opening a block became a line of prose naming the
+file before it in `hex-patterns` (both unit-of-work blocks), `hex-persistence`'s `TABLE.md` (two) and
+`REVISION.md`, `hex-project-setup` (`alembic.ini` and `env.py`, whose "async, online mode only" reason
+moved into that line), `exception-catalog`, `python-versioning` and `python-workspace`.
+`python-packaging`'s `# imports` elision marker, a structural label `python-style` bans by name, became
+a real import the block uses (`from dataclasses import dataclass` on the class), so the order imports →
+`__all__` → definitions reads the same. In `hex-restapi-endpoint`'s `TRANSFER.md` the "beside
+`router = APIRouter(...)`" comment moved into the prose before the upload block and the `media_type`
+annotation is gone; `hex-restapi-schema`'s paging comment on `FooListResponse` is gone, rule 7 stating
+it; `hex-persistence`'s `REPOSITORY.md` comment on `_SORT_COLUMNS` moved into the prose before its
+block. With `main.py` no longer carrying a router include, `hex-restapi-endpoint` states where the
+include goes — between `register_error_handlers(app)` and `setup_dishka(...)`.
 Kept, and why: the two one-line *why* comments in `hex-restapi-app`'s `schemas/errors.py` (the bare
 number for an unknown status; the annotation that strict mypy needs at the decorator), which are true
 in the reader's file; every optional-line marker (`# only with …`, `# only where …`), including
 `flat-entrypoint`'s extended ones, because D117 put that instruction in the template precisely because
-an agent does not copy the sentence after it; and the `# yes` / `# no` contrast labels and per-line
-annotations in `python-packaging` and `python-logging`, which are illustrations of a rule rather than
-files a project copies, along with `python-packaging`'s `# imports` elision marker. No template here
-had a suppression to keep. Test skills are not covered by this change.
+an agent does not copy the sentence after it, and because `python-style`'s `## Comments` now says such a
+marker is addressed to whoever copies the template and never lands in the project's file; the
+`env.py` unused-import suppression and its reason, which `hex-project-setup` sanctions; and the
+`# yes` / `# no` contrast labels and per-line annotations in `python-packaging` and `python-logging`,
+which are illustrations of a rule rather than files a project copies. Test skills are not covered by
+this change, and production templates outside the fifteen skills named here were not swept.
 **Reverse by:** restoring the docstrings on `SettingsProvider`, `InfrastructureProvider`,
 `FoosProvider` and `create_container`, the repository-binding comment and the per-handler comment in
 `CONTAINER.md`, and dropping the paragraph before its block; restoring the middleware comment and the
@@ -1558,4 +1573,9 @@ placeholder" note, the shorter "No other middleware is presumed" note and "`main
 placeholder where they are wired in", and the comment above `MIDDLEWARE_ERRORS`; restoring the
 `CurrentUser.id` field comment, the import comment and the `_RoleDependency` docstring in
 `hex-restapi-auth` and dropping the prose that replaced them; restoring the `# <file>.py` headers in
-`hex-application`; and moving the distributed-package note in `python-logging` back into its example.
+`hex-application`; moving the distributed-package note in `python-logging` back into its example;
+restoring the import comment in `hex-capability-adapter`, the file-path header comments (and
+`hex-project-setup`'s reason on `env.py`'s) in place of the prose lines naming those files, the
+`# imports` marker in `python-packaging`, the `TRANSFER.md`, `hex-restapi-schema` and `REPOSITORY.md`
+comments, and `hex-restapi-endpoint`'s shorter router-registration sentence; and dropping the
+optional-marker paragraph from `python-style`'s `## Comments`.

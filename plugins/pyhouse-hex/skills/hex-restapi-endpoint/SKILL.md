@@ -287,7 +287,7 @@ Rules 24–32 are stated in `TRANSFER.md`, beside the templates they govern; the
 
 ### When the router file is new
 
-After adding the route(s), register the router in `src/myapp/restapi/main.py`:
+After adding the route(s), register the router in `src/myapp/restapi/main.py`, between `register_error_handlers(app)` and `setup_dishka(...)` (`hex-restapi-app`):
 
 ```python
 from .routers.foos import router as foos_router

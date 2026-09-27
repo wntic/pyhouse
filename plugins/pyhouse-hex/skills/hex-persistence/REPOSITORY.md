@@ -19,6 +19,8 @@ adapters.
 
 ## Template — standalone form
 
+`_SORT_COLUMNS` holds one entry per `FooSort` member; the member encodes column and direction.
+
 ```python
 from collections.abc import Sequence
 from typing import Any, cast
@@ -40,7 +42,6 @@ from ..tables.foos import foos_table
 
 __all__ = ["FooRepository"]
 
-# One entry per FooSort member; the member encodes column and direction.
 _SORT_COLUMNS = {
     FooSort.CREATED_AT_DESC: foos_table.c.created_at.desc(),
     FooSort.CREATED_AT_ASC: foos_table.c.created_at.asc(),

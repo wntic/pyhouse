@@ -98,10 +98,10 @@ once, at the root, and inherited.** A member never restates them — a second `l
 The full tool tables and the choice of line length are `python-toolchain`'s, the interpreter floor
 `python-style`'s; the workspace's part is only that they are written here, once.
 
-Each member's `pyproject.toml` declares its workspace dependencies explicitly:
+Each member's `pyproject.toml` declares its workspace dependencies explicitly — here
+`services/myapp/pyproject.toml`:
 
 ```toml
-# services/myapp/pyproject.toml
 [project]
 name = "myapp"
 version = "0.1.0"
