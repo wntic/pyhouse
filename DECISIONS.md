@@ -1300,3 +1300,18 @@ owner or actor. The base composition root carries one handler line. The blob-sto
 endpoint is tested like any endpoint. The page-size default is the filter's alone.
 **Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
 this one.
+
+### D112 — The test engine keeps the pool's liveness check, and `/commit` checks the placeholder table
+`flat-test-integration-setup` rule 9 told the suite to turn off the pool's per-checkout liveness check
+against its own container (`pool_pre_ping=False` in the conftest template); `hex-test-integration-setup`
+had already lost the same opt-out. It is a small per-checkout saving with no correctness stake, which
+is not worth a rule, so it is gone from flat too: rule 9 and the argument are removed, and both families
+build the test engine without a test-only pool setting. It was the last rule, so nothing was renumbered,
+and no skill cited it. The production `pool_pre_ping=True` in `hex-persistence` and `flat-persistence`
+is unchanged. Separately, step 2 of `.claude/commands/commit.md` still listed `foo_parser` among the
+placeholders a diff is checked against, after D29 deleted it, and lacked `Baz` and `myframework`. A copy
+of the table goes stale with every row added to it, so the step now points at the `CONVENTIONS.md`
+placeholder table instead of listing it. Dropping rule 9 is typed `fix`: it withdraws an obligation no
+conforming project breaks on, so nothing a reader carries needs to change.
+**Reverse by:** restoring rule 9 and `pool_pre_ping=False` in `flat-test-integration-setup` from the
+parent of the commit that removed them; the `/commit` pointer is not reversed on its own.

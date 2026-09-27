@@ -97,7 +97,7 @@ def _migrated_db(db_dsn: str) -> str:
 
 @pytest.fixture(scope="session")
 async def engine(_migrated_db: str) -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine(_migrated_db, pool_pre_ping=False)
+    engine = create_async_engine(_migrated_db)
     try:
         yield engine
     finally:
@@ -235,9 +235,6 @@ pure-unit collection pays nothing for it.
    session-scoped pool whose connections outlive the loop they were opened on crashes at teardown the
    first time a statement *errors* — the driver cannot cancel an aborted command on a closed loop — so
    the failure surfaces as an unrelated "event loop is closed" on an ordinary constraint-violation test.
-9. **Turn off the pool's per-checkout liveness check where the datastore cannot vanish mid-run.** A
-   suite-owned container is up for the whole session, so the check is a round trip per checkout buying
-   nothing (`pool_pre_ping=False` here). Leave it on against a remote or shared datastore.
 
 ## Hard stops
 

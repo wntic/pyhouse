@@ -49,10 +49,6 @@ rework. Run it again on current `main` and review the output the same way (layou
 skills loaded, defects → rules).
 
 ### 5. Small leftovers from the generality rework
-- `hex-test-integration-setup` lost the `pool_pre_ping=False` opt-out that `flat-test-integration-setup`
-  keeps — decide one position for both.
-- `.claude/commands/commit.md` lists `foo_parser` among the placeholders; `CONVENTIONS.md` does not
-  define it.
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.
