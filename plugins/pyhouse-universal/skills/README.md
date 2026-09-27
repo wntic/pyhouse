@@ -1,6 +1,6 @@
 # House-style skills
 
-45 skills: 43 project-neutral Python skills in seven families — Universal (10), Meta (1), Hex core
+47 skills: 45 project-neutral Python skills in seven families — Universal (12), Meta (1), Hex core
 (12), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
@@ -15,7 +15,7 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 10 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 12 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
@@ -30,7 +30,7 @@ it lists the whole catalogue, including the skills of a family plugin that is no
 
 **The two architecture families are mutually exclusive.** A service is hexagonal (`hex-*`) or
 flat-layered (`flat-*`); no service is both. **The universal skills bind either way** — they govern
-names, Python forms, packaging, errors, boundaries and testing whichever family a project chose. The
+names, Python forms, packaging, settings, the toolchain, errors, boundaries and testing whichever family a project chose. The
 architecture chooser, **`architecture-choice`**, picks between the two families for a greenfield
 service — and says when neither of them applies — a project too small to need one, or a shape the
 catalogue does not cover. It is itself universal, because it is what you consult before you know
@@ -50,7 +50,7 @@ character cap: `description` has no documented maximum, `description` + `when_to
 **1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
 rewritten as complete sentences to fit, never truncated.
 
-## Universal (10) — always in play
+## Universal (12) — always in play
 
 These skills bind in **every** project in this style, whichever architecture it uses. They are
 unprefixed because they belong to neither architecture family. `architecture-choice` is the one read
@@ -59,18 +59,20 @@ once rather than throughout — before the family is known:
 | Skill | Owns |
 |---|---|
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
-| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms), the vague-noun families and the role suffixes an architecture defines, renaming |
+| `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms — `Repository` whether or not a port stands in front), the vague-noun families and the role suffixes an architecture defines, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
-| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, structured logging, comments |
+| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, closed constant sets as an `Enum`, structured logging configured once at the entry point, comments |
 | `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules |
+| `python-settings` | **Configuration read from the environment** — one settings class per configured component, its non-strict namespace, no default on a required field, a secret or a tunable, the secret type and where it is unwrapped, derived values, validation that only normalizes or rejects, construction at the composition root, and a published library that reads nothing |
+| `python-toolchain` | **What every distribution configures once** — the src layout, the lint selection with written function-size and complexity thresholds, the sanctioned suppressions, strict type checking over `src` and `tests`, the line length, development dependencies by role, and a version floor only at a named break |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
 | `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, and best-effort compensation |
-| `test-principles` | The testing constitution for both styles — pyramid, fixture placement, substitution ladders, assertion strength, reliability |
+| `test-principles` | The testing constitution for any Python project — layer budgets, where tests and fixtures sit and the closed autouse set, fixture versus builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, HTTP interception, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
 Load them alongside the architecture skill. The architecture says *which package* a module belongs
-in; the universal skills govern names, Python forms, packaging, errors, boundaries, and testing.
+in; the universal skills govern names, Python forms, packaging, settings, the toolchain, errors, boundaries, and testing.
 `test-principles` is the source of truth for every test family: where another test skill contradicts
 it, that skill is wrong.
 
@@ -84,7 +86,7 @@ this set, because nothing ever fails to make you fix it.
 
 | Skill | Owns |
 |---|---|
-| `meta-skill-author` | Skill format, frontmatter and its real limits, the two-layer principle/binding anatomy, section order, naming scheme, rule ownership, packaging, and shared catalogue conventions |
+| `meta-skill-author` | Skill format, frontmatter and its real limits, the two-layer principle/binding anatomy, templates copied verbatim — a house pattern rather than a vendor's manual, a skeleton carrying only lines most services have — section order, naming scheme, rule ownership, packaging, and shared catalogue conventions |
 
 ## Pick a style first
 
@@ -93,8 +95,8 @@ this set, because nothing ever fails to make you fix it.
 | **Use when** | Business invariants must survive a change of database, queue or framework; two or more entrypoints drive the same rules | The service orchestrates external systems: workers, crawlers, pipelines, ETL, glue |
 | **Layers** | `domain/` → `application/` ← `infrastructure/`, entrypoints on top — canonical names | One package per technical role, named for the role; no fixed vocabulary |
 | **Interfaces** | A `Protocol` port for every outward dependency | None until a second real implementation exists |
-| **Wiring** | A container at the composition root | Direct construction in the entrypoint |
-| **Persistence** | Repository adapters behind domain protocols | One package owning the service's data access |
+| **Wiring** | A container at the composition root | Direct construction in the process definition |
+| **Persistence** | Repository adapters behind domain protocols | One package per store owning the service's data access |
 
 The table is the summary, not the decision. **`architecture-choice` owns the decision** — it is
 universal, so it is present whichever family plugins are installed, and it covers the cases this table
@@ -110,30 +112,30 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | Skill | Owns |
 |---|---|
 | `hex-architecture` | Once the family is hexagonal — layer boundaries, dependency direction, the composition root, ports vs adapters |
-| `hex-conventions` | Identifier → file path and class name; store profiles; multi-context resolution |
-| `hex-project-setup` | Library substrate, toolchain configuration, the write-once migration bootstrap |
-| `hex-patterns` | Compensating transactions, units of work and their nesting order, framework-free run functions |
-| `hex-persistence` | The relational table, repository adapter, and paired migration revision |
-| `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filters, and tunable thresholds |
-| `hex-domain-ports` | Aggregate repository and external-capability protocols |
-| `hex-domain-service` | Stateless domain rules that use cross-aggregate state or capabilities |
+| `hex-conventions` | Identifier → file path and class name; the two store profiles and their connection-factory names (the factories themselves sit with their store skills); multi-context resolution |
+| `hex-project-setup` | Which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap — a baseline only over a schema that already exists; the toolchain is `python-toolchain`'s |
+| `hex-patterns` | Compensating transactions, units of work over two repositories, and their nesting order |
+| `hex-persistence` | The relational table, repository adapter (standalone and unit-of-work-joining), and paired migration revision, and the store's settings class, engine and session factories, and container binding |
+| `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filter records with their sort enum, and tunable thresholds with no default |
+| `hex-domain-ports` | Aggregate repository protocols, including one for a store that answers only some reads, and external-capability protocols — async by default, a reversible pair, sync for pure CPU |
+| `hex-domain-service` | Stateless domain rules that need state one entity cannot see, with injected ports; a pure transformation stays a module function |
 | `hex-application` | CQRS commands, queries, handlers, and read-result forms |
-| `hex-wiring` | Integration settings, DI providers, lifetimes, and container declaration order |
-| `hex-capability-adapter` | Concrete capability implementations using SDKs, HTTP, or CPU work |
-| `hex-store-repository` | Aggregate repositories for nonrelational stores and their record mappings, bound to redis; other stores under Other bindings |
+| `hex-wiring` | DI providers, lifetimes, container declaration order, and where each settings class is built and bound |
+| `hex-capability-adapter` | Concrete capability implementations — one template, an HTTP gateway with its settings and binding; the SDK-client and pure-CPU forms in prose |
+| `hex-store-repository` | Aggregate repositories for nonrelational stores, their record mappings, settings and connection factory, with the key prefix a module constant; bound to redis, other stores under Other bindings |
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
-rules the layer split imposes on top of `python-packaging`; `python-style` carries the per-layer
-logging allocation (domain never logs, application logs successes only).
+rules the layer split imposes on top of `python-packaging`; `hex-architecture` allocates logging by layer
+(domain never logs, application logs successes only) under `python-style`'s log-once rule.
 
 ## Hex REST API (4)
 
 | Skill | Owns |
 |---|---|
-| `hex-restapi-app` | FastAPI lifecycle, middleware, central error translation, and the shared error schemas |
-| `hex-restapi-endpoint` | Resource routers, JSON operations, multipart uploads, streaming downloads, handler resolution, and the error responses a route advertises |
+| `hex-restapi-app` | FastAPI lifecycle, central error translation, the shared error schemas, and middleware — none presumed, CORS included — with the registration of a status a middleware emits |
+| `hex-restapi-endpoint` | Resource routers, JSON operations with read-back, route ordering, multipart uploads and streaming downloads, handler resolution, and the error responses a route advertises |
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
-| `hex-restapi-auth` | Caller identity, the token-verifier port and adapter, route dependencies, the role gate, and the auth codes a route advertises |
+| `hex-restapi-auth` | Caller identity as the issuer's opaque subject, with a rank only where a route gates on one; the token-verifier port and adapter, route dependencies, and the auth codes a route advertises |
 
 **The first three are complete on their own.** `hex-restapi-auth` is optional: a service behind an
 authenticating gateway, an mTLS-fronted API or a public one declares no auth and never loads it.
@@ -142,32 +144,32 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 
 | Skill | Owns |
 |---|---|
-| `hex-test-integration-setup` | Session containers, rollback isolation, DI overrides, and the real-app fixture |
-| `hex-test-domain` | Entity, value-object, enum, and domain-service unit tests |
-| `hex-test-application-handler` | Handler unit tests, failure injection, and in-memory repository and capability fakes |
+| `hex-test-integration-setup` | The map of the whole hex suite tree; a framework-free base of session containers, rollback isolation and the per-test `container` with overridden providers; the key-value store as the worked store add-on; `real_app` as the REST add-on |
+| `hex-test-domain` | Entity, value-object, enum, and domain-service unit tests — no file for a value object with no invariant |
+| `hex-test-application-handler` | Handler unit tests for create, PATCH, delete, list and compensation, failure injection, and in-memory repository and capability fakes |
 | `hex-test-repository-contract` | Real-backend repository contracts with relational rollback or client-store namespace isolation |
-| `hex-test-capability-adapter` | Capability adapter tests with containers, HTTP transport substitution, or real CPU work |
+| `hex-test-capability-adapter` | Capability adapter tests — a `respx` template for the HTTP gateway; the containerized and pure-CPU flavours in prose, pointing at their worked instances |
 | `hex-test-restapi-endpoint` | Real-app ASGI integration tests, response validation, and per-resource fixtures |
-| `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI, CORS, and request-size invariants |
+| `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI invariant, plus CORS and request-size checks only where the app configures them |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
 ## Flat core (4)
 
 | Skill | Owns |
 |---|---|
-| `flat-layered` | The four role kinds and the import contract between them, with the package layout as one worked example; component-owned settings and the one-implementation client |
-| `flat-persistence` | One package owning a service's data access over a SQL store — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked and conflict-resolved writes |
-| `flat-entrypoint` | Trigger choice — loop, schedule, stream, a thin HTTP wrapper or durable execution — and the framework-free run function every trigger wraps, including the obligations an engine adds once one is earned |
-| `flat-project-setup` | The one-time project setup — `pyproject.toml`, toolchain configuration, dependency floors, and the migration bootstrap; per-change revisions are `flat-persistence`'s |
+| `flat-layered` | The four role kinds and the import contract between them, with a skeleton of only what most flat services have — packages at the package root, each named for a role the service has; a package and settings class per configured component, a directory written for another reader included, built by the process definition, and the one-implementation client over one pooled transport with a refreshable credential |
+| `flat-persistence` | One package per store, named for its technology, owning a service's data access — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked writes, deduplication left to the store, cursor reads over a total order, one migration directory per store, and none for a store another project owns |
+| `flat-entrypoint` | Trigger choice — one run per process by default, a loop, a stream or queue consumer, a thin HTTP wrapper receiving a body, or durable execution — and the framework-free run function every trigger wraps: bounded memory, progress markers after their data, atomic writes of files another reader collects, containment only in a process that outlives one run, bounded redelivery with a dead letter, fan-out failure containment, and the obligations an engine adds once one is earned |
+| `flat-project-setup` | The one-time project setup — which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap under `migrations/postgres/` with a baseline only over an existing schema; the toolchain is `python-toolchain`'s, per-change revisions `flat-persistence`'s |
 
 ## Flat tests (4)
 
 | Skill | Owns |
 |---|---|
-| `flat-test-integration-setup` | The container, the safety guard, and the isolation fixture each declared transaction owner needs |
-| `flat-test-persistence` | The storage package's contract against a real datastore |
+| `flat-test-integration-setup` | The suite-owned container, the safety guard any database the suite did not start must pass, and the isolation fixture each declared transaction owner needs |
+| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
 | `flat-test-service-client` | One client class's test |
-| `flat-test-run-function` | What a trigger runs — the body, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
+| `flat-test-run-function` | What a trigger runs — the body end to end with an idempotence test wherever a run can repeat, the containment test only where a process outlives one run, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 
 ## Git (2)
 
@@ -218,13 +220,12 @@ rule is about wrapping), `foos`/`bars`, and `Foo`/`Bar`. These stand in for what
 actually calls things, and the environment prefixes `MYAPP_` and `MYSCHEMA_` follow their packages.
 None of them asserts a repository shape — one distribution and no `myschema` is the ordinary case.
 
-**Structural names — replace when the role does not exist.** `ingest/`, `jobs/`,
-`entrypoints/`, `services/` in the flat-layered set are *role names from a worked example*, not
-a required vocabulary; `flat-layered` opens with the rule. Create the packages your service's roles
-require, named for those roles, and no others. The canonical hexagonal names — `domain/`,
-`application/`, `infrastructure/` — are the exception: those are the style's own terms and stay.
+**Structural names — keep the style's own.** The hexagonal layer names — `domain/`, `application/`,
+`infrastructure/` — are the style's terms and stay; a flat service names its packages for the roles it
+has (`flat-layered`).
 
-**Technology names — keep.** `postgres`, `redis`, `s3`, `jwt`. Abstracting these would
+**Technology names — keep.** `postgres`, `redis`, `s3`, `jwt` — a flat service's data-access package
+included, named `postgres/` for its store. Abstracting these would
 destroy the meaning of the rule that infrastructure is grouped by the real technology. The one
 exception is a technology a rule is about *wrapping*, which takes `myframework` — naming a real one
 there makes the rule that framework's instead of the project's.
@@ -235,21 +236,13 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
 
 ## Backlog
 
-- **A hex entrypoint skill other than REST** (CLI, worker). `hex-patterns` carries the framework-free
-  run function such an entrypoint calls, and `hex-restapi-app` is the only worked entrypoint; a CLI or
-  queue-consumer skill would own the shell around that run function.
-- **A read-model skill**, the first time a query handler genuinely needs a denormalized, join-flattened
-  DTO rather than an aggregate read. The condition and the shape it should take are recorded in
-  `meta-skill-author/CONVENTIONS.md`.
+- **A hex entrypoint skill other than REST** (CLI, worker). Any entrypoint calls the same application
+  handlers (`hex-application`), and `hex-restapi-app` is the only worked shell; a CLI or queue-consumer
+  skill would own the shell around those handlers.
 - **`flat-service-client` as its own skill** — *not currently needed*. `flat-layered` carries the
   external-system client template, its constructor-argument rule and its alternatives, and
   `flat-test-service-client` carries the test. Split it out only if the client family grows past one
   template.
-
-Two entries that stood here are closed. `hex-persistence` is no longer oversized — its templates sit in
-`TABLE.md`, `REPOSITORY.md` and `REVISION.md` beside it. Flat-side exception translation is genuinely
-covered: `exception-catalog` carries a flat-layered catalog template, the translation section and the
-mandatory-fallback rule, and `flat-layered` routes to it.
 
 ## Licence
 

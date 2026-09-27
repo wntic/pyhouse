@@ -23,7 +23,7 @@ what unit coverage cannot.
 - An in-memory fake of the same protocol, for handler unit tests → `hex-test-application-handler`.
 - The exceptions the adapter translates integrity errors and SDK errors into → `exception-catalog`.
 - Speed targets, fixture placement and the substitution ladder → `test-principles`.
-- The write path is a flat-layered service's own storage package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `sf`.
+- The write path is a flat-layered service's own data-access package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `sf`.
 
 ## Template(s) — pytest, testcontainers, SQLAlchemy async over Postgres, redis-py
 
@@ -44,7 +44,7 @@ first thing to get right.
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). Isolate exactly as the per-test bucket does for blobs: **each test owns a fresh namespace** — a unique key-prefix (redis), collection or database name (a document store), or bucket — created in a fixture and dropped at teardown. Bring the real store up once per session via testcontainers; create/destroy the per-test namespace per test. **The split is by scope, not by store kind.** `hex-test-integration-setup` owns every **session-scoped** container, engine and client fixture, whatever the store — that is what guarantees one container per session. The sibling `tests/integration/<store-kind>/conftest.py` owns only the **per-test** namespace fixture and its teardown — unless `real_app` binds that namespace as well as the tests that use it, in which case it sits up-tree beside the session half. Both worked add-ons are that case: the blob store's per-test bucket and the key-value store's per-test prefix live in `hex-test-integration-setup`'s conftest.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** — a unique key-prefix, collection or database name, or, where the adapter fixes its namespace in code, a store the suite itself started — created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
 
 ### Relational
 
@@ -54,29 +54,6 @@ tests/integration/postgres/
 ```
 
 Default is one file per repository. **Concern-split when the single file stops being navigable** — when finding the test for one method means scrolling past several unrelated concerns, or when a change to one concern keeps forcing rereads of the others. The trigger is that loss of navigability, not a line count: a flat file of twenty near-identical `create` cases stays readable far longer than a short one mixing create, update and filter semantics. When it splits, **the filename names the concern** (`test_<aggregate>_repository_create.py`, `test_<aggregate>_repository_filters.py`), so the split is navigable in the directory listing and not just inside the file.
-
-### `tests/integration/postgres/conftest.py` — the referenced row
-
-`Foo` references a `Bar`, so every test needs one to exist. It is seeded raw — rule 10's
-cross-aggregate allowance — because the subject here is `FooRepository`, not `BarRepository`.
-
-```python
-import uuid
-
-import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-from myapp.infrastructure.postgres.tables.bars import bars_table
-
-
-@pytest.fixture
-async def bar_id(sf: async_sessionmaker[AsyncSession]) -> uuid.UUID:
-    new_id = uuid.uuid4()
-    async with sf() as session:
-        await session.execute(bars_table.insert().values(id=new_id, name="bar"))
-        await session.commit()
-    return new_id
-```
 
 ### Standard CRUD test file — SQLAlchemy async session factory
 
@@ -97,22 +74,22 @@ from myapp.infrastructure.postgres.tables.foos import foos_table
 _PLANTED = dt.datetime(2000, 1, 1, tzinfo=dt.UTC)
 
 
-def _foo(bar_id: uuid.UUID, name: str = "alpha") -> Foo:
-    return Foo(id=uuid.uuid4(), name=name, bar_id=bar_id)
+def _foo(name: str = "alpha") -> Foo:
+    return Foo(id=uuid.uuid4(), name=name, note="a note")
 
 
-async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
+async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    foo = _foo(bar_id)
+    foo = _foo()
 
     await repo.create(foo)
 
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
-async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
+async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    foo = _foo(bar_id, "alpha")
+    foo = _foo("alpha")
     await repo.create(foo)
     foo.name = "beta"
 
@@ -121,9 +98,9 @@ async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSessio
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
-async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
+async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    foo = _foo(bar_id)
+    foo = _foo()
     await repo.create(foo)
 
     await repo.delete(foo.id)
@@ -132,24 +109,20 @@ async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession], bar_
         await repo.get_by_id(foo.id)
 
 
-async def test_duplicate_name_on_insert_raises_conflict(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+async def test_duplicate_name_on_insert_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo(bar_id, "alpha"))
+    await repo.create(_foo("alpha"))
 
     with pytest.raises(FooConflictError) as exc:
-        await repo.create(_foo(bar_id, "alpha"))
+        await repo.create(_foo("alpha"))
 
     assert exc.value.context["constraint"] == "uq_foos_name"
 
 
-async def test_duplicate_name_on_update_raises_conflict(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
+async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo(bar_id, "alpha"))
-    second = _foo(bar_id, "beta")
+    await repo.create(_foo("alpha"))
+    second = _foo("beta")
     await repo.create(second)
 
     second.name = "alpha"
@@ -159,9 +132,9 @@ async def test_duplicate_name_on_update_raises_conflict(
     assert exc.value.context["constraint"] == "uq_foos_name"
 
 
-async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
+async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    foo = _foo(bar_id)
+    foo = _foo()
     await repo.create(foo)
     async with sf() as session:
         await session.execute(update(foos_table).where(foos_table.c.id == foo.id).values(updated_at=_PLANTED))
@@ -177,9 +150,9 @@ async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession], ba
     assert written > _PLANTED
 
 
-async def test_get_by_name_returns_match(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
+async def test_get_by_name_returns_match(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo(bar_id, "alpha"))
+    await repo.create(_foo("alpha"))
 
     loaded = await repo.get_by_name("alpha")
     assert loaded is not None
@@ -194,11 +167,11 @@ async def test_get_by_name_returns_none_when_absent(
     assert await repo.get_by_name("alpha") is None
 
 
-async def test_list_respects_pagination_and_sort(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
+async def test_list_respects_pagination_and_sort(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo(bar_id, "c"))
-    await repo.create(_foo(bar_id, "a"))
-    await repo.create(_foo(bar_id, "b"))
+    await repo.create(_foo("c"))
+    await repo.create(_foo("a"))
+    await repo.create(_foo("b"))
 
     page = await repo.list(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2, offset=0))
     assert [f.name for f in page] == ["a", "b"]
@@ -243,59 +216,34 @@ The session starts at head, so this is head → base → head against the real d
 that fails, or leaves behind an object the next `upgrade()` trips over, reds here. It ends at head, so
 the tests that assume head still find it; a suite run in parallel gives it a database of its own.
 
-### Cascade — parent + sub-collection
+### Cascade — an owned child collection
 
-For an aggregate that owns a child collection — `FooAttachment` rows in a table that cascades from
-`foos`. The repository methods `add_attachment`, `get_attachment` and `count_attachments` and the
-`_attachment(foo_id)` builder belong to that aggregate's own repository and test module; an aggregate
-with no owned children has neither them nor this test.
-
-```python
-async def test_cascade_delete_removes_attachments(sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID) -> None:
-    repo = FooRepository(session_factory=sf)
-    foo = _foo(bar_id)
-    await repo.create(foo)
-    await repo.add_attachment(foo.id, _attachment(foo.id))
-
-    await repo.delete(foo.id)
-
-    assert await repo.count_attachments(foo.id) == 0
-
-
-async def test_attachment_with_wrong_parent_raises_not_found(
-    sf: async_sessionmaker[AsyncSession], bar_id: uuid.UUID
-) -> None:
-    repo = FooRepository(session_factory=sf)
-    foo = _foo(bar_id)
-    await repo.create(foo)
-    att = _attachment(foo.id)
-    await repo.add_attachment(foo.id, att)
-
-    with pytest.raises(NotFoundError):
-        await repo.get_attachment(uuid.uuid4(), att.id)
-```
+For an aggregate that owns a child collection in a table that cascades from its own, rule 7's test
+creates the parent, adds a child through the repository, deletes the parent and asserts through the
+repository that the parent's child count is zero; a child looked up under the wrong parent raises the
+not-found exception. An aggregate with no owned children has neither test.
 
 ### Client-style store — redis-py
 
 ```
 tests/integration/
-├── conftest.py                         # + redis_url, redis_client (session), redis_settings (per test)
+├── conftest.py                         # + redis_url (session), redis_client (per test, emptied after)
 │                                       #   — hex-test-integration-setup's
 └── redis/
     └── test_baz_repository.py
 ```
 
-A client store gives the test three things and only three: an **SDK client**, a **namespace handle**
-(key prefix, collection, index, database or bucket name) and a **settings object** carrying that handle.
-Redis is the worked binding — `hex-store-repository`'s own — and its namespace is a key prefix. The
+A client store gives the test an **SDK client** and a **namespace** the test owns. Redis is the worked
+binding — `hex-store-repository`'s own — whose adapter fixes its key prefix in code, so the namespace
+a test owns is the suite's own container, emptied after each test. The
 adapter is `hex-store-repository`'s `BazRepository`, whose `IBazRepository` declares three verbs, so the
 contract is those three: create, fetch by id and delete, each with its absent-record case, plus the
 translation of a store failure.
 
-The fixtures — the Redis container and one client for the run (`redis_url`, `redis_client`), and the
-per-test key prefix with its teardown (`redis_settings`) — are `hex-test-integration-setup`'s, in its
-`CONFTEST.md`: the prefix sits up-tree beside the session half because `real_app` binds it too. This
-skill writes only the test module below.
+The fixtures — the Redis container for the run (`redis_url`) and the per-test client whose teardown
+empties it (`redis_client`) — are `hex-test-integration-setup`'s, in its `CONFTEST.md`: the client sits
+up-tree beside the session half because `container` binds it too. This skill writes only the test
+module below.
 
 ### `test_baz_repository.py`
 
@@ -304,12 +252,10 @@ import uuid
 from dataclasses import asdict
 
 import pytest
-from pydantic import SecretStr
 from redis.asyncio import Redis
 
 from myapp.domain.bazs import Baz
 from myapp.domain.exceptions import NotFoundError, UpstreamError
-from myapp.infrastructure.redis import RedisSettings
 from myapp.infrastructure.redis.repositories import BazRepository
 
 
@@ -317,8 +263,8 @@ def _baz(name: str = "alpha") -> Baz:
     return Baz(id=uuid.uuid4(), name=name)
 
 
-async def test_create_then_get_returns_every_field(redis_client: Redis, redis_settings: RedisSettings) -> None:
-    repo = BazRepository(client=redis_client, settings=redis_settings)
+async def test_create_then_get_returns_every_field(redis_client: Redis) -> None:
+    repo = BazRepository(client=redis_client)
     baz = _baz()
 
     await repo.create(baz)
@@ -326,17 +272,17 @@ async def test_create_then_get_returns_every_field(redis_client: Redis, redis_se
     assert asdict(await repo.get_by_id(baz.id)) == asdict(baz)
 
 
-async def test_create_writes_under_the_configured_prefix(redis_client: Redis, redis_settings: RedisSettings) -> None:
-    repo = BazRepository(client=redis_client, settings=redis_settings)
+async def test_create_writes_under_the_documented_key(redis_client: Redis) -> None:
+    repo = BazRepository(client=redis_client)
     baz = _baz()
 
     await repo.create(baz)
 
-    assert await redis_client.exists(f"{redis_settings.bazs_key_prefix}:{baz.id}") == 1
+    assert await redis_client.exists(f"bazs:{baz.id}") == 1
 
 
-async def test_get_by_id_of_absent_record_raises_not_found(redis_client: Redis, redis_settings: RedisSettings) -> None:
-    repo = BazRepository(client=redis_client, settings=redis_settings)
+async def test_get_by_id_of_absent_record_raises_not_found(redis_client: Redis) -> None:
+    repo = BazRepository(client=redis_client)
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc:
@@ -345,8 +291,8 @@ async def test_get_by_id_of_absent_record_raises_not_found(redis_client: Redis, 
     assert exc.value.context["id"] == str(missing)
 
 
-async def test_delete_removes_the_record(redis_client: Redis, redis_settings: RedisSettings) -> None:
-    repo = BazRepository(client=redis_client, settings=redis_settings)
+async def test_delete_removes_the_record(redis_client: Redis) -> None:
+    repo = BazRepository(client=redis_client)
     baz = _baz()
     await repo.create(baz)
 
@@ -356,39 +302,35 @@ async def test_delete_removes_the_record(redis_client: Redis, redis_settings: Re
         await repo.get_by_id(baz.id)
 
 
-async def test_delete_of_absent_record_raises_not_found(redis_client: Redis, redis_settings: RedisSettings) -> None:
-    repo = BazRepository(client=redis_client, settings=redis_settings)
+async def test_delete_of_absent_record_raises_not_found(redis_client: Redis) -> None:
+    repo = BazRepository(client=redis_client)
 
     with pytest.raises(NotFoundError):
         await repo.delete(uuid.uuid4())
 
 
 async def test_get_against_unreachable_store_raises_upstream_error() -> None:
-    dead_url = "redis://127.0.0.1:1/0"  # nothing listening
-    dead = Redis.from_url(dead_url)
-    settings = RedisSettings(url=SecretStr(dead_url), bazs_key_prefix="x")
+    dead = Redis.from_url("redis://127.0.0.1:1/0")  # nothing listening
     missing = uuid.uuid4()
     try:
-        repo = BazRepository(client=dead, settings=settings)
+        repo = BazRepository(client=dead)
 
         with pytest.raises(UpstreamError) as exc:
             await repo.get_by_id(missing)
     finally:
         await dead.aclose()
 
-    assert exc.value.context["key"] == f"x:{missing}"
+    assert exc.value.context["key"] == f"bazs:{missing}"
 ```
 
-The prefix test reads the raw key through the session client, inside the test's own namespace: an
-adapter that ignored the configured prefix would still round-trip through its own `get_by_id`, and only
-a read that goes around it proves where the record landed.
+The key test reads the raw key through the test's client: an adapter whose key layout drifted would
+still round-trip through its own `get_by_id`, and only a read that goes around it proves where the
+record landed — which is what every record already stored depends on.
 
 ## Other bindings
 
-- **A pre-provisioned database instead of a disposable container.** A CI service or a compose stack
-  works: the fixture reads a URL from a dedicated opt-in variable rather than starting anything, and the
-  guard that refuses to run against a database it did not create (`hex-test-integration-setup`) stops
-  being a formality. Every rule below is unchanged.
+- **A pre-provisioned database instead of a disposable container.** Provisioning is
+  `hex-test-integration-setup`'s (`## Other bindings`); every rule below is unchanged.
 - **An in-process engine (SQLite) for speed.** The rollback shape survives; the contract does not.
   Constraint names, cascade semantics and the error the driver raises all differ, so rules 4, 5 and 7 —
   the assertions this layer exists for — would be pinning a database the service never runs on. A smoke
@@ -417,21 +359,21 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 7. **Every cascade gets its own test.** Follow `naming`; the test form is `test_cascade_delete_removes_<child>`. Test the count after parent-delete is zero — only this proves the schema's `ON DELETE CASCADE` works.
 8. **Every `get_by_<field>` gets both a found and a not-found test.** For case-sensitivity-sensitive fields, add a mixed-case test that asserts the documented behavior.
 9. Follow `test-principles` for collection assertion strength. The rollback fixture gives this repository test an empty DB.
-10. **No raw INSERTs for seed data on the table under test.** Drive setup through the repository's own `create`. **The ban is scoped to the repository under test** — a contract test that seeds behind its own subject proves nothing about the subject. A test whose subject is not the repository (an endpoint test, say — see `hex-test-restapi-endpoint`) may seed with a raw INSERT; that is legitimate setup, not a bypass. Cross-aggregate seed rows (a referenced `Bar` for a `Foo` test) may use raw INSERT when no `BarRepository.create` is in scope — or inject the bar's repo and use it.
+10. **No raw INSERTs for seed data on the table under test.** Drive setup through the repository's own `create`. **The ban is scoped to the repository under test** — a contract test that seeds behind its own subject proves nothing about the subject. A test whose subject is not the repository (an endpoint test, say — see `hex-test-restapi-endpoint`) may seed with a raw INSERT; that is legitimate setup, not a bypass. Where `Foo` references another aggregate, seed the referenced row raw — it is not the subject.
 11. **No web framework, no HTTP client, no DI container in this file.** The test imports the repository class, takes the session factory, calls methods and asserts. Reaching the adapter through a route tests the route as well, and a failure no longer says which of the two is broken; the HTTP surface is `hex-test-restapi-endpoint`'s.
 12. **A test that moves the schema cannot share the fixture that assumes the schema is already at head.** Migration regressions live in their own flat files (`tests/integration/postgres/test_<NNNN>_migration.py`), take the migration runner (`run_alembic`, `hex-test-integration-setup`) and drive it directly, so they are free to downgrade and upgrade. An ordinary repository test is not: it assumes head, and a downgrade underneath it takes the rest of the file with it. One of those files is always present: **the migration round trip** — upgrade to head, downgrade to base, upgrade to head again, against the real database — which is what proves every revision's `downgrade()` runs (`hex-persistence` relies on it) and that the chain rebuilds what it tore down.
 
 ### Client-style store
 
 13. **Each test runs against the real store via testcontainers** — never a fake, never a mock. The fake (`hex-test-application-handler`) is for handler unit tests; this layer exists to prove the adapter against the actual backend, which is the only place the SDK call shape and error mapping are exercised.
-14. **Isolate by a per-test namespace, not rollback.** A fresh key-prefix / collection / database per test, created in the per-test settings fixture (`redis_settings`) and emptied or dropped at teardown. There is no transaction to roll back; do not reach for `sf`.
-15. **The container is session-scoped; the namespace is function-scoped.** One store per run, because starting it is expensive; one namespace per test, because that is what gives each test sole ownership. Where the environment supplies the store instead of the fixture starting one, the endpoint is read from a **dedicated opt-in variable**, never an ambient one like `CI` — `test-principles` reliability rules.
+14. **Isolate by a per-test namespace, not rollback.** A fresh key-prefix / collection / database per test, or — where the adapter's namespace is fixed in code — the suite's own container emptied after each test (`redis_client`'s teardown). There is no transaction to roll back; do not reach for `sf`.
+15. **The container is session-scoped; the namespace is function-scoped** — `hex-test-integration-setup` obligation 3. A store the environment supplies instead is opted into as `test-principles` reliability rules 1 and 7 state.
 16. **Exercise the full protocol**, CRUD verbs and non-CRUD alike — `create`/`get_by_id`/`delete` with their absent-record cases AND any verb of the port's own (`delete_by_<field>`, range/scan). A verb that promises an order asserts that order, not just membership.
 17. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A compound return asserts every element it carries, not just the entity.
 18. **Assert the SDK-error → domain-exception translation end-to-end.** This is the load-bearing contract (the client-store analogue of the relational `context["constraint"]` assertion): point the repository at an unreachable/closed client, or trigger a store rejection, and assert the boundary raises the domain exception the adapter promises — `UpstreamError` for a network / store failure, `NotFoundError` for an absent record — never the raw SDK exception. These are the domain exceptions `hex-store-repository` translates into at its boundary (shown here as placeholders); assert whichever ones that adapter actually raises, not a frozen literal. Assert the `context` keys the adapter promises.
 19. Follow `test-principles` for natural-key test values. Namespace isolation gives each test an empty store at start (same as the relational contract's rollback guarantee).
-20. **Assert where the record landed.** The namespace the adapter writes under comes from settings (`hex-store-repository`), and an adapter that ignores it still round-trips through its own reads; one test reads the raw record through the session client, inside the test's own namespace, to prove the configured token is the one used.
-21. **No web framework, no HTTP client, no DI container in this file either** (rule 11). Import the repository class, construct it with the real client and a settings object scoped to the per-test namespace, call methods, assert.
+20. **Assert where the record landed.** The key layout is the adapter's persisted contract (`hex-store-repository`), and an adapter that changes it still round-trips through its own reads; one test reads the raw record through the client, under the key the adapter documents, to prove the layout is the one used.
+21. **No web framework, no HTTP client, no DI container in this file either** (rule 11). Import the repository class, construct it with the real client the fixture hands over, call methods, assert.
 22. **No assertions on global store contents.** Assert only within this test's namespace — exactly the per-test bucket's discipline, because cleanup is namespace-scoped, not transactional.
 
 ## Inlined typing / import rules
@@ -442,22 +384,20 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 - No `from __future__ import annotations`.
 
 For a client-style store, the store's own SDK (`redis.asyncio`) and `myapp.infrastructure.<store-kind>`
-replace the SQLAlchemy and Postgres imports. The client and the per-test settings arrive as two
-fixtures, each annotated with its own type — never a bare tuple (`python-style`) — and a yielding
-fixture uses `AsyncIterator[T]` / `Iterator[T]`.
+replace the SQLAlchemy and Postgres imports. Where a test needs the client and a settings object both,
+they arrive as two fixtures, each annotated with its own type — never a bare tuple (`python-style`) —
+and a yielding fixture uses `AsyncIterator[T]` / `Iterator[T]`.
 
 ## Hard stops
 
 - Nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding) → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
-- Asked for `@pytest.mark.integration` or `@pytest.mark.asyncio` → stop, use `test-principles`.
 - A test disposes the engine, starts its own connection / instantiate `async_sessionmaker(bind=engine)` directly → stop, that bypasses rollback; use `sf`.
-- Asked to assert on `len(items) == N + 1` or use `any(...)` defensively → stop, use `test-principles`.
+- Asked for a layer or async marker, an `N + 1` count, a defensive `any(...)` or a random natural-key suffix → stop, use `test-principles`; the isolation this file rests on removes the need for each.
 - Asked to assert on `ConflictError` without checking `context["constraint"]` → stop, the constraint-name map is the load-bearing contract this test exists to pin.
 - A test seeds with a raw INSERT on the table under test, **in a test of that repository** → stop, drive setup through `repo.create`; seeding behind the subject proves nothing about it.
 - A test references FastAPI, `httpx` or the DI container → stop, use `hex-test-restapi-endpoint`.
 - Asked to run Alembic from this test → stop, that's a migration regression test in a separate flat file.
-- A test uses `uuid4().hex[:8]` suffixes "to avoid duplicate-key flakes" → stop, use `test-principles`; rollback removes the need.
 - Asked to use `sf` / transaction rollback for a client store → stop, there is no nested transaction; isolate by per-test namespace + teardown.
 - Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.
 - A client-store test asserts on `ConflictError` + `context["constraint"]` → stop, that is the relational `IntegrityError` contract; a client store asserts the domain exceptions its adapter translates SDK errors into (`UpstreamError` / `NotFoundError`) instead.
-- A test asserts on store contents outside the test's own namespace → stop, assert only within the per-test prefix or collection.
+- A test asserts on store contents outside the test's own namespace → stop, assert only within the namespace the test owns.

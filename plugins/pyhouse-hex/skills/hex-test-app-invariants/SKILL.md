@@ -1,13 +1,13 @@
 ---
 name: hex-test-app-invariants
-description: Use when testing a property of the assembled app itself rather than one route's own behaviour — a check that needs no edit when an endpoint is added or removed. Covers the one-shot OpenAPI error-code cross-check against `error_responses(...)`, the CORS preflight, the request-size limit, and the app-construction smoke, each taking its inputs from the running app rather than from a maintained list. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
+description: Use when testing a property of the assembled app itself rather than one route's own behaviour — a check that needs no edit when an endpoint is added or removed. Covers the one-shot OpenAPI error-code cross-check against `error_responses(...)`, the CORS preflight and the request-size limit where the app configures them, and the app-construction smoke, each taking its inputs from the running app rather than from a maintained list. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
 ---
 
 # Hex Test — App Invariants
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-One-shot per project. Two to four integration files under `tests/integration/api/` plus one unit-level app-construction smoke. Each one iterates — or constructs — the running app and asserts a single global property; none of them needs to be edited when an endpoint is added or removed. An app that declares auth gains a fifth discovered invariant — every protected route rejects an anonymous caller — which is `hex-test-restapi-auth`'s.
+One-shot per project. One to three integration files under `tests/integration/api/` plus one unit-level app-construction smoke. Each one iterates — or constructs — the running app and asserts a single global property; none of them needs to be edited when an endpoint is added or removed. An app that declares auth gains one more discovered invariant — every protected route rejects an anonymous caller — which is `hex-test-restapi-auth`'s.
 
 ## When to use vs. neighbours
 
@@ -24,9 +24,8 @@ One-shot per project. Two to four integration files under `tests/integration/api
 ```
 tests/integration/api/
 ├── test_openapi_advertises_error_codes.py   # always
-├── test_cors.py                             # always
-├── test_request_size_limit.py               # only if a size-cap middleware is declared (Hard stops)
-└── test_info.py                             # only if an info/health endpoint is declared (Rule 11)
+├── test_cors.py                             # only if CORS is configured (Rule 11)
+└── test_request_size_limit.py               # only if a size-cap middleware is declared (Hard stops)
 tests/unit/restapi/
 └── test_app_constructs.py                   # always — unit-level construct smoke, no DB (Rule 12)
 ```
@@ -237,22 +236,7 @@ async def test_oversize_payload_returns_413(real_app: FastAPI) -> None:
     assert response.status_code == 413
 ```
 
-### `test_info.py`
-
-```python
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
-
-
-async def test_info_endpoint_is_public_and_returns_200(real_app: FastAPI) -> None:
-    async with AsyncClient(
-        transport=ASGITransport(app=real_app),
-        base_url="http://testserver",
-    ) as client:
-        response = await client.get("/info")
-
-    assert response.status_code == 200
-```
+A health or info endpoint is tested like any endpoint (`hex-test-restapi-endpoint`).
 
 ## Other bindings
 
@@ -263,7 +247,7 @@ async def test_info_endpoint_is_public_and_returns_200(real_app: FastAPI) -> Non
   this test starts lying. Reading the CORS origin and the size cap off the running app rather than
   freezing them stays the rule; only the attribute they are read from is the framework's.
 - **A framework that generates no API document.** The cross-check then has nothing to compare against and
-  that file is not written. The construct smoke, the CORS preflight and the size-limit probe still are,
+  that file is not written. The construct smoke still is, and the CORS preflight and the size-limit probe where the app configures them,
   and rule 3 — a walk that discovers nothing is a failure — matters more, not less.
 
 ## Rules
@@ -280,7 +264,7 @@ Consult `test-principles` for the testing constitution.
 8. **No authenticated client here.** Every test in this skill reads OpenAPI or route metadata, or probes an unauthenticated path. A test here that needs a token is either the auth probe (`hex-test-restapi-auth`) or a per-endpoint concern (`hex-test-restapi-endpoint`).
 9. **Test markers and async mode** → `test-principles`.
 10. **Parametrize from the discovered list at collection time — one reported case per discovered item, never a loop inside a single test.** A loop stops at the first failure and says nothing about the items it never reached, so one broken route hides the rest. The runner's collection hook (`pytest_generate_tests`) is what can read a list discovered at import time; a fixture cannot feed parametrization.
-11. **Emit only the files the app's features justify.** `test_openapi_advertises_error_codes.py` and `test_cors.py` are always produced; `test_request_size_limit.py` only with a size-cap middleware; `test_info.py` only with an info or health endpoint. A file whose module-level imports name something the app does not have fails at collection time and takes down the whole `tests/integration/api/` package — which is also why the auth probe is `hex-test-restapi-auth`'s and is emitted only by an app that declares auth.
+11. **Emit only the files the app's features justify.** `test_openapi_advertises_error_codes.py` is always produced; `test_cors.py` only where the app configures CORS; and `test_request_size_limit.py` only with a size-cap middleware. A file whose module-level imports name something the app does not have fails at collection time and takes down the whole `tests/integration/api/` package — which is also why the auth probe is `hex-test-restapi-auth`'s and is emitted only by an app that declares auth.
 12. **`test_app_constructs.py` is the always-emitted, unit-level construct smoke.** It is the one file this skill places at `tests/unit/restapi/`, not `tests/integration/api/`, because it needs no database (factories are lazy — `create_app` builds the composition root but resolves nothing, so it opens nothing) and must run with no Docker daemon — the environment where the other gates pass and a construct-time dependency gap (`python-multipart`, …) slips through. Construct via `create_app()` directly (no `real_app` fixture), assert `app.openapi()["paths"]`. Sync, no fixtures, no `await`. It is structural (green on freshly laid routes), so every app gets it, auth or not.
 
 ## Inlined typing / import rules
@@ -296,9 +280,9 @@ Consult `test-principles` for the testing constitution.
 - Asked to fold a per-endpoint test into one of these files → stop, these files hold discovered global properties only; a single endpoint's behaviour belongs to `hex-test-restapi-endpoint`.
 - A test compares the OpenAPI document to a hand-maintained table of expected responses → stop, derive expectations from the route's own `responses` so the source of truth is the decorator.
 - Nothing up-tree builds the app on the test's own infrastructure bindings — the `real_app` fixture under this catalogue's binding, owned by `hex-test-integration-setup` → stop, the suite cannot collect without it. (No authenticated client is consumed here — Rule 8 — so the absence of the auth fixture set does not block this skill.)
-- A test hardcodes a CORS origin (e.g. `http://localhost:3000`) in `test_cors.py` → stop, read a configured origin off `real_app`'s `CORSMiddleware` and `pytest.skip` when none is configured; never freeze the source app's dev origin or assume `allow_credentials`.
+- A test hardcodes a CORS origin (e.g. `http://localhost:3000`) in `test_cors.py` → stop, read a configured origin off `real_app`'s `CORSMiddleware` and keep the `pytest.skip` for an origin list left empty; never freeze the source app's dev origin or assume `allow_credentials`.
 - A test hardcodes the request-size limit (e.g. 10 MiB) or the route it posts to in `test_request_size_limit.py`, or presumes the middleware is always present → stop, read the cap off the app's `MaxRequestSizeMiddleware`, compute `limit + 1` and pick the route from the app's own; `pytest.skip` when no size middleware is declared — an app declares one or does not.
-- The app has no info or health endpoint → stop, omit `test_info.py`.
+- The app configures no CORS → stop, omit `test_cors.py`; a CORS policy is a deployment choice (`hex-restapi-app`), not a default every app has.
 - Asked for an authentication probe here → stop, use `hex-test-restapi-auth`; it owns that invariant and is emitted only by an app that declares auth.
 - `test_app_constructs.py` is being placed under `tests/integration/` (next to the other app-wide invariants) → stop, it stays at `tests/unit/restapi/`: under `tests/integration/` the session-autouse `_migrated_db` / `_guard_against_real_db` fixtures would force Postgres on a check that opens no connection, so it could no longer run without a Docker daemon — the one place the construct-time defect class is catchable.
 - The construct smoke is made `async` or given `real_app` or any DB fixture → stop, it constructs via `create_app()` directly and is plain sync; needing a fixture means it is no longer the Docker-less unit smoke.

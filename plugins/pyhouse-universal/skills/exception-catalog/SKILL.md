@@ -17,34 +17,20 @@ import it; put it wherever the project's own import direction makes that true. I
 `__all__` (`python-packaging`); `from myapp.exceptions import …` reads the same either way. The root
 class is named for the project, and every other class in the file descends from it.
 
-Two worked cases, one per architecture family this catalogue covers:
-
-| Architecture | Catalog file | Root class |
-|---|---|---|
-| Hexagonal (`hex-architecture`) | `<package>/domain/exceptions.py` | `DomainError` |
-| Flat-layered (`flat-layered`) | `<package>/exceptions.py` | `<Service>Error` |
-
-A project in neither family reads the obligation rather than the table, and it answers as easily: a
+Where an architecture family fixes that place — `hex-architecture`, in the `pyhouse-hex` plugin, or
+`flat-layered`, in the `pyhouse-flat` plugin — follow it; otherwise the obligation decides: a
 framework-shaped tree puts the module where every one of the framework's units already imports from,
 a distributable package puts it at its own root because the classes its callers catch are part of the
 published surface, and a command-line tool puts it above the command modules that raise from it. One
 file either way — the reason for a single file is that the catalog stays auditable in one read, and
 that reason is not architectural.
 
-The **shape** below is identical in every case, and **`code` is the only required field**.
-Everything else is a transport annotation, added when a transport actually reads it and omitted when
-none does. `http_status` is the one this catalogue writes out, because an HTTP entrypoint has a central
-handler that translates it into a response — but **the trigger is the HTTP surface, not the architecture
-family.** A hexagonal service driven only by a CLI, a worker loop or a queue consumer carries the `code`
-alone, exactly as a flat-layered worker does; a flat-layered service that does serve HTTP adds
-`http_status` exactly as a hexagonal one would.
-
-Where an annotation is warranted it is a deliberate **transport annotation on a domain class**, not a
-leak — kept on the class precisely so that no `code`→annotation map exists anywhere. Deriving the value
-from the class it belongs to is what keeps this catalogue free of a hand-maintained table that every new
-error has to be remembered into; a project whose transport reads nothing omits the attribute instead. A
-non-HTTP transport annotates by the same rule under its own name — a process exit code, a gRPC status —
-or, far more often, needs nothing and leaves `code` to do the work.
+The **shape** below is identical in every case: **`code` and the inherited `context` are the required
+shape.** A project may add fields of its own to the root, each read by whatever renders the error and
+added only when something does. The common one is `http_status`, and **its trigger is an HTTP
+entrypoint, not the architecture family** — a service with none carries `code` alone. An added field
+stays on the class, so no `code`→rendering map exists anywhere; a non-HTTP transport annotates by the
+same rule under its own name (a process exit code, a gRPC status), or far more often needs nothing.
 
 ## When to use vs. neighbours
 
@@ -63,14 +49,14 @@ or, far more often, needs nothing and leaves `code` to do the work.
   architecture family's (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
-- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and its status, not the rendering.
+- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and any field the project adds to it, not the rendering.
 
 ## File shape (the contract every entry obeys)
 
 - `__all__` **after the imports**, alphabetized — `python-packaging` owns module layout and forbids
   `__all__` above the imports. This file is stdlib-only and has no imports, so it opens the file;
   that is the same rule, not an exception to it.
-- The **root** defines `code: str` — and `http_status: int` where the project has an HTTP surface — with
+- The **root** defines `code: str` — and any field the project adds, such as `http_status: int` — with
   type annotations and defaults, plus the `__init__` accepting `(message, context=None)` and storing
   `self.context`.
 - Every subclass declares its attributes as **bare class attributes**, no type annotation; the type is
@@ -80,18 +66,14 @@ or, far more often, needs nothing and leaves `code` to do the work.
   the parent's values unless it overrides them.
 - Order: `__all__`, then the root, then direct subclasses, then refinements.
 
-## Template — a flat-layered service catalog
-
-This is also the form to copy when the project is in neither family — the `code`-only catalog, with a
-transport annotation added below only if something in the project actually reads one.
+## Template — stdlib exceptions
 
 ```python
 # myapp/exceptions.py
 __all__ = [
-    "FooClientError",
     "MyappError",
-    "UpstreamUnavailableError",
-    "ValidationError",
+    "NotFoundError",
+    "UpstreamError",
 ]
 
 
@@ -103,102 +85,48 @@ class MyappError(Exception):
         self.context: dict[str, object] = context if context is not None else {}
 
 
-class FooClientError(MyappError):
-    code = "FOO_CLIENT_ERROR"
+class NotFoundError(MyappError):
+    code = "NOT_FOUND"
 
 
-class ValidationError(MyappError):
-    code = "VALIDATION_ERROR"
-
-
-class UpstreamUnavailableError(FooClientError):
-    code = "UPSTREAM_UNAVAILABLE"
+class UpstreamError(MyappError):
+    code = "UPSTREAM_ERROR"
 ```
 
-## Template — a hexagonal catalog
+That is the entire class body of each entry. No `__init__`, no fields, no methods. The classes a
+project needs are its own; these two show the pattern, not a list to copy.
 
-Identical, plus `http_status` — shown here because this family most often fronts an HTTP API, and read
-by the central error handler. **A hexagonal service with no HTTP surface — a CLI, a worker loop, a queue
-consumer — drops the attribute and is otherwise unchanged.**
+### Optional — a field the project adds
+
+Where the service has an HTTP entrypoint, the root gains one annotated line and a subclass sets the
+value only where it differs from the root's. Nothing else in the file changes:
 
 ```python
-# myapp/domain/exceptions.py
-__all__ = [
-    "ConflictError",
-    "DomainError",
-    "ForbiddenError",
-    "InUseError",
-    "NotFoundError",
-    "UnauthorizedError",
-    "UpstreamError",
-    "ValidationError",
-]
-
-
-class DomainError(Exception):
-    code: str = "DOMAIN_ERROR"
+class MyappError(Exception):
+    code: str = "MYAPP_ERROR"
     http_status: int = 500
 
-    def __init__(self, message: str, context: dict[str, object] | None = None) -> None:
-        super().__init__(message)
-        self.context: dict[str, object] = context if context is not None else {}
 
-
-class NotFoundError(DomainError):
+class NotFoundError(MyappError):
     code = "NOT_FOUND"
     http_status = 404
-
-
-class ConflictError(DomainError):
-    code = "CONFLICT"
-    http_status = 409
-
-
-class ValidationError(DomainError):
-    code = "VALIDATION_ERROR"
-    http_status = 422
-
-
-class UnauthorizedError(DomainError):
-    code = "UNAUTHORIZED"
-    http_status = 401
-
-
-class ForbiddenError(DomainError):
-    code = "FORBIDDEN"
-    http_status = 403
-
-
-class UpstreamError(DomainError):
-    # a dependency behind this service failed — 502, never 500
-    code = "UPSTREAM_ERROR"
-    http_status = 502
-
-
-class InUseError(ConflictError):
-    code = "IN_USE"
-    # http_status omitted — it equals the parent's 409
 ```
-
-That is the entire class body of each entry. No `__init__`, no fields, no methods.
 
 ### A custom subclass and its raise site
 
-Each named error is a bare subclass of `DomainError` — or of the most specific existing parent, when one
-is a semantic match (a refinement inherits `http_status` unless it differs):
+Each named error is a bare subclass of the root — or of the most specific existing parent, when one is
+a semantic match (a refinement inherits every value it does not override):
 
 ```python
-class FooConflictError(ConflictError):
-    code = "FOO_NAME_TAKEN"
+class FooNotFoundError(NotFoundError):
+    code = "FOO_NOT_FOUND"
 ```
 
-Custom exceptions still carry `context`. The raise site (in `infrastructure/` or `application/`) passes a `context` dict whose keys express the structured detail:
+Custom exceptions still carry `context`. The raise site passes a `context` dict whose keys express the
+structured detail:
 
 ```python
-raise FooConflictError(
-    "foo name already exists",
-    {"name": foo.name},
-)
+raise FooNotFoundError("foo not found", {"foo_id": str(foo_id)})
 ```
 
 ### What `context` carries
@@ -233,7 +161,7 @@ try:
     response = await http.get(url)
     response.raise_for_status()
 except httpx.HTTPError as exc:
-    raise FooClientError(f"failed to fetch foo {foo_id}", {"foo_id": foo_id}) from exc
+    raise UpstreamError(f"failed to fetch foo {foo_id}", {"foo_id": foo_id}) from exc
 ```
 
 `from exc` is not optional. It preserves `__cause__`, which is what a test asserts to prove the
@@ -241,11 +169,7 @@ translation happened rather than the error being manufactured, and what a reader
 failure. Suppress it deliberately with `from None` only when the internal cause must not leak — for
 instance turning a lookup miss into an authentication failure.
 
-Structured detail rides in `context`, not in new fields, under the key contract above:
-
-```python
-raise ConflictError("foo name already exists", {"field": "name", "constraint": "uq_foos_name"})
-```
+Structured detail rides in `context`, not in new fields, under the key contract above.
 
 ### The fallback is mandatory
 
@@ -280,33 +204,20 @@ that has already caused an externally visible effect — an object uploaded, a m
 reservation taken — and then fails on a later step undoes the effect before letting the failure go. The
 undo runs **while that failure is already propagating**, and it can fail too. Letting the undo's error
 escape would replace the fault that actually happened with a report about the cleanup, so **the undo's
-own failure is stopped in the scope that re-raises the original, on three conditions, all required.**
+own failure is stopped in the scope that re-raises the original, on three conditions, all required**:
 
 1. **It is stopped only by the scope that caught the original failure and will re-raise it** — the
    only scope that knows a failure is propagating. The undo it calls raises like any other call; a
    method that drops its own failure in case some caller is compensating hides it from every caller
    that is not.
-2. **That scope logs one `warning` event naming the failed undo**, with the undo's identifying inputs as
-   fields and the undo's error attached. It is the only record that an effect outlived the operation
-   that made it; `python-style`'s `LOGGING.md` places the call.
+2. **That scope logs the undo's failure once** — the only record that an effect outlived the operation
+   that made it. The event's level, fields and shape are `python-style`'s (`LOGGING.md`, **A failed
+   undo under compensation**).
 3. **The original failure is re-raised unchanged**, and only the undo call sits inside the inner
    `try` — never the original operation, and never a bare `except: pass`.
 
-```python
-try:
-    await self._foos.add(foo)
-except Exception:
-    try:
-        await self._blobs.delete(blob_key)
-    except Exception as undo_exc:
-        log.warning("foo_blob_undo_failed", blob_key=blob_key, exc_info=undo_exc)
-    raise
-```
-
-The bare `raise` re-raises the original: the inner handler has finished, so the failure being handled
-is the outer one again. Everywhere else a scope that re-raises logs nothing, and a failure it
-catches is either re-raised, translated, or stopped and logged by the scope that stops it — never
-dropped. A translation's unmatched branch raises; it does not get to stop anything.
+Everywhere else a failure a scope catches is re-raised, translated, or stopped and logged by the scope
+that stops it — never dropped. A translation's unmatched branch raises; it does not get to stop anything.
 
 ## Rules
 
@@ -320,7 +231,8 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
 4. **Subclasses do not override `__init__`.** Structured detail goes through the inherited `context` dict
    at the raise site.
 5. **Subclass attributes use bare assignment.** `code = "X"`, not `code: str = "X"`.
-6. **An inherited value is not restated.** Set `http_status` only when it differs from the parent's.
+6. **An inherited value is not restated.** A subclass sets a field the project added, such as
+   `http_status`, only where it differs from the parent's.
 7. **`code` values are `SCREAMING_SNAKE_CASE`**, and every one is unique across the catalog.
 8. **Every library exception is translated at its boundary, with `from exc`.** A third-party type
    reaching a caller is a leak.
@@ -337,44 +249,19 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
     verbatim. `python-style` bans the same values from a log line; this is the path around it.
 13. **A caught error is rendered in exactly one place, off the exception's own attributes.** Whatever
     the project shows the outside world — a response body, a message on stderr and an exit code, a
-    failure record — one scope produces it, and it produces it by reading `code`, `str(exc)` and
-    `context` from the class rather than by mapping a class onto a rendering. That is what keeps a
-    hand-maintained `code`→rendering table from reappearing: a new class renders correctly the day it
-    is added, with no second edit. Where the entrypoint serves HTTP, that scope is the central handler,
-    its response status is `exc.http_status`, and the `ErrorResponse` body carries `code=exc.code`,
-    `message=str(exc)` and `context=exc.context` — the custom raise above renders HTTP 409 with
-    `{"code": "FOO_NAME_TAKEN", "message": "foo name already exists", "context": {"name": foo.name}}`.
-    A project whose only caller is its own importer — a distributed package — renders nothing and lets
-    the class reach that caller intact, which is the same rule with the rendering scope outside the
-    project. The rule is complete here; the hexagonal family's handler and response-schema templates
-    that implement it are in `hex-restapi-app`, in the `pyhouse-hex` plugin.
-14. **One class for every credential rejection, and a second for the distinct permission case.** A bad,
-    missing, expired or unverifiable credential raises `UnauthorizedError`, wherever the verification
-    happens; a caller who is known and is not permitted raises `ForbiddenError`. The credential is the
-    one the project's own caller presented: a dependency rejecting the project's own credential is an
-    upstream failure, not the caller's, and is translated as one. Do not mint a second,
-    parallel class for the credential case under any name — everything the project does with that
-    condition is written once against one class, and a second spelling silently skips all of it. The
-    HTTP binding is the visible instance of that cost, not its reason: a central handler's RFC-7235
-    `WWW-Authenticate` branch keys on `UnauthorizedError` alone, so a parallel class renders as a plain
-    failure with no challenge. **Both classes are conditional on the project verifying a credential at
-    all** — one that verifies nobody, because something in front of it did or because it has no caller
-    to authenticate, omits them from the catalog entirely, the same way a project with no HTTP surface
-    omits `http_status` (see the hard stop below). The hexagonal family's binding for an entrypoint
-    that verifies credentials itself is `hex-restapi-auth`, in the `pyhouse-hex` plugin.
-15. **The two roots name their upstream failure differently, deliberately.** Hexagonal has
-    `UpstreamError`, a direct child of `DomainError`: any dependency failure, rendered `502`. Flat-layered
-    has `UpstreamUnavailableError`, a refinement of the *client* class for one upstream — and in the
-    worker case that family usually serves, no `http_status`, because nothing renders it. They are not two spellings of one class and neither
-    renames to the other; a project has one root and therefore only ever meets one of them.
-16. **A failure is never swallowed** — caught and neither re-raised nor logged by the scope that
-    stops it. A swallowed failure reads as a success; a failure stopped and logged once by the scope
-    that handles it is not swallowed. **Best-effort compensation is the one case where a scope that
-    re-raises also stops a failure:** while a failure is already propagating, an undo step's own failure
-    is stopped by the scope that caught the original — that scope logs one `warning` event naming the
-    failed undo and its identifying inputs, then re-raises the original failure unchanged. The undo's
-    error must not replace the fault that happened, and the warning is the only trace that an effect
-    was left behind. Never a bare `except: pass`.
+    failure record — one scope produces it by reading `code`, `str(exc)` and `context`, never by mapping
+    a class onto a rendering, so a new class renders correctly the day it is added. Where the entrypoint
+    serves HTTP that scope is a central handler — `hex-restapi-app`, in the `pyhouse-hex` plugin, and
+    `flat-entrypoint`'s `HTTP.md`, in the `pyhouse-flat` plugin, are examples. A library renders nothing
+    and lets the class reach its importer intact.
+14. **Where the project verifies its caller's credential, one class covers every credential rejection**
+    — bad, missing, expired or unverifiable (`UnauthorizedError`) — and a second covers a known caller
+    who is not permitted (`ForbiddenError`); never a parallel class for either. A dependency rejecting the project's own credential is an
+    upstream failure and is translated as one. A project that verifies nobody has neither class.
+15. **A failure is never swallowed** — caught and neither re-raised nor logged by the scope that
+    stops it. Best-effort compensation is the one case where a scope that re-raises also stops a
+    failure, on the three conditions in **Swallowing, stopping, and best-effort compensation**. Never a
+    bare `except: pass`.
 
 ## Inlined typing / import rules
 
@@ -403,10 +290,8 @@ dropped. A translation's unmatched branch raises; it does not get to stop anythi
 - A scope that re-raises the original also logging a failure other than a failed undo under
   best-effort compensation → stop; a re-raising scope stays silent, and the undo is the one exception.
 - A method drops its own failure because a caller might be compensating (a `*_best_effort` variant
-  that catches internally) → stop, let it raise; the undo's failure is stopped by the scope that
-  caught the original failure, the only one that knows a failure is propagating.
-- An undo's failure is raised in place of the original, or the original is lost behind it → stop,
-  stop the undo's failure under best-effort compensation and re-raise the original.
+  that catches internally), or an undo's failure is raised in place of the original → stop; the scope
+  that caught the original stops the undo's failure and re-raises the original.
 - A `context` key invented at the raise site that no test asserts on, or a key renamed on a shipped
   class → stop, the key set is a contract between the raise site, its test and the log line.
 - A password, token, API key or connection string being put in `context` → stop, it is rendered verbatim

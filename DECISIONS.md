@@ -40,6 +40,7 @@ lets any single plan be reverted alone.
 
 <!-- appended as they occur -->
 ### D6 — Fixed `test-principles`' flat example instead of deferring it
+**Superseded by D105.** The flat AAA example this entry fixed left `test-principles` with the flat tree.
 Plan 01's own verification flagged `EntitiesRepository`, `record_batch(foo_filtered_table, "foo", …)`
 and `entity_kinds_table` in a **universal** skill — source-project vocabulary, banned outright by
 CLAUDE.md. The plan's Finding 4 triage had grepped only `myschema|packages/|services/|workspace` and
@@ -118,7 +119,7 @@ engine factory taking the connection string, with the process definition passing
 own-settings-class case moved to the shared-distribution bullet under `## Other bindings`.
 
 ### D19 — `FooStorage` writes across two statements
-Plan 04's `FooStorage` was single-statement, but it has to carry the "a write spanning more than one
+**Superseded by D107.** Plan 04's `FooStorage` was single-statement, but it has to carry the "a write spanning more than one
 statement is one transaction" rule and be the subject of the atomicity test. A single statement has no
 atomicity to pin. Gave `record_batch` an ordinary parent-and-children shape in one `engine.begin()`.
 This is not the deleted registry: no cross-service identity, no junction, no view, no kinds.
@@ -215,7 +216,7 @@ first — leaving it would have re-grown the defect phase 0 exists to remove.
 ## Portability audit — phase 1
 
 ### D33 — Left `exception-catalog` rule 15 family-shaped
-It reconciles the two families' upstream-failure class names (`UpstreamError` vs
+**Closed by D94.** It reconciles the two families' upstream-failure class names (`UpstreamError` vs
 `UpstreamUnavailableError`). That is a cross-family naming decision, not something a Django, library or
 CLI reader needs, and it was outside the four defects phase 1 targets. Flagged rather than fixed.
 
@@ -341,7 +342,7 @@ drive code review, where a rule that only fires on one stack is noise.
 subsections back out; nothing else referenced them by then.
 
 ### D51 — Durable obligation 7 kept its loop shape, stated as a consequence rather than a shape
-The obligation said the batch loop is "an unbounded loop with an explicit counter, never a bounded loop
+**Obligation 7 merged into durable obligation 6 by D107.** The obligation said the batch loop is "an unbounded loop with an explicit counter, never a bounded loop
 with a trailing `return`", which reads as one engine's control flow. The reason underneath it is not:
 where a run takes a continuation it never reaches the statement after the loop, so a loop bounded by a
 count has its termination condition nowhere and dead code where it belongs. That is true of every
@@ -841,7 +842,7 @@ compensation is the one case where a scope that re-raises also stops a second fa
 warning for the failed undo and re-raises the original. A `*_best_effort` method that drops its own
 failure is a hard stop. An upstream rejecting the service's own credential is an `UpstreamError`;
 `UnauthorizedError` is for a credential the service's caller presented.
-**Reverse by:** deleting rule 16 and the subsection from `exception-catalog` and the matching section of
+**Reverse by:** deleting rule 15 (was 16) and the subsection from `exception-catalog` and the matching section of
 `LOGGING.md`.
 
 ### D76 — Names that denote a role are not vague nouns
@@ -866,7 +867,8 @@ break, the Alembic bootstrap); the catalogue is 45 skills.
 The client-style store template used a `store_sdk` that was Qdrant with the name removed, down to its
 port — unrunnable, and a vendor disguised as generic. It now binds `qdrant-client` under a heading that
 says so *(superseded by D79: the vector-store binding is removed)*; key-value stores get their own narrower port (`IFooArchive`, now `IBazRepository` — D79) because they cannot answer the
-aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template, every
+aggregate port's queries. Across the hex family `Foo` is `Foo(id, name, bar_id)` in every template *(superseded by
+D108: `Foo(id, name, note)`, with no reference to `Bar`)*, every
 settings class a template constructs has a body and a provider, and settings are constructed at exactly
 three composition roots (the container, the migration environment, the test infrastructure) *(D79 names
 them by role instead, since a hex service need not have a migration environment)*.
@@ -890,7 +892,8 @@ verification re-gated every decision and found two more to narrow.
   stores is what `hex-store-repository` rule 1 forbids. `Baz` is a new row in `CONVENTIONS.md`.
 - The same spread came through the two files every hex project copies. `hex-wiring`'s container
   template bound every adapter the catalogue defines, and the root integration conftest wired a blob
-  store into `real_app`. Both are now a relational **base**: each optional adapter carries its own
+  store into `real_app` *(D108: the base now ends at the per-test `container`, and `real_app` is itself the REST
+  add-on)*. Both are now a relational **base**: each optional adapter carries its own
   container binding in the skill that owns the adapter, as JWT already did, and its test fixtures are
   an add-on section of the integration conftest that a project adds only when it has that store.
 - Settings are constructed at composition roots named by role — the process's container, any tool that
@@ -903,3 +906,397 @@ verification re-gated every decision and found two more to narrow.
 **Reverse by:** reinstating a vector binding would need a workload that most projects share, which is
 the bar it failed; the base/add-on split reverses by folding each adapter skill's binding snippet back
 into `CONTAINER.md` and the conftest's add-on sections back into its base.
+
+## The flat family, after a service was generated from it
+
+Several of this round's rules were written against defects in a service an agent generated from the
+flat templates. Where the skills spoke, it followed them verbatim; where they were silent — what a
+second store looks like, what a component with settings looks like, what a run may hold while it runs
+— it improvised. This round closes those silences, renames what the catalogue had named against its
+own rules, and records why. The entries describe each failure as the rule states it, not the service.
+
+### D80 — The flat data-access class is `FooRepository`, not `FooStorage`
+`naming` gives the class that owns a record's data access the suffix `Repository`; the flat family
+called it `FooStorage`, and nothing recorded why — D19 used the name without deciding it. The only
+difference from the hex case is that no port stands in front, and the suffix names the role, not the
+port. `naming` now says so: `Repository` with or without a port, the `I` only on a port, and
+`FooStorage`/`FooStore`/`FooDao` a second word for one concept. The module is `foo_repository.py`,
+the topic file `REPOSITORY.md`, the test `test_foo_repository.py`. `StorageUnavailableError` and
+`StorageWriteRejectedError` keep their names: they name a failure of the store, not the class. The ban
+reaches only the class owning a record's data access: an adapter for one capability is named for what
+the capability does, so hex's `S3FooStorage` behind `ICanStoreFoos` stays, and `naming` says so *(superseded
+by D108: the S3 adapter template is gone, and `naming` states the exception with no vendor in it)*.
+**Reverse by:** renaming the class, module, topic file and test back, and removing the flat sentence
+and the widened table row from `naming`.
+
+### D81 — The data-access package is named for its technology, one per store
+`src/myapp/storage/` answered one store and left the second unanswered, and an unanswered question is
+answered by improvisation (D88) — a second store's settings and connection added to the first's
+package. The package is now named for the
+store — `postgres/` — which makes the second one obvious (`clickhouse/` beside it, with its own
+settings, connection factory and migration history), and `flat-layered` rule 4 and `flat-persistence`
+rule 17 state it. The settings follow: `PostgresSettings`, `get_postgres_settings()`, `MYAPP_POSTGRES_`.
+This supersedes the single-package reading of D18; the settings class inside the package that D18
+moved out came back earlier and stays.
+**Reverse by:** renaming `postgres/` back to a role name and deleting rule 17 and its hard stop; the
+second-store question then has no answer again.
+
+### D82 — A configured external system is a package holding its client and its settings
+The process's `Settings` carried `foo_api_url` and `foo_api_timeout_seconds`, fields of a component
+that is not the process — the thing `flat-layered` rule 8 forbids, in its own template. The client is
+now `services/foo_api/` with `foo_client.py` and `settings.py` (`FooApiSettings`, `MYAPP_FOO_API_`),
+and the process's own class holds only the process's fields, possibly none.
+**Reverse by:** folding the two fields back into the process's `Settings`, which reinstates the
+contradiction with rule 8.
+
+### D83 — The client is handed one pooled transport, and a token is refreshed
+The client built its own HTTP client inside each method: a new connection per call, no pool, and a
+stub reachable only by patching the library. `FooClient` now takes an `httpx.AsyncClient`, which the
+process definition builds once and closes when the process ends (`flat-layered` rule 14); a test
+builds the same client against a stub base URL. A credential with an expiry is refreshed on the
+transport, once, on expiry or rejection (rule 15): a login token cached for the process's life passes
+every short test and fails the first run after it expires.
+**Reverse by:** giving the client `base_url` and `timeout_seconds` again; the pool and the refresh
+obligation go with it.
+
+### D84 — Migrations are data at the distribution root, one directory per store
+Revisions sat under `migrations/versions/`, a layout with no room for a second store's history, which
+leaves the second history to land wherever the author guesses — inside the package under `src/`, run
+by a hand-written loop, among them.
+`alembic.ini` stays at the distribution root with `script_location = %(here)s/migrations/postgres`;
+another store's history goes in `migrations/<store>/`, applied by a tool that speaks it, and a
+hand-written runner is allowed only where no tool fits and must do what one would — record applied
+versions, apply in order, stop at the first failure, never run twice at once (`flat-persistence`
+rule 20). The first wording demanded a lock the store provides, which some stores lack; the exclusion
+may equally come from the tool's own lock or from the deploy — one migration job per deploy, never
+every replica at start-up. It also put the runner in the package and the files at the root, which a
+built wheel does not ship together, so the history now ships with whatever deployable applies it and a
+runner takes the directory as a parameter.
+**Reverse by:** pointing `script_location` back at `migrations` and deleting rule 20; hex keeps its
+own `migrations/versions/` either way, since a hex service's second store is a separate question.
+
+### D85 — No empty baseline on a greenfield chain
+Both setup skills wrote an empty `0001_baseline` so the chain had a root. Alembic needs no such root:
+`upgrade head` and `downgrade base` succeed on an empty chain, and the first real revision gets no
+parent. The empty revision was a no-op every database replays forever. A baseline now exists only over
+a schema that already exists, holds that schema as frozen hand-written DDL, and is stamped on the
+databases that have it. `flat-project-setup` and `hex-project-setup` state it in their own words.
+**Reverse by:** restoring the empty template in both setup skills; nothing else depends on it.
+
+### D86 — The linter bounds function size and complexity, with the thresholds written down
+Nothing in either setup skill measured a function's size, so an oversized one passed every check. Both
+setup skills now select C901 and PLR0911/0912/0913/0915/0917 with every number written: complexity 10
+(McCabe's published ceiling), 12 branches, 6 returns and 50 statements (pylint's long-standing
+defaults), and arguments capped twice — 5 positional, 7 in all — because a keyword-only argument names
+itself at every call site; the flat bulk-write helper takes three positional and four keyword-only,
+which is the shape the split permits. Numbers equal to the tool's default are written anyway, as the
+line length is, so they do not move when the default does. A function over a bound is split, never
+suppressed. Module length has no lint rule and stays a review matter.
+**Reverse by:** dropping the codes and the two tables from both setup skills, with flat rule 11 and
+hex rule 10.
+
+### D87 — Revision files ignore the statement count, and nothing else
+A revision's body is generated DDL — one statement per column and constraint — so a wide table trips
+PLR0915 with no function to split. Both setup skills exempt that one code per file for revisions
+(`migrations/**/versions/*.py` in flat's layout, `migrations/versions/*.py` in hex's). Complexity,
+branches and arguments stay on: a revision with branching logic is still authored code.
+**Reverse by:** deleting the per-file line and the sentence beside it in both skills.
+
+### D88 — Templates are copied, so they show a house pattern and the common variants
+**Rule 16 superseded by D95.** An agent copies a template verbatim — comments, constants and all — and improvises wherever a skeleton
+is silent. `meta-skill-author` now states it three ways. Rule 4: a
+template is copied, not read, so a comment in it must be true in the reader's file; the API a version
+floor relies on qualifies, which is why `flat-project-setup` rule 3 keeps its reason beside the floor,
+and only explanations of the template itself go to prose. Rule 15: a template shows the house pattern
+around a minimal vendor call, never the vendor's manual. Rule 16: a skeleton shows the common variants
+— a second store, a component with its own settings — one line each, because an unasked question gets
+answered by improvisation.
+**Reverse by:** deleting rules 15 and 16 and the comment clause of rule 4; the skeleton lines they
+justified can stay.
+
+### D89 — What a run holds while it runs is bounded, whatever triggers it
+Four failure modes share one cause — the family said what a run is, never what it may hold while it
+runs: a whole upstream source loaded into memory and deduplicated with an in-process set; a progress
+marker written while the rows it confirms still sit in a buffer shared with another unit; a local
+position file overwritten in place, its unreadable remains caught inside the loop's guard so the
+process stays up doing nothing; and a fan-out whose first failure cancels every other unit.
+`flat-entrypoint` rules 10 to 13 state the four obligations — bounded memory, marker after data, atomic local state read at startup, fan-out that awaits every unit and fails after.
+The loop guard moved to its own module, `entrypoints/containment.py`, and names the run it contains.
+`flat-persistence` states where its columnar write floor meets rule 11, since that floor is the pressure
+that pooled units in one buffer: a buffer spans units only if each unit's marker follows its flush.
+**Reverse by:** deleting rules 10 to 13 and their hard stops; the defects they name come back
+unflagged.
+
+### D90 — Deduplication belongs to the store, and a cursor carries a total order
+**The collapse by the normalized key, and `list_after` as the worked case, superseded by D107.** Two more, both in data access: looking up which rows already exist before writing each chunk — a round
+trip per chunk that still admits the duplicates two concurrent runs write — and paging a table by
+timestamp alone, which silently skips every row sharing a timestamp at a page edge, and a batch shares
+one. `flat-persistence` rule 18 leaves deduplication to
+the store's write-time conflict clause or merge-time engine; rule 19 orders a resumed read by a total
+order and carries all of it in the cursor. `FooRepository.list_after` is the worked case, and
+`flat-test-persistence` pins it across a page edge inside one timestamp.
+Rule 18 then gained two clauses (the `LEAST`/`GREATEST` spelling reduced to one sentence by D107). An earliest, latest or aggregated column (a first-seen time) is
+resolved by the conflict clause's `LEAST`/`GREATEST` or a merge engine that aggregates — a generated
+service had looked rows up before every insert only to keep a first-seen time. And inputs sharing a key
+are collapsed by it before the statement: Postgres refuses to update one row twice in one statement
+(SQLSTATE `21000`), and `record_batch` given `alpha` and ` ALPHA ` failed as `StorageUnavailableError`.
+`record_batch` collapses by the normalized key, last one winning, and `flat-test-persistence` rule 13
+pins it. The "no conflict clause" bullet no longer offers lock-and-check, a read-before-write rule 18
+forbids; such a store carries rule 12 as a `MERGE` or leaves resolution to merge time.
+**Reverse by:** deleting rules 18 and 19, `list_after` and its test.
+
+## Generality pass — templates reduced to what most services have
+
+### D91 — No family-wide exception catalogue; one generic template in `exception-catalog`
+`flat-layered`'s `CATALOG.md` defined six classes with hard-coded `http_status` for a family where an
+HTTP entrypoint is optional, and `exception-catalog` carried a flat template and a hexagonal one with
+eight example classes — a universal skill holding family material. Exceptions are a language-level
+concern: `exception-catalog` now shows one stdlib template (the root with `code` and `context`, two
+bare subclasses) and `http_status` as an optional field added where the service has an HTTP
+entrypoint. Every family template imports only the class it raises from the reader's own
+`exceptions.py`; the one reader of `http_status` is the HTTP boundary. Every rule is kept; rule 6 now
+speaks of any added field, and rule 13's worked example follows the new subclass.
+**Reverse by:** restoring `CATALOG.md` and its pointers in `flat-layered`, `flat-entrypoint`,
+`HTTP.md` and `REPOSITORY.md`, and the two templates in `exception-catalog`.
+
+### D92 — The fan-out and shared-wiring templates are rules only
+`FANOUT.md`, its test template in `flat-test-run-function` and `entrypoints/wiring.py` were each added
+as a template for one defect a generated service showed; most flat services fan out over nothing and
+run one process definition. `flat-entrypoint` rules 13 and 14 stay as written; `flat-test-run-function`
+rule 7 is one sentence, and its fan-out hard stop is deleted. The loop and the HTTP process definition
+build their client and engine directly and dispose the engine in a `finally`.
+**Reverse by:** restoring `FANOUT.md`, the fan-out test template and hard stop, and the `wiring.py`
+template with the loop and HTTP process definitions importing from it.
+
+### D93 — The client template is one call, with no pagination loop
+`FooClient` had a cursor-paging generator beside its single fetch — one upstream's shape. It is now one
+method, `fetch_foos`, translating transport and parse failures at the boundary, and `run_once` writes
+what that one call returns. Bounded memory stays `flat-entrypoint` rule 10, stated in one sentence
+beside the run function; the template no longer accumulates, so it no longer needs to show how.
+`flat-test-service-client` and `flat-test-run-function` test that one call and nothing more.
+**Reverse by:** restoring `fetch_pages` and the per-page loop in `run_once`, with the paging tests.
+
+### D94 — `exception-catalog` rule 15 deleted; the rules after it renumbered
+It reconciled `UpstreamError` with a flat `UpstreamUnavailableError` that no skill defines since D91,
+and its "no `http_status`" contradicted `flat-entrypoint`'s `HTTP.md`. Closes what D33 left open. Rule
+16 (swallowing) is now rule 15, and the citations of it moved with it. Rules 13 and 14 lost their HTTP
+walk-through and RFC-7235 detail to the HTTP owners; the family table became one sentence; the
+compensation code block is `LOGGING.md`'s alone.
+**Reverse by:** restoring the rule as 15 and renumbering swallowing back to 16.
+
+### D95 — `meta-skill-author` rule 16 reversed: a skeleton carries only common lines
+"Show the common variants — a second store, a component with its own settings" pulled every skeleton
+toward the one sample those variants came from. A skeleton now carries only lines most services of its
+family have; a variant is one line marked with the condition that earns it, or one sentence of prose.
+Supersedes rule 16 as D88 stated it.
+**Reverse by:** restoring the "common variants" wording in rule 16, its hard stop and both indexes.
+
+### D96 — The review criteria live in `.claude/review/QUESTIONS.md`
+Earlier reviews graded skills against `meta-skill-author`'s format and one sample application. The
+criteria — generality first, deletion a finding — are one repository file that `/review-skills`, the
+reviewer agent and `CLAUDE.md` point at; no shipped skill names it.
+**Reverse by:** deleting the file and the pointers to it, and reviewing against `meta-skill-author`
+alone.
+
+### D97 — `python-workspace` rule 9 folded into one sentence
+"Infrastructure with its own schema owner gets its own datastore" was a rule most workspaces never
+reach. It is now one sentence in the paragraph on members sharing a store, which keeps the
+`compose down -v` hard stop backed; the rule and its compose walk-through are gone, and rule 8 applies
+only where a member resolves settings files against the working directory.
+**Reverse by:** restoring rule 9 and pointing "rules 1–8" back at 1–9.
+
+### D98 — The framework firewall is `flat-layered` rule 9's, in standard form, with no template
+`test-architecture-rule` rule 9 lost its framework-wrapper walk-through and its multi-member framework
+constants, and a copy of that template briefly sat under `flat-entrypoint` shape 2. Both are gone. Rule 9
+of `flat-layered` holds for any framework, HTTP included, and is enforced by a standard-form firewall
+that forbids the framework's import outside the declared wrapper package; only an earned engine adds its
+one allow-list entry, the guarded helper of durable obligation 8. `test-architecture-rule` rule 9 keeps
+the general obligation — a role's name read from a declared constant, one constant per name.
+**Reverse by:** restoring the framework constants and test to `test-architecture-rule` and pointing
+`flat-layered` and `flat-entrypoint` back at it.
+
+### D99 — Each family lists what is worth a firewall in its own architecture skill
+The two "What is worth a firewall" lists in `test-architecture-rule` were family material in a
+universal skill. The hex list is under `hex-architecture` rules, the flat list beside `flat-layered`'s
+import contract; `test-architecture-rule` says in one sentence where each family keeps it. `print(`
+left both lists — it is the linter's (ruff `T201`), and the skill's own hard stop forbids restating the
+linter — and the allow-list example became `sys.exit(` outside the entry point.
+**Reverse by:** moving both lists back under `test-architecture-rule` `## Rules`.
+
+### D100 — `CONVENTIONS.md` "Read models" removed
+It was guidance for a skill that does not exist, and `hex-application` already owns the read-model
+versus write-model rule. The README backlog entry for a read-model skill went with it.
+**Reverse by:** restoring the section and the backlog entry.
+
+### D101 — `coupling`'s worked example is a library's public surface
+The shared-schema monorepo example taught one repository shape as the case the rule is easiest to see
+in. A library's public surface against its internals is a case every reader has, needs no workspace and
+no store, and leaves the monorepo as one of the cases the same counterbalance decides.
+**Reverse by:** restoring the shared-schema monorepo example.
+
+### D102 — The hex logging table lives in `hex-architecture`
+Which layer logs is a fact about the hexagonal layers, so the table moved from `python-style` to
+`hex-architecture` (*Who logs, by layer*), with a checkable rule and a hard stop. `python-style` keeps
+the universal log-once rule and the level guide in `LOGGING.md`; `hex-restapi-app`, `hex-test-domain`
+and the catalogue README point at the table's new home.
+**Reverse by:** moving the table, its rule and its hard stop back to `python-style`.
+
+## Universal owners — settings, the toolchain and the test constitution
+
+### D103 — `python-settings` owns settings from the environment
+Settings rules sat twice, in `hex-wiring` (with `SETTINGS.md`) and in `flat-layered`, worded
+differently and each applicable to every Python program. They are one universal skill now;
+`hex-wiring/SETTINGS.md` is deleted, `hex-wiring` keeps where a settings class is built and bound, and
+`flat-layered` keeps that a configured component is a package with its own class, built by the process
+definition. Where the two disagreed, flat's rule won: **a tunable with no single right value carries no
+default** (rule 5), hex's defaulted pool sizes having been one deployment's tuning frozen into a
+template. So the relational store's pool sizes are required, and pre-ping is not a setting at all — the
+engine factory passes it literally. `DbSettings`, the engine and the relational repository
+binding moved to `hex-persistence/REPOSITORY.md`, beside the adapter that reads them, so the base
+container binds no store — every store's binding now lives with its adapter, as the add-ons' already
+did. Rule 15 (a value chosen per invocation is an argument, not a setting) is new: a CLI tool is in
+scope, and there the confusion is the common one.
+**Reverse by:** restoring `hex-wiring/SETTINGS.md` and the settings halves of `hex-wiring` and
+`flat-layered`, defaulting the hex tunables again, moving `DbSettings` and the relational binding back
+into `hex-wiring/CONTAINER.md`, and deleting `python-settings` with its index lines and ownership row.
+
+### D104 — `python-toolchain` owns the configuration every distribution carries once
+The src layout, the ruff selection and its written thresholds, the sanctioned suppressions, strict
+mypy, the line length, development dependency groups and the dependency-floor discipline were stated
+in both `hex-project-setup` and `flat-project-setup`, and a library or CLI tool with no family had no
+home for them at all. They are one universal skill now. The family setup skills keep only what differs
+by family — which libraries each role brings with the floors their own templates rely on, and the
+migration bootstrap. The inline type-ignore policy is `python-style`'s (**Type suppressions**:
+fix first, an ignore is the last resort and names its code and reason); `python-toolchain` owns only
+the per-package missing-stub override. With that, flat's blanket ban on any inline `# type: ignore` or
+`# noqa` under `src/` is gone: lint suppressions are the closed list `python-toolchain` rule 5
+sanctions (D106), and type suppressions follow `python-style`.
+**Reverse by:** restoring the toolchain blocks to both `*-project-setup` skills, restoring flat's
+inline-suppression hard stop, moving the type-ignore policy back beside it, and deleting
+`python-toolchain` with its index lines and ownership row.
+
+### D105 — `test-principles` is family-neutral
+The constitution carried two family trees and two substitution ladders, so a library, a CLI tool, or a
+project with one family plugin installed read half a skill about something it did not have. The hex
+tree moved to `hex-test-integration-setup`, which now maps the whole hex suite and names the skill that
+writes each file. The flat tree was deleted rather than moved: `test-principles` states where tests and fixtures sit,
+and each flat test skill names the file it writes. The two ladders merged into one five-rung ladder whose
+port-fake rung is conditional — taken where the architecture defines a port, skipped where it does
+not, never a reason to create one. The autouse set is closed at three: the safety guard, the schema
+setup and the isolation reset. HTTP interception was reconciled: every happy-path test asserts the
+route it exercised was hit, on that route's own call record, never by requiring every stubbed route to
+be called — `flat-test-service-client`'s first happy-path test now does exactly that. General rules on
+assert strength and literal expected values moved in from the family test skills.
+**Reverse by:** restoring both trees and both ladders to `test-principles`, removing the tree map from
+`hex-test-integration-setup`, and restoring the all-routes-called form of the interception rule.
+
+### D106 — The base container binds no feature; setup triggers key on owning the schema
+A review of D103–D105 found template lines most services would not have. The hex base container now
+binds no store and no feature: `ExportSettings`, its package and the tunable's provider are gone from
+`hex-wiring/CONTAINER.md`, and the tunable's binding is an add-on beside the tunable value object in
+`hex-domain-model`; the unit-of-work factory binding moved to `hex-patterns` under its implementation,
+with one rule left in `hex-wiring` — a unit of work is bound as its factory callable. The base's
+handler provider says where `IFooRepository`'s binding comes from, and the numbered docstrings that
+copied the skill's ordering into a reader's code are gone. `python-settings` rule 5 gained a CLI
+exception — a program its users run may ship a documented tunable default — and its hard stop narrowed
+to deployables; the dotenv read became conditional, since a CLI tool run from arbitrary directories
+reads none. The migration tool and bootstrap in both setup skills are triggered by owning the schema of
+a relational store, not by having one, so a service that only reads a table carries no migration tool.
+`python-toolchain` rule 5 sanctions one suppression everywhere and lets the family setup skill that
+lays a migration bootstrap sanction the two migration ones, whose rationales now live there.
+`flat-layered`'s settings template is gone in favour of `python-settings`', named in one sentence.
+**Reverse by:** restoring `ExportSettings`, the tunable provider and the unit-of-work section to
+`hex-wiring/CONTAINER.md` and removing their add-ons from `hex-domain-model` and `hex-patterns`;
+dropping the CLI exception from `python-settings` rule 5; keying the migration tool back on having a
+relational store; moving the migration suppressions back into `python-toolchain` rule 5 as a list of
+three; and restoring the settings template to `flat-layered`.
+
+## The flat family, reduced to what most flat services have
+
+### D107 — The flat skeleton, entrypoint, persistence and tests cut to the common case
+A generality review walked the flat family through its test services — a queue consumer that stores
+nothing, a nightly report job, a webhook receiver, a CLI-triggered export, a crawler with two stores —
+and found one sample application's shape throughout. The skeleton in `flat-layered` now holds only what
+most flat services have, with packages at the package root: no `services/`, `ingest/` or `jobs/`, the
+external system's package named for it (`foo_api/`), the run function a module named for its work
+(`foo_sync.py`), `containment.py` only where a process outlives one run, and `entrypoints/` only where
+there is more than one process. The service's own record has a non-nullable key and no labels; a
+directory written for another reader is an external system with its own package. In
+`flat-entrypoint` one run per process, started by an external scheduler, is the default; a loop is the
+same run repeated, and only a process that outlives one run is guarded, sleeping on an interval read
+from settings. A contained unit returns for redelivery up to a declared limit and then goes to a dead
+letter, its effect idempotent (rule 15); a file another reader collects is written atomically (rule 12).
+Durable obligations 6 to 8 — the continuation's carried values, the empty-batch end and the public
+batch ceiling — are merged into 6, which keeps the first two and drops the ceiling a test had to read;
+the old 9 to 13 are 7 to 11. The HTTP shape is
+one route receiving a body and handing it to one run function, with no upstream client in the HTTP
+process, and the framework's validation failure rendered as the catalogue's `InvalidPayloadError` —
+first named `InvalidRequestError`, renamed because it collided with SQLAlchemy's exception of that name.
+`flat-persistence` is one table and a repository with `record_batch` alone: `list_after` went, rule 19
+staying as a rule and its test becoming conditional on a run that pages, because most flat services
+never walk their own table; the record's `reference` is a `FooReference`, a distinct type over `str`
+wrapped at each mapping point, because `python-style` makes an identifier issued elsewhere one;
+`normalize_reference` is gone because it silently merged keys the source tells apart by case, the key
+now stored as it arrives, and the read-back helper and the atomicity test are stated as conditional on a
+write that spans statements (D19's parent-and-children write is gone). The integration conftest lost
+its external-database mode, now one `## Other bindings` bullet carrying its own guard, and a store
+another project owns gets no migrations — the suite creates its schema from metadata. The test skills
+follow: no filter test, the aggregate asserted as `RunResult`, the containment test only where a
+process outlives a run, the HTTP test driving one body-receiving route, and the batch-loop tests
+matched to durable obligation 6, with the public-loop-constant rule gone. A later pass in the same
+review left the redelivery limit and dead letter to the broker's own configuration, scoped to units a
+broker delivered; had no transaction span two stores; dropped the client's failure-injection subclass
+for a transport failure; and replaced the startup-state recovery message with one sentence.
+**Reverse by:** restoring the flat skill files, their indexes and the `python-toolchain`,
+`flat-project-setup` and `naming` sentences from the commit before this one, renumbering the durable
+obligations back to 13, and removing the superseded markers on D19, D51 and D90.
+
+## The hex family, reduced to what most hex services have
+
+### D108 — The sample application leaves the hex family
+**The blob-store add-on superseded by D109.**
+The generality review that cut the flat family (D107) walked the hex family through its test services —
+a CRUD REST service with one aggregate, a queue-driven service, a gRPC service with two aggregates and
+no auth, a service with no relational store — and found one sample application under the placeholders.
+It is gone: the `Foo`→`Bar` foreign key and its `bar_id`/`bar_ids` fields and filter, the audit trail
+(`IAuditRepository`, `AuditEvent`, `domain/audit/`), the xlsx export and its settings and tunable, the URL
+canonicalizer with its value object, the S3 and idna adapters, the framework-free run function in
+`hex-patterns`, the date-range filter, `caller_id` on every command, CORS in the app shell, a `413`
+advertised by default, the `/bulk` route and attachments. `Foo` is `Foo(id, name, note)` — `note` so a
+PATCH test has an untouched field to check — and `Bar` is a second aggregate of the same form, named and
+never templated. Where the caller is authenticated, the entrypoint sets a `caller_id` from whatever
+authenticated it, stated in one sentence where commands are defined. The caller identity is the
+issuer's opaque subject, a `str`, and a rank exists only where a route gates on one; JWKS is an
+`## Other bindings` bullet. The unit-of-work example writes one `Foo` and one `Bar` over `foos` and
+`bars`. A tunable value object carries no default (`python-settings` rule 5). The Redis key prefix is
+a module constant in the adapter. The engine, session and connection factories moved out of
+`hex-conventions` to sit beside their store skills — `hex-persistence`'s `REPOSITORY.md` and
+`hex-store-repository` — leaving `hex-conventions` the factory names. The capability adapter has one
+template, the HTTP gateway; the SDK-client and pure-CPU forms are prose. The base integration conftest is
+framework-free and ends at the per-test `container`; `real_app` is the REST add-on, and the blob-store
+add-on names its settings class by role. Registering a status a middleware emits moved to
+`hex-restapi-app`, which owns the middleware.
+**Reverse by:** restoring the hex skill files, their indexes, the `naming`, `python-style` and
+`flat-test-integration-setup` examples from the commit before this one, and removing the superseded
+markers on D78, D79 and D80.
+
+### D109 — The hex family uses the universal catalogue and states what a transport-free service needs
+A second pass over the hex family (D108) moved its remaining sample shapes to the universal owners and
+reduced them to obligations. The exception root is the project's own `MyappError` from
+`exception-catalog`, never a family-wide `DomainError`; in a hexagonal service the one catalogue lives in
+`domain/exceptions.py`, and `hex-restapi-app` names the classes the shell and the routes add, each with
+its optional `http_status` and each only where something raises it. The auth templates are rank-less by
+default — `CurrentUser(id)`, a verifier requiring `sub` alone, `get_current_user` alone — and `Role`,
+its claim arm, `ForbiddenError` and `require_role` sit in one *Rank apps only* block, where `Role` is
+also the catalogue's one worked enum with a method (the duplicate templates in `hex-domain-model` and
+`hex-test-domain` are a sentence each). The relational delete has no in-use branch; the FK translation
+is a rule that applies where another table references this one. `hex-architecture` states the
+non-HTTP entrypoint obligations as rules: a per-operation scope, one catching scope rendering off the
+exception's attributes, acknowledgement after the handler returns, and a create safe to repeat under
+at-least-once delivery. A port declares only what some handler calls; a PATCH field the client may
+clear distinguishes absent from null; `caller_id` is persisted only where the aggregate records an
+owner or actor. The base composition root carries one handler line. The blob-store test add-on and the
+`/info` invariant test are gone: the key-value add-on is the worked store add-on, and a health or info
+endpoint is tested like any endpoint. The page-size default is the filter's alone.
+**Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
+this one.

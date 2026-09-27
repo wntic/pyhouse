@@ -1,6 +1,6 @@
 ---
 name: python-versioning
-description: Use when deciding what version a Python distribution declares and what changes it — a first release, a breaking change, a deprecation, a pre-release, a tag, or the note a consumer reads before upgrading. Owns whether the number is a compatibility promise at all or only a label, the single place it is declared, which change forces which bump, what 0.y.z deliberately withholds, and the canonical form a published version must already be in before a build tool rewrites it silently. What a package root re-exports is `python-packaging`'s, retiring a published identifier is `naming`'s, and choosing a version floor for a dependency this project consumes is the inverse concern and belongs to the family's setup skill.
+description: Use when deciding what version a Python distribution declares and what changes it — a first release, a breaking change, a deprecation, a pre-release, a tag, or the note a consumer reads before upgrading. Owns whether the number is a compatibility promise at all or only a label, the single place it is declared, which change forces which bump, what 0.y.z deliberately withholds, and the canonical form a published version must already be in before a build tool rewrites it silently. What a package root re-exports is `python-packaging`'s, retiring a published identifier is `naming`'s, and choosing a version floor for a dependency this project consumes is the inverse concern and belongs to `python-toolchain`.
 ---
 
 # Python Versioning — what the number promises, and what changes it
@@ -40,11 +40,10 @@ depending on it.
   the retirement lands in a major, and the deprecation in a minor before it.
 - An error `code` that clients and dashboards key on → `exception-catalog` owns its stability; the
   release that retires one is this skill's.
-- Choosing a version floor or a pin for a dependency this project **consumes** → the inverse concern,
-  and not here. A floor states a known breaking boundary in someone else's history; this skill is
-  about producing your own. The hexagonal family states the consuming rule under `hex-project-setup`,
-  in the `pyhouse-hex` plugin, and the flat family under `flat-project-setup`, in the `pyhouse-flat`
-  plugin.
+- Choosing a version floor or a pin for a dependency this project **consumes** → `python-toolchain`,
+  the inverse concern. A floor states a known breaking boundary in someone else's history; this skill
+  is about producing your own. Where a distributed package raises a floor its consumers resolve
+  against, the release that carries it is still weighed here.
 - A repository holding several distributions — the member split, in-repo dependency edges, tooling
   settled once → `python-workspace`. It governs members; which number each member carries is here.
 - Database schema evolution and the migration chain → the family's persistence skill. A migration is
@@ -202,8 +201,8 @@ That call takes the **distribution** name, which need not equal the import packa
   to upgrade, and a commit log does not answer that question.
 - A deprecation and the removal it announces are landing in the same release → stop, the deprecation
   ships first, in its own release.
-- Asked which version of a dependency this project should require → stop, that is the inverse concern;
-  a floor states a known breaking boundary in someone else's history.
+- Asked which version of a dependency this project should require → stop, use `python-toolchain`; a
+  floor states a known breaking boundary in someone else's history.
 - Asked what a package root may re-export, or what belongs to the public surface → stop, use
   `python-packaging`.
 - Asked to rename a published identifier in place → stop, use `naming`; this skill covers the release

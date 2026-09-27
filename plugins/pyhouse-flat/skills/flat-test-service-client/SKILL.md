@@ -8,9 +8,10 @@ description: Use when testing one external-service client class with `respx` ove
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 One unit-test file per client class, under the distribution's own `tests/unit/`. No database, no
-container, no network — `respx` intercepts at the `httpx` transport layer, so everything the client itself does
-(URL assembly, headers, `raise_for_status`, JSON parsing, the `except httpx.HTTPError` translation) runs
-unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a process boundary.
+container, no network — `respx` intercepts at the `httpx` transport layer, so everything the client
+itself does (URL assembly, headers, `raise_for_status`, JSON parsing, the `except httpx.HTTPError`
+translation) runs unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a
+process boundary.
 
 The client has no `Protocol` and needs none. `respx` substitutes the transport, which is somebody else's
 boundary — not an abstraction invented to make the code mockable.
@@ -30,125 +31,132 @@ boundary — not an abstraction invented to make the code mockable.
 - The family's shared datastore fixtures → `flat-test-integration-setup`; nothing in this file needs
   one.
 - The shared groundwork — the substitution ladder, naming, AAA → `test-principles`.
-- The client is an adapter behind a hexagonal `ICan<Verb>` capability port rather than a flat `*_client.py` → `hex-test-capability-adapter`, in the `pyhouse-hex` plugin, whose HTTP-gateway flavor is the same `respx` technique bound to a port.
+- The client is an adapter behind a hexagonal `ICan<Verb>` capability port rather than a flat
+  `*_client.py` → `hex-test-capability-adapter`, in the `pyhouse-hex` plugin, whose HTTP-gateway flavor
+  is the same `respx` technique bound to a port.
 
 ## Template — pytest, `respx` over `httpx`
+
+`tests/conftest.py` — the upstream stub and the client over it, in the one conftest above both `unit/`
+and `integration/`, because the run-function and wrapper tests use the same pair (`test-principles`,
+fixture versus builder):
+
+```python
+from collections.abc import AsyncIterator, Iterator
+
+import httpx
+import pytest
+import respx
+
+from myapp.foo_api import FooClient
+
+_FOO_API_URL = "https://foo.test"
+_TIMEOUT_SECONDS = 1.0
+
+
+@pytest.fixture
+def foo_api() -> Iterator[respx.MockRouter]:
+    with respx.mock(base_url=_FOO_API_URL, assert_all_called=False) as router:
+        yield router
+
+
+@pytest.fixture
+async def foo_client(foo_api: respx.MockRouter) -> AsyncIterator[FooClient]:
+    async with httpx.AsyncClient(base_url=_FOO_API_URL, timeout=_TIMEOUT_SECONDS) as http:
+        yield FooClient(http)
+```
 
 `tests/unit/test_foo_client.py`:
 
 ```python
 import httpx
+import pydantic
 import pytest
 import respx
 
 from myapp.exceptions import FooClientError
+from myapp.foo_api import FooClient
 from myapp.schemas import FooPayload
-from myapp.services import FooClient
-
-_BASE_URL = "https://foo.test"
-_TIMEOUT_SECONDS = 1.0
 
 
-def _client() -> FooClient:
-    return FooClient(base_url=_BASE_URL, timeout_seconds=_TIMEOUT_SECONDS)
-
-
-@respx.mock
-async def test_fetch_returns_the_parsed_payload() -> None:
-    respx.get(f"{_BASE_URL}/foos/f1").mock(return_value=httpx.Response(200, json={"ref": "f1", "name": "alpha"}))
-
-    result = await _client().fetch("f1")
-
-    assert result == FooPayload(ref="f1", name="alpha")
-
-
-@respx.mock
-async def test_fetch_sends_the_id_in_the_path() -> None:
-    route = respx.get(f"{_BASE_URL}/foos/f1").mock(
-        return_value=httpx.Response(200, json={"ref": "f1", "name": "alpha"})
+async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
+    route = foo_api.get("/foos").mock(
+        return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]})
     )
 
-    await _client().fetch("f1")
+    result = await foo_client.fetch_foos()
 
-    assert route.calls.last.request.url.path == "/foos/f1"
+    assert route.called
+    assert result == (FooPayload(ref="f1", name="alpha"),)
 
 
-@respx.mock
+async def test_fetch_foos_sends_a_get_to_the_collection(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
+    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": []}))
+
+    await foo_client.fetch_foos()
+
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/foos"
+
+
 @pytest.mark.parametrize("status", [400, 404, 500, 503])
-async def test_non_2xx_becomes_a_foo_client_error(status: int) -> None:
-    respx.get(f"{_BASE_URL}/foos/f1").mock(return_value=httpx.Response(status))
+async def test_non_2xx_becomes_a_foo_client_error(
+    foo_api: respx.MockRouter, foo_client: FooClient, status: int
+) -> None:
+    foo_api.get("/foos").mock(return_value=httpx.Response(status))
 
     with pytest.raises(FooClientError) as exc_info:
-        await _client().fetch("f1")
+        await foo_client.fetch_foos()
 
-    assert exc_info.value.context == {"foo_id": "f1"}
     assert isinstance(exc_info.value.__cause__, httpx.HTTPStatusError)
 
 
-@respx.mock
-async def test_a_timeout_becomes_a_foo_client_error() -> None:
-    respx.get(f"{_BASE_URL}/foos/f1").mock(side_effect=httpx.ConnectTimeout("timed out"))
+async def test_a_timeout_becomes_a_foo_client_error(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
+    foo_api.get("/foos").mock(side_effect=httpx.ConnectTimeout("timed out"))
 
     with pytest.raises(FooClientError) as exc_info:
-        await _client().fetch("f1")
+        await foo_client.fetch_foos()
 
     assert isinstance(exc_info.value.__cause__, httpx.TimeoutException)
 
 
-@respx.mock
 @pytest.mark.parametrize(
     "body",
-    [b"<html>not json</html>", b'{"name": "alpha"}'],
+    [b"<html>not json</html>", b'{"items": [{"name": "alpha"}]}'],
     ids=["not-json", "missing-field"],
 )
-async def test_a_200_with_a_malformed_body_becomes_a_foo_client_error(body: bytes) -> None:
-    respx.get(f"{_BASE_URL}/foos/f1").mock(return_value=httpx.Response(200, content=body))
+async def test_a_200_with_a_malformed_body_becomes_a_foo_client_error(
+    foo_api: respx.MockRouter, foo_client: FooClient, body: bytes
+) -> None:
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, content=body))
 
     with pytest.raises(FooClientError) as exc_info:
-        await _client().fetch("f1")
+        await foo_client.fetch_foos()
 
-    assert exc_info.value.context == {"foo_id": "f1"}
-
-
-@respx.mock
-async def test_fetch_batch_follows_the_cursor_to_the_last_page() -> None:
-    route = respx.get(f"{_BASE_URL}/foos").mock(
-        side_effect=[
-            httpx.Response(200, json={"items": [{"ref": "f1", "name": "a"}], "next": "cursor-2"}),
-            httpx.Response(200, json={"items": [{"ref": "f2", "name": "b"}], "next": None}),
-        ]
-    )
-
-    payloads = await _client().fetch_batch()
-
-    assert [payload.ref for payload in payloads] == ["f1", "f2"]
-    assert route.calls.last.request.url.params["cursor"] == "cursor-2"
+    assert isinstance(exc_info.value.__cause__, pydantic.ValidationError)
 ```
 
-The error tests assert the translated exception's `context` — the key set the raise site and its test
-agree on — and never the message text, which is free to change (`exception-catalog`). The malformed-body
+The stub and the client are fixtures, not module-level builders, because each has an end — the stub's
+interception is lifted and the transport closed at teardown — and they sit in `tests/conftest.py`
+rather than in each test module because three files at two levels take them. The client fixture builds
+its `httpx.AsyncClient` exactly as the process definition does — base URL and timeout from constants in
+place of settings — and **requests the stub**, so no test can hold the client without the interception
+under it (rule 8). `assert_all_called=False` is rule 7, stated where the stub is made.
+
+The error tests assert the translated class and its chained cause. `fetch_foos` takes no input, so its
+`context` is empty; a method that takes one also asserts the `context` key set the raise site and its
+test agree on — never the message text, which is free to change (`exception-catalog`). The malformed-body
 cases cover both halves of parsing: a body that is not JSON, and JSON that does not fit the payload.
 
-## Template — failure injection for the client's *callers*
-
-When a caller's test needs this client to fail, it subclasses rather than mocks. This lives in the
-caller's test module, not here — it is included so both halves of the pattern are in one place:
-
-```python
-class _RaiseFooClient(FooClient):
-    async def fetch_batch(self) -> list[FooPayload]:
-        raise FooClientError("upstream down", {"cursor": None})
-```
-
-Override exactly the one method that must fail, and nothing else — the rest of the real client stays in
-the object, so a signature change breaks the test at call time instead of passing silently.
+A caller's test makes this client fail at its transport (`flat-test-run-function` rule 2).
 
 ## Other bindings
 
-- **A transport object handed to the client instead of patched globally** — `httpx.MockTransport`, or a
-  local ASGI app served in-process. The client must then accept a transport or a pre-built client, so
-  rule 6 widens by one constructor parameter. What the tests assert — the translation, the outgoing
-  request, malformed bodies, timeouts — is unchanged, and so is the ban on extracting a `Protocol`.
+- **A stub transport instead of a global patch** — `httpx.MockTransport`, or a local ASGI app served
+  in-process, passed as `transport=` to the `httpx.AsyncClient` the test hands the client. The client
+  already takes its transport pre-built, so nothing in it changes. What the tests assert — the
+  translation, the outgoing request, malformed bodies, timeouts — is unchanged, and so is the ban on
+  extracting a `Protocol`.
 - **A different HTTP library** — `aiohttp` with `aioresponses`, `requests` with `responses`. The
   interception point and the exception classes the client translates *from* change together; the
   catalogue exception it translates *to*, the cause-chaining requirement and every rule below are
@@ -160,13 +168,13 @@ the object, so a signature change breaks the test at call time instead of passin
 
 ## Rules
 
-1. **The transport is stubbed, never the client.** A test that patches `FooClient.fetch` is testing
+1. **The transport is stubbed, never the client.** A test that patches `FooClient.fetch_foos` is testing
    nothing; the parsing and translation under test live inside that method.
 2. **Assert the translation, not just the type.** Every error status and every transport failure must
-   surface as the service's own catalog exception carrying the identifying input in its `context`, and
-   the original must still be reachable as that exception's cause — that is what raising *from* the
-   original at the boundary buys, and it is the thing a careless refactor drops. Assert on `context`,
-   never on the message text.
+   surface as the service's own catalog exception — carrying the identifying input in its `context`
+   where the call takes one — and the original must still be reachable as that exception's cause: that
+   is what raising *from* the original at the boundary buys, and it is the thing a careless refactor
+   drops. Assert on `context`, never on the message text.
 3. **Pin the request, not only the response.** At least one test asserts what the client actually sent —
    path, query, headers, body — read back from what the stub recorded (`route.calls.last.request` here).
    A client that parses a canned response correctly while requesting the wrong URL passes every
@@ -177,19 +185,20 @@ the object, so a signature change breaks the test at call time instead of passin
    name, because the name is the spec line.
 5. **Malformed responses are part of the contract.** A 200 with a body the client cannot parse must fail
    as the catalog exception, not as a bare `KeyError` or `JSONDecodeError` escaping to the caller.
-6. **The base URL is a module constant and is passed in.** Never let the test depend on a settings
-   value — construct the client with an explicit `base_url`, which is why the client takes one.
-7. **Never assert that every stubbed route was called** (`assert_all_called` here). It pins how many
-   requests the client happens to make, so an added prefetch or a dropped retry reddens a test that was
-   about neither; assert the calls the behaviour requires.
+6. **The base URL is a constant beside the fixture that builds the client, and is passed in.** Never let
+   the test depend on a settings value — hand the client an HTTP client built with an explicit
+   `base_url`, which is why the client is handed its transport rather than building one.
+7. **Assert the route a test exercises, never that every stubbed route was called** —
+   `test-principles`, *Intercepting HTTP* rule 3. The shared router therefore turns its own
+   all-called check off (`assert_all_called=False` here).
 8. **Every test in the file intercepts the transport; none may reach a real host.** A test that escapes
    the stub — an unmatched URL, a client that builds a transport the stub does not cover — is
    non-deterministic, slow, and fails in CI on the day the vendor has an outage.
 
 ## Hard stops
 
-- A test patches a method of the class under test → stop, stub the transport, or subclass for a
-  *caller's* injection; patching the subject leaves nothing tested.
+- A test patches a method of the class under test → stop, stub the transport; patching the subject
+  leaves nothing tested.
 - A `Protocol` is being extracted so the client can be substituted → stop, forbidden by the flat-layered
   style; the transport stub already substitutes at the right seam.
 - The client swallows a transport or parsing failure internally, returning a default instead of raising
@@ -199,4 +208,5 @@ the object, so a signature change breaks the test at call time instead of passin
   else's uptime; record the shape as a fixture and assert against that.
 - The client returns raw `httpx.Response` objects to its caller → stop, the boundary leaks; the client
   owns parsing, and a test cannot pin behaviour that lives in the caller.
-- The test constructs the client with no explicit base URL → stop, it is now coupled to the environment.
+- The test builds the client's transport with no explicit base URL, or through a settings factory → stop,
+  it is now coupled to the environment.

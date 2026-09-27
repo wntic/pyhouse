@@ -29,10 +29,11 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
   (`hex-domain-model`, `hex-domain-ports`, `hex-domain-service`, `hex-application`, `hex-persistence`,
   `hex-restapi-endpoint`, …). Each already assumes the boundaries this skill sets.
 - One class per module, `__all__`, the `__init__.py` contract, relative vs absolute → `python-packaging`.
-- Choosing an annotation form, a collection type, or where to log → `python-style`.
+- Choosing an annotation form, a collection type, or the level and fields of a log event → `python-style`;
+  which layer logs is below.
 - The error catalog → `exception-catalog`.
 - Deriving a concrete path or class name from an identifier → `hex-conventions`.
-- Library substrate, toolchain config, the migration bootstrap → `hex-project-setup`.
+- Library substrate and the migration bootstrap → `hex-project-setup`; toolchain config → `python-toolchain`.
 - A table, a relational repository, a migration → `hex-persistence`.
 - Compensation or a unit of work → `hex-patterns`.
 - What the composition root actually binds — providers, lifetimes, settings, teardown, declaration
@@ -104,13 +105,14 @@ other arrow is legal.
 - Forbidden: everything else. No third-party libraries — no ORM, no settings library, no HTTP client, no
   cloud SDK, no web framework. No `application/`, no `infrastructure/`, no entrypoint imports.
 - Defines: entities, value objects, enums, filter records, domain protocols (`I*` / `ICan*`), domain
-  services, domain exceptions, type aliases.
+  services, domain exceptions, type aliases. In a hexagonal service the project's one exception
+  catalogue (`exception-catalog`) lives in `domain/exceptions.py`.
 - Zero IO. No file reads, no network, no database, no logging.
 
 **`application/`**
 
 - Allowed: stdlib, the logging library, domain modules. **The logging carve-out exists for one reason**:
-  this is the layer that logs business successes (`python-style` allocates logging by layer), so it
+  this is the layer that logs business successes (the layer table under *Who logs, by layer* allocates it), so it
   carries the logging facade and nothing else outward. A second third-party import is not covered by it.
 - Forbidden: third-party libraries beyond logging. No `infrastructure/` imports, no entrypoint imports.
 - Defines: commands, queries, handlers, result DTOs.
@@ -136,6 +138,28 @@ defect. Siblings are `cli/` and `worker/`.
 - Defines: HTTP routes, CLI commands or queue consumers; request and response wire schemas; the central
   error handler; the dependency wiring.
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
+- Opens one per-operation scope per request, message or call, and closes it when the operation ends.
+- Has one scope that catches what propagates, logs it once and renders it as a transport outcome off the
+  exception's own attributes (`exception-catalog` rule 13).
+- Acknowledges a message only after its handler returns. Where delivery is at-least-once, a create is
+  safe to repeat — its identity comes from the message, not a mint per delivery.
+
+### Who logs, by layer
+
+`python-style`'s rule — an error is logged once, by the scope that stops it — lands here as a layer
+table: every error propagates to one central handler, so the scope that does not re-raise is the
+entrypoint.
+
+| Layer | May log |
+|---|---|
+| `domain/` | **Nothing.** Zero IO includes the log socket; raise an exception carrying `context` instead. |
+| `infrastructure/` | **Nothing.** An adapter translates and re-raises, so it is never the layer that stops; the low-level detail goes into the translated exception's `context`, where the layer that does log will find it. |
+| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a failed undo stopped under best-effort compensation, which the handler running the compensation logs at `warning` (`python-style`'s `LOGGING.md`, "A failed undo under compensation"). |
+| entrypoints | Errors, once, at the central handler, with request context attached. |
+
+**A central handler takes `python-style`'s level guide (`LOGGING.md`)**, plus one case only it sees: an exception that is not a
+catalogue class → `error`, logged *before* the framework turns it into a 500, or it is never seen.
+The call that implements it is `error_handler.py` in `hex-restapi-app`.
 
 ### Top-level layout
 
@@ -211,6 +235,8 @@ subsections beneath give the reasoning and the judgement calls.
 9. **Check no module-level singleton holds a stateful resource** — a connection, an engine, a client.
    Inject it.
 10. **Check every cross-layer import is absolute** and every within-layer import is relative.
+11. **Check who logs against the layer table** — nothing in `domain/` or `infrastructure/`;
+    `application/` logs successes only, apart from a failed undo under compensation.
 
 ### Direction
 
@@ -252,6 +278,15 @@ from `infrastructure`, you have an adapter that knows a use case — move the or
   checked at the injection site. An adapter that imports the protocol it satisfies leaves an unused
   import and gains nothing.
 
+### Worth a firewall
+
+Rules 1 and 2 are absolutes a grep can hold, so they earn a firewall (`test-architecture-rule`), one
+layer-scoped test per forbidden import:
+
+- no ORM, validation-library or other third-party import in `domain/` (`test_domain_has_no_sqlalchemy`);
+- no `infrastructure/` import in `domain/` or `application/`;
+- no mock in tests (`test-principles`).
+
 ## How to apply
 
 1. Decide the entry path: an HTTP route → `restapi/…`, a scheduled job → `worker/…`.
@@ -287,6 +322,8 @@ from `infrastructure`, you have an adapter that knows a use case — move the or
   violation. Fix the structure; do not paper over it with `TYPE_CHECKING` or an in-function import.
 - An entrypoint module instantiates a concrete adapter directly → stop, `containers.py` is the only place
   that binds concrete classes.
+- A log call in `domain/` or `infrastructure/`, or an error logged in `application/` other than a failed
+  undo under compensation → stop, the error propagates to the central handler.
 - An adapter explicitly inherits the protocol it satisfies → stop, satisfaction is structural; remove the
   import.
 - A packaging or import rule is being decided here → stop, `python-packaging` owns those; this skill

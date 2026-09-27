@@ -1,6 +1,6 @@
 ---
 name: flat-test-run-function
-description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test every time, the loop's failure-containment contract, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the storage package's write path, which is `flat-test-persistence`.
+description: Use when testing what a flat-layered service's trigger actually runs — the run function end to end against the real datastore with the upstream transport stubbed and an idempotence test wherever a run can repeat, the containment contract of a process that outlives one run, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the data-access package's write path, which is `flat-test-persistence`.
 when_to_use: Also when asked to test a `run_once` body, a polling loop's error handling, a wrapper class, an HTTP route in front of a run function, a workflow's retry policy, a batch loop's termination, or what a continuation carries across runs.
 ---
 
@@ -9,139 +9,100 @@ when_to_use: Also when asked to test a `run_once` body, a polling loop's error h
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 A run function is where a flat-layered service composes everything, so its test is the one that catches
-wiring: the client's payload actually fits what the storage class stores, the filter drops what it
-should, the aggregate counts what happened. **This skill covers the levels of wrapping around that one
+wiring: the client's payload actually fits what the repository class stores, and the aggregate counts
+what happened. **This skill covers the levels of wrapping around that one
 call, tested at each.** They are one subject because they are layers of the same invocation.
 
-Two forms are always in scope:
+One form is always in scope:
 
 - **The run function** — the body, tested end to end against the real datastore with the upstream
-  transport stubbed. Every service has one of these, whatever triggers it.
-- **The loop's failure containment** — that one failed run does not kill the process. This is the
-  default trigger's test (`flat-entrypoint`).
+  transport stubbed. Every service has one of these, whatever triggers it. A service with no store
+  asserts instead on the requests its stubbed transports recorded and on the aggregate the run returns.
 
-**A service with a framework wrapper adds a third**: the same body under the framework's own decorator
-or route, run through whatever in-process harness that framework ships, proving reach and translation
-only.
+**A process that outlives one run — a loop or a consumer — adds the containment test**: that one failed
+run does not kill the process. A process that does one run and exits has no guard and no such test
+(`flat-entrypoint` rule 8).
 
-**A service that earned a durable-execution engine adds a fourth** — the orchestration above the
-wrapper, every step stubbed by its registered wire name, no datastore at all — plus the obligations that
-come with it. Those are under `## Rules`, in the subsection that applies only once an engine has been
-earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely otherwise.
+**A service with a framework wrapper adds the wrapper test**: the same body under the framework's own
+decorator or route, run through whatever in-process harness that framework ships, proving reach and
+translation only.
+
+**A service that earned a durable-execution engine adds the orchestration level** — the orchestration
+above the wrapper, every step stubbed by its registered wire name, no datastore at all — plus the
+obligations that come with it. Those are under `## Rules`, in the subsection that applies only once an
+engine has been earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely
+otherwise.
 
 ## When to use vs. neighbours
 
 - The HTTP client the body calls → `flat-test-service-client`; this level substitutes that client's
   transport, never the client object itself.
-- The tables, helpers and storage class the body writes through → `flat-test-persistence`.
+- The tables, helpers and repository class the body writes through → `flat-test-persistence`.
 - The container and isolation fixtures → `flat-test-integration-setup`; the code here owns its
   transactions, so it takes the whole-schema wipe.
 - Writing the run function, the `guarded` wrapper or the trigger, rather than testing it →
   `flat-entrypoint`.
 - Testing the orchestration level, the batch loop's continuation, or a declared retry policy → still
   this skill, under `## Rules`, and only once an engine has been earned.
-- A pure filter or normalize function the body calls → a unit test with no fixtures; it does not belong
+- The pure mapping step the body calls (`to_foo`) → a unit test with no fixtures; it does not belong
   here.
 - The static check that a schedule's routing name matches one a process actually serves →
-  `test-architecture-rule`.
+  `flat-entrypoint` rule 6.
 - The shared groundwork — the substitution ladder, reliability rules, never waiting out real time →
   `test-principles`.
 
 ## Template — the run function end to end (pytest, `respx` over `httpx`, real Postgres)
 
-`tests/integration/test_foo_ingest.py`:
+`tests/integration/test_foo_sync.py` — the upstream stub `foo_api` and the client over it,
+`foo_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`):
 
 ```python
-from collections.abc import Sequence
-
 import httpx
-import pytest
 import respx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.exceptions import FooClientError
-from myapp.ingest.foo_ingest import run_once
-from myapp.services import FooClient
-from myapp.storage import FooStorage
-from myapp.storage.foo_table import bar_table, foo_table
+from myapp.foo_api import FooClient
+from myapp.foo_sync import run_once
+from myapp.postgres import FooRepository
+from myapp.postgres.foo_table import foo_table
+from myapp.schemas import RunResult
 
-_BASE_URL = "https://foo.test"
-
-
-def _client() -> FooClient:
-    return FooClient(base_url=_BASE_URL, timeout_seconds=1.0)
+_TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b"}]}
 
 
-@respx.mock
-async def test_a_run_lands_its_foos_and_their_labels(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": " ALPHA ", "name": "a", "labels": ["amber"]}]})
-    )
-
-    await run_once(_client(), FooStorage(engine))
-
-    reference: str = (await conn.execute(select(foo_table.c.reference))).scalar_one()
-    labels: Sequence[str] = (await conn.execute(select(bar_table.c.label))).scalars().all()
-    assert reference == "alpha"
-    assert labels == ["amber"]
-
-
-@respx.mock
-async def test_items_the_filter_rejects_are_not_stored(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(
-            200,
-            json={"items": [{"ref": "alpha", "name": "a"}, {"ref": None, "name": "b"}]},
-        )
-    )
-
-    await run_once(_client(), FooStorage(engine))
-
-    names: Sequence[str] = (await conn.execute(select(foo_table.c.name))).scalars().all()
-    assert names == ["a"]
-
-
-@respx.mock
-async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
-    engine: AsyncEngine, conn: AsyncConnection
+async def test_a_run_records_what_it_fetched(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]})
-    )
-    await run_once(_client(), FooStorage(engine))
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    await run_once(_client(), FooStorage(engine))
+    await run_once(foo_client, FooRepository(engine))
 
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 1
-
-
-@respx.mock
-async def test_a_run_reports_what_it_fetched_and_kept(engine: AsyncEngine) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(
-            200,
-            json={"items": [{"ref": "alpha", "name": "a"}, {"ref": None, "name": "b"}]},
-        )
-    )
-
-    result = await run_once(_client(), FooStorage(engine))
-
-    assert (result.fetched, result.kept) == (2, 1)
+    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    rows = (await conn.execute(query)).all()
+    assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
-@respx.mock
-async def test_an_upstream_failure_propagates_and_writes_nothing(engine: AsyncEngine, conn: AsyncConnection) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(return_value=httpx.Response(503))
+async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+) -> None:
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    await run_once(foo_client, FooRepository(engine))
 
-    with pytest.raises(FooClientError):
-        await run_once(_client(), FooStorage(engine))
+    await run_once(foo_client, FooRepository(engine))
 
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 0
+    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 2
+
+
+async def test_a_run_reports_what_it_recorded(
+    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine
+) -> None:
+    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+
+    result = await run_once(foo_client, FooRepository(engine))
+
+    assert result == RunResult(recorded=2)
 ```
-
-The filter test seeds one item that must survive beside the one that must go, so a body that drops
-everything cannot pass it (`test-principles`, assert strength).
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
 mostly repeats has "the second run over the same batch changes nothing" as its central behaviour, and it
@@ -151,16 +112,17 @@ The aggregate test matters because that return value is what the trigger reports
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
 fails silently everywhere a human is looking.
 
-## Template — the loop's failure containment (pytest)
+## Template — the containment of a process that outlives one run (pytest)
 
-The loop entrypoint's contract is that one failed run does not kill the process. Test the containment,
-not the loop — a `while True` under test needs an escape, and building one changes the thing being
-tested. This is why `guarded` is a named function (`flat-entrypoint`), and why it returns whether the
-run succeeded: the assertion is on that value, never on what was logged. It needs no datastore, so it
-lives in `tests/unit/test_foo_loop.py`:
+Only where the service runs a loop or a consumer. Its contract is that one failed run does not kill
+the process. Test the containment, not the loop — a `while True` under test needs an escape, and
+building one changes the thing being tested. This is why `guarded` is a named function in a module of its own (`flat-entrypoint`), and why it
+returns whether the run succeeded: the assertion is on that value, never on what was logged. It needs no
+datastore, so it lives in `tests/unit/test_containment.py`, one file for the one guard every process
+shares:
 
 ```python
-from myapp.entrypoints.foo_loop import guarded
+from myapp.containment import guarded
 from myapp.exceptions import FooClientError
 
 
@@ -168,14 +130,14 @@ async def test_a_failing_run_is_contained() -> None:
     async def _boom() -> None:
         raise FooClientError("upstream down")
 
-    assert await guarded(_boom) is False
+    assert await guarded("foo_sync", _boom) is False
 
 
 async def test_a_succeeding_run_is_reported_as_such() -> None:
     async def _ok() -> None:
         return None
 
-    assert await guarded(_ok) is True
+    assert await guarded("foo_sync", _ok) is True
 ```
 
 The failing case returning at all is the containment; `False` pins that the guard saw the failure
@@ -207,46 +169,43 @@ work in-process, and the typed-failure assertion is what its history makes neces
 over the suite's own engine, driven on the test's event loop:
 
 ```python
+from collections.abc import AsyncIterator
+
 import httpx
-import respx
+import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from myapp.services import FooClient
-from myapp.storage import FooStorage
+from myapp.exceptions import InvalidPayloadError
+from myapp.postgres import FooRepository
 from myapp.web import build_app
 
-_BASE_URL = "https://foo.test"
+
+@pytest.fixture
+async def http(engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
+    app = build_app(FooRepository(engine))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app") as client:
+        yield client
 
 
-def _http(engine: AsyncEngine) -> httpx.AsyncClient:
-    app = build_app(FooClient(base_url=_BASE_URL, timeout_seconds=1.0), FooStorage(engine))
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app")
+async def test_a_posted_foo_reaches_the_run_function(http: httpx.AsyncClient) -> None:
+    response = await http.post("/foos", json={"ref": "alpha", "name": "a"})
+
+    assert response.json() == {"recorded": 1}
 
 
-@respx.mock
-async def test_a_run_request_reaches_the_run_function(engine: AsyncEngine) -> None:
-    respx.get(f"{_BASE_URL}/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "alpha", "name": "a"}]})
-    )
+async def test_a_malformed_body_arrives_as_an_invalid_request(http: httpx.AsyncClient) -> None:
+    response = await http.post("/foos", json={"name": "a"})
 
-    async with _http(engine) as http:
-        response = await http.post("/runs")
-
-    assert response.json() == {"fetched": 1, "kept": 1}
-
-
-async def test_a_catalogue_error_arrives_as_its_status_and_code(engine: AsyncEngine) -> None:
-    async with _http(engine) as http:
-        response = await http.get("/foos/unknown")
-
-    assert response.status_code == 404
-    assert response.json()["code"] == "FOO_NOT_FOUND"
+    assert response.status_code == 422
+    assert response.json()["code"] == InvalidPayloadError.code
 ```
 
 The in-process transport runs the app on the test's own event loop, which is the loop the
 session-scoped engine was opened on (`flat-test-integration-setup`); a harness that runs the app on a
 loop of its own, as FastAPI's synchronous `TestClient` does, would hand that engine's connections to a
-second loop. `respx` intercepts the client's outbound transport and leaves the in-process one alone.
+second loop. Where a route's run function also calls an upstream, the fixture takes `foo_client` and
+hands it to `build_app` as well; `respx` intercepts that client's outbound transport and leaves the
+in-process one alone.
 
 ## Other bindings
 
@@ -258,7 +217,7 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
   in-process client. The two wrapper tests and what they assert are unchanged; the harness must drive the
   app on the loop the suite's engine lives on.
 - **No framework wrapper at all.** A service triggered by a loop, a cron entry or a timer writes the
-  first two forms and stops; nothing is missing, because there is no wrapper to prove.
+  run-function tests, and the containment test where the process outlives one run, and stops; nothing is missing, because there is no wrapper to prove.
 - **An engine whose harness cannot skip time.** The retry test then asserts the *declared* policy on the
   orchestration's own declaration rather than observing the attempts — a weaker test, and the honest one.
   Waiting out a real backoff is still forbidden, and every obligation below is unchanged.
@@ -269,9 +228,8 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
 
 ## Rules
 
-1. **A run function takes what it needs as parameters** — the client, the storage class. A body reaching
-   for a module-level engine or a settings value cannot be pointed at the test container, and no test of
-   it means anything.
+1. **A run function takes what it needs as parameters** — `flat-entrypoint` rule 3, which is what lets
+   this level point it at the test container.
 2. **The upstream is substituted at its transport; the datastore is not substituted at all.** That
    asymmetry is what makes this level catch wiring: real columns, real constraints, real conflict
    semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
@@ -283,14 +241,18 @@ second loop. `respx` intercepts the client's outbound transport and leaves the i
    input is consumed once, or that is by construction never repeated, has nothing to pin and the test
    would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
-   logged `"ok"` and wrote nothing must fail, and the loop's containment is asserted on what its guard
-   returns.
+   logged `"ok"` and wrote nothing must fail, and a process's containment is asserted on what its guard
+   returns. A service with no store asserts on the requests the stubbed transport recorded and on the
+   aggregate.
 5. **A wrapper test proves the wrapper, not the body.** One happy path and one exception translation:
    that the trigger reaches the body, and that a service failure arrives at the framework as a typed
    failure carrying the original's identity rather than an opaque one.
 6. **The wrapper body never diverges from the run function** — it calls it and holds no logic of its own.
    A divergence means two triggers of the same work are drifting apart, and the tests must not paper
    over it.
+7. **A run that fans out over independent units is tested with one unit failing inside its write**,
+   asserting that the other units' rows landed and that the run's failure names the failed unit
+   (`flat-entrypoint` rules 11 and 13).
 
 ### Once a durable-execution engine is earned
 
@@ -312,23 +274,22 @@ change under any engine, because the body never imports one.
    wrong name is never reached, and the test then exercises the real body against no datastore
    (`flat-entrypoint`'s durable obligation 4 requires the wire name be declared separately from the
    symbol).
-4. **Read loop constants from the orchestration module, and make them public there**, never retype the
-   number. A bound that decides how many batches one run performs is part of the contract; an underscore
-   on it is a lie the test has to reach past.
-5. **A run id is generated fresh per test**, so a re-run cannot collide with a retained execution from a
+4. **A run id is generated fresh per test**, so a re-run cannot collide with a retained execution from a
    previous one.
-6. **A batch-loop orchestration gets all three loop tests** — termination on an empty batch, the carried
-   cutoff, the carried total. Each covers a continuation mistake the others miss, and none is visible
+5. **A batch-loop orchestration is tested against `flat-entrypoint`'s durable obligation 6**: one test
+   that the loop ends on an empty batch, and one that a continuation carries every value the next run
+   reads, each seeded so that a dropped value changes the observed result. Neither mistake is visible
    from the happy path.
-7. **Schedule creation is not tested here.** It is a one-off deploy-time definition, not application
+6. **Schedule creation is not tested here.** It is a one-off deploy-time definition, not application
    code, and a test of it would assert only that the engine's SDK works. What *is* worth pinning
    statically is that every schedule's routing name matches one some process actually serves —
-   `test-architecture-rule`.
+   `flat-entrypoint` rule 6.
 
 ## Hard stops
 
-- `run_once` reaches for a module-level engine instead of taking one → stop, add the parameter; this is a
-  change to the run function, and it is the change that makes it testable at all.
+- `run_once` reaches for a module-level engine instead of taking one → stop, use `flat-entrypoint`
+  rule 3 and add the parameter.
+- A run-once process gets a containment test → stop, it has no guard; its failure is its exit status.
 - A test drives the `while True` loop directly → stop, extract the guarded single-run call and test that;
   the loop itself is one `await asyncio.sleep` and needs no coverage.
 - A test monkeypatches `asyncio.sleep` to break out of a loop → stop, that asserts the mechanism, not the
@@ -351,9 +312,8 @@ change under any engine, because the body never imports one.
 - An orchestration test re-asserts what a step wrote → stop, that is the run-function file's job;
   duplicating it makes both files change together for one reason.
 - A retry is asserted by waiting out the real backoff → stop, use the engine's time-skipping clock.
-- A batch-loop test hardcodes the maximum-batches number → stop, read the public constant from the
-  orchestration module.
-- A batch-loop orchestration ships with only the happy-path test → stop, write all three; a continuation
-  that drops the cutoff or the total is invisible from the happy path.
+- A batch-loop orchestration ships with only the happy-path test → stop, test the empty-batch end and
+  the carried values (`flat-entrypoint` durable obligation 6); a continuation that drops a value is
+  invisible from the happy path.
 - A schedule definition is being unit-tested → stop, it is deploy-time infrastructure; pin the routing
-  name statically instead (`test-architecture-rule`).
+  name statically instead (`flat-entrypoint` rule 6).

@@ -74,7 +74,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
-from myapp.domain.auth import Role
+from myapp.domain.auth import Role  # rank apps only, with the `role` parameter below
 from myapp.infrastructure.jwt import JwtSettings
 from tests.helpers.jwt import RsaKeypair, generate_rsa_keypair, sign_token
 
@@ -106,15 +106,14 @@ def authed_client(
     underlying ASGI transport is closed at the end of the test."""
 
     def _factory(
-        role: Role,
+        role: Role | None = None,
         **extra_claims: object,
     ) -> AsyncClient:
-        # Subject and rank only; anything else the identity carries arrives in extra_claims (Rule 8).
-        claims = {
-            "sub": str(uuid4()),
-            "role": role.value,
-            **extra_claims,
-        }
+        # The subject, and the rank where the app has one; anything else the identity
+        # carries arrives in extra_claims (Rule 8).
+        claims: dict[str, object] = {"sub": str(uuid4()), **extra_claims}
+        if role is not None:
+            claims["role"] = role.value
         token = sign_token(
             claims,
             private_pem=rsa_keypair.private_pem,
@@ -132,9 +131,9 @@ def authed_client(
     return _factory
 ```
 
-## The `real_app` substitution this skill adds
+## The `container` substitution this skill adds
 
-`real_app` and `TestInfraProvider` live in `tests/integration/conftest.py` and are owned by
+`container`, `real_app` and `TestInfraProvider` live in `tests/integration/conftest.py` and are owned by
 `hex-test-integration-setup`. An app that declares auth adds one fixture parameter, one constructor
 field and one factory — and nothing else:
 
@@ -143,7 +142,7 @@ from myapp.infrastructure.jwt import JwtSettings
 ```
 
 ```python
-    jwt_settings: JwtSettings,          # in real_app's signature; TestInfraProvider(..., jwt_settings=jwt_settings)
+    jwt_settings: JwtSettings,          # in container's signature; TestInfraProvider(..., jwt_settings=jwt_settings)
 ```
 
 ```python
@@ -158,16 +157,17 @@ graph is assembled.
 
 ### Fixture-resolution coupling between the two conftests
 
-`real_app` (defined up-tree in `tests/integration/conftest.py`) declares `jwt_settings` as one of its
+`container` (defined up-tree in `tests/integration/conftest.py`) declares `jwt_settings` as one of its
 parameters and hands it to `TestInfraProvider`. Pytest resolves that name by
 walking the conftest hierarchy from the running test outward — for tests under `tests/integration/api/`,
 the `jwt_settings` fixture produced in the api conftest is visible. Without this substitution, every
 `authed_client`-minted token would be signed with the test keypair but verified against the production
 public key the real composition root would build — every authenticated test would fail with 401.
 
-The coupling has a cost: `real_app` cannot be used from tests outside `tests/integration/api/` (e.g.
-`tests/integration/postgres/`), because `jwt_settings` isn't visible there. That's fine — repository
-contract tests use `sf` directly and never construct the FastAPI app. `test-principles` records the
+The coupling has a cost: `container`, and `real_app` over it, cannot be used from tests outside
+`tests/integration/api/` (e.g. `tests/integration/postgres/`), because `jwt_settings` isn't visible
+there. Repository contract tests use `sf` directly and never need it; where another entrypoint's tests
+outside `api/` do, `rsa_keypair` and `jwt_settings` move up-tree beside `container`. `test-principles` records the
 down-tree-resolution mechanism as the universal point; the `jwt_settings` instance is the conditional
 one.
 
@@ -286,10 +286,11 @@ fixtures are `hex-test-restapi-endpoint`'s. These are the auth-carrying variants
 `Role.LOWER` / `Role.HIGHER` ladder they name is the catalogue's **placeholder** pair
 (`hex-restapi-auth`) — substitute the app's own members, and however many of them it has.
 
-### JSON mutation, role-gated
+### JSON mutation, role-gated (rank apps only)
+
+A route that only authenticates takes `authed_client()` with no role and has no 403 case.
 
 ```python
-import uuid
 from collections.abc import Callable
 
 from httpx import AsyncClient
@@ -298,68 +299,29 @@ from myapp.domain.auth import Role
 from myapp.restapi.schemas import FooResponse
 
 
-async def test_create_foo_happy_path(authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID) -> None:
+async def test_create_foo_happy_path(authed_client: Callable[..., AsyncClient]) -> None:
     async with authed_client(role=Role.HIGHER) as client:
-        response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
+        response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 201
     body = FooResponse.model_validate(response.json())
     assert body.name == "alpha"
-    assert body.bar_id == bar_id
 
 
-async def test_create_foo_forbidden_for_lower_role(
-    authed_client: Callable[..., AsyncClient], bar_id: uuid.UUID
-) -> None:
+async def test_create_foo_forbidden_for_lower_role(authed_client: Callable[..., AsyncClient]) -> None:
     async with authed_client(role=Role.LOWER) as client:
-        response = await client.post("/foos", json={"name": "alpha", "bar_id": str(bar_id)})
+        response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 403
 ```
 
-### GET, tenant-scoped, cross-tenant returns 404 (not 403)
+### Tenant-scoped reads
 
-For a tenant-scoped resource the per-resource `conftest.py` carries a `tenant_id` fixture, and its
-`foo_id` fixture seeds the row owned by that tenant; a test that needs both takes both, each under its
-own type, rather than one fixture handing back an unnamed pair.
-
-```python
-import uuid
-from collections.abc import Callable
-
-from httpx import AsyncClient
-
-from myapp.domain.auth import Role
-from myapp.restapi.schemas import FooResponse
-
-
-async def test_get_foo_returns_payload(
-    authed_client: Callable[..., AsyncClient], foo_id: uuid.UUID, tenant_id: uuid.UUID
-) -> None:
-    async with authed_client(role=Role.LOWER, tenant_id=str(tenant_id)) as client:
-        response = await client.get(f"/foos/{foo_id}")
-
-    assert response.status_code == 200
-    FooResponse.model_validate(response.json())
-
-
-async def test_get_foo_in_other_tenant_returns_404(
-    authed_client: Callable[..., AsyncClient], foo_id: uuid.UUID
-) -> None:
-    other_tenant = uuid.uuid4()
-
-    async with authed_client(role=Role.LOWER, tenant_id=str(other_tenant)) as client:
-        response = await client.get(f"/foos/{foo_id}")
-
-    assert response.status_code == 404  # NOT 403 — prevents enumeration
-```
-
-The probe asserts the code against the exception's own `.code` and the challenge by its scheme alone
-(Rule 19). The tenancy keyword is this app's own claim name, forwarded through `extra_claims` as a
-string — the claims are serialised as JSON, so a `UUID` passed as-is fails to encode — and the factory
-has no tenant parameter of its own (Rule 8).
+Where the identity carries a tenant (`hex-application` caller-derived fields), a read of another
+tenant's row asserts 404, never 403. Mint the claim through `authed_client(**extra_claims)` and seed
+the row under the fixture's tenant.
 
 An authenticated multipart or streaming test is the same substitution: take
-`hex-test-restapi-endpoint`'s skeleton and drive it through `async with authed_client(role=…) as
+`hex-test-restapi-endpoint`'s skeleton and drive it through `async with authed_client(…) as
 client:` instead of the plain client.
 

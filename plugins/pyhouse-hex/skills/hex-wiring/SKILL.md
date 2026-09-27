@@ -1,95 +1,56 @@
 ---
 name: hex-wiring
-description: Use when adding a binding in `containers.py` or an env-backed settings class — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and the settings class owning one integration's env namespace, its secret fields and its derived values. Bound here to dishka and pydantic-settings, with other DI and settings libraries mapped under `## Other bindings`. The class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate and toolchain are `hex-project-setup`, not runtime wiring.
+description: Use when adding a binding in `containers.py` — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and where each settings class is constructed and bound. Bound here to dishka, with other DI libraries mapped under `## Other bindings`. What a settings class declares, defaults and keeps secret is `python-settings`; the class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate is `hex-project-setup` and the toolchain `python-toolchain`, not runtime wiring.
 paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
 # Hex — Wiring
 
-Two halves of one job: getting values in from the environment, and handing objects to whoever needs
-them. The two meet at one rule: a settings class is instantiated **only** at a composition root
-(settings rule 13).
+Handing objects to whoever needs them, from one composition root. Settings are among those objects:
+what a settings class declares is `python-settings`, and this skill says where, in a hexagonal service,
+it is constructed and bound — at a composition root and nowhere else (`python-settings` rule 13).
 
 ## When to use vs. neighbours
 
-- Adding or extending env-backed configuration for an integration → the **Settings** half of this skill.
-- Binding a new class in the composition root, or choosing its lifetime → the **dishka** half of this skill.
+- What a settings class declares — its namespace, defaults, secrets, derived values, validation → `python-settings`; each integration's own class is shown beside the adapter that reads it.
+- Binding a new class in the composition root, or choosing its lifetime → this skill.
 - The class being wired must already exist — a handler, repository, service, adapter → `hex-application`, `hex-persistence`, `hex-store-repository`, `hex-domain-service`, `hex-capability-adapter`.
 - A frozen domain-shaped view of settings values the domain consults → the tunable variant in `hex-domain-model`; its provider reads the single field off a settings class and passes it.
 - Attaching the composition root to the HTTP app and closing it at shutdown, which runs every declared teardown → `hex-restapi-app`.
 - Resolving a bound object inside a route → `hex-restapi-endpoint`.
 - The token-verifier port, its adapter and the route dependencies that consume the resolved caller → `hex-restapi-auth`.
 - Substituting a binding for a test → `hex-test-integration-setup`.
-- Which libraries the project carries, the ruff and mypy configuration, and the Alembic bootstrap → `hex-project-setup`; that is laid once, not per binding.
+- Which libraries the project carries and the Alembic bootstrap → `hex-project-setup`; the ruff and mypy configuration → `python-toolchain`. Both are laid once, not per binding.
 - What a settings class, its env prefix or a provider method is called → `naming`.
 - Whether a class may be bound here at all, and which layer it belongs to → `hex-architecture`; it owns the layer contract this composition root sits outside of.
-- The `IUnitOfWork` binding a multi-repository transaction needs, and the compensating-handler shape → `hex-patterns`.
+- The unit-of-work factory binding a multi-repository transaction needs, and the compensating-handler shape → `hex-patterns`.
 
-## Settings
+## Settings in the composition root
 
-**Read `SETTINGS.md`** in this skill's directory before writing or extending a settings class. It
-carries the pydantic-settings template for the relational database, with the note on pool sizing, and
-says where every other settings class the templates read is shown: beside the adapter that reads it;
-only `SKILL.md` is loaded automatically.
-
-### How this binding spells the settings obligations
-
-Three `model_config` keys are mandatory **under pydantic-settings**, and each is one obligation from
-`### Rules — settings`: `env_prefix` declares the class's env namespace; `env_file` points at the
-project's dotenv file, so local development reads it while production injects real environment and the
-file simply is not there; and `extra="ignore"` keeps the namespace non-strict, without which a
-neighbouring variable in it crashes startup. `SecretStr` is this binding's non-printing secret type and
-`.get_secret_value()` its unwrap; a plain `@property` is where a derived value is computed on
-the object; `@field_validator` is where normalization and rejection are written.
-
-The composition roots rule 13 names are, in this catalogue's layout, `src/myapp/containers.py` (the
-process's container), `migrations/env.py` (the migration environment, `hex-project-setup`) and
+A settings class follows `python-settings`, and each one is shown beside the adapter that reads it: the
+relational store's `DbSettings` in `hex-persistence`, `BarGatewaySettings` in `hex-capability-adapter`,
+`RedisSettings` in `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. What is this skill's is where they are built. The composition roots of
+`python-settings` rule 13 are, in this catalogue's layout, `src/myapp/containers.py` (the process's
+container), `migrations/env.py` (the migration environment, `hex-project-setup`) and
 `TestInfraProvider` with its fixtures in `tests/integration/conftest.py` (the test infrastructure,
-`hex-test-integration-setup`).
-
-### Explicit settings values for tests
-
-Settings test construction → `test-principles`. The test infrastructure is a composition root (rule
-13), so it constructs settings with explicit values:
-
-`DbSettings(host="localhost", user="t", password=SecretStr("t"), name="t")`.
+`hex-test-integration-setup`), which constructs settings with explicit values (`test-principles`).
 
 ## Template — dishka
 
-`src/myapp/containers.py` is the only file this half touches. Bindings are grouped into provider classes
+`src/myapp/containers.py` is the only file this skill touches. Bindings are grouped into provider classes
 by layer and by subdomain; `create_container` assembles them. **Every dependency is resolved by type** —
 no binding is reached by its attribute name, so renaming a class cannot silently break a call site. The
-template is the **base** a project extends — the relational store, the tunable and the handlers — and
-binds no optional adapter. **An add-on's binding lives with its adapter**: the S3 storage, the HTTP
-gateway and the idna canonicalizer in `hex-capability-adapter`, the Redis repository in
-`hex-store-repository`, the token verifier in `hex-restapi-auth`; a project merges the ones it has.
+template is the **base** a project extends — the provider classes and the handlers — and binds no
+store, no optional adapter and no feature. **A store's or an add-on's binding lives with what it
+binds**: the relational engine, session factory and repository in `hex-persistence`, the HTTP gateway
+in `hex-capability-adapter`, the Redis repository in `hex-store-repository`, the token verifier in
+`hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-patterns`; a project merges the ones it has.
 
 **Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
 carries the base composition root — the provider classes in declaration order and `create_container` —
-how an add-on binding merges into it, and the unit-of-work factory binding; only `SKILL.md` is loaded
-automatically.
+and how an add-on binding merges into it; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
-
-### Settings
-
-`### Rules — settings` is what a settings library has to satisfy, and none of those rules names one.
-What changes between libraries is only where each obligation is written.
-
-- **`environ-config`, `dynaconf`, or attrs plus `os.environ`.** The env namespace becomes that library's
-  own prefix argument, a secret field becomes its secret wrapper — or a `str` behind a `__repr__` that
-  refuses to print it — a derived value becomes an ordinary read-only property on the settings class, and
-  a validator becomes that library's converter or validator hook. Unchanged: one class per integration,
-  one prefix per class, a required field with no default, no default on a secret, construction only at
-  a composition root, and no environment read anywhere else.
-- **A hand-rolled settings module.** A frozen dataclass with a `from_env()` classmethod that reads each
-  variable, raises on a missing required one, wraps each secret, and exposes derived values as
-  properties. The obligations are identical; what the library was doing for free — the missing-value
-  error, the type coercion, the non-strict namespace — becomes a few lines written once. A secret still
-  gets a wrapper type rather than a bare `str`, because "keeps itself out of reprs and logs" is the
-  obligation, not the library's class.
-
-### Dependency injection
 
 Both libraries below are actively maintained; this is a fit decision, not a liveness one. The honest
 counterweight to the primary binding is that `dependency-injector` is far more widely known; `dishka`'s
@@ -123,8 +84,9 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 
 ## Rules
 
-- A **settings class** is the only place this codebase reads environment variables. Adapters always
-  receive a settings object; nothing calls `os.getenv`.
+- **Settings are constructed only at a composition root and bound there by type** (`python-settings`
+  rule 13) — never in a handler, an adapter, an entrypoint module or another settings class. An adapter
+  receives the settings object it reads; nothing below the root reads the environment.
 - **The process's container module is the composition root.** Every concrete class is bound to the
   protocol it satisfies there and **only** there. Domain and application code never instantiates a
   concrete type.
@@ -135,76 +97,24 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   root exactly once, which runs every declared teardown (`hex-restapi-app`).
 - **Bindings are reached by type, not by name.** A call site names the type it needs; the composition
   root decides what satisfies it. Nothing outside the composition root may depend on how a binding is spelled.
+- **A unit of work is bound as its factory callable, never as an instance** (`hex-patterns`).
 
-### File location and naming
+### Where a settings class sits
 
-- Path: `src/myapp/infrastructure/<subpackage>/settings.py`. File and class naming → `naming`; location mapping → `hex-conventions`.
-- Env prefix naming → `naming`. Never reuse a prefix across two classes.
-
-**A prefix is one stem naming the deployable, plus the integration it configures — `<APP>_<INTEGRATION>_`.**
-The stem is whatever the project calls the process it deploys; `MYAPP_` is this catalogue's placeholder
-for it, and a real project substitutes its own. What is not negotiable is what the stem may **not** be: a
-bounded-context name. Env vars are a deployment concern and a deployable serves every context in it, so a
-context-named prefix becomes incoherent the moment a second context shares the datastore — shared settings
-collapse to one object (`hex-conventions` block C), and operators would be setting a variable named for
-one context to configure a database both use. Working inside a single context, that context is the
-salient name; resist it and stem on the deployable.
-
-### Rules — settings
-
-**A settings class owns one env namespace, and that namespace is non-strict.** Every field it reads is
-prefixed with the deployable's stem plus this integration's name — `MYAPP_DB_` in the template in `SETTINGS.md` —
-and a variable inside the namespace that the class does not declare must **not** fail startup: the
-process environment is shared with the deployment's own variables and with every other settings class,
-so strictness there turns an unrelated variable into an outage. Where the project also keeps a local
-dotenv file for development, the class reads it when it is present and the real environment when it is
-not, so one class serves both without a branch.
-
-1. **A required field has no default.** A missing value fails loudly the first time the composition root
-   builds the settings object, before any request is served.
-2. **An optional field has an inline default**, and the default must be safe for a production-like setup.
-3. Field typing → `python-style`.
-4. **Engine-pool fields are relational-only, and their sizes are the deployment's.** `port`,
-   `pool_size`, `max_overflow`, `pool_pre_ping`, `echo` and a computed connection string belong to the
-   relational template in `SETTINGS.md`, with the numbers set from the deployment rather than copied. A non-engine
-   integration omits them entirely; carrying them is dead config copied from a database class.
-5. **A value that must not appear in a log, a repr or a traceback carries a type that keeps it out of
-   them** — passwords, API keys, signing secrets, JWT keys. A bare `str` is printed by every default
-   repr in the program, so the type is what makes disclosure impossible rather than merely discouraged.
-6. **Never default a secret the integration requires.** A missing secret env var must crash the process
-   at startup. A credential that is genuinely optional — a store that may run unauthenticated — is
-   `None` when absent, never a placeholder value.
-7. **A secret is unwrapped only at the point of use** — inside the derived value that assembles a
-   connection string, when constructing an SDK client, or in the constructor of the adapter that sends
-   it, which holds it privately for its lifetime (`hex-capability-adapter`). Never into a log field, an
-   exception's context, or an intermediate string built for anything else. Follow `python-style` for
-   logging and output.
-8. **A value assembled from other fields is computed on the settings object, never reassembled by its
-    consumers** — connection strings, composite URLs, normalized strings. Every consumer reads the
-    computed value, so one place decides how the parts go together and a change to that recipe is one
-    edit rather than a search.
-9. **Two integrations do not share fields by importing one settings class from another.** Each is
-    self-contained; copy the field if both genuinely need it.
-10. **Field validation exists for two purposes only:** normalization, accepting an env-friendly form and
-    storing the canonical one (unescaping `\\n` in a multi-line key); and rejection, refusing a value
-    that would cause silent misbehaviour (an allowlist of JWT algorithms). Validation messages should be
-    clear — they surface at startup, where stack traces get read.
-11. **One settings class per infrastructure subpackage.** Bundling unrelated config under one prefix is
-    forbidden.
-12. **Settings live next to the adapter they configure.** There is no top-level central settings module.
-13. **Settings are constructed only at a composition root** — the process's container, any tool that
-    loads configuration outside it (the migration environment is the usual one), and the test
-    infrastructure. Nowhere else — never in a handler, an adapter, an entrypoint module or another
-    settings class.
-14. **Adapters depend on the settings type**, never on `os.environ` or `os.getenv`. No `os.getenv`
-    anywhere outside a settings class.
-15. Settings test construction → `test-principles`.
+- **One settings class per infrastructure subpackage, beside the adapter it configures**:
+  `src/myapp/infrastructure/<subpackage>/settings.py` (`hex-conventions`). There is no central settings
+  module.
+- **The prefix's stem names the deployable, never a bounded context.** `naming` owns the prefix
+  (`MYAPP_` plus the integration's segment). What only a hexagonal service adds: a deployable serves
+  every context in it, so a context-named stem becomes wrong the moment a second context shares the
+  store — shared settings collapse to one object (`hex-conventions` block C). Working inside one
+  context, that context is the salient name; stem on the deployable anyway.
 
 ### Lifetimes
 
 | Lifetime | Use for | Examples |
 |---|---|---|
-| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a library-backed canonicalizer adapter, **tunable value objects**, a stateless factory callable. |
+| **Process** | Stateless or expensive-to-construct objects whose lifetime spans the process. | Settings (`*Settings`), the engine, the session factory, a token verifier, a stateless library-backed adapter, **tunable value objects**, a stateless factory callable. |
 | **Per operation** | Instances meant to be fresh for each request or each job, cheap to construct. | Every `*Handler`, every `*Repository`, **domain services** that compose them, a stateful adapter bound to per-request state. |
 
 **Default to per-operation for application and domain artifacts. Reserve process lifetime for objects
@@ -220,7 +130,7 @@ Group bindings in dependency order and keep them in that order:
 
 1. **Settings first** — everything else may depend on them.
 2. **Long-lived infrastructure** — engine, session factory, verifiers.
-3. **Cross-cutting helpers** — canonicalizers, storage adapters needed by several subdomains.
+3. **Cross-cutting helpers** — capability adapters needed by several subdomains.
 4. **Per-subdomain block:** repository → services that use it → handlers that use them.
 5. **Cross-subdomain dependencies come first.** If subdomain A's repository is consumed by subdomain B's
    handlers, declare it before B's block.
@@ -237,9 +147,9 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ### Settings lifecycle in the composition root
 
-- Each `*Settings` is process-lifetime, built by a factory that constructs it with no arguments — the
-  environment is read during construction, so the factory passes nothing and a missing required variable
-  fails there.
+- Each `*Settings` is process-lifetime, built by a provider method that constructs it with no arguments
+  — the provider is the settings factory, so a missing required variable fails when the container is
+  first resolved.
 - A consumer that needs the whole settings object declares it as a constructor parameter and receives it
   by type.
 - A **tunable value object** that needs a single field gets a factory of its own, which reads the field
@@ -259,13 +169,7 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ## Inlined typing / import rules
 
-- **Under the pydantic-settings binding:** `from pydantic import SecretStr`, adding
-  `field_validator` to that line **only when the class defines one** (settings rule 10) — an unused
-  import is an F401 — plus `from pydantic_settings import BaseSettings, SettingsConfigDict`. Another
-  settings library imports its own names; what carries over is that each is imported only where used.
-- Full annotations on every field and validator (`python-style`). **Booleans are Python types**, not
-  strings — a settings library coerces `"true"`, `"1"`, `"yes"` for you. **Numerics are real types**:
-  `port: int`, never `str`. **Optional is `T | None = None`**, never `T = ""`.
+- Settings field typing and imports → `python-settings`.
 
 - **A factory's return annotation is the binding's type**, and it is the whole contract: `-> DbSettings`
   binds `DbSettings`, `-> AsyncIterator[AsyncEngine]` binds `AsyncEngine` with a teardown. Use
@@ -283,11 +187,11 @@ adding a binding, find the right section and insert it after the latest declarat
   `settings` module, a capability adapter — is one hop away, so importing it from the tech package is
   correct.
 
-- Both: no `from __future__ import annotations` (`python-style`).
+- No `from __future__ import annotations` (`python-style`).
 
 ## Package wiring
 
-Settings re-exports → `python-packaging`; composition-root location → `hex-architecture`.
+Composition-root location → `hex-architecture`.
 
 `containers.py` needs no package wiring at all: it is `src/myapp/containers.py`, a module of the
 distribution's root package, and the root `__init__.py` does not re-export it — that file stays empty
@@ -296,8 +200,9 @@ distribution's root package, and the root `__init__.py` does not re-export it �
 
 ## Hard stops
 
-- Asked for an env read outside a settings class → stop, route it through a settings field.
-- Two unrelated integrations share one prefix → stop, split into two classes.
+- Asked for an env read, a new settings field, or a default on one → stop, use `python-settings`.
+- A settings class constructed outside a composition root → stop, bind it in `containers.py` and let
+  the consumer receive it by type (`python-settings` rule 13).
 - An adapter is asked to take individual fields instead of the settings object → stop, pass the
   whole object. A single field is extracted only by the factory of a tunable value object.
 - Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill

@@ -16,8 +16,7 @@ from functools import partial
 from typing import TypedDict
 
 import pytest
-from dishka import Provider, Scope, provide
-from fastapi import FastAPI
+from dishka import AsyncContainer, Provider, Scope, provide
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
@@ -37,22 +36,8 @@ class _PgConn(TypedDict):
     name: str
 
 
-# A dedicated opt-in variable, never an ambient one like `CI`: this suite wipes what it reaches.
-_EXTERNAL_DB_FLAG = "MYAPP_TEST_USE_EXTERNAL_DB"
-
-
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[_PgConn]:
-    if os.getenv(_EXTERNAL_DB_FLAG) == "1":
-        yield {
-            "host": os.environ["MYAPP_DB_HOST"],
-            "port": int(os.environ.get("MYAPP_DB_PORT", "5432")),
-            "user": os.environ["MYAPP_DB_USER"],
-            "password": os.environ["MYAPP_DB_PASSWORD"],
-            "name": os.environ["MYAPP_DB_NAME"],
-        }
-        return
-
     from testcontainers.community.postgres import PostgresContainer
 
     # An exact, deliberately bumped tag — never `:latest` (e.g. `postgres:17-alpine`).
@@ -76,8 +61,6 @@ def db_settings(postgres_container: _PgConn) -> DbSettings:
         user=postgres_container["user"],
         password=SecretStr(postgres_container["password"]),
         name=postgres_container["name"],
-        # A session-long container never idles a pooled connection stale.
-        pool_pre_ping=False,
     )
 
 
@@ -179,10 +162,10 @@ class TestInfraProvider(Provider):
     with this provider last, so nothing can have resolved a production value first.
 
     Every add-on binding the app carries adds one parameter, one field and one
-    factory here, and `real_app` one fixture parameter it passes on by name: a
-    blob store and a client-style store (the add-on sections below) and, in an app
-    that declares auth, the verifier settings (`hex-test-restapi-auth`, which owns them and the down-tree
-    fixture resolution they rely on).
+    factory here, and `container` one fixture parameter it passes on by name: each
+    store add-on (the key-value store below is the worked one) and, in an app
+    that declares auth, the verifier settings (`hex-test-restapi-auth`, which owns
+    them and the down-tree fixture resolution they rely on).
     """
 
     scope = Scope.APP
@@ -206,166 +189,51 @@ class TestInfraProvider(Provider):
 
 
 @pytest.fixture
-async def real_app(
+async def container(
     sf: async_sessionmaker[AsyncSession],
     db_settings: DbSettings,
-) -> AsyncIterator[FastAPI]:
-    """FastAPI app on a composition root whose DB and session-factory bindings
-    are the per-test fixtures. Repositories it builds therefore participate in
-    the same outer transaction the test fixtures use, and ROLLBACK at teardown
-    drops everything they wrote — including rows the route under test committed
-    via its handler.
-
-    This fixture is usable only from tests under `tests/integration/api/`;
-    tests in `tests/integration/postgres/` use `sf` directly and do not need
-    `real_app`.
-    """
+) -> AsyncIterator[AsyncContainer]:
+    """The real composition root with the DB and session-factory bindings
+    replaced by the per-test fixtures. Whatever an entrypoint resolves from it —
+    a route, a consumer, an RPC servicer — writes inside the same outer
+    transaction the test uses, so ROLLBACK at teardown drops it too."""
     from myapp.containers import create_container
-    from myapp.restapi.main import create_app
 
     container = create_container(
         TestInfraProvider(db_settings=db_settings, sf=sf),
     )
-    app = create_app(container=container)
     try:
-        yield app
+        yield container
     finally:
         await container.close()
 ```
 
-This is the base: a relational store and nothing else. Each other store the app carries adds its own
-fixtures to this file — the blob store and the client-style store below are the two worked add-ons.
+This is the base: a relational store and nothing else, and no entrypoint framework — a queue-driven or
+RPC service collects it as it stands and resolves its handlers from `container`. Each other store the
+app carries adds its own fixtures to this file — each add-on's fixtures (the key-value store is the
+worked one) — and a REST entrypoint adds `real_app`. With no relational store the base's Postgres
+fixtures go, and `TestInfraProvider` and `container` keep only the add-on parameters.
 
 The connection record is a private `TypedDict`: it never leaves this module, so it carries no module of
 its own (`python-packaging`'s private-type allowance), and it is a declared shape rather than a bare
 `dict` (`python-style`).
 
-## Blob-store fixtures — aioboto3 over MinIO
-
-An app with a blob store (the S3 adapter, `hex-capability-adapter`) adds this to
-`tests/integration/conftest.py`: the container and the SDK session for the whole run, and the per-test
-bucket. The bucket sits here rather than beside the adapter's tests because `real_app` binds it too.
-
-```python
-import os
-import uuid
-from collections.abc import AsyncIterator, Iterator
-from typing import TypedDict
-
-import aioboto3
-import pytest
-from pydantic import SecretStr
-
-from myapp.infrastructure.s3 import S3Settings
-
-
-class _BlobStoreConn(TypedDict):
-    endpoint_url: str
-    access_key: str
-    secret_key: str
-
-
-_EXTERNAL_STORAGE_FLAG = "MYAPP_TEST_USE_EXTERNAL_STORAGE"
-
-
-@pytest.fixture(scope="session")
-def minio_container() -> Iterator[_BlobStoreConn]:
-    if os.getenv(_EXTERNAL_STORAGE_FLAG) == "1":
-        yield {
-            "endpoint_url": os.environ["MYAPP_S3_ENDPOINT_URL"],
-            "access_key": os.environ["MYAPP_S3_ACCESS_KEY"],
-            "secret_key": os.environ["MYAPP_S3_SECRET_KEY"],
-        }
-        return
-
-    from testcontainers.community.minio import MinioContainer
-
-    # Same pin rule as the relational image (e.g. a dated `quay.io/minio/minio:RELEASE.…` tag).
-    with MinioContainer("<blob-store-image>:<pinned-tag>") as minio:
-        yield {
-            "endpoint_url": f"http://{minio.get_container_host_ip()}:{minio.get_exposed_port(9000)}",
-            "access_key": minio.access_key,
-            "secret_key": minio.secret_key,
-        }
-
-
-@pytest.fixture(scope="session")
-def s3_session(minio_container: _BlobStoreConn) -> aioboto3.Session:
-    return aioboto3.Session(
-        aws_access_key_id=minio_container["access_key"],
-        aws_secret_access_key=minio_container["secret_key"],
-    )
-
-
-@pytest.fixture
-async def s3_settings(minio_container: _BlobStoreConn, s3_session: aioboto3.Session) -> AsyncIterator[S3Settings]:
-    """A fresh bucket per test — the blob store's namespace isolation, since it
-    has nothing to roll back. Created before the test, emptied and dropped
-    after it, so no test can see or depend on another's objects."""
-    settings = S3Settings(
-        endpoint_url=minio_container["endpoint_url"],
-        access_key=minio_container["access_key"],
-        secret_key=SecretStr(minio_container["secret_key"]),
-        bucket=f"test-{uuid.uuid4().hex}",
-    )
-    endpoint_url = str(settings.endpoint_url)
-    async with s3_session.client("s3", endpoint_url=endpoint_url) as s3:
-        await s3.create_bucket(Bucket=settings.bucket)
-    try:
-        yield settings
-    finally:
-        async with s3_session.client("s3", endpoint_url=endpoint_url) as s3:
-            paginator = s3.get_paginator("list_objects_v2")
-            async for page in paginator.paginate(Bucket=settings.bucket):
-                keys = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
-                if keys:
-                    await s3.delete_objects(Bucket=settings.bucket, Delete={"Objects": keys})
-            await s3.delete_bucket(Bucket=settings.bucket)
-```
-
-The same app's `real_app` binds that bucket, so a route under test writes into the test's own bucket:
-one fixture parameter passed on to `TestInfraProvider`, and there one constructor parameter, one field
-and one factory.
-
-```python
-    s3_settings: S3Settings,            # in real_app's signature; TestInfraProvider(..., s3_settings=s3_settings)
-```
-
-```python
-        s3_settings: S3Settings,        # in TestInfraProvider.__init__
-    ) -> None:
-        ...
-        self._s3_settings = s3_settings
-
-    @provide(override=True)             # in TestInfraProvider
-    def s3_settings(self) -> S3Settings:
-        return self._s3_settings
-```
-
 ## Client-store fixtures — redis-py
 
 An app with a client-style store (the key-value repository, `hex-store-repository`) adds this to
-`tests/integration/conftest.py`: the container and one client for the whole run, and the per-test key
-prefix. The prefix sits here rather than beside the repository tests because `real_app` binds it too.
+`tests/integration/conftest.py`: the container for the whole run, and a per-test client whose teardown
+empties the container's database. The client sits here rather than beside the repository tests because
+`container` binds it too.
 
 ```python
-import os
-import uuid
 from collections.abc import AsyncIterator, Iterator
 
 import pytest
-from pydantic import SecretStr
 from redis.asyncio import Redis
-
-from myapp.infrastructure.redis import RedisSettings
 
 
 @pytest.fixture(scope="session")
 def redis_url() -> Iterator[str]:
-    provided = os.getenv("MYAPP_TEST_REDIS_URL")  # a dedicated opt-in variable, never ambient `CI`
-    if provided:
-        yield provided
-        return
     from testcontainers.community.redis import RedisContainer
 
     # Same pin rule as the relational image (e.g. `redis:7.4-alpine`), never `:latest`.
@@ -373,47 +241,62 @@ def redis_url() -> Iterator[str]:
         yield f"redis://{redis.get_container_host_ip()}:{redis.get_exposed_port(6379)}/0"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def redis_client(redis_url: str) -> AsyncIterator[Redis]:
+    """A client on the suite's own container, whose database is emptied after
+    the test — a key-value store has no transaction to roll back, and the
+    adapter's key prefix is fixed in code, so the namespace a test owns is the
+    database of a container this fixture chain started and nothing else uses."""
     client = Redis.from_url(redis_url)
     try:
         yield client
     finally:
+        await client.flushdb()
         await client.aclose()
+```
+
+The flush is safe only because the container is the suite's own: it is disposable by construction, and
+a run split across workers gives each worker its own session container. The same app's `container`
+binds that client, so an entrypoint reaching `Baz` reads and writes the test's own store, never
+whatever store the environment names: one fixture parameter passed on to `TestInfraProvider`, and there
+one constructor parameter, one field and one factory. The factory replaces the client binding itself, so
+the production factory's close never runs and the fixture's does.
+
+```python
+    redis_client: Redis,                # in container's signature; TestInfraProvider(..., redis_client=redis_client)
+```
+
+```python
+        redis_client: Redis,            # in TestInfraProvider.__init__
+    ) -> None:
+        ...
+        self._redis_client = redis_client
+
+    @provide(override=True)             # in TestInfraProvider
+    def redis_client(self) -> Redis:
+        return self._redis_client
+```
+
+## REST entrypoint add-on — FastAPI
+
+An app with a REST entrypoint (`hex-restapi-app`) adds `real_app` to `tests/integration/conftest.py`:
+the app built on the per-test `container`, so a route under test reaches exactly the bindings the base
+and each store add-on substituted. The container fixture already closes the graph; this one only builds
+the app over it. A service with no HTTP entrypoint has neither this fixture nor the FastAPI import.
+
+```python
+import pytest
+from dishka import AsyncContainer
+from fastapi import FastAPI
 
 
 @pytest.fixture
-async def redis_settings(redis_url: str, redis_client: Redis) -> AsyncIterator[RedisSettings]:
-    """A fresh key prefix per test — namespace isolation, since a key-value store
-    has no transaction to roll back. Every key under it is deleted after the test."""
-    settings = RedisSettings(url=SecretStr(redis_url), bazs_key_prefix=f"test:{uuid.uuid4().hex}")
-    try:
-        yield settings
-    finally:
-        pattern = f"{settings.bazs_key_prefix}:*"
-        keys = [key async for key in redis_client.scan_iter(match=pattern)]
-        if keys:
-            await redis_client.delete(*keys)
-```
+def real_app(container: AsyncContainer) -> FastAPI:
+    """FastAPI app on the per-test composition root. Rows the route under test
+    commits through its handler roll back with the test's outer transaction."""
+    from myapp.restapi.main import create_app
 
-The same app's `real_app` binds that prefix, so a route reaching `Baz` reads and writes the test's own
-store under the test's own prefix, never whatever store the environment's `MYAPP_REDIS_URL` names: one
-fixture parameter passed on to `TestInfraProvider`, and there one constructor parameter, one field and
-one factory.
-
-```python
-    redis_settings: RedisSettings,      # in real_app's signature; TestInfraProvider(..., redis_settings=redis_settings)
-```
-
-```python
-        redis_settings: RedisSettings,  # in TestInfraProvider.__init__
-    ) -> None:
-        ...
-        self._redis_settings = redis_settings
-
-    @provide(override=True)             # in TestInfraProvider
-    def redis_settings(self) -> RedisSettings:
-        return self._redis_settings
+    return create_app(container=container)
 ```
 
 ## `tests/conftest.py` (top-level, optional sub-template)
@@ -441,20 +324,20 @@ every test directory; because that mode puts nothing on `sys.path`,
 `pythonpath = ["."]` is what lets a test import `tests.unit.fakes` or `tests.helpers.jwt`.
 `filterwarnings = ["error"]` makes every warning a failure, so a deprecation or an unclosed resource reds
 the run instead of scrolling past (`test-principles`). The loop scopes are **session**, and both keys
-are required. The engine fixture above is session-scoped, so every test and fixture must share ONE event loop: under the default function loop scope the session engine's `asyncpg` connections outlive the loop they were opened on, and any integration test that runs a real statement which errors (a constraint violation through a repository, the canonical repo-contract case) crashes at teardown with `RuntimeError: Event loop is closed` (asyncpg cannot cancel the aborted command on a closed loop). The cheap api-discovery tests hide this — their routes (CORS / OpenAPI / an unauthenticated probe) short-circuit before touching Postgres, so no real command runs — which is why it only surfaces once a repository contract test exercises the DB.
+are required. The engine fixture above is session-scoped, so every test and fixture must share ONE event loop: under the default function loop scope the session engine's `asyncpg` connections outlive the loop they were opened on, and any integration test that runs a real statement which errors (a constraint violation through a repository, the typical repo-contract case) crashes at teardown with `RuntimeError: Event loop is closed` (asyncpg cannot cancel the aborted command on a closed loop). The cheap api-discovery tests hide this — their routes (CORS / OpenAPI / an unauthenticated probe) short-circuit before touching Postgres, so no real command runs — which is why it only surfaces once a repository contract test exercises the DB.
 
-**The root `tests/conftest.py` must NOT import `create_app` / `myapp.restapi.main` (nor define a `real_app` / `client` fixture).** pytest applies the root conftest to the WHOLE suite, so a *module-level* `from myapp.restapi.main import create_app` there makes every `tests/unit/**` collection pay the entire infrastructure import chain — and a domain-VO red→green is then blocked by an unfilled sibling (e.g. a column-less table) the unit test never touches. The app-construction fixture (`real_app`) lives in `tests/integration/conftest.py` and imports `create_app` **inside the fixture body** (deferred, as the template above does), so only the integration suite — which legitimately constructs the app — pays that import. Keep app construction out of any conftest a unit test inherits.
+**The root `tests/conftest.py` must NOT import `create_app` / `myapp.restapi.main` (nor define a `real_app` / `client` fixture).** pytest applies the root conftest to the WHOLE suite, so a *module-level* `from myapp.restapi.main import create_app` there makes every `tests/unit/**` collection pay the entire infrastructure import chain and fail on any module it never touches. The composition-root and app-construction fixtures (`container`, and `real_app` where the app has a REST entrypoint) live in `tests/integration/conftest.py` and import `create_container` / `create_app` **inside the fixture body** (deferred, as the templates above do), so only the integration suite — which legitimately constructs the app — pays that import. Keep app construction out of any conftest a unit test inherits.
 
 ## `tests/integration/api/conftest.py`
 
 Empty unless the app declares auth. When it does, this file carries the signing-key, verifier-settings
-and authenticated-client fixtures, and `real_app` above grows the `jwt_settings` parameter while
+and authenticated-client fixtures, and `container` above grows the `jwt_settings` parameter while
 `TestInfraProvider` grows the factory that makes minted tokens verify — all of it →
 `hex-test-restapi-auth`.
 
 ## Per-resource `conftest.py` is **not** owned here
 
-Per-resource fixtures (`make_foo`, `foo_id`, `bar_id`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them, and each resource's tests declare the ones they need.
+Per-resource fixtures (`make_foo`, `foo_id`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them, and each resource's tests declare the ones they need.
 
 ## How this binding spells them — testcontainers, Alembic, SQLAlchemy savepoints
 
@@ -465,7 +348,6 @@ Per-resource fixtures (`make_foo`, `foo_id`, `bar_id`, …) live in `tests/integ
 5. Test-suite separation and collection by path → `test-principles`; enforcement → `test-architecture-rule`.
 6. **Obligation 10, spelled out** — rollback leaves the DB empty at test start, so `name="alpha"` needs no `uuid4().hex[:8]` suffix and `assert len(items) == N` is correct. Builders may still use unique suffixes for readability; it is no longer load-bearing.
 7. **Obligation 6, spelled out** — `TestInfraProvider` is passed to `create_container` and the graph is assembled once, with the test factories last, so there is no reset, no teardown ordering to get right, and no need to audit what `containers.py` snapshots. Substituting a binding on an already-built composition root is not possible; a test that needs a different binding builds a different composition root.
-8. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's settings (`s3_settings`). The return annotation is what binds it, so it must be the exact type the production factory binds.
-9. **Obligation 8 is one `await container.close()`** in the `real_app` fixture's `finally`; it is function-scoped, so each test gets a clean graph.
-10. **S3 has no transactions.** In an app with the blob-store add-on, a bucket per test is obligation 9's spelling: `s3_settings` creates a uniquely named bucket before the test and empties and drops it after, and `real_app` binds that same `S3Settings`, so a route under test writes into the test's own bucket with no test-only parameter on the route. The container and the `aioboto3.Session` are session-scoped; only the bucket is per test. A test asserts on its own bucket and nothing else.
-11. **Container fixtures are session-scoped; the guard and the migration run are the autouse pair.** Every container — the relational one and each add-on's — starts once per session, on first request — the autouse guard pulls in the relational one — and the container branch is the one place entitled to set the marker obligation 4 requires — an env marker or a settings flag, **never a deduction from the port number or the database name**, because a real database on an unusual port passes that deduction and is then migrated over.
+8. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.
+9. **Obligation 8 is one `await container.close()`** in the `container` fixture's `finally`; it is function-scoped, so each test gets a clean graph.
+10. **Container fixtures are session-scoped; the guard and the migration run are the autouse pair.** Every container — the relational one and each add-on's — starts once per session, on first request — the autouse guard pulls in the relational one — and the container branch is the one place entitled to set the marker obligation 4 requires — an env marker or a settings flag, **never a deduction from the port number or the database name**, because a real database on an unusual port passes that deduction and is then migrated over.

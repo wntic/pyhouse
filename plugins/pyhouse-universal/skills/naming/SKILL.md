@@ -1,6 +1,6 @@
 ---
 name: naming
-description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on protocols, the error-class and repository-class identifier forms, the vague-noun replacements, and the role suffixes (`Handler`, `Result`, `Payload`, `Service`) an architecture defines that are exempt from them. The mechanics around a name are `python-packaging`.
+description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on ports, the error-class and repository-class identifier forms, the vague-noun replacements, and the role suffixes (`Handler`, `Result`, `Payload`, `Service`) an architecture defines that are exempt from them. The mechanics around a name are `python-packaging`.
 when_to_use: Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repo already spells two ways.
 ---
 
@@ -137,11 +137,11 @@ decided by someone.
 
 | Kind | Rule | Not | But |
 |---|---|---|---|
-| Package | the role it holds, one word where possible | `utils/`, `common/` | `ingest/`, `billing/` |
+| Package | the role it holds, one word where possible | `utils/`, `common/` | `billing/`, `pricing/` |
 | Module | matches its class in snake_case (`python-packaging`) | `helpers.py` | `retry_policy.py` |
 | Class | a noun phrase for the thing itself | `FooManager` | `FooValidator` |
-| Protocol | the `I` prefix, always — see **Protocol names carry the `I` prefix** below | `FooRepository` as the port's own name | `IFooRepository`, `ICanExportFoos` |
-| Repository adapter | the aggregate plus `Repository`; the `I` stays on the port, not on the class implementing it | `FooRepositoryImpl`, `FooDao` | `FooRepository`, implementing `IFooRepository` |
+| Protocol | a port takes the `I` prefix — see **Port names carry the `I` prefix** below; a published protocol of a distributed library follows `typing`'s naming | `FooRepository` as the port's own name | `IFooRepository`, `ICanExportFoos`; `SupportsFoo` in a library |
+| Repository | the kind of stored record plus `Repository` (under hexagonal, the aggregate), whether or not a port stands in front; the `I` goes on the port where one exists, never on the class. The ban is on a second word for the class owning a record's data access — an adapter named for what its capability does (storing blobs) is not a repository | `FooRepositoryImpl`, `FooDao`, `FooStorage`, `FooStore` | `FooRepository` — implementing `IFooRepository` where there is a port |
 | Exception class | the condition that was violated, suffixed `Error` (`exception-catalog` owns the class's `code` and the file it lives in) | `FooException`, `FooFailure`, `BadFoo` | `FooConflictError` |
 | Type alias | the concept the composite stands for, PascalCase like a class (`python-style` decides *when* to introduce one) | `FooTuple`, `StrDict` | `FooKey`, `BarIdsByFooId` |
 | Dataclass / DTO | the subject plus what it asserts | `CheckResult` | `UpstreamAvailability` |
@@ -152,7 +152,7 @@ decided by someone.
 | Method | drop what the class already says | `stripe_client.fetch_stripe_charge()` | `stripe_client.fetch_charge()` |
 | Predicate | reads as a proposition; `is_`/`has_`/`can_` | `check_alive()` | `is_reachable` |
 | Rule check | says what happens on failure | `check_limit()` | `assert_within_limit()` (raises) |
-| Settings env prefix | the component that owns the settings class | one prefix shared by two components | `MYAPP_`, `MYSCHEMA_` |
+| Settings env prefix | the component that owns the settings class | one prefix shared by two components | `MYAPP_`, `MYAPP_FOO_`, `MYSCHEMA_` |
 | Boolean variable | positive, never a negated negative | `not_disabled` | `is_enabled` |
 | Collection | plural of the element name | `data`, `items`, `result_list` | `foos`, `pending_charges` |
 | Mapping | `<key>_to_<value>`, or `<value>_by_<key>` | `mapping`, `d` | `foo_id_to_bar`, `bar_by_foo_id` |
@@ -176,17 +176,25 @@ the call site needs a branch, a `try`, or neither. `check_*` fails this test twi
 verb and it answers the failure question not at all.
 
 **One environment prefix per settings class, named after the component that owns it and disjoint from
-every sibling's.** A distribution's own settings read `MYAPP_`, a shared library's read `MYSCHEMA_`,
-and a component inside one reads that distribution's stem plus its own segment. Two components
-sharing one prefix read each
-other's variables: a field added for one silently changes the other's configuration, and neither owner
-sees it in their own file. A deployed prefix is a frozen external contract — see **Renaming**.
+every sibling's.** A distribution's own settings read `MYAPP_`, and a component inside it reads that
+stem plus its own segment — `MYAPP_FOO_`. A library shared inside one repository reads its own
+stem (`MYSCHEMA_`); a library published for importers the project does not know reads no environment at
+all — its importer hands it values. Two components sharing one prefix read each other's variables: a field added
+for one silently changes the other's configuration, and neither owner sees it in their own file.
+**A nested prefix collides the same way** once the outer class declares a field beginning with the inner
+segment — `postgres_dsn` under `MYAPP_` and `dsn` under `MYAPP_POSTGRES_` are one variable. Keep the stems
+disjoint, or treat each inner segment as reserved in the outer class. A deployed prefix is a frozen
+external contract — see **Renaming**.
 
-**Protocol names carry the `I` prefix.** Repository protocols use `I<Aggregate>Repository`
+**Port names carry the `I` prefix.** Repository protocols use `I<Aggregate>Repository`
 (e.g. `IFooRepository`); capability protocols use `ICan<Verb>` (e.g. `ICanExportFoos`).
 Their modules are `i_foo_repository.py` and `i_can_<verb>.py`, respectively.
 Both prefixes are mandatory: `i_` marks a port, and `i_can_` distinguishes a
-capability from a repository at a glance.
+capability from a repository at a glance. A repository class with no port in front of it — a
+flat-layered service's, say — carries no `I` and needs none: the prefix marks a port, and there is none.
+Nor does a structural protocol a distributed library publishes for its users to satisfy: that is
+`typing`'s own kind of protocol, named the way `typing` names them (`SupportsFoo`, `Sized`), because its
+readers meet it beside those.
 
 **This is a deliberate departure from PEP 8**, which carries no such prefix, and from the `typing`
 documentation, whose own protocols are `Iterable`, `Sized`, `Hashable`. The departure buys something
@@ -209,7 +217,7 @@ suffix names a role the architecture defines, which the next section exempts.
 | `…Manager`, `…Processor`, `…Handler` | names an unbounded responsibility | the one job: `ScheduleBuilder`, `RetryPolicy` |
 | `…Service` as a bare class name | a layer word, not a thing | what it talks to or does: `StripeClient`, `InvoiceRenderer` |
 | `…Helper`, `…Utils`, `…Common`, `…Misc` | a bin, so it grows without limit | split by responsibility and name each part |
-| `…Item`, `…Entry`, `…Object` | the element of *what*? | `CartLine`, `AuditEvent` |
+| `…Item`, `…Entry`, `…Object` | the element of *what*? | `CartLine`, `PriceChange` |
 | `…Config`, `…Params`, `…Options` | fine for a settings class, wrong for arguments | `RetrySettings` if it *is* settings; otherwise pass the fields |
 | `check_…`, `process_…`, `do_…`, `handle_…` | the verb is a placeholder | the real verb: `score_`, `resolve_`, `upsert_`, `fetch_` |
 | `…2`, `…New`, `…V2`, `…Impl`, `…Base` with no subject | marks that the first one was never named | name both for what distinguishes them |
@@ -228,16 +236,21 @@ subject in front of it says which one, so the name passes the six tests. The rol
 | `Payload` | an external system's wire record |
 | `Request`, `Response` | a transport's inbound and outbound models |
 | `Service` | a domain service |
-| `Repository` | an aggregate's data access |
+| `Repository` | the class that owns data access for one kind of stored record — an aggregate's, under hexagonal — with or without a port in front of it |
 | `Settings` | a component's settings class |
 | `Error` | an exception class (`exception-catalog`) |
 
-`CreateFooHandler`, `FooPayload`, `IngestResult`, `FooUniquenessService` and `FooRepository` pass as
+`CreateFooHandler`, `FooPayload`, `ImportResult`, `FooUniquenessService` and `FooRepository` pass as
 written. Two conditions keep the carve-out from swallowing the rule: **the subject is still there** —
 `Handler`, `Result`, `Payload` or `Service` alone names nothing — and **the class actually plays that
 role** in this architecture. A `FooResult` that no handler or run returns, a `FooService` that is a
 client, a `FooHandler` that is not a use case's handler is the vague noun it looks like, and the table
-above applies to it.
+above applies to it. Conversely, `FooStorage`, `FooStore` or `FooDao` on the class that owns a
+record's data access is a second word for the concept `Repository` already names — one concept, one
+word (**Porting names in from another project**). The ban stops there: a class that is not a repository
+but an adapter for one external capability takes the role noun of what that capability does — under
+hexagonal, an adapter implementing a port for storing blobs (`ICanStoreFoos`) is named for the storing —
+its technology token plus `FooStorage` — and owns no record's data access.
 
 ### Other exceptions
 
@@ -277,8 +290,8 @@ The exception is a name that has escaped the codebase and become an external con
 frozen and are **not** renamed in place: log event names, exception `code` values, job or
 task names registered by string, queue and topic names, database table/column and constraint
 names, Alembic revision identifiers, serialization aliases and published API fields,
-environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new name alongside it and
-retire the old one deliberately, with a migration.
+environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new
+name alongside it and retire the old one deliberately, with a migration.
 
 ## Rules
 
@@ -295,9 +308,11 @@ retire the old one deliberately, with a migration.
 6. **Name a method for what happens on failure** — `assert_*` raises, `is_*`/`has_*`/`can_*` returns a
    bool, a bare verb computes — so the call site can be written without opening the method.
 7. **Give each settings class its own environment prefix, named after the component that owns it**, and
-   check it against every sibling's before using it.
-8. Apply the protocol prefixes in **Protocol names carry the `I` prefix** — `I<Aggregate>Repository`
-   for a repository port, `ICan<Verb>` for a capability port, both mandatory.
+   check it against every sibling's before using it — a nested prefix included, whose inner segment the
+   outer class never begins a field with.
+8. Apply the port prefixes in **Port names carry the `I` prefix** — `I<Aggregate>Repository`
+   for a repository port, `ICan<Verb>` for a capability port, both mandatory. A published protocol of a
+   distributed library follows `typing`'s naming instead.
 9. Apply the scope, abbreviation and acronym-casing choices in **Length, abbreviations, consistency**.
 10. Keep the repository's concept-to-word mapping unambiguous in both directions.
 11. Perform renames separately from behaviour changes; complete port-time naming before callers spread.
@@ -328,7 +343,8 @@ retire the old one deliberately, with a migration.
   a value instead of raising → stop, the three prefixes are a promise about failure and the call site is
   written against it.
 - A second settings class taking a prefix a sibling already uses, or one prefixed after the product
-  rather than the component that owns it → stop, the two then read each other's variables.
+  rather than the component that owns it → stop, the two then read each other's variables. So does an
+  outer class declaring a field that begins with a nested component's segment.
 - A `typing.Protocol` port declared without the `I` prefix, or a capability port spelled anything but
   `ICan<Verb>` → stop, the prefix is what lets a call site tell the port from the adapter satisfying
   it without opening either file.

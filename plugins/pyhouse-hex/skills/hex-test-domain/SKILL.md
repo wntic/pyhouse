@@ -1,6 +1,6 @@
 ---
 name: hex-test-domain
-description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` — no IO, no fixtures, no container, and an orchestrator service run on the in-memory fake of its port. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a canonicalization rule gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
+description: Use when testing a domain entity, value object, enum or domain service with stdlib, `pytest` and `myapp.domain` — no IO, no fixtures, no container, and an orchestrator service run on the in-memory fake of its port. Covers identity equality, one test per invariant and the pinned enum member set; a frozen value object with neither an invariant nor a normalized equality gets no test file at all. Not for writing the domain object itself — `hex-domain-model` or `hex-domain-service`.
 ---
 
 # Hex Test — Domain
@@ -17,7 +17,7 @@ Inside this skill, by what is under test — the four templates under `## Templa
 - An application command or query handler → `hex-test-application-handler`.
 - An in-memory fake under `tests/unit/fakes/` → `hex-test-application-handler`.
 - A grep-firewall architectural rule → `test-architecture-rule`.
-- The infrastructure adapter implementing a protocol a service depends on → `hex-test-repository-contract` (repository) or `hex-test-capability-adapter` (capability). A canonicalizer is tested here when it is pure domain logic with no library behind it; one that delegates to an external library sits behind a capability port, and its adapter is `hex-test-capability-adapter`'s.
+- The infrastructure adapter implementing a protocol a service depends on → `hex-test-repository-contract` (repository) or `hex-test-capability-adapter` (capability). A normalizing function is tested here when it is pure domain logic with no library behind it; one that delegates to an external library sits behind a capability port, and its adapter is `hex-test-capability-adapter`'s.
 - The handler that *uses* a service, end to end → `hex-test-restapi-endpoint`.
 - The domain object itself rather than its test → `hex-domain-model` (entity, value object, enum) or `hex-domain-service`.
 - Anything that needs a fixture, a container or a database — "add a testcontainer fixture for Postgres" included → `hex-test-integration-setup`; nothing in this skill takes a fixture.
@@ -28,7 +28,7 @@ Inside this skill, by what is under test — the four templates under `## Templa
 Inside this skill, by what is under test:
 
 - A `@dataclass` entity with UUID identity → **Entity**.
-- A frozen value object **with** `__post_init__` invariants or a canonicalization rule → **Value object**.
+- A frozen value object **with** `__post_init__` invariants or a normalized equality → **Value object**.
   With neither, **write no file at all**: Python's data model already guarantees frozen-dataclass
   equality, and a test for it is maintenance with no defect-detection value.
 - A `StrEnum` / `Enum` member set → **Enum**.
@@ -41,10 +41,8 @@ object the module holds — `foo.py` → `test_foo.py`, `foo_status.py` → `tes
 `foo_uniqueness_service.py` → `test_foo_uniqueness_service.py`. The file name adds no suffix the
 module name does not already carry.
 
-The subjects below are `hex-domain-model`'s shapes filled in: `FooKey` is the normalized-plus-raw value
-object with an invariant that `canonical` is non-empty, `Money` the standard value object over `amount`
-(non-negative) and `currency` (three letters), `FooStatus` a `StrEnum` of `ALPHA` and `BETA`, and
-`FooPriority` the rank-ordered `StrEnum` of `LOW`, `NORMAL` and `HIGH` with `satisfies`.
+The subjects below are `hex-domain-model`'s shapes filled in: `Money` the standard value object over
+`amount` (non-negative) and `currency` (three letters), and `FooStatus` a `StrEnum` of `ALPHA` and `BETA`.
 
 ### Entity — standard
 
@@ -57,8 +55,8 @@ from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import Foo
 
 
-def _make_foo(*, id: uuid.UUID | None = None, name: str = "Test", bar_id: uuid.UUID | None = None) -> Foo:
-    return Foo(id=id or uuid.uuid4(), name=name, bar_id=bar_id or uuid.uuid4())
+def _make_foo(*, id: uuid.UUID | None = None, name: str = "Test", note: str | None = None) -> Foo:
+    return Foo(id=id or uuid.uuid4(), name=name, note=note)
 
 
 def test_equality_by_id() -> None:
@@ -82,57 +80,10 @@ def test_name_must_be_non_empty() -> None:
 The builder spreads **only the entity's real declared fields** — `id` plus its domain fields — because a
 domain test constructs the subject the way the domain layer declares it and knows nothing of what a
 store adds around it. Two things it must therefore not carry: `created_at` / `updated_at`, which are not
-entity fields at all (`hex-domain-model`, Entity rule 6 — the audit timestamps are a DB-managed table
-convention), so `Foo(created_at=...)` fails; and any `import datetime` that exists only to feed them.
+entity fields at all (`hex-domain-model`, Entity rule 6 — the store maintains them), so `Foo(created_at=...)` fails; and any `import datetime` that exists only to feed them.
 `datetime` enters the file **only** when the entity genuinely declares a datetime domain field.
 
-### Entity — few fields, so no builder
-
-```python
-import uuid
-
-import pytest
-
-from myapp.domain.exceptions import ValidationError
-from myapp.domain.foos import Foo
-
-
-def test_equality_by_id() -> None:
-    shared_id = uuid.uuid4()
-    bar_id = uuid.uuid4()
-    assert Foo(id=shared_id, name="a", bar_id=bar_id) == Foo(id=shared_id, name="b", bar_id=bar_id)
-
-
-def test_name_must_be_non_empty() -> None:
-    with pytest.raises(ValidationError) as exc:
-        Foo(id=uuid.uuid4(), name="", bar_id=uuid.uuid4())
-    assert exc.value.context["field"] == "name"
-```
-
-### Value object — canonical-form equality plus an invariant
-
-```python
-import pytest
-
-from myapp.domain.exceptions import ValidationError
-from myapp.domain.foos import FooKey
-
-
-def test_canonical_equality() -> None:
-    a = FooKey(raw="abc", canonical="ABC")
-    b = FooKey(raw="ABC", canonical="ABC")
-
-    assert a == b
-    assert hash(a) == hash(b)
-
-
-def test_rejects_empty() -> None:
-    with pytest.raises(ValidationError) as exc:
-        FooKey(raw="", canonical="")
-    assert exc.value.context["field"] == "canonical"
-```
-
-### Value object — invariants only, no canonicalization
+### Value object — invariants
 
 ```python
 import pytest
@@ -153,6 +104,10 @@ def test_currency_must_be_three_letters() -> None:
     assert exc.value.context["field"] == "currency"
 ```
 
+A value object that stores a raw input beside its normalized form and compares by the normalized field
+(`hex-domain-model`) adds one equality test: two instances with the same normalized field and different
+raw inputs are equal and hash alike (rule 11).
+
 ### Enum — values plus rejection
 
 ```python
@@ -169,33 +124,8 @@ def test_values() -> None:
         FooStatus("GAMMA")
 ```
 
-### Enum — with a pure-logic method
-
-```python
-import pytest
-
-from myapp.domain.foos import FooPriority
-
-
-def test_values() -> None:
-    assert FooPriority.LOW == "LOW"
-    assert FooPriority.NORMAL == "NORMAL"
-    assert FooPriority.HIGH == "HIGH"
-
-    with pytest.raises(ValueError):
-        FooPriority("URGENT")
-
-
-def test_satisfies() -> None:
-    assert FooPriority.HIGH.satisfies(FooPriority.NORMAL) is True
-    assert FooPriority.NORMAL.satisfies(FooPriority.NORMAL) is True
-    assert FooPriority.LOW.satisfies(FooPriority.NORMAL) is False
-    assert FooPriority.LOW.satisfies(FooPriority.LOW) is True
-```
-
-The rank ladder is this example enum's own. Test every member's value, the rejection of an unknown one,
-and the method at, above and below the bar — `satisfies` is the rank-ordered `StrEnum` shape from
-`hex-domain-model`, whatever the enum ranks.
+An enum may carry a pure method over its own values; its test adds that method at, above and below
+the bar. The rank-ordered `Role` in `hex-restapi-auth` is the worked one.
 
 ### Domain service — orchestrator, on the fake of its port
 
@@ -210,7 +140,7 @@ from tests.unit.fakes import FakeFooRepository
 
 
 def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
-    foos = [Foo(id=uuid.uuid4(), name=n, bar_id=uuid.uuid4()) for n in existing_names or []]
+    foos = [Foo(id=uuid.uuid4(), name=n) for n in existing_names or []]
     return FooUniquenessService(repo=FakeFooRepository(items=foos))
 
 
@@ -226,47 +156,6 @@ async def test_assert_name_available_passes_when_free() -> None:
     await service.assert_name_available("alpha")  # does not raise
 ```
 
-### Domain function — pure logic
-
-`tests/unit/domain/foos/test_canonical_url.py`, for `hex-domain-service`'s `canonicalize_url`:
-
-```python
-import pytest
-
-from myapp.domain.exceptions import ValidationError
-from myapp.domain.foos import canonicalize_url
-
-
-def test_strips_trailing_slash() -> None:
-    assert canonicalize_url("https://example.com/path/") == "https://example.com/path"
-
-
-def test_drops_default_port() -> None:
-    assert canonicalize_url("https://example.com:443/path") == "https://example.com/path"
-
-
-@pytest.mark.parametrize("raw", ["https://example.com/", "https://example.com/path/?b=2&a=1"])
-def test_idempotent(raw: str) -> None:
-    once = canonicalize_url(raw)
-    assert canonicalize_url(once) == once
-
-
-def test_rejects_non_http() -> None:
-    with pytest.raises(ValidationError) as exc:
-        canonicalize_url("ftp://example.com")
-    assert exc.value.context["field"] == "scheme"
-
-
-def test_rejects_non_numeric_port() -> None:
-    with pytest.raises(ValidationError) as exc:
-        canonicalize_url("https://example.com:http/path")
-    assert exc.value.context["field"] == "port"
-```
-
-The canonicalizer here is a domain function because it is pure logic over the standard library. One
-that delegates to an external library (an IDNA or URL-parsing package) sits behind a capability port
-instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
-
 ## Rules
 
 ### All four kinds
@@ -278,13 +167,10 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
    a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
    class for a narrow protocol (rule 17).
 3. Fixture-versus-builder rules → `test-principles`.
-4. **Assert against literal expected values.** Never re-implement the rule under test to compute the
-   expected value — that hides the defect where both sides make the same mistake.
-5. **Test what the author wrote, never what the data model already guarantees.** Field-by-field
-   equality, hashability and immutability come free with a frozen `@dataclass`; asserting them is
-   maintenance with no defect-detection value, because no plausibly-wrong change to the domain could
-   red them. What is not free is the constructor's invariants, the computed properties and the methods —
-   those are the whole coverage target.
+4. Literal expected values, never a re-implementation of the rule → `test-principles`, assert strength.
+5. Test what the author wrote, never what the data model already guarantees → `test-principles`, assert
+   strength. In the domain that means the constructor's invariants, the computed properties and the
+   methods, and never the equality, hash or immutability a frozen `@dataclass` supplies.
 6. **One test per invariant, and a rejection test asserts the failure's machine-readable field key,
    never its message.** Capture the raised catalogue exception (`pytest.raises(ValidationError) as exc`)
    and assert the `context` entry naming the offending field: the message is prose and drifts, the key is
@@ -307,8 +193,8 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 
 10. **Write no file for a value object that declares no invariant of its own and no custom equality.**
     There is nothing the author wrote left to pin (rule 5).
-11. **A canonical-form equality test pins the rule, not Python's `==`**: two instances with the same
-    `canonical` must be equal even when their `raw` fields differ, and `hash` must agree.
+11. **A normalized-equality test pins the rule, not Python's `==`**: two instances with the same
+    normalized field must be equal even when their raw fields differ, and `hash` must agree.
 12. **No builder.** Value objects are small — pass the fields directly.
 
 ### Enum
@@ -320,8 +206,7 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 15. **Always include the unknown-value rejection**:
     `with pytest.raises(ValueError): FooStatus("<unknown>")` proves the enum is closed.
 16. **One `test_*` per pure-logic method**, named after the method, asserting every relevant
-    input/output pair with `is True` / `is False` for booleans — `==` may accidentally compare `int(1)` to
-    `True`.
+    input/output pair; a boolean is asserted as `test-principles` states (`is True` / `is False`).
 
 ### Domain service
 
@@ -337,10 +222,10 @@ instead, and its test is `hex-test-capability-adapter`'s pure-CPU flavour.
 19. **One `test_*` per behaviour of each method**, named so the test name *is* the behaviour's one-line statement —
     `test_assert_name_available_raises_when_taken`, `test_assert_name_available_passes_when_free`.
 20. **A domain function is called directly.** It has no instance to construct, share or fake.
-21. **A canonicalizer always has `test_idempotent`** — parametrized over a few representative inputs,
-    one reported case each, asserting `f(f(x)) == f(x)`. Idempotence is part of the canonicalization
+21. **A normalizing function has `test_idempotent`** — parametrized over a few representative inputs,
+    one reported case each, asserting `f(f(x)) == f(x)`. Idempotence is part of the normalization
     contract; a loop inside one test stops at the first failing input and hides the rest.
-22. **Pair every happy path with a rejection test.** Single-direction tests are incomplete.
+22. Every happy path is paired with a rejection test → `test-principles`, assert strength.
 
 ## Inlined typing / import rules
 
@@ -359,20 +244,19 @@ Identical for all four kinds:
   `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
 - Asked for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
 - Asked for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
-- Asked to test dataclass-given equality, hash or immutability → stop, omit the test; Python guarantees it.
-- A test re-implements the rule to compute the expected value → stop, assert literal values.
+- Asked to test dataclass-given equality, hash or immutability, or a test re-implements the rule to
+  compute its expected value → stop, use `test-principles`.
 - A test asserts on log output or captured logs → stop, the domain layer logs nothing at all
-  (`python-style` allocates logging by layer); assert the return value or the raised exception.
+  (`hex-architecture`, *Who logs, by layer*); assert the return value or the raised exception.
 - Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
   entity's own fields and nothing else. `created_at` / `updated_at` are the usual case: the store
   maintains them, so they are not entity fields (`hex-domain-model`, Entity rule 6).
 - The value object declares no invariant of its own and no custom equality → stop, produce no file.
 - A test loops over enum members → stop, write explicit asserts.
-- A test uses `==` instead of `is` for a boolean enum-method return → stop, use `is True` / `is False` to prevent
-  truthy-but-not-`True` bugs.
+- A test uses `==` for a boolean enum-method return → stop, use `test-principles`.
 - An enum's members are not known → stop, list them explicitly.
 - An inline stub stands in for a full port, or implements methods beyond the narrow protocol the
   service's parameter declares → stop, use the port's fake from `tests.unit.fakes`, or the narrow
   protocol exactly.
 - A test adds `@pytest.mark.asyncio` → stop, use `test-principles`.
-- A pure-logic canonicalizer's test omits `test_idempotent` → stop, add `test_idempotent`; idempotence is part of the contract.
+- A normalizing function's test omits `test_idempotent` → stop, add `test_idempotent`; idempotence is part of the contract.

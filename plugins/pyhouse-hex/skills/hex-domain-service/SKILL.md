@@ -42,47 +42,12 @@ class FooUniquenessService:
 ```
 
 **A service exists because it has collaborators.** Injected protocols on `__init__`, async methods
-that touch them — the form above. A pure transformation with nothing to inject (`canonicalize`,
+that touch them — the form above. A pure transformation with nothing to inject (`normalize_*`,
 `derive_*`) is not a class at all: a class whose constructor holds no state is a module function
 (`python-packaging`), so it is a module-level function in the aggregate's package, or a value object's
-own construction (`hex-domain-model`).
-
-**Canonicalization is pure domain logic when the standard library can do it** — trimming, case-folding,
-a stdlib URL normalization — and then it is that module function, never a port. It becomes a sync
-capability port only when a third-party library does the work (IDNA encoding, a URL-parsing library),
-because the domain cannot import that library (`hex-domain-ports`); an orchestrator that needs it then
-injects the port like any other collaborator.
-
-### Pure transformation — a module function, stdlib only
-
-```python
-# src/myapp/domain/foos/canonical_url.py
-from urllib.parse import urlsplit, urlunsplit
-
-from ..exceptions import ValidationError
-
-__all__ = ["canonicalize_url"]
-
-_DEFAULT_PORTS = {"http": 80, "https": 443}
-
-
-def canonicalize_url(raw: str) -> str:
-    parts = urlsplit(raw.strip())
-    scheme = parts.scheme.lower()
-    if scheme not in _DEFAULT_PORTS:
-        raise ValidationError("url scheme must be http or https", {"field": "scheme"})
-    host = (parts.hostname or "").lower()
-    try:
-        port = parts.port
-    except ValueError as exc:
-        raise ValidationError("url port must be a number in range", {"field": "port"}) from exc
-    netloc = host if port in (None, _DEFAULT_PORTS[scheme]) else f"{host}:{port}"
-    return urlunsplit((scheme, netloc, parts.path.rstrip("/"), parts.query, ""))
-```
-
-It is called from inside the domain — an entity's `__post_init__` or a value object's construction —
-never by a handler, which passes input through unchanged (`hex-application`), and it is never bound
-in the composition root, because there is nothing to construct.
+own construction (`hex-domain-model`). Nothing binds it in the composition root, because there is nothing
+to construct; only when a third-party library does the work does it become a sync capability port
+(`hex-domain-ports`).
 
 ## Rules
 

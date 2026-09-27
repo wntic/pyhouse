@@ -12,29 +12,17 @@ which is why they live in one place.
 
 ## When to use vs. neighbours
 
-Inside this skill, pick by what the thing *is*:
-
-- A thing with a UUID and a lifecycle → **Entity**.
-- An immutable type defined by its content, or a primitive that carries a constraint, a unit or a rule → **Value object**.
-- A closed set of named values → **Enum**.
-- A read-side parameter bag passed to a repository `list`/`count` → **Filter record**.
-- An env-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable variant** of a value object, not a service and not a settings class.
-
-Outside it:
+Which of this skill's shapes a thing is → Choosing a shape, at the head of Rules. Outside it:
 
 - The interface a repository or a capability must satisfy → `hex-domain-ports`.
 - A rule needing another aggregate's state, or a domain capability → `hex-domain-service`.
 - The single error catalog → `exception-catalog`.
-- A DTO crossing the application boundary → `hex-application`. A filter record may be reused there; the query DTO wraps it plus authorization context.
+- A DTO crossing the application boundary → `hex-application`. A filter record may be reused there; the query DTO wraps it, plus the caller's scope where the caller is authenticated.
 - The request or response model on the wire → `hex-restapi-schema`; a domain type is never serialized straight out.
 - Persistence of any of these → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store).
-- The settings class the tunable variant's values come from, and the provider that constructs it → `hex-wiring`.
+- The settings class the tunable variant's values come from → `python-settings`; the lifetime rules its provider follows → `hex-wiring`; the provider itself is shown beside the template.
 - Testing an invariant, identity equality or the pinned enum member set → `hex-test-domain`.
 - What the class and its module are called → `naming`; one class per module and the re-export → `python-packaging`.
-
-One case is neither a shape here nor a neighbour's:
-
-- A predicate over a field carried by **both** the entity and a read-model of the same aggregate → a module-level function in the aggregate's package, not the same method written twice, not a shared base class, and not a domain service; see Choosing a shape below.
 
 ## Template(s) — stdlib dataclasses and enums
 
@@ -53,7 +41,7 @@ __all__ = ["Foo"]
 class Foo:
     id: UUID
     name: str
-    bar_id: UUID
+    note: str | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -68,35 +56,8 @@ class Foo:
         return hash(self.id)
 ```
 
-`Baz`, the third placeholder aggregate — held only by the key-value store example in
-`hex-store-repository` — is the same form with its own fields, in `domain/bazs/baz.py`:
-
-```python
-from dataclasses import dataclass
-from uuid import UUID
-
-from ..exceptions import ValidationError
-
-__all__ = ["Baz"]
-
-
-@dataclass
-class Baz:
-    id: UUID
-    name: str
-
-    def __post_init__(self) -> None:
-        if not self.name:
-            raise ValidationError("name must be non-empty", {"field": "name"})
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Baz):
-            return NotImplemented
-        return self.id == other.id
-
-    def __hash__(self) -> int:
-        return hash(self.id)
-```
+Every other aggregate — `Bar`, or `Baz` in `hex-store-repository`'s key-value example — has this same
+form with its own fields, in its own subdomain package.
 
 ### Value object — standard case (value equality across all fields)
 
@@ -121,54 +82,43 @@ class Foo:
 The `@dataclass(frozen=True)`-generated `__eq__` / `__hash__` compare all fields. Do not override them
 in the standard case.
 
-### Value object — escape hatch (normalized plus raw form)
-
-When the value object stores both a raw input and a normalized form — an email with the user-typed
-string and the canonical lowercased version — equality must compare by the **canonical** field only,
-otherwise two semantically equal values compare unequal.
-
-```python
-from dataclasses import dataclass
-
-__all__ = ["Foo"]
-
-
-@dataclass(frozen=True)
-class Foo:
-    raw: str
-    canonical: str
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Foo):
-            return NotImplemented
-        return self.canonical == other.canonical
-
-    def __hash__(self) -> int:
-        return hash(self.canonical)
-```
+When a value object stores both a raw input and a normalized form — an email as typed and its
+lowercased form — it overrides `__eq__` and `__hash__` to compare the normalized field only; otherwise
+two semantically equal values compare unequal.
 
 ### Value object — tunable variant (configuration the domain consumes)
 
 A value object can serve as the domain-shaped view of an environment-tunable threshold (max upload
-size, max export rows, retention days). The form is identical — frozen dataclass, primitive fields, no
+size, max page size, retention days). The form is identical — frozen dataclass, primitive fields, no
 methods. For the file and class names, see `naming`.
 
 ```python
 from dataclasses import dataclass
 
-__all__ = ["FooExportTunable"]
+__all__ = ["FooRetentionTunable"]
 
 
 @dataclass(frozen=True)
-class FooExportTunable:
-    max_rows: int
-    retention_days: int = 30
+class FooRetentionTunable:
+    retention_days: int
 ```
+
+No field carries a default: the value is the deployment's, and a default here would turn a missing
+setting into a silent wrong answer (`python-settings` rule 5).
 
 Distinguishing characteristics:
 
 - Sourced from a settings class at the composition root — a provider of its own reads each field off
-  the settings object and passes it: `FooExportTunable(max_rows=settings.max_rows)`. See `hex-wiring`.
+  the settings object and passes it. The binding, an add-on to `hex-wiring`'s base composition root, is
+  process-lifetime; `FooSettings` stands for whichever settings class declares the field
+  (`python-settings`), bound in `SettingsProvider` like any other:
+
+  ```python
+  class FoosProvider(Provider):
+      @provide(scope=Scope.APP)
+      def foo_retention_tunable(self, settings: FooSettings) -> FooRetentionTunable:
+          return FooRetentionTunable(retention_days=settings.foo_retention_days)
+  ```
 - Injected into domain services and application handlers, never into entities. Entities do not read
   tunables; services do.
 - Every value-object rule still applies: frozen, no methods, primitive or VO fields only. Which
@@ -178,70 +128,6 @@ Distinguishing characteristics:
 Use this variant only when the value carries no domain meaning beyond "this is a knob to turn". If it
 participates in the ubiquitous language — a `FooTotal`, a `RetentionWindow` with behaviour — it is an
 ordinary value object.
-
-### Value object — the instances the port templates name
-
-The port signatures in `hex-domain-ports` name four value objects. Each is the standard form above,
-filled in, in the subdomain package whose port names it:
-
-```python
-# src/myapp/domain/bars/canonical_bar_url.py
-from dataclasses import dataclass
-
-__all__ = ["CanonicalBarUrl"]
-
-
-@dataclass(frozen=True)
-class CanonicalBarUrl:
-    value: str
-```
-
-```python
-# src/myapp/domain/bars/bar_token.py
-from dataclasses import dataclass
-from datetime import datetime
-
-__all__ = ["BarToken"]
-
-
-@dataclass(frozen=True)
-class BarToken:
-    value: str
-    expires_at: datetime
-```
-
-```python
-# src/myapp/domain/foos/foo_export_row.py
-from dataclasses import dataclass
-from datetime import datetime
-from uuid import UUID
-
-__all__ = ["FooExportRow"]
-
-
-@dataclass(frozen=True)
-class FooExportRow:
-    id: UUID
-    name: str
-    created_at: datetime
-```
-
-```python
-# src/myapp/domain/audit/audit_event.py
-from dataclasses import dataclass
-from uuid import UUID
-
-__all__ = ["AuditEvent"]
-
-
-@dataclass(frozen=True)
-class AuditEvent:
-    subject_id: UUID
-    action: str
-```
-
-`FooExportRow` is a read-model rather than a value object — it carries `created_at`, which no entity
-does (Entity rule 6) — and takes the same frozen form (`hex-application`, read models).
 
 ### Enum — `StrEnum` (the default, for string-valued sets)
 
@@ -257,55 +143,11 @@ class Foo(StrEnum):
     C = "C"
 ```
 
-### Enum — `StrEnum` with a pure-logic method
+An enum may carry a pure method over its own values — ordering, ranking, membership — with no IO and
+no other aggregate; the rank-ordered `Role` in `hex-restapi-auth` is the worked one, its self-reference
+quoted because the catalogue bans `from __future__ import annotations`.
 
-Pure logic means it depends only on the enum's own values: no IO, no other aggregates. The common
-shapes are ordering, ranking and membership tests.
-
-```python
-from enum import StrEnum
-
-__all__ = ["Foo"]
-
-_RANK: dict[str, int] = {"A": 1, "B": 2, "C": 3}
-
-
-class Foo(StrEnum):
-    A = "A"
-    B = "B"
-    C = "C"
-
-    def satisfies(self, required: "Foo") -> bool:
-        return _RANK[self.value] >= _RANK[required.value]
-```
-
-**The self-reference is quoted.** `required: "Foo"` inside `Foo`'s own body, because the name is not
-bound until the class statement finishes and the catalogue bans `from __future__ import annotations`
-(`python-style`). An unquoted `Foo` there raises `NameError` at class-definition time on the Python
-versions this catalogue targets.
-
-A module-level constant like `_RANK` is allowed only when it encodes a pure mapping the enum uses. See
-`python-packaging` for its visibility and exports.
-
-**`_RANK` is method-body logic, not part of the enum's declaration.** The template shows the *filled*
-end state: `_RANK` exists only to serve `satisfies` and is written together with that method's body,
-distilled from its rule ("rank order C >= B >= A"). The type's public shape is its members
-plus the method signature; `_RANK` is implementation, the same way a repository's
-`_map_integrity_error` or a module-level `logger` is.
-
-### Enum — `Enum` (non-string values)
-
-```python
-from enum import Enum
-
-__all__ = ["Foo"]
-
-
-class Foo(Enum):
-    A = 1
-    B = 2
-    C = 3
-```
+A set whose values are genuinely numeric is a plain `Enum` of the same form (Enum rule 1).
 
 ### Filter sort enum
 
@@ -328,9 +170,7 @@ class FooSort(StrEnum):
 ### Filter record
 
 ```python
-from dataclasses import dataclass, field
-from datetime import date
-from uuid import UUID
+from dataclasses import dataclass
 
 from .foo_sort import FooSort
 
@@ -339,9 +179,7 @@ __all__ = ["FooListFilter"]
 
 @dataclass(frozen=True)
 class FooListFilter:
-    bar_ids: frozenset[UUID] = field(default_factory=frozenset)
-    created_from: date | None = None
-    created_to: date | None = None
+    name: str | None = None
     sort: FooSort = FooSort.CREATED_AT_DESC
     limit: int = 50
     offset: int = 0
@@ -360,9 +198,6 @@ Inside this skill, pick by what the thing *is*:
 - An env-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable
   variant** of a value object, not a service and not a settings class.
 
-A DTO crossing the application boundary → `hex-application`. A filter record may be reused there; the
-query DTO wraps it plus authorization context.
-
 One case is neither a shape here nor a neighbour's:
 
 - A predicate over a field carried by **both** the entity and a read-model of the same aggregate →
@@ -374,7 +209,7 @@ One case is neither a shape here nor a neighbour's:
   Not a domain service either: the entity rules hand a service the rules an entity *cannot* see, and
   this one reads one field of one aggregate.
 
-  The shape recurs by convention rather than by accident — audit timestamps are never entity fields, so
+  The shape recurs by convention rather than by accident — row timestamps are never entity fields, so
   a read that needs them comes back as a read-model, and the field then sits on two types.
 
 ### Entity
@@ -393,7 +228,7 @@ One case is neither a shape here nor a neighbour's:
    domain service (`hex-domain-service`). Tunable thresholds → the tunable variant above. An entity only
    checks invariants it can see from its own fields.
 5. **No inheritance.** No base classes, no `ABC`. Compose by holding other domain objects.
-6. **Audit timestamps are never entity fields.** `created_at` / `updated_at` are a DB-managed table
+6. **Row timestamps are never entity fields.** `created_at` / `updated_at` are a DB-managed table
    convention. A read that needs them returns a read-model DTO projected from the row.
 
 ### Value object
@@ -431,8 +266,7 @@ One case is neither a shape here nor a neighbour's:
 4. **Methods only when pure.** Anything touching another aggregate, IO or external state is not an enum
    method. Methods receive `self` and other enum values only.
 5. **No custom base class.** Inherit from `StrEnum` or `Enum` directly; no "abstract enum" hierarchies.
-6. **No constants pretending to be enums.** `class Status: ACTIVE = "active"` is banned everywhere, not
-   just in the domain.
+6. **No constants pretending to be enums** (`python-style`).
 
 ### Filter record
 
@@ -483,5 +317,5 @@ and imports, including the module-level predicate function above.
 - Asked for a filter-record method that translates the filter to SQL → stop, use `hex-persistence`.
 - A filter record is asked to validate cross-aggregate state, or to range-check its own fields → stop, use `hex-application`.
 - One filter needs both `limit`/`offset` and `cursor` → stop, pick one with the user.
-- `created_at` / `updated_at` are put on an entity → stop, project the DB-managed audit timestamps into a read-model DTO instead.
+- `created_at` / `updated_at` are put on an entity → stop, project the DB-managed row timestamps into a read-model DTO instead.
 - Asked for enum values persisted to a SQL column → stop, use `hex-persistence` for the column type and its mapping; the enum still belongs here.

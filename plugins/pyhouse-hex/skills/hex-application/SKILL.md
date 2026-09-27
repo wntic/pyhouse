@@ -11,23 +11,15 @@ data. Both are thin — a frozen DTO plus a handler class whose only public meth
 
 ## When to use vs. neighbours
 
-Inside this skill, pick by what the change does:
+Command or query, an undo-on-failure body or a unit of work → Command or query, at the head of Rules;
+whether a query returns the entity or a read-model → Read models, beside it. Outside it:
 
-- A mutation — create, update, delete, rename, move → **command**, a frozen command DTO plus its handler.
-- A read — get, list, count, search, detect → **query**, a frozen query DTO plus its handler, and a `*Result` DTO when the response is more than one entity.
-- An authorization-scoped read ("things I can see") → **query**, whose DTO carries `caller_id`.
-- A read needing audit timestamps, a computed or denormalized value, or a join the entity does not carry → still a query, returning a **read-model** projected directly from the row; see the read/write split under Rules.
-
-Outside it:
-
-- The mutation performs an external IO step before the DB write and must undo it on failure → still a command, but the handler body follows `hex-patterns` (the compensating-transaction form).
-- Two or more repositories must commit atomically → still a command, with a unit-of-work factory injected that the handler opens itself; see `hex-patterns`.
 - The entity, value object or filter record the DTOs mention → `hex-domain-model`.
 - The `IFooRepository` a handler depends on → `hex-domain-ports`.
 - A rule needing another aggregate's state, which the handler calls rather than inlines → `hex-domain-service`.
 - Turning the return value into JSON → `hex-restapi-schema`. A handler never returns a Pydantic model.
 - The route that calls this handler and resolves it from the container → `hex-restapi-endpoint`.
-- Where `caller_id` comes from, and the route dependency that supplies it → `hex-restapi-auth`.
+- Where the caller's identity comes from under the HTTP binding, and the route dependency that supplies it → `hex-restapi-auth`.
 - Binding the handler in the composition root → `hex-wiring`.
 - Unit-testing the handler against in-memory fakes → `hex-test-application-handler`.
 - The path these files land on and the names they take → `hex-conventions` and `naming`.
@@ -53,21 +45,19 @@ src/myapp/application/foos/
 
 ### Command DTO
 
-The authenticated form, carrying `caller_id`. A command reached only by anonymous routes, or any command
-in an app with no auth, drops the field entirely — see the auth-derived-fields rule.
+The caller's identity and scope, where the caller is authenticated, are fields the entrypoint adds —
+Caller-derived fields, under Rules. The templates show a service whose caller is not authenticated.
 
 ```python
 from dataclasses import dataclass
-from uuid import UUID
 
 __all__ = ["CreateFooCommand"]
 
 
 @dataclass(frozen=True)
 class CreateFooCommand:
-    caller_id: UUID
     name: str
-    bar_id: UUID
+    note: str | None = None
 ```
 
 ### Command handler — create (returns `UUID`)
@@ -91,9 +81,9 @@ class CreateFooHandler:
         self._repo = repo
 
     async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(id=uuid.uuid4(), name=cmd.name, bar_id=cmd.bar_id)
+        foo = Foo(id=uuid.uuid4(), name=cmd.name, note=cmd.note)
         await self._repo.create(foo)
-        logger.info("foo_created", foo_id=str(foo.id), caller_id=str(cmd.caller_id))
+        logger.info("foo_created", foo_id=str(foo.id))
         return foo.id
 ```
 
@@ -111,10 +101,9 @@ __all__ = ["UpdateFooCommand"]
 
 @dataclass(frozen=True)
 class UpdateFooCommand:
-    caller_id: UUID
     id: UUID
     name: str | None = None
-    bar_id: UUID | None = None
+    note: str | None = None
 ```
 
 ```python
@@ -140,10 +129,10 @@ class UpdateFooHandler:
         changed = replace(
             foo,
             name=foo.name if cmd.name is None else cmd.name,
-            bar_id=foo.bar_id if cmd.bar_id is None else cmd.bar_id,
+            note=foo.note if cmd.note is None else cmd.note,
         )
         await self._repo.update(changed)
-        logger.info("foo_updated", foo_id=str(cmd.id), caller_id=str(cmd.caller_id))
+        logger.info("foo_updated", foo_id=str(cmd.id))
 ```
 
 `replace` builds a new entity through the constructor, so the entity's invariants run on the changed
@@ -160,7 +149,6 @@ __all__ = ["DeleteFooCommand"]
 
 @dataclass(frozen=True)
 class DeleteFooCommand:
-    caller_id: UUID
     id: UUID
 ```
 
@@ -182,10 +170,10 @@ class DeleteFooHandler:
 
     async def execute(self, cmd: DeleteFooCommand) -> None:
         await self._repo.delete(cmd.id)
-        logger.info("foo_deleted", foo_id=str(cmd.id), caller_id=str(cmd.caller_id))
+        logger.info("foo_deleted", foo_id=str(cmd.id))
 ```
 
-### Query DTO — not authorization-scoped
+### Query DTO
 
 ```python
 from dataclasses import dataclass
@@ -197,23 +185,6 @@ __all__ = ["ListFoosQuery"]
 
 @dataclass(frozen=True)
 class ListFoosQuery:
-    filter: FooListFilter
-```
-
-### Query DTO — authorization-scoped
-
-```python
-from dataclasses import dataclass
-from uuid import UUID
-
-from myapp.domain.foos import FooListFilter
-
-__all__ = ["ListFoosQuery"]
-
-
-@dataclass(frozen=True)
-class ListFoosQuery:
-    caller_id: UUID
     filter: FooListFilter
 ```
 
@@ -301,7 +272,7 @@ class ListFoosResult:
   the single expression that mints the id. What does not is that the id exists before the write and that
   the command returns it; a store-minted key is the one case that moves the mint into the repository, and
   the handler then returns what the write handed back. Pick one scheme and apply it to every template at
-  once (`hex-conventions`).
+  once (Command handler rule 8).
 
 ## Rules
 
@@ -314,7 +285,6 @@ Artifact names follow `naming`; module boundaries follow `python-packaging`.
 
 - A mutation — create, update, delete, rename, move → **command**.
 - A read — get, list, count, search, detect → **query**.
-- An authorization-scoped read ("things I can see") → **query**, whose DTO carries `caller_id`.
 - The mutation performs an external IO step before the DB write and must undo it on failure → still a
   command, but the handler body follows `hex-patterns` (the compensating-transaction form).
 - Two or more repositories must commit atomically → still a command, with a unit-of-work factory
@@ -326,36 +296,29 @@ Artifact names follow `naming`; module boundaries follow `python-packaging`.
 
 The domain entity is the **write** model: commands load and mutate it, and it carries the invariants.
 
-A read that needs more than the entity exposes — **audit timestamps** (`created_at` / `updated_at`,
-which are deliberately *not* entity fields), denormalized or computed values, a join across aggregates,
-date-range filtering — returns a **read-model DTO** that the repository projects **directly from the
+A read that needs more than the entity exposes — **row timestamps** (`created_at` / `updated_at`,
+which are deliberately *not* entity fields), denormalized or computed values, a join across
+aggregates — returns a **read-model DTO** that the repository projects **directly from the
 row**, bypassing the entity.
 
-So "the screen shows a creation date" or "filter by `updated_at`" is satisfied by a read-model plus a
-repository filter, **never** by pulling the timestamp onto the aggregate — that would make the write
-model carry display-only state.
+So "the screen shows a creation date" is satisfied by a read-model, **never** by pulling the timestamp
+onto the aggregate — that would make the write model carry display-only state.
 
 The read-model is a `@dataclass(frozen=True)` in `domain/<subdomain>/` (`FooSummary`, `FooListRow`),
-carrying the displayed columns including the audit fields, and the repository protocol method returns
+carrying the displayed columns including the timestamps, and the repository protocol method returns
 it. It stays a *domain* type so the repository can return it without importing `application` — a
 repository may never return an application or Pydantic DTO. Do not reach for a heavyweight value object
-per read, and do not bolt audit fields onto the entity to make a read easier.
+per read, and do not bolt timestamps onto the entity to make a read easier.
 
-### Auth-derived fields (both sides)
+### Caller-derived fields
 
-1. **`caller_id: UUID` is the first field of a command DTO — when the command runs behind an
-   authenticated route.** Whether an app has auth at all is a property of its routes
-   (`hex-restapi-auth`), so the actor is conditional: a command reached only by anonymous routes,
-   or any command in an app with no auth, has no caller to thread and **omits `caller_id`** entirely.
-   The templates show the authenticated form. On a query DTO the same field appears **only when the read
-   is authorization-scoped**; a non-scoped read omits it.
-2. **Every auth-derived field is stamped by the endpoint from the token, never read from the request.**
-   A multi-tenant app threads more than the actor: the tenant or scope identifier the credential carries
-   — `tenant_id` here, whatever the project calls it — is a field on the DTO set by the endpoint from
-   `CurrentUser` (`tenant_id=user.tenant_id`), exactly like `caller_id=user.id` — never from the body or
-   path, because a client must not choose its own tenant or read another's data. The handler then scopes
-   every repository call by it. Auth-derived inputs come from the token; request-derived inputs from the
-   body or path.
+1. **Where the caller is authenticated, the entrypoint sets `caller_id: str` — the issuer's opaque
+   subject — as the first field of the command or query, from whatever authenticated the caller, never
+   from caller input; a tenant or scope field likewise, and the handler scopes every repository call by
+   it, so a row outside the caller's scope is not found — the not-found error, never a forbidden one.** An unauthenticated caller has
+   neither field; how the HTTP binding supplies them is `hex-restapi-auth`.
+2. **`caller_id` is logged on the success event; it is persisted, or used to scope reads, only where the
+   aggregate records who owns or acted on it** — then it is an entity field and a column like any other.
 
 ### Command DTO
 
@@ -368,7 +331,7 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
 1. **`@dataclass(frozen=True)`.** Always frozen.
 2. **No methods.** Just data.
 3. **Domain filter records are passed by reference, not flattened.** Carry `filter: FooListFilter`, not
-   loose `bar_ids` / `created_from` fields.
+   its fields copied loose onto the query.
 
 ### Result DTO (when present)
 
@@ -377,7 +340,7 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
    library. Either one hands the entrypoint's or the store's vocabulary to every caller of the use case.
 3. **Read-only collection typing:** follow `python-style`. Pagination metadata (`total`, `next_cursor`) lives here
    too.
-4. **A read that must expose an audit column returns a read-model, not the entity** — see the read/write
+4. **A read that must expose a row timestamp returns a read-model, not the entity** — see the read/write
    split above.
 
 ### Command handler
@@ -400,7 +363,7 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
    mutate-and-return-a-view operation would straddle the command/query split.
 4. **No business logic in the handler.** Build and mutate domain entities; let `__post_init__` and domain
    services enforce the rules. The handler orchestrates: load, mutate, call the repository.
-   **Normalization — strip, lowercase, canonicalize — is a domain concern** living in the entity's
+   **Normalization — strip, lowercase, reformat — is a domain concern** living in the entity's
    `__post_init__` or a value object. Pass `cmd.name`, not `cmd.name.strip()`.
 5. **No `try/except`, with two sanctioned exceptions.** (a) The compensating-transaction pattern, see
    `hex-patterns`. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
@@ -410,13 +373,19 @@ per read, and do not bolt audit fields onto the entity to make a read easier.
    The `except` writes the caller-visible state and **re-raises**. Follow `python-style`
    for logging and `exception-catalog` for exception propagation and boundary translation. Anything beyond
    these two stays forbidden.
-6. **Command success logging:** follow `python-style`; include
-   `caller_id=str(cmd.caller_id)` **only when the command carries it**.
+6. **Command success logging:** follow `python-style`; include the caller's identity **only when the
+   command carries one**.
 7. **No transaction management inside the handler — the default.** A handler that writes through one
    repository leaves the transaction to it: the standalone repository form opens and commits its own
    (`hex-persistence`). The one earned exception is a handler that writes through **two or more**
    repositories atomically: it opens a unit of work itself, one per `execute`, from an injected factory —
    `hex-patterns` owns that form.
+8. **Entity ids are `uuid.uuid4()`, minted by the handler before the write, unless the command carries
+   an identity its caller supplied** — one scheme across every
+   template, production and test alike. Stdlib only, on the interpreter floor `python-style` sets;
+   `uuid.uuid7()` is standard library only from **Python 3.14**. Time-ordered v7 ids index better when
+   rows created together are read together, and a project that wants them takes a third-party generator
+   and applies it everywhere at once — never in half the templates.
 
 ### Query handler
 
@@ -463,7 +432,7 @@ provider that constructs a handler is `hex-wiring`.
 - A command handler is asked to return a list, a `Result`, or the entity → stop, a mutation returns
   the affected id or nothing; write a query handler beside it and let the caller re-read.
 - A query handler is asked to mutate state → stop, split the mutation out into a command handler.
-- A handler is asked to catch a `DomainError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
+- A handler is asked to catch a `MyappError` and translate it → stop, use `exception-catalog` and `hex-restapi-app`.
 - A handler is asked to validate cross-aggregate state inline → stop, use `hex-domain-service` and inject it.
 - Several writes must be atomic → stop, use `hex-patterns` for the unit-of-work factory the handler opens.
 - An external IO step comes before the DB write → stop, use `hex-patterns` for the command
@@ -471,4 +440,4 @@ provider that constructs a handler is `hex-wiring`.
 - Asked for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.
 - A `*Result` grows past about three fields and starts looking like a different concept → stop, model the
   response as a domain value object or a read-model and return that.
-- A query handler is asked to log a read event → stop, a read is not a business event; an audit trail of who read what belongs to the entrypoint, not to the handler.
+- A query handler is asked to log a read event → stop, a read is not a business event; a record of who read what belongs to the entrypoint, not to the handler.

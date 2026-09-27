@@ -19,21 +19,20 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
 - The architecture family of the members going into the workspace is not settled →
   `architecture-choice` decides hexagonal versus flat per distribution; nothing here depends on the
   answer.
-- Adding the shared `Table` definitions, engine, and bulk-write helpers → not this skill; what a
-  storage package holds is the member family's own persistence skill. This skill only creates the empty
-  `packages/myschema/` shell.
+- Where members share a store, what its owning library holds → the member family's persistence skill.
 - Adding one member's internal layout — its layer or role packages, its clients, its work units → not
   this skill, use that member's architecture skill.
-- Choosing a member's trigger — a loop, a cron entry or a timer by default, durable execution only once
-  it is earned → the member family's entrypoint skill (`flat-entrypoint`, in the `pyhouse-flat`
-  plugin, is one).
-- Bootstrapping one member's dependency substrate and tool configuration → the member family's setup
-  skill (`hex-project-setup`, in the `pyhouse-hex` plugin, is one, and the flat family's is
-  `flat-project-setup`, in the `pyhouse-flat` plugin). Nothing below needs it: the tooling
-  values this root settles are stated here, and the interpreter floor behind them is `python-style`'s.
-- The pytest plugin module the root `addopts` loads, and the fixtures inside it → the member family's
-  integration-setup skill (`flat-test-integration-setup`, in the `pyhouse-flat` plugin, or
-  `hex-test-integration-setup`, in `pyhouse-hex`).
+- Choosing a runnable member's trigger → the member family's entrypoint skill (`flat-entrypoint`, in the
+  `pyhouse-flat` plugin, is one).
+- What the linter, the type checker and the line length are set to, and how dependencies are declared
+  → `python-toolchain`; this root is only where those values are written, once. The interpreter floor
+  behind them is `python-style`'s.
+- Which runtime libraries a member's roles bring → the member family's setup skill
+  (`hex-project-setup`, in the `pyhouse-hex` plugin, is one, and the flat family's is
+  `flat-project-setup`, in the `pyhouse-flat` plugin).
+- Where members share a store, the pytest plugin module the root `addopts` loads, and the fixtures
+  inside it → the member family's integration-setup skill (`flat-test-integration-setup`, in the
+  `pyhouse-flat` plugin, or `hex-test-integration-setup`, in `pyhouse-hex`).
 - Building a single standalone distribution with no siblings and no shared store → not this skill; it
   needs no workspace root at all. Its own architecture skill lays its package skeleton, including the
   data-access role — neither assumes anything above the distribution.
@@ -47,7 +46,7 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
 myrepo/
 ├── pyproject.toml            # workspace container + shared tooling config; NO runtime code
 ├── Makefile
-├── docker/
+├── docker/                   # only where a runnable member runs in a container
 │   ├── local.compose.yaml    # development — what every make target drives
 │   └── compose.yaml          # deployment template — registry images, resource limits
 ├── tests/
@@ -55,8 +54,7 @@ myrepo/
 ├── packages/
 │   └── myschema/             # a library the runnable members depend on
 └── services/
-    ├── myapp/                # one runnable distribution per directory
-    └── <second-service>/
+    └── myapp/                # one runnable distribution per directory
 ```
 
 **A library that drags a heavy dependency in is not the same member as one that does not.** A library
@@ -64,18 +62,6 @@ owning the schema pulls in the database driver and the migration tool; a member 
 logging setup should not inherit those. When the second cross-cutting helper appears, that is the signal
 for a second `packages/` member, not a bigger first one — and a repository with nothing cross-cutting yet
 has only the one.
-
-**Where members share a datastore, its fixtures are not at the root.** They live in a pytest plugin
-module beside the owning library's own tests, `packages/myschema/tests/myschema_testing.py`, loaded
-repository-wide from the root `pyproject.toml` with `-p myschema_testing` in `addopts` and
-`pythonpath = ["packages/myschema/tests"]`. A plugin is registered once per session, so every member
-shares one container. What goes inside that module is the member family's integration-setup skill's;
-what this root owns is the two settings that load it.
-
-The templates below show the workspace whose members share a store, because it is the one with the
-most to write down. **A workspace whose members share no store drops every line that serves it** — the
-`-p` option and `pythonpath` in the test configuration, the datastore service in the compose file, and
-the `migrate` target — and everything else stands unchanged.
 
 Root `pyproject.toml`:
 
@@ -88,32 +74,20 @@ requires-python = ">=3.13"
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
 
-[tool.ruff]
-line-length = 120
-target-version = "py313"
-
-[tool.mypy]
-python_version = "3.13"
-strict = true
+# [tool.ruff*] and [tool.mypy]: python-toolchain's tables, whole, written here once
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib -p myschema_testing"
-pythonpath = ["packages/myschema/tests"]
+addopts = "--import-mode=importlib"
 testpaths = ["packages", "services", "tests"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
-asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
 
 [dependency-groups]
-dev = ["ruff", "mypy", "pytest", "pytest-asyncio", "testcontainers"]
+dev = ["ruff", "mypy", "pytest"]
 ```
 
 The test configuration is whole here and nowhere else (rule 6). `--import-mode=importlib` is what lets
-two members each keep a `test_exceptions.py` without a collision; the two session loop scopes let every
-test share the session-scoped engine the shared plugin opens; `filterwarnings = ["error"]` is
-`test-principles`' rule that a warning fails the run. Each of those is owned where it is explained —
-this root only has to carry all of them at once.
+two members each keep a `test_exceptions.py` without a collision; `filterwarnings = ["error"]` is
+`test-principles`' rule that a warning fails the run.
 
 The root project is a **workspace container plus shared tooling config, with no runtime code of its
 own**. Nothing importable lives at the root; every line of shipped code sits inside a member.
@@ -121,13 +95,8 @@ own**. Nothing importable lives at the root; every line of shipped code sits ins
 **The tooling values above are the project's to choose; what the workspace fixes is that they are chosen
 once, at the root, and inherited.** A member never restates them — a second `line-length` in a member's
 `pyproject.toml` is how two halves of one workspace start disagreeing about what a diff should look like.
-`line-length = 120` is the value this catalogue's templates are written to; **88** is the linter's and
-the wider ecosystem's default, and the argument between them turns on whether there is an existing
-tree to reformat. Pick either, write it at the root, and stop arguing. The interpreter floor is
-settled at the root the same way, and `python-style` owns it: a new workspace starts at the house floor
-of 3.13, an existing one keeps its own, a floor is raised deliberately and never lowered, and the three
-settings that name it — `requires-python`, the linter's `target-version` and the type checker's
-`python_version` — stay in step here and nowhere else.
+The full tool tables and the choice of line length are `python-toolchain`'s, the interpreter floor
+`python-style`'s; the workspace's part is only that they are written here, once.
 
 Each member's `pyproject.toml` declares its workspace dependencies explicitly:
 
@@ -150,24 +119,17 @@ The member carries no `requires-python` and no tool configuration of its own: th
 and a member that restates the floor is the first half of a workspace that disagrees with itself
 (rule 6).
 
-`docker/local.compose.yaml`, with the datastore the members share:
+`docker/local.compose.yaml`:
 
 ```yaml
 name: myrepo
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    profiles: ["postgres", "myapp", "second-service"]
-    environment:
-      POSTGRES_USER: myrepo
-      POSTGRES_PASSWORD: myrepo
-      POSTGRES_DB: myrepo
-    ports: ["127.0.0.1:5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
-
-volumes:
-  pgdata:
+  myapp:
+    build:
+      context: ..
+      dockerfile: services/myapp/Dockerfile
+    profiles: ["myapp"]
 ```
 
 **Pin `name:` explicitly.** Without it compose names the project after the directory holding the
@@ -181,7 +143,7 @@ and nothing else.
 `Makefile`:
 
 ```makefile
-.PHONY: help install lint fmt typecheck test verify migrate run-myapp
+.PHONY: help install lint fmt typecheck test verify run-myapp
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -204,25 +166,34 @@ test:
 
 verify: lint typecheck test  ## run before pushing
 
-migrate:  ## the ONLY sanctioned way schema changes reach a database
-	cd packages/myschema && uv run alembic upgrade head
-
 run-myapp:
 	cd services/myapp && uv run python -m myapp
 ```
 
 Two details in there are load-bearing. `uv sync --all-packages` is needed because a bare `uv sync`
 syncs only the root project and leaves every member's dependencies uninstalled. And `run-*` targets
-`cd` into the member directory first: a member's settings and the shared library's settings both
-resolve their dotenv files relative to the process working directory, so a member launched from the
-repo root reads none of them.
+`cd` into the member directory first: where a member's settings, and a shared library's that reads its
+own stem, resolve their dotenv files relative to the process working directory, a member launched from
+the repo root reads none of them.
+
+**Where members share a store, add what serves it — and nothing above changes.** The compose file gains
+the datastore as a service whose `profiles` name every runnable member that uses it, on a named volume.
+The Makefile gains a `migrate` target, the only sanctioned way schema changes reach a database, which
+`cd`s into the owning library before running the migration tool (rules 3 and 4). The store's test
+fixtures live in a pytest plugin module beside that library's own tests —
+`packages/myschema/tests/myschema_testing.py` — loaded repository-wide by `-p myschema_testing` in
+`addopts` and `pythonpath = ["packages/myschema/tests"]`; a plugin is registered once per session, so
+every member shares one container. What goes inside that module, and the test dependencies and
+event-loop scopes it needs, are the member family's integration-setup skill's; this root owns only the
+two settings that load it. Infrastructure with its own schema owner — a workflow engine, a metrics store
+— gets its own datastore and its own named volume, never the members' database.
 
 ## Other bindings
 
 - **Another workspace tool in place of uv.** Poetry path dependencies, PDM local sources, Pants and
   Bazel all express the same two things: the member list declared once at the root, and each member
   pinning its in-repo dependencies through an edge the tool itself resolves. The member-glob syntax,
-  the lock file and the sync command change; rules 1–9 do not. Rule 5 is the one to carry over
+  the lock file and the sync command change; rules 1–8 do not. Rule 5 is the one to carry over
   literally — whatever the tool, the edge is *declared*, never faked with a path insert.
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
   `invoke` and `nox` give the same one-discoverable-command-set-at-the-root property; a dev Kubernetes
@@ -252,7 +223,7 @@ repo root reads none of them.
    same ownership obligation from a member's side, under `flat-persistence`, in the `pyhouse-flat`
    plugin.
 4. **One migration history per store is applied by one command, and that command runs from the member
-   that defines the schema** — `make migrate` here, which `cd`s into the owning member. What makes the
+   that defines the schema** — a `make migrate` target that `cd`s into the owning member. What makes the
    working directory load-bearing is a property of members, not of storage: a migration run from inside
    a *dependant* resolves its connection settings from that member's environment and working directory,
    so two members can apply one migration history to two different databases and neither of them
@@ -262,24 +233,19 @@ repo root reads none of them.
    dependency the packaging tool cannot see is one the installer, the type checker and CI each resolve
    differently, and the disagreement surfaces as an import error on somebody else's machine.
 6. **Tooling values are settled once at the root and inherited, never re-argued in a member.** Line
-   length, the interpreter floor, the lint target, the test-runner configuration: the *values* are the
-   project's to choose, and what the workspace fixes is that they live in one file. A member overrides
-   one only for a genuine per-package exception, and never the test-runner's own configuration block —
+   length, the interpreter floor (whose value is `python-style`'s), the lint target, the test-runner
+   configuration: the *values* are the project's to choose, and what the workspace fixes is that they
+   live in one file. A member overrides one only for a genuine per-package exception, and never the test-runner's own configuration block —
    declaring it in a member moves the runner's rootdir down to that member, and every root-relative
    path the test configuration carries then resolves against a directory nobody wrote it for.
 7. **Runnable members never import each other.** Two of them needing the same code means that code
    belongs in a library member. A deployable-to-deployable import is what turns a workspace of
    independent deployables into one program.
-8. **Each runnable member is launched from its own directory** — `cd services/<member> && uv run python
-   -m <member>`, which is what `make run-<member>` does. Both a member's settings and a shared library's
-   resolve their env files against the process working directory, so a member started from the repo
-   root silently reads none of them. Migrations and syncs have no such restriction.
-9. **Infrastructure with its own schema owner gets its own datastore.** A workflow engine, a metrics
-   store or a queue that ships its own migration tool does not share the application's database: the
-   two have opposite workload profiles and different backup value, and the split means no maintenance
-   command aimed at one can reach the other's data. Give it a separate compose service and a
-   separately named volume, and never clean up with `compose down -v`, which drops every volume in the
-   project.
+8. **Where a member resolves settings files against the working directory, it is launched from its own
+   directory** — `cd services/<member> && uv run python -m <member>`, which is what `make run-<member>`
+   does. A member's settings, and a shared library's that reads its own stem, then resolve their env
+   files against the process working directory, so a member started from the repo root silently reads
+   none of them. Migrations and syncs have no such restriction.
 
 ## Hard stops
 
