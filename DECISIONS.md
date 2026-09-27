@@ -1394,3 +1394,24 @@ paragraph in `flat-test-persistence`, and the helper wording in `flat-persistenc
 its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
+
+### D116 — A raise path expects the narrowest class and the field that distinguishes it
+`test-principles`' *Assert strength* had five recipes and no word on the raise path, so the rule that a
+test never expects a bare `Exception` lived only as family restatements: a hard stop in
+`flat-test-persistence` and a clause in `hex-test-capability-adapter` rule 7. Recipe 6 now owns it for
+any project: expect the narrowest class the contract raises, never `Exception` or a base shared with
+unrelated failures, and assert the one attribute that distinguishes the failure from others of its
+class — an error code, a context key, the offending input — or, where the class carries none, the part
+of its message that does, so a library or CLI tool with no error catalogue still applies it. The
+`flat-test-persistence` hard stop keeps only its family half (the driver's own class → expect the
+translated catalogue class, rule 7); `hex-test-capability-adapter` rule 7 keeps the probe's SDK class
+as the legitimate exception and cites recipe 6 for it; `hex-test-application-handler`'s list of the
+universal recipes names the sixth. Three `pytest.raises(NotFoundError)` blocks in
+`hex-test-repository-contract` asserted the class alone and now assert `context["id"]`, which the
+repository templates already set.
+**Reverse by:** deleting recipe 6 and restoring "Five recipes" in `test-principles`, restoring
+"expects a bare `Exception`, or the driver's own exception class → stop; name the catalogue exception
+the translator produces, or the test pins nothing the package promises." in `flat-test-persistence`,
+"never a bare `Exception`" in `hex-test-capability-adapter` rule 7, the five-item list in
+`hex-test-application-handler`, and the class-only `NotFoundError` asserts in
+`hex-test-repository-contract`.

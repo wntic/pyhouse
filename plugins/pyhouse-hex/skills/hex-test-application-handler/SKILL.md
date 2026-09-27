@@ -203,7 +203,7 @@ Consult `test-principles` for the testing constitution, `naming` for names, `pyt
 
 ### Assert strength on a handler over fakes
 
-The recipes that hold for any test — assert a survivor rather than an empty result, seed a second row where one cannot prove scoping, pick a non-constant input for an echoed field, assert no side effect on a reject path, and exercise a non-boundary case as well as the boundary — are `test-principles`'. Two are specific to a handler driven through in-memory fakes:
+The recipes that hold for any test — assert a survivor rather than an empty result, seed a second row where one cannot prove scoping, pick a non-constant input for an echoed field, assert no side effect on a reject path, exercise a non-boundary case as well as the boundary, and expect the narrowest class on a raise path — are `test-principles`'. Two are specific to a handler driven through in-memory fakes:
 
 1. **Pin PERSISTED state, not the in-memory entity.** Assert the write happened via the fake's `updated` call-record (`assert repo.updated == [id]`) AND read the value back (`(await repo.get_by_id(id)).name == "beta"`). The fake returns a COPY and records updates (the `Fakes` rules below), so a body that mutates the entity but never calls `update()` **reds**. Asserting on the entity object the handler mutated in place pins nothing (it observes the in-memory mutation, not the persist).
 2. **Distinguish `total` from `len(items)` with page size < match count.** A paged-list test where the page holds every match passes a body that returns `len(items)` as the total. Seed more rows than the page size so a `total = len(page)` bug reds.
