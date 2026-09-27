@@ -15,7 +15,7 @@ reads the number, not from how the project is built:
 
 | Does anything… | If no, these do not apply |
 |---|---|
-| depend on this by a version range, or install it from an index | rules 6, 7, 8, 9 — no one can be broken by a bump nobody reads |
+| depend on this by a version range, or install it from an index | rules 6, 7, 8, 9, 15 — no one can be broken by a bump nobody reads |
 | have a declared public surface | rules 6, 7, 8 — there is no promise for a change to break |
 | publish to an index that refuses re-uploads | rule 11 — a mistake is corrected in place, not outlived |
 | ship its members as separate artifacts | rule 13 — one artifact, one number |
@@ -128,15 +128,21 @@ That call takes the **distribution** name, which need not equal the import packa
    outright, and which of the two you get depends on the string. The rewrite is the dangerous case,
    because nothing is reported.
 
-4. **Three integer components, always.** A two-component number compares equal to its three-component
-   form but produces a different artifact filename, so both can exist and no resolver can tell them
-   apart. Nothing in the toolchain enforces the arity; this rule is the enforcement.
+4. **Three integer components, always, and nothing else in the release segment.** A two-component
+   number compares equal to its three-component form but produces a different artifact filename, so
+   both can exist and no resolver can tell them apart. Nothing in the toolchain enforces the arity;
+   this rule is the enforcement. No hyphen and no plus sign: a plus marks a locally patched rebuild,
+   changes ordering and is refused by public indexes, and identifying a build — a commit hash, a build
+   number, a branch — is the tag's and the artifact metadata's job, never the version's.
 
 5. **The `v` belongs on the tag and nowhere else.** In a version field it is ignored and stripped, so
    it is a character that survives review and not the build.
 
 6. **A change that can break a consumer who used only the declared surface is a major** — from
-   `1.0.0` on; below it, rule 9 says what it bumps. That includes removing or renaming a name in it,
+   `1.0.0` on; below it, rule 9 says what it bumps. The segment follows what changed to the declared
+   surface, never elapsed time or how much work the release was, and a major that looks alarming is
+   still the signal: shipping a break as a minor moves the breakage to a consumer who had no reason to
+   test for it. That includes removing or renaming a name in it,
    changing what a call returns, reordering or retyping its parameters, changing a default that a call
    omitting it depends on, and changing which exception a documented failure raises. Whether the
    consumer *deserved* to depend on it is not the test; whether the surface declared it is.
@@ -147,16 +153,20 @@ That call takes the **distribution** name, which need not equal the import packa
 
 8. **A fix that changes no declared behaviour is a patch.** A fix that changes declared behaviour is
    not a patch however small the diff, and a security fix that must break the surface is the deliberate
-   exception — take it, and say so in the note rather than pretending the bump was compatible.
+   exception — take it, and say so in the note rather than pretending the bump was compatible. A fix
+   ships as a patch, never a post-release, which sorts after the release it names and exists to correct
+   that release's notes.
 
 9. **`0.y.z` withholds the promise, deliberately, so below `1.0.0` a break bumps the minor.** Anything
    may change at any time there, and that is a legitimate state to ship in while nothing depends on
    you. It stops being legitimate the moment something does. A break moves `0.4.2` to `0.5.0`, as an
    addition does, and a fix moves the patch; no break carries the number to `1.0.0`. Reaching `1.0.0`
    is the act of making the promise — a decision for whoever makes it, never the consequence of one
-   breaking change, and not a milestone earned by maturity.
+   breaking change, and not a milestone earned by maturity. `0.y.z` kept while consumers are told the
+   surface is stable is neither state: make the promise or withdraw the claim.
 
-10. **A released version is immutable.** A correction is the next number. Where an index refuses to let
+10. **A released version is immutable, and so is its tag.** A correction is the next number — never a
+    re-upload with corrected contents, never a tag moved to another commit. Where an index refuses to let
     a filename be reused even after deletion, this stops being a convention and becomes the only
     available behaviour — the number is spent whether or not the artifact was right.
 
@@ -177,29 +187,12 @@ That call takes the **distribution** name, which need not equal the import packa
     kept deliberately — owes its consumers that sentence where they will read it before upgrading, not
     in a commit message.
 
+15. **The release note is written for the consumer deciding whether to upgrade** — what changed to the
+    declared surface, what a break asks of them, what is deprecated — never generated from the commit
+    log, which records how the work was done and does not answer that question.
+
 ## Hard stops
 
-- A version is being bumped because time passed, or because the release feels substantial → stop, the
-  segment states what changed to the declared surface, not how much work it was.
-- A breaking change is being shipped as a minor because a major looks alarming → stop, the major is
-  the signal; suppressing it moves the breakage to a consumer who had no reason to test for it. Below
-  `1.0.0` the minor is the right number (rule 9), and this stop does not apply.
-- A hyphen or a plus sign is being written into a version field → stop, that is not this ecosystem's
-  spelling; a plus sign in particular marks a locally patched rebuild, changes ordering, and is
-  refused by public indexes.
-- A commit hash, build number or branch name is being stamped into the version to identify a build →
-  stop, that is the tag's job and the artifact's metadata's job.
-- A post-release is being used to ship a bug fix → stop, it sorts after the release it names and is
-  meant for correcting a release's notes; ship a patch.
-- A published version is being re-uploaded with corrected contents → stop, publish the next number.
-- A tag is being moved to a different commit → stop, a tag names a release and a release is immutable;
-  cut the next one.
-- `0.y.z` is being kept while consumers are being told the surface is stable → stop, either make the
-  promise or withdraw the claim; both are honest and the combination is not.
-- A release note is being generated from the commit log → stop, a consumer reads it to decide whether
-  to upgrade, and a commit log does not answer that question.
-- A deprecation and the removal it announces are landing in the same release → stop, the deprecation
-  ships first, in its own release.
 - Asked which version of a dependency this project should require → stop, use `python-toolchain`; a
   floor states a known breaking boundary in someone else's history.
 - Asked what a package root may re-export, or what belongs to the public surface → stop, use
