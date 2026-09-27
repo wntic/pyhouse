@@ -120,8 +120,9 @@ guard does not apply: its failure propagates like any other step's.
 
 ## Template — unit of work, the protocol
 
+In `src/myapp/domain/uow/i_unit_of_work.py`:
+
 ```python
-# src/myapp/domain/uow/i_unit_of_work.py
 from types import TracebackType
 from typing import Protocol, Self
 
@@ -157,8 +158,9 @@ concrete `FooSessionRepository` would not satisfy `foos: IFooRepository`; a read
 
 ## Template — unit of work, the implementation (SQLAlchemy async session)
 
+In `src/myapp/infrastructure/postgres/sqlalchemy_unit_of_work.py`:
+
 ```python
-# src/myapp/infrastructure/postgres/sqlalchemy_unit_of_work.py
 from types import TracebackType
 from typing import Self
 

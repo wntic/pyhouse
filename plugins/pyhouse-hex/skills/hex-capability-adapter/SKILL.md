@@ -48,7 +48,7 @@ from datetime import datetime
 
 import httpx
 
-from myapp.domain.bars import BarToken  # the protocol (ICanFetchBarToken) is NOT imported — Rule 2
+from myapp.domain.bars import BarToken
 from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
 
 from .settings import BarGatewaySettings

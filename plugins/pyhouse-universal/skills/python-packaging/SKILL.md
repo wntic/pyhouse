@@ -58,12 +58,12 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 - A module filename must describe its contents, by the rules in `naming`.
 
 ```python
-# imports
-
+from dataclasses import dataclass
 
 __all__ = ["FooClient"]
 
 
+@dataclass
 class FooClient:
     pass
 ```

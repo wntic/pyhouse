@@ -31,8 +31,9 @@ revision's, character for character. Flipping only the `Table`'s range bound pas
 whole suite alike. Recent Alembic releases add an opt-in check-constraint comparison; where a project
 enables it, that part of the by-hand comparison goes.
 
+The revision, in `migrations/versions/<revision>_create_foos.py`:
+
 ```python
-# migrations/versions/<revision>_create_foos.py
 """create foos"""
 
 from collections.abc import Sequence

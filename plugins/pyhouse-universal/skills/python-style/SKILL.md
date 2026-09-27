@@ -285,6 +285,10 @@ never *what*, never a multi-line block. The scope of that rule is not uniform ac
 Structural labels are not comments worth writing: no `# Arrange` / `# Act` / `# Assert`, no `# imports`,
 no `# helpers`.
 
+A template's optional-line marker — `# only with …`, `# only where …` — is addressed to whoever copies
+the template, not to the project's reader: the line it marks is kept or dropped, and the marker itself
+never lands in the project's file.
+
 ## Rules
 
 1. Apply the union, generic and runtime-annotation forms in **Typing**, including validation models.

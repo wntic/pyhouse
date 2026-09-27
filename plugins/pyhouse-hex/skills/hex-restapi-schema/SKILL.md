@@ -53,7 +53,6 @@ class FooResponse(BaseModel):
     note: str | None
 
 
-# Offset paging; a filter that pages by cursor makes this `items`, `next_cursor`, `limit` (Rule 7).
 class FooListResponse(BaseModel):
     items: Sequence[FooResponse]
     total: int

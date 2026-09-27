@@ -94,17 +94,18 @@ database that already holds objects, a **baseline revision** (write-once). Witho
 integration suite dies at setup with `No 'script_location' key found`. Nothing in lint, type-check or the unit tier catches that; only a real
 run against a database does.
 
-The three config files are complete glue at the tree root and `migrations/`:
+The three config files are complete glue. `alembic.ini`, at the tree root:
 
 ```ini
-# alembic.ini  (tree root)
 [alembic]
 script_location = migrations
 prepend_sys_path = src
 ```
 
+`migrations/env.py` runs async and in online mode only — the app is always migrated against a live
+connection:
+
 ```python
-# migrations/env.py  — async, online mode only: the app is always migrated against a live connection.
 import asyncio
 
 from alembic import context
