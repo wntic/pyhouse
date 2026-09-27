@@ -18,7 +18,7 @@ handed it.
   shared library reads → `naming` (its rule 7 and **One environment prefix per settings class**).
 - A settings object, client or engine built at module level → `python-packaging` rule 8, which owns
   building nothing at import time; this skill owns where the settings object is built instead.
-- A field's annotation, and keeping a secret out of a log line → `python-style`.
+- A field's annotation → `python-style`; keeping a secret out of a log line → `python-logging`.
 - Building settings inside a test, `monkeypatch.setenv`, and dotenv files leaking into a test run →
   `test-principles`.
 - Renaming an environment variable that is already deployed → `naming`'s **Renaming**; the name is a

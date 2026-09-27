@@ -143,7 +143,7 @@ if __name__ == "__main__":
 Each block here exists only for a role the service has: a service with no store builds no engine, one with
 no upstream builds no transport.
 
-**Logging is configured once, first** (`python-style` rule 17). **The run is not guarded:** a failure
+**Logging is configured once, first** (`python-logging` rule 3). **The run is not guarded:** a failure
 propagates out of `main()` to a non-zero exit, which is how the scheduler that started the process
 sees it. `python -m myapp` runs the one process; a service with several defines each as a module in
 `entrypoints/` — the same module without its last two lines — declares one console script per module in

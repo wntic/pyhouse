@@ -1,6 +1,6 @@
 ---
 name: exception-catalog
-description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, and best-effort compensation as the one case a scope that re-raises stops a second failure. Where the error is logged is `python-style`.
+description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, and best-effort compensation as the one case a scope that re-raises stops a second failure. Where the error is logged is `python-logging`.
 ---
 
 # Exception Catalog
@@ -43,7 +43,7 @@ same rule under its own name (a process exit code, a gRPC status), or far more o
   plugin, same relationship.
 - Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
   `pyhouse-hex` plugin, which references the new `code`.
-- Where the error is logged and by whom → `python-style`.
+- Where the error is logged and by whom → `python-logging`.
 - Whether an undo step's own failure may be stopped while another failure propagates → this skill,
   **Swallowing, stopping, and best-effort compensation**; the handler shape that runs the undo is the
   architecture family's (`hex-patterns`, in the `pyhouse-hex` plugin, is one).
@@ -145,7 +145,7 @@ Three consequences:
   not `{"detail": "..."}`, `{"msg": "..."}` or a stringified exception.
 - **No secret goes in `context`.** A password, token, key or connection string placed there reaches the
   log line and, where the project renders errors, the response body — by construction, because both
-  render `context` verbatim. This is the same ban `python-style` states for a log line, and `context` is
+  render `context` verbatim. This is the same ban `python-logging` states for a log line, and `context` is
   the path around it.
 
 The skill does not enumerate the keys for each class; it fixes what kind of key belongs there and that
@@ -195,7 +195,7 @@ one becomes a silent wrong answer.
 **To swallow a failure is to catch it and neither re-raise it nor log it as the scope that stops it.**
 A swallowed failure leaves no trace: nothing above sees it and nothing records it, so the operation
 reads as a success it was not. It is never done. **Stopping a failure is different and legitimate** —
-the scope that catches it, logs it once under `python-style`'s allocation and carries on (a loop
+the scope that catches it, logs it once under `python-logging`'s allocation and carries on (a loop
 containing one failed run and moving to the next) is the scope every failure is traced to, and it is
 exactly where the log line belongs.
 
@@ -211,8 +211,8 @@ own failure is stopped in the scope that re-raises the original, on three condit
    method that drops its own failure in case some caller is compensating hides it from every caller
    that is not.
 2. **That scope logs the undo's failure once** — the only record that an effect outlived the operation
-   that made it. The event's level, fields and shape are `python-style`'s (`LOGGING.md`, **A failed
-   undo under compensation**).
+   that made it. The event's level, fields and shape are `python-logging`'s (**A failed undo under
+   compensation**).
 3. **The original failure is re-raised unchanged**, and only the undo call sits inside the inner
    `try` — never the original operation, and never a bare `except: pass`.
 
@@ -246,7 +246,7 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
     the test asserts on it and the layer that logs the error renders it as fields.
 12. **No secret in `context`.** A token, key, password or connection string placed there reaches the log
     line, and the response body where the project renders one, by construction — both render `context`
-    verbatim. `python-style` bans the same values from a log line; this is the path around it.
+    verbatim. `python-logging` bans the same values from a log line; this is the path around it.
 13. **A caught error is rendered in exactly one place, off the exception's own attributes.** Whatever
     the project shows the outside world — a response body, a message on stderr and an exit code, a
     failure record — one scope produces it by reading `code`, `str(exc)` and `context`, never by mapping
@@ -287,8 +287,6 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 - A failure caught and dropped — `pass`, a bare `return`, a default value — with no re-raise and no log
   line from the scope that stops it → stop; that is a swallow, and it reads as a success. Re-raise it,
   translate it, or stop it and log it once.
-- A scope that re-raises the original also logging a failure other than a failed undo under
-  best-effort compensation → stop; a re-raising scope stays silent, and the undo is the one exception.
 - A method drops its own failure because a caller might be compensating (a `*_best_effort` variant
   that catches internally), or an undo's failure is raised in place of the original → stop; the scope
   that caught the original stops the undo's failure and re-raises the original.
@@ -298,7 +296,5 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
   into the log line and the error response.
 - A shipped `code` is being changed → stop, that breaks every client keyed on it; add a new class.
 - The new class would duplicate an existing one's semantics → stop and reuse the existing one.
-- The error is being logged at the raise site *and* re-raised → stop, one entry per event
-  (`python-style`).
 - `http_status` is being added to a project with no HTTP surface → stop, nothing reads it; the `code`
   is the contract.

@@ -136,7 +136,7 @@ modules run once and deleted. **Say so and route nowhere: you do not need an arc
 this.** Write the script.
 
 The universal skills still bind, and they are the whole of what applies — `naming` for what things are
-called, `python-style` for typing and logging, `python-packaging` for module and import rules,
+called, `python-style` for typing, `python-logging` for logging, `python-packaging` for module and import rules,
 `python-settings` for anything read from the environment, `python-toolchain` for the lint and
 type-check configuration, `exception-catalog` for errors, `test-principles` for tests — and `python-versioning` the day it is
 distributed to anyone, which most scripts never are. Reaching for either family here produces
@@ -172,7 +172,7 @@ them. These are the ones that come up in Python:
 family and do not supply a layout — there is none here to give, and a hexagonal layer split dropped
 into a framework's tree fights the framework at every file.
 
-The universal skills still bind in full — `naming`, `python-style`, `python-packaging`,
+The universal skills still bind in full — `naming`, `python-style`, `python-logging`, `python-packaging`,
 `python-settings`, `python-toolchain`, `python-versioning`, `exception-catalog`, `test-principles` —
 and they are not a consolation prize; they are the rules that were never architectural in the first
 place. Where the framework dictates a module's name and contents — Django's `models.py` and

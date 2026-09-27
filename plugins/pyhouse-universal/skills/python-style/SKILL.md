@@ -1,21 +1,18 @@
 ---
 name: python-style
-description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, deciding what to log, or asking whether a comment belongs here. Owns the 3.13 house interpreter floor for a new deployable project, `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, when a type error may be silenced inline, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, a closed set of constants as an `Enum`, one structured event per occurrence, which scope logs an error, and logging configured once at the entry point and never inside a distributed package, whose interpreter floor is its consumers'. Whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
+description: Use when choosing a type annotation, deciding what shape a record takes as it crosses a boundary, or asking whether a comment belongs here. Owns the 3.13 house interpreter floor for a new deployable project and a distributed package's floor being its consumers', `X | None` over `Optional`, the ban on `from __future__ import annotations`, immutable collection types, when a type error may be silenced inline, the rule that a fixed-shape record is a declared type rather than a bare `dict` or tuple, which builtin represents an exact decimal quantity, an instant and an identifier, and a closed set of constants as an `Enum`. What to log and which scope logs it is `python-logging`; whether a constrained scalar also earns a named type of its own belongs to the architecture family; the error classes themselves are `exception-catalog`.
 ---
 
 # Python Style
 
 Project-wide rules that are stricter than CPython's defaults and hold **whatever the architecture is** —
-a hexagonal app, a flat-layered worker, or a standalone script. Three subjects: what the types look like,
-who logs what, and where a comment is warranted.
-
-Only one thing here varies from project to project, and it varies as a *consequence*, not as a separate
-rule: an error is logged once, by the scope that can add context and will not re-raise it — and where a
-project's errors propagate to decides which scope that is. Everything else is unconditional.
+a hexagonal app, a flat-layered worker, or a standalone script. Two subjects: what the types look like,
+and where a comment is warranted.
 
 ## When to use vs. neighbours
 
-- Writing or changing any annotation, or any log call → this skill.
+- Writing or changing any annotation, or any comment → this skill.
+- Any log call, event name or logging configuration → `python-logging`.
 - One class per module, `__all__`, the `__init__.py` re-export contract, import forms →
   `python-packaging`.
 - Deriving a concrete class or module name → `naming`; deriving a concrete artifact *path* in a
@@ -269,56 +266,6 @@ iteration over the members. This holds in every module, whatever layer it sits i
 The `typing.*` aliases have long been deprecated; `collections.abc` keeps imports consistent and avoids a
 needless `typing` import.
 
-## Logging
-
-A log line exists to be **queried** — filtered, grouped, counted, alerted on. Prose cannot be queried, so
-every occurrence worth recording produces **exactly one structured event**: a name plus fields, never a
-sentence with values spliced into it. Four obligations, whichever library provides them:
-
-- **One logger, obtained at module level.** Not per call, not per instance, and not a second logging
-  mechanism running alongside the first — two mechanisms split one event stream in half and neither half
-  is complete. `print()` is not one of them, outside a deliberate entrypoint debug path. **What a
-  program writes to stdout as its result is not a log event** — a CLI's report, a table, the JSON a
-  caller pipes onward is the product, and `print()` or `sys.stdout` is the right way to emit it; this
-  rule is about diagnostics, which never share that stream.
-- **One event per occurrence.** The same occurrence logged twice is two incidents on the dashboard.
-- **The event name is a stable contract** — snake_case, `<subject>_<past_tense_verb>`.
-- **Identifiers and counts ride as fields**, never interpolated into the message.
-
-**The logger is configured once, by the process's entry point, before its first event** — the sink, the
-format, the level, and the routing that brings records from libraries into the same stream. Nothing
-below the entry point configures logging, and a process whose entry point configures nothing emits
-whatever defaults the library happens to have. **A distributed package configures nothing at all**: it
-logs through the stdlib's `logging.getLogger(__name__)`, the one interface every importer already routes,
-adds no handler and sets no level, and leaves every one of those choices to the application that imports
-it.
-
-Plus one allocation rule — **an error is logged once, by the scope that can add context and will not
-re-raise it**, traced outward from the raise to the first scope that handles the exception rather than
-re-raising it. A scope that re-raises stays silent: the detail it would have logged rides in the
-exception instead — the fields in `context`, the original error in `__cause__` through `from exc`
-(`exception-catalog`) — where the scope that stops it will find both.
-
-A branch unreachable through the normal write path — a constraint standing as defence in depth behind a
-rule that already refuses — is **not** excused from logging: if it fired, the rule was bypassed, and that
-is the most interesting line in the log. It is logged by whoever stops it, under the same allocation as
-any other failure.
-
-**Read the sibling `LOGGING.md` before writing a log call, naming an event, or deciding which scope logs
-a failure.** Only this file is loaded automatically, so open it rather than working from the obligations
-above: it carries the `structlog` binding, the event-name and field contract with its worked examples,
-the never-log-and-re-raise case and its level guide, where a failed undo under compensation is logged, how
-to trace the allocation rule to its scope, and the stdlib `logging` binding a distributed package uses.
-
-### What never reaches a log line
-
-- A full request or response body → log identifiers and counts only; bodies may carry personal data.
-- A password, bearer token, API key or connection string → log a length or a hash, never the value.
-- A `UUID` object rather than `str(uuid_value)` → some sinks render it poorly.
-
-The first two reach an exception's `context` as well, because the scope that logs renders `context`
-verbatim into the log line. `exception-catalog` owns that statement of the rule.
-
 ## Comments
 
 Default to **no comments**. Where one is warranted it is a single short line of non-obvious *why* —
@@ -361,35 +308,13 @@ no `# helpers`.
 8. Apply **Protocols** only where the architecture calls for an interface; reserve runtime checking for
    the documented need.
 9. Check validation constraints and abstract collection imports against their dedicated typing sections.
-10. **One logger, obtained at module level, and one structured event per occurrence.** No `print()` for
-    diagnostics outside a deliberate entrypoint debug path, and no second logging mechanism beside the
-    configured one — two mechanisms split the event stream and neither half is complete. Output a program
-    writes to stdout as its result is not a log event, and this rule does not reach it.
-11. **Give every event a stable snake_case `<subject>_<past_tense_verb>` name, and carry its identifiers
-    and counts as fields rather than interpolating them into the message.** A value inside a sentence
-    cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
-    the old string.
-12. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
-    from the raise to the first scope that handles the exception rather than re-raising it; a project
-    that funnels failures into one handler makes that handler the scope. A scope that re-raises does
-    not log; the detail it would have logged goes into the exception's `context`. The one failure a
-    re-raising scope stops — an undo's, under `exception-catalog`'s best-effort compensation — ends
-    there, so that scope logs it: one `warning` event naming the failed undo, before re-raising the original.
-13. Check logged fields against **What never reaches a log line** before emitting them, and apply the
-    same two bans to anything placed in an exception's `context`.
-14. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
+10. Apply **Comments** by location, preserving its revision-docstring and test-banner allowances and
     their stated limits.
-15. **A type error is fixed, not silenced; an inline type-ignore is the last resort, names its error
+11. **A type error is fixed, not silenced; an inline type-ignore is the last resort, names its error
     code and gives its reason**, and a missing stub is silenced only by a per-package configuration
     override. Check casts and untyped variadic arguments against the typing hard stops below.
-16. **A closed set of named constants is an `Enum` — a `StrEnum` for string values (`class Foo(str, Enum)` below 3.11) — never a class of bare
+12. **A closed set of named constants is an `Enum` — a `StrEnum` for string values (`class Foo(str, Enum)` below 3.11) — never a class of bare
     attributes**, in any module.
-17. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
-    the entry point configures logging, and that one configuration renders every event in one
-    machine-readable format and routes the standard library's loggers (the server's, the drivers')
-    through it.
-18. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
-    nothing** — no handler, no level, no format; the application importing it owns all three.
 
 ## Hard stops
 
@@ -428,30 +353,6 @@ Typing:
 - A mutable collection on a frozen dataclass field → stop, use the immutable equivalent.
 - A class of bare attributes standing in for a closed set of values (`class Status: ACTIVE = "active"`)
   → stop, declare an `Enum` or `StrEnum`.
-
-Logging:
-
-- `log.x(...); raise` in the same scope → stop, that is two entries for one event; put the detail in the
-  exception's `context` and let the layer that stops it log. A failed undo stopped and logged before the
-  original is re-raised is two events, not this case.
-- An undo's failure stopped under best-effort compensation with no log line, or logged at `error`, or
-  logged by the undo itself → stop, the compensating scope logs one `warning` naming the failed undo; it
-  is the only record that an effect was left behind.
-- A log call emitting an interpolated sentence — no event name, no fields (`log.info(f"created foo
-  {foo.id}")`) → stop, nothing in that line can be filtered, grouped or alerted on; emit an event name
-  plus the identifiers as fields. This fires on every binding, the stdlib one included.
-- `print()` used for diagnostics outside an entrypoint debug path behind a flag → stop, use the
-  structured logger. A program's result written to stdout is not a diagnostic.
-- Logging configured — a handler added, a level or format set — anywhere but the process's entry point,
-  or inside a distributed package at all → stop, the entry point configures once and a package's
-  importer owns every one of those choices.
-- A second logging mechanism introduced beside the one already configured → stop, one logger everywhere;
-  two split the event stream and neither half is complete.
-- An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
-  `foo_created`. Once shipped, never rename — dashboards depend on the string.
-- Logging a full body, a secret, or a bare `UUID` object → stop.
-- A scope that re-raises the failure logs it as well → stop, it is not the scope that explains it; the
-  detail goes into the translated exception's `context` and whoever stops the exception logs.
 
 Comments:
 
