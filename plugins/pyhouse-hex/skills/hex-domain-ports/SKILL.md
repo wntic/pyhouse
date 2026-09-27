@@ -174,6 +174,9 @@ own subdomain package (`domain/auth/`, `domain/observability/`).
    - `create` / `update` / `delete` return `None`. A write that returns data is a query in disguise.
 4. **A port declares the methods some handler calls.** A method no use case reaches is not declared,
    however standard — the template is a CRUD service's full set.
+5. **Every method belongs to the one aggregate's collection.** Single actions sharing no collection
+   mental model — more than about three of them is the sign — are one or more capability protocols, not
+   repository methods.
 
 ### Capability protocol
 
@@ -205,8 +208,7 @@ Follow `python-packaging` for package exports and `hex-architecture` for layer p
 
 ## Hard stops
 
-- A protocol lists more than about three single-action methods that share no collection mental model → stop, that is one or more capability protocols, not a repository.
-- A capability's method count would grow past two → stop, split the protocol or model it as a repository.
-- Asked for SQL, SDK or framework types on a signature → stop, those are infrastructure concerns.
-- The protocol is asked to inherit from an `ABC` or a concrete base → stop, it is a `Protocol` — see this skill's own typing slice above.
-- Asked for a default implementation on the protocol → stop, that is behaviour leaking into a domain interface; it belongs in the adapter.
+- Asked for the class that implements a port → stop, use `hex-persistence` or `hex-store-repository`
+  for a repository, `hex-capability-adapter` for a capability.
+- Asked for a port over pure-CPU logic the standard library can do → stop, there is no port; use
+  `hex-domain-model` or `hex-domain-service`.
