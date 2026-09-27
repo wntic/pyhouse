@@ -1527,10 +1527,11 @@ neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
 
-### D120 — `when_to_use` is written only where `description` cannot hold the phrasings
-19 skills carry `when_to_use` and 29 do not, nearly all of `pyhouse-hex` among the latter. The
-maintainer chose to make that the rule rather than even it out: the field is Claude Code only, every
-other client matches on `description` alone, so a skill whose `description` already holds its
-triggers gains nothing from it. `meta-skill-author` now says so beside the field. No skill changes.
-**Reverse by:** deleting that sentence, and then either adding the field to the 29 or removing it
-from the 19.
+### D120 — `when_to_use` is optional, and neither its presence nor its absence is a defect
+18 skills carry `when_to_use` and 30 do not, nearly all of `pyhouse-hex` among the latter. The
+maintainer chose to legalize that state as it is rather than even it out: the field is Claude Code
+only, every other client matches on `description` alone, so it is written where there are trigger
+phrasings worth adding beyond what `description` already carries, and `description` must stand alone
+either way. `meta-skill-author` now says so beside the field. No skill changes, and no sweep follows.
+**Reverse by:** deleting that sentence, and then either adding the field to the 30 or removing it
+from the 18.
