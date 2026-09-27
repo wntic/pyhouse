@@ -9,17 +9,6 @@ Nothing proposed.
 
 ## Agreed
 
-### 1. Logging becomes its own universal skill
-`python-style` holds three subjects — typing, logging, comments — and its `description` is ~900
-characters because of it, the "two skills wearing one name" pitfall `meta-skill-author` names. Logging
-is the largest and most self-contained: the event shape, levels, who logs an error, configuring once at
-the entry point, a library that configures nothing, what never reaches a log line, stdout that is a
-program's product rather than a log. Move the `## Logging` section and `LOGGING.md` into a new
-`python-logging`; `python-style` keeps a one-line pointer. Touches: `python-style`, the ownership table
-in `meta-skill-author`, every pointer to `python-style` for logging (grep "python-style" near
-"log"), both indexes, counts (universal 12 → 13 + meta), `architecture-choice`'s list of universal
-skills, `DECISIONS.md`. A minor for `pyhouse-universal`.
-
 ### 3. Replace the generic `bulk_upsert` helper with the repository's own statement
 `bulk_upsert(conn, table, rows: Iterable[Mapping[str, Any]], conflict_columns, update_columns)` is a
 table-agnostic helper carried over from the application the first skills were written from. The

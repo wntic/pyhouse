@@ -15,7 +15,7 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 12 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 13 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 24 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |

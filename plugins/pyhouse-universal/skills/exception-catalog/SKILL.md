@@ -287,8 +287,6 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 - A failure caught and dropped — `pass`, a bare `return`, a default value — with no re-raise and no log
   line from the scope that stops it → stop; that is a swallow, and it reads as a success. Re-raise it,
   translate it, or stop it and log it once.
-- A scope that re-raises the original also logging a failure other than a failed undo under
-  best-effort compensation → stop; a re-raising scope stays silent, and the undo is the one exception.
 - A method drops its own failure because a caller might be compensating (a `*_best_effort` variant
   that catches internally), or an undo's failure is raised in place of the original → stop; the scope
   that caught the original stops the undo's failure and re-raises the original.
@@ -298,7 +296,5 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
   into the log line and the error response.
 - A shipped `code` is being changed → stop, that breaks every client keyed on it; add a new class.
 - The new class would duplicate an existing one's semantics → stop and reuse the existing one.
-- The error is being logged at the raise site *and* re-raised → stop, one entry per event
-  (`python-logging`).
 - `http_status` is being added to a project with no HTTP surface → stop, nothing reads it; the `code`
   is the contract.

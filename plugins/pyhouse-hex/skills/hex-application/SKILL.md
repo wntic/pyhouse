@@ -416,8 +416,7 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 - Cross-subdomain imports are absolute through the subpackage:
   `from myapp.domain.foos import Foo, IFooRepository`. Same-module imports are relative:
   `from .create_foo_command import CreateFooCommand`.
-- A command handler obtains its logger at module top, never inside the class (`import structlog` plus
-  `logger = structlog.get_logger()` under the primary binding). A query handler imports no logger at
+- A command handler's logger follows `python-logging` rule 1. A query handler imports no logger at
   all — queries do not log.
 - No `from __future__ import annotations`.
 - No comments unless a non-obvious *why*; one short line at most.

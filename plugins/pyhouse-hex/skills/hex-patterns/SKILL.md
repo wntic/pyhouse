@@ -340,7 +340,7 @@ except Exception:
    logs takes `python-logging`'s shape.
 4. **The original failure is re-raised unchanged** with a bare `raise` — `exception-catalog`'s
    best-effort compensation.
-5. **The original failure is not logged here** — a re-raising scope stays silent (`exception-catalog`).
+5. **The original failure is not logged here** — a re-raising scope stays silent (`python-logging`).
 6. **The side effect runs *outside* the `try`.** Only the fallible *next* step goes inside.
 7. **Pre-side-effect validation runs *before* the side effect.** Fail fast without compensation whenever
    possible.

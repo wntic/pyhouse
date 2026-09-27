@@ -265,7 +265,7 @@ handler: FromDishka[ListFoosHandler],
 ### What never goes in a route
 
 19. **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is the mixed multipart+JSON parse in `TRANSFER.md`.
-20. **No logging.** Logging ownership follows `python-logging`.
+20. **No logging.** Which layer logs is `hex-architecture`'s; the event's shape is `python-logging`'s.
 21. **No business logic, no policy checks, no domain construction beyond mapping body→command.**
 22. **No infrastructure imports.** Only `application/*` and `domain/*` types.
 23. **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
@@ -298,7 +298,7 @@ app.include_router(foos_router)
 ## Hard stops
 
 - The route is asked to reach a composition root off `request.app.state`, or to name a binding rather than a type → stop, declare the handler as a `FromDishka[<Handler>]` parameter.
-- The route is asked to log → stop, use `python-logging` for logging ownership.
+- The route is asked to log → stop, routes do not log; which layer logs is `hex-architecture`'s.
 - The route is asked to construct a domain entity → stop, that's the handler's job; the route maps body fields to a command.
 - Response schema requires fields the command/query result doesn't provide → stop, add a read-back via `GetFooHandler` (or extend the result DTO via `hex-application`).
 - Asked for a `try/except` in a route body → stop; the one sanctioned case is the mixed multipart + JSON parse in `TRANSFER.md`, and nothing else is.

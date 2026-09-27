@@ -1,6 +1,6 @@
 ---
 name: python-logging
-description: Use when writing a log call, naming a log event, deciding which scope logs a failure and at what level, or configuring logging in an entry point or a distributed package. Owns one structured event per occurrence with a stable `<subject>_<past_tense_verb>` name and identifiers as fields, the rule that an error is logged once by the scope that stops it and never by a scope that re-raises, the warning a failed undo under compensation earns, logging configured once at the entry point and never inside a distributed package, what never reaches a log line, and a program's result on stdout as output rather than a log event. Annotation forms and comments are `python-style`; the error classes and their `context` are `exception-catalog`.
+description: Use when writing code that reports what it did or what went wrong — a log call, a `print` for progress or errors, an `except` that records a failure, or logging setup in an entry point, a CLI or a library. Owns one structured event per occurrence with a stable `<subject>_<past_tense_verb>` name and identifiers as fields, the rule that an error is logged once by the scope that stops it and never by a scope that re-raises, the warning a failed undo under compensation earns, logging configured once at the entry point and never inside a distributed package, what never reaches a log line, and a program's result on stdout as output rather than a log event. Annotation forms and comments are `python-style`; the error classes and their `context` are `exception-catalog`.
 ---
 
 # Python Logging
@@ -25,20 +25,15 @@ project's errors propagate to decides which scope that is. Everything else is un
 - Whether a test may assert on what was logged → `test-principles`.
 - An event name as a frozen external contract among the others → `naming`.
 
-## Template — structlog
+## Template — structlog (an application; a distributed package uses the stdlib binding below)
 
 ```python
 import structlog
+# a distributed package uses logging.getLogger(__name__) instead and configures nothing (rule 4)
 
 log = structlog.get_logger()
 
-# inline fields
-log.info("foo_created", foo_id=str(foo.id), tag_count=len(foo.tags))
-
-# bound context for a sequence of calls
-log_ctx = log.bind(import_id=str(import_id))
-log_ctx.info("import_started", row_count=len(rows))
-log_ctx.info("import_completed", imported=imported, skipped=skipped)
+log.info("foo_created", foo_id=str(foo.id))
 ```
 
 ## Other bindings
@@ -124,24 +119,19 @@ third-party 5xx, malformed data.
 
 `log.x(...)` immediately followed by `raise` in the same scope is two entries for one event, and there is
 **no sanctioned exception** — a failed undo stopped under compensation, below, logs a different event
-from the one it re-raises. A scope that re-raises is not the scope that will explain the failure: the
-detail belongs in the exception it raises — the fields in `context`, the original error in `__cause__`
-through `from exc` (`exception-catalog`) — where the scope that stops it will find both.
+from the one it re-raises.
 
 ```python
 # yes — translate, carry the detail forward, stay silent
 try:
     await self._session.execute(stmt)
 except IntegrityError as exc:
-    raise ConflictError(
-        "foo name already exists",
-        {"field": "name", "constraint": "uq_foos_name"},
-    ) from exc
+    raise ConflictError("foo name already exists", {"foo_name": foo.name}) from exc
 
 # no — the layer that stops this will log it again, off the translated exception
 except IntegrityError as exc:
     log.warning("foo_name_conflict", foo_name=foo.name)
-    raise ConflictError("foo name already exists", {"field": "name"}) from exc
+    raise ConflictError("foo name already exists", {"foo_name": foo.name}) from exc
 ```
 
 ## A failed undo under compensation
@@ -151,23 +141,14 @@ failure, and so the one place a scope that re-raises logs. The two are different
 does not break the rule above: the **undo's** failure stops in this scope and is logged here, once; the
 **original** failure is re-raised unlogged and is logged by whoever stops it.
 
-- **The scope that runs the compensation logs it** — the one that caught the original failure and
-  will re-raise it — in the `except` around the undo call, and nowhere else. The undo it called stays
-  silent, like any scope that raises.
+- **Logged by the scope that stops the undo's failure** (`exception-catalog`, condition 1), in the
+  `except` around the undo call, and nowhere else. The undo it called stays silent, like any scope that
+  raises.
 - **At `warning`, exactly one event**, named for the undo that failed (`foo_blob_undo_failed`), with the
   undo's identifying inputs as fields and the undo's error attached (`exc_info=` under `structlog`).
   Not `error`: the operation's failure is the error, and it is logged where it stops.
 - It carries what a person needs to clean up by hand — the key, the id, the reservation — because the
   event is the only record that an effect outlived the operation that made it.
-
-```python
-except Exception:
-    try:
-        await self._blobs.delete(blob_key)
-    except Exception as undo_exc:
-        log.warning("foo_blob_undo_failed", blob_key=blob_key, exc_info=undo_exc)
-    raise
-```
 
 ## What never reaches a log line
 
@@ -201,8 +182,8 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
    re-raising scope stops — an undo's, under `exception-catalog`'s best-effort compensation — ends
    there, so that scope logs it: one `warning` event naming the failed undo, before re-raising the
    original.
-6. Check logged fields against **What never reaches a log line** before emitting them, and apply the
-   same two bans to anything placed in an exception's `context`.
+6. Check logged fields against **What never reaches a log line** before emitting them; the same bans
+   on an exception's `context` are `exception-catalog`'s.
 
 ## Hard stops
 
@@ -225,5 +206,3 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
 - An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
   `foo_created`. Once shipped, never rename — dashboards depend on the string.
 - Logging a full body, a secret, or a bare `UUID` object → stop.
-- A scope that re-raises the failure logs it as well → stop, it is not the scope that explains it; the
-  detail goes into the translated exception's `context` and whoever stops the exception logs.

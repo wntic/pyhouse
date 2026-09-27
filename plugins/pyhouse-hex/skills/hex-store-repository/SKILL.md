@@ -261,5 +261,5 @@ For `repositories/__init__.py`, follow `python-packaging`; package placement fol
 - Asked for SQL, SQLAlchemy, or a `Table` for this aggregate → stop, use `hex-persistence`.
 - The repository is asked to create or migrate the collection/index/bucket → stop, provisioning is not the repository's concern.
 - Asked for atomicity across this store and another (two stores in one transaction) → stop, use `hex-patterns` for handler compensation; there is no cross-store transaction.
-- The repository is asked to log → stop, use `python-logging`.
+- The repository is asked to log → stop, an adapter never logs; which layer logs is `hex-architecture`'s.
 - The port is a single-action capability (`ICan<Verb>`), not an aggregate's collection → stop, use `hex-capability-adapter`.

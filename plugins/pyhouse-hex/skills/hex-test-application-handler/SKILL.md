@@ -249,7 +249,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 - **No mocks for protocol substitution** — apply `test-principles`. Use a fake from `tests/unit/fakes/`, or extend it via an inline `_RaiseXxxRepo` subclass.
 - Test markers follow `test-principles`.
 - **No fixtures from `tests/integration/`.** No database, no real app, no auth fixtures, no blob store.
-- **No assertions on what the handler logged** — `test-principles` owns the rule; here it bites because a handler that logs the right success event and never calls `update()` would otherwise pass. Assert the returned value and the persisted state. Which layer may log at all → `python-logging`.
+- **No assertions on what the handler logged** — `test-principles` owns the rule; here it bites because a handler that logs the right success event and never calls `update()` would otherwise pass. Assert the returned value and the persisted state. Which layer may log at all → `hex-architecture`.
 - Timing and unit-test isolation follow `test-principles`. The whole file should run in well under a second.
 - **No business-logic re-implementation in the test.** Don't compute the expected slug, normalize the name, or sort items the way the domain entity does — let the handler produce the output and assert against it.
 
