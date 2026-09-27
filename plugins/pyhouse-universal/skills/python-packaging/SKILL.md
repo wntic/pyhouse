@@ -169,9 +169,8 @@ exemption: a `__version__` computed at module level is a build, and the version 
 read behind a function the caller calls (`python-versioning` owns the number and where it is declared).
 
 Where a factory function is written, cache it only once a second caller genuinely exists — a framework
-resolving it per request, say. Where the entrypoint reads settings once and hands concrete values down, nothing calls it twice
-and the cache buys nothing; needing one is usually a sign something below the entrypoint is reading
-configuration instead of being handed values.
+resolving it per request, say; needing one usually means something below the composition root is
+building what it should be handed.
 
 The reason is the import graph, which is why it lives here. A module-level construction runs for every
 importer, including ones that never touch the object: a test collector importing a sibling symbol, a

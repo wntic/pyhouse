@@ -242,8 +242,7 @@ with none has no such module, and a thin HTTP wrapper adds two server fields to 
 The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
 re-exports the settings and client modules (`python-packaging`), so a caller writes
 `from myapp.foo_api import FooApiSettings, FooClient`. The data-access package declares its settings
-class the same way, beside an engine factory that takes the connection string (`flat-persistence`); no
-package builds its own settings object, the process definition builds every one (rule 7).
+class the same way (`flat-persistence`).
 
 **The client is handed its transport; it never builds one** (rule 14). The process-definition package
 builds the pooled HTTP client once from the system's settings — `httpx.AsyncClient(base_url=settings.url,
@@ -319,11 +318,10 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
 8. **Every component that has configuration is a package, and declares its own settings class in a
    `settings.py` inside that package** (`python-settings` rule 1). The process's configuration, an
    external system's and a store's are three components and three classes, never a client module with
-   a `*_settings.py` sibling in a package it shares with other systems. The package declares the class
-   and stops there — declaring one is not licence to build it below the process definition (rule 7). Its
-   prefix, and the nested-prefix collision between the process's `MYAPP_` and a component's
-   `MYAPP_POSTGRES_`, are `naming`'s rule 7, the same whether the second component is a package inside
-   this distribution or a library shared with siblings (`flat-persistence` states that package's half).
+   a `*_settings.py` sibling in a package it shares with other systems. Its prefix, and the nested-prefix
+   collision between the process's `MYAPP_` and a component's `MYAPP_POSTGRES_`, are `naming`'s rule 7,
+   the same whether the second component is a package inside this distribution or a library shared with
+   siblings (`flat-persistence` states that package's half).
 9. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
    durable-execution engine is earned, the one framework-guarded helper module the firewall's allow-list
    names by path, so the exemption stays one entry a reviewer can read. For one distribution that is a
@@ -375,8 +373,6 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
   move the wrapper into the framework-wrapper package and leave the body where it was.
 - A package cannot be placed in one row of the import-contract table → stop, it holds two roles or none;
   split it or delete it before writing code into it.
-- A module builds its settings instance at import time → stop, the process definition builds it when it
-  runs (`python-packaging` rule 8).
 - A module below the process definition builds a settings object, its own component's included → stop,
   the process definition builds it and passes the values down; owning a settings class is not permission
   to read it from inside the component.

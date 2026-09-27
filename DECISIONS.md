@@ -1310,9 +1310,13 @@ that composes the process meets it. The settings templates in `python-settings` 
 the migration environment in `flat-project-setup`, call `FooApiSettings()`, `PostgresSettings()` and
 `Settings()` where they build the rest. `python-settings` rule 13 says the root constructs each class
 once and that a factory function is written only when it adds something — a cache, assembly from
-several sources — with a hard stop for one that only returns the construction; `python-packaging`'s
-"yes" example is the class called inside `main()`, and `flat-layered` rules 7 and 8, `flat-persistence`
-rule 14 and the hard stops that named a factory say "build" or "construct". A module-level instance
-stays forbidden. The hex family was already this shape — a container's provider method calls the class.
+several sources — with a hard stop for an uncached one outside the composition root; a container's
+provider method is the composition root and stays. When to cache a factory is `python-packaging` rule 8
+alone, and its "yes" example is the class called inside `main()`. `flat-layered` rules 7 and 8,
+`flat-persistence` rule 14 and the hard stops that named a factory say "build" or "construct", and the
+`flat-layered` sentences restating rule 7 or `python-packaging` rule 8 are gone. A module-level instance
+stays forbidden. The hex family was already this shape — its provider methods call the class — and its
+prose now says "settings provider" rather than "settings factory".
 **Reverse by:** restoring the factory functions, their `__all__` entries and the call sites, and the
-wording of the rules and hard stops above, from the commit before this one.
+wording of the rules, hard stops and hex prose above, from before the change that added this
+entry.

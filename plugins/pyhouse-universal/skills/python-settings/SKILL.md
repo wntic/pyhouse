@@ -120,7 +120,7 @@ container's provider method — and a missing required variable fails there (rul
     definition, a CLI command's entry function, a migration environment, the test infrastructure. It
     constructs each settings class once — calling the class is enough — and hands the object, or the
     values it holds, to what it constructs. A factory function around the constructor is written only
-    when it adds something the call does not, a cache or assembly from several sources. Never at
+    when it adds something the call does not, a cache (`python-packaging` rule 8) or assembly from several sources. Never at
     import time (`python-packaging` rule 8), and never below the root — owning a settings class is not
     permission for a component to build it, and a client, repository or unit of work that builds its
     own settings cannot be given different ones.
@@ -168,8 +168,9 @@ The settings module re-exports its class like any other module (`python-packagin
 - A settings object built at module level → stop, `python-packaging` rule 8; built inside a client, a
   repository, a handler or a run function → stop, the composition root builds it and passes it down
   (rule 13).
-- A function whose whole body returns the settings class's no-argument construction → stop, delete it
-  and call the class at the composition root (rule 13).
+- A function outside the composition root whose whole body returns the settings class's no-argument
+  construction, uncached → stop, delete it and call the class where the process is composed (rule 13);
+  a container's provider method is the composition root and stays.
 - A published library reading an environment variable → stop, take the value as a parameter (rule 14).
 - A value the caller picks per run or per call read from the environment → stop, make it an argument
   or a parameter (rule 15).
