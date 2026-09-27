@@ -1564,3 +1564,39 @@ commit message is written from it. No other skill was swept against the new line
 for `/review-skills` as each skill comes up.
 **Reverse by:** deleting the bullet in `meta-skill-author`'s universal rules and restoring the script
 in `git-branching`.
+
+### D122 — `flat-project-setup` lays the migration bootstrap with the tool's init and states what to change
+Block B carried a full `env.py`, a full `script.py.mako` and a `0001_baseline.py`, and the body opened
+with a directory tree. The tree restated `python-toolchain`'s src layout; where migrations go is rule 1's,
+now worded to carry the location the tree showed. The two generated files are what `alembic init -t
+async migrations/postgres`, run from the distribution root, already writes; what this family adds is
+only the handful of changes, so block B now gives the command and the obligations on its output: nothing
+in `alembic.ini` names a database, the environment builds its engine from the data-access component's
+settings and disposes it however the run ends, `target_metadata` is the package's one metadata, every
+table module is imported, and offline mode is refused. Checked against Alembic 1.20's async template:
+its `env.py` builds the engine from the ini section, sets `target_metadata = None` (autogenerate then
+refuses to run), disposes only after a clean run and carries an offline branch; its `script.py.mako`
+annotates with `typing.Union`/`typing.Sequence` and orders `from alembic import op` before
+`import sqlalchemy as sa`, which breaks `python-style` and the `I` selection — so the template's one edit
+is stated as a rule rather than the house forms being assumed. The baseline's obligations were already
+rule 7 (now 8) and the hard stops; its code block is reduced to a sentence. Rules 5 and 6 absorb what the
+templates carried (disposal, the metadata target), a new rule 7 states that the generated bootstrap is
+changed before the first revision, and a hard stop names the unchanged-output failure; rule 7 and that
+hard stop restate what the deleted templates enforced by being the file itself. One thing is not a
+restatement: the generated `env.py` calls `fileConfig` on `alembic.ini`, whose `[loggers]`, `[handlers]`
+and `[formatters]` sections give Alembic's records their own handler and format beside the service's
+structured stream — `python-logging` rule 3 and its hard stop on a library's records bypassing the
+configured logger. The deleted `env.py` configured no logging at all, so the skill said nothing either
+way; block B now has the environment configure logging as the service's other process definitions do,
+deletes the ini's logging sections with it, and names `fileConfig` in the hard stop. The same pass
+states that `init`'s `README` is deleted, that the tool's explanatory comments go (`python-style`,
+Comments), and spells the import-order edit as `import sqlalchemy as sa` ahead of `from alembic import
+op`; `flat-layered`'s pointer for the tree beside `src/` moves from this skill to `python-toolchain`
+rule 1.
+**Reverse by:** restoring the directory tree after the opening paragraph, the `alembic.ini`, `env.py`,
+`script.py.mako` and `0001_baseline.py` blocks in block B with the prose between them, rules 1, 5 and 6
+to their earlier wording, dropping rule 7 and renumbering 8 back to 7, dropping the unchanged-output hard
+stop, the logging bullet and the logging clause of the `alembic.ini` paragraph, and restoring the
+description's parenthesis "(`alembic.ini`, the environment under `migrations/postgres/` that reads the
+connection string at its own composition root, the revision template, and a baseline only over a schema
+that already exists)".
