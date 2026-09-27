@@ -267,7 +267,7 @@ class ListFoosResult:
   changes is the two lines that obtain the logger and the call form that carries the fields. What does
   not is the allocation (a command handler emits exactly one success event *after* the write; a query
   handler emits none and imports no logger at all) or the event name as a stable contract
-  (`python-style`).
+  (`python-logging`).
 - **Another identity scheme** — a time-ordered UUID, a ULID, or a key the store mints. What changes is
   the single expression that mints the id. What does not is that the id exists before the write and that
   the command returns it; a store-minted key is the one case that moves the mint into the repository, and
@@ -370,10 +370,10 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
    a later read or retry sees it — the handler may
    `try: <pipeline> except <Err>: <load-or-mutate>; entity.status = FAILED; await repo.update(entity); raise`.
-   The `except` writes the caller-visible state and **re-raises**. Follow `python-style`
+   The `except` writes the caller-visible state and **re-raises**. Follow `python-logging`
    for logging and `exception-catalog` for exception propagation and boundary translation. Anything beyond
    these two stays forbidden.
-6. **Command success logging:** follow `python-style`; include the caller's identity **only when the
+6. **Command success logging:** follow `python-logging`; include the caller's identity **only when the
    command carries one**.
 7. **No transaction management inside the handler — the default.** A handler that writes through one
    repository leaves the transaction to it: the standalone repository form opens and commits its own

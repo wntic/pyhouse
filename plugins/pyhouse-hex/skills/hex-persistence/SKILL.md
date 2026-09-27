@@ -185,7 +185,7 @@ environment import it from its module (`from ..metadata import metadata`,
   translator and the revision all change in the same commit.
 - The repository is asked to commit inside the unit-of-work-managed form → stop, that breaks atomicity.
 - The repository is asked to log → stop, a repository never logs; the central error handler or the
-  calling handler owns that (`python-style`).
+  calling handler owns that (`python-logging`).
 - Asked for id generation inside the repository → stop, the application handler generates ids.
 - The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
   file; this skill covers DDL only.

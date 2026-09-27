@@ -49,7 +49,7 @@ Elsewhere:
 - The repository that joins a unit of work → `hex-persistence`.
 - The reversing method a compensation calls (`delete`, `retract`) → declared on a port beside its forward operation by `hex-domain-ports`, implemented in `hex-capability-adapter` or `hex-store-repository`; the guard that lets the handler stop its failure is stated here, as `exception-catalog`'s best-effort compensation exception.
 - The lifetime and declaration-order rules the unit-of-work binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here.
-- What the handler may log → `python-style`.
+- What the handler may log → `python-logging`.
 
 ## Template — compensation, a single side effect
 
@@ -325,7 +325,7 @@ except Exception:
   atomic group becomes compensation, under the same composition rule — compensation wraps the
   transaction, never the reverse.
 - **A different structured logger.** Only the log call in the handler templates changes; what a handler
-  may log is `python-style`'s rule, not this skill's.
+  may log is `python-logging`'s rule, not this skill's.
 
 ## Rules
 
@@ -337,7 +337,7 @@ except Exception:
 2. **Catch `Exception`, not specific exceptions.** Compensation must run regardless of the cause.
 3. **The undo is guarded** — the port's plain reversing method (`delete`, `retract`), wrapped in its own
    `try` inside the `except`, is `exception-catalog`'s best-effort compensation; the one warning event it
-   logs takes `python-style`'s shape.
+   logs takes `python-logging`'s shape.
 4. **The original failure is re-raised unchanged** with a bare `raise` — `exception-catalog`'s
    best-effort compensation.
 5. **The original failure is not logged here** — a re-raising scope stays silent (`exception-catalog`).

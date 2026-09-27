@@ -25,7 +25,7 @@ What they do *not* decide is which package a module belongs in. That is the arch
   a structural problem and the hard stops below say so.
 - Which package a module belongs in → `hex-architecture` (in the `pyhouse-hex` plugin) or
   `flat-layered` (in `pyhouse-flat`).
-- Annotation forms, logging, comments → `python-style`.
+- Annotation forms, comments → `python-style`; logging → `python-logging`.
 - The exception catalog's contents and where its file sits → `exception-catalog`; that it may hold many
   classes is this skill's set test, of which it is the first worked example.
 - Whether the boundary between two modules or packages should exist at all → `coupling`, first; this skill owns the mechanics once it is drawn.

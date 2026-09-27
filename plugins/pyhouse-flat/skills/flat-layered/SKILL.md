@@ -56,9 +56,10 @@ what Fowler calls **transaction scripts** above it.
   created → `flat-project-setup`; the src layout and the lint and type-check configuration →
   `python-toolchain`.
 
-Five skills apply here unchanged and are not restated: `python-packaging` (one class per module,
+Six skills apply here unchanged and are not restated: `python-packaging` (one class per module,
 `__all__`, re-exports, import forms), `python-style` (annotations, collection types, the shape a record
-takes across a boundary, logging, comments), `python-settings` (what a settings class declares, its
+takes across a boundary, comments), `python-logging` (the event, who logs a failure, configuring
+once at the entry point), `python-settings` (what a settings class declares, its
 defaults and secrets, and construction at the composition root), `exception-catalog` (the catalog and
 translating SDK errors into it) and `coupling` (where boundaries go at all, and how much structure a
 component deserves).
@@ -334,7 +335,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
 11. **An enum lives beside the module that owns it.** A shared vocabulary module holds only what is
     genuinely used across packages, and admission to it runs `coupling`'s test — a blanket category
     package pulls single-owner types away from their owner and stops naming anything.
-12. **Which scope logs a failure is `python-style`'s rule, and it applies here unchanged.** In a flat
+12. **Which scope logs a failure is `python-logging`'s rule, and it applies here unchanged.** In a flat
     service the scope that stops a failure is usually the loop's guard or the framework wrapper's error
     handler; a client translating an SDK error re-raises and so stays silent, with the detail riding in
     the translated exception's `context` (`exception-catalog`).

@@ -169,7 +169,7 @@ This is why the shell needs `ValidationError` in the catalogue alongside `MyappE
 **This handler is the only place a hexagonal app logs an error.** `hex-architecture`'s layer table (*Who logs, by layer*)
 gives the entrypoint that row — the domain and infrastructure never log, and the application layer logs
 successes only. Without the calls above a generated app logs failures nowhere. The level guide is
-`python-style`'s (`LOGGING.md`); the non-catalogue → `error` case is `hex-architecture`'s. This
+`python-logging`'s; the non-catalogue → `error` case is `hex-architecture`'s. This
 handler's own binding of them is 4xx → `warning`, 5xx → `error`, non-`MyappError` → `error`; this file
 owns only the **call** that implements it, because the call is framework-shaped and the rule is not.
 
@@ -402,7 +402,7 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 - A middleware that rejects emits its body through the shared
   `ErrorResponse` schema (`from ..schemas.errors import ErrorResponse`) — never hand-roll the
   `{"code", "message", "context"}` dict, so the wire shape stays single-sourced.
-- Typing and logging follow `python-style`.
+- Typing follows `python-style`, logging `python-logging`.
 
 ## Package wiring
 

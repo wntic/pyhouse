@@ -75,7 +75,7 @@ the catalogue declares `class InvalidPayloadError(MyappError)` with `code = "INV
 `http_status = 422` for a request body the client got wrong. This module is the only reader of the field. Every failure leaves as `code`,
 message and `context` read off an exception: a catalogue error as itself, the framework's validation
 failure as `InvalidPayloadError`, and anything else as the catalogue root with its status. The level
-follows the kind (`python-style`): `warning` for a rejection the client caused, `error` for a 5xx.
+follows the kind (`python-logging`): `warning` for a rejection the client caused, `error` for a 5xx.
 
 **The unexpected failure is contained by a middleware, not an exception handler.** FastAPI's handler for
 bare `Exception` answers and then re-raises to the server, which logs the same failure a second time; the
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 The server is served on the process's own event loop, inside the block that owns the engine, rather than
 through `uvicorn.run`, which starts a loop of its own: the engine is then opened and closed on the loop
 the app's requests run on, once for the life of the server (`flat-layered` rule 14). `log_config=None`
-keeps the server from configuring logging a second time (`python-style` rule 17).
+keeps the server from configuring logging a second time (`python-logging` rule 3).
 
 `src/myapp/web/__init__.py` re-exports `build_app`, and the project adds `fastapi` and `uvicorn` to its
 dependencies (`flat-project-setup`).

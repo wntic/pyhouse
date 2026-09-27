@@ -1301,6 +1301,24 @@ endpoint is tested like any endpoint. The page-size default is the filter's alon
 **Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
 this one.
 
+### D110 — Logging is its own universal skill, `python-logging`
+`python-style` held three subjects — typing, logging, comments — and its `description` ran to about 900
+characters listing all three, the "two skills wearing one name" pitfall `meta-skill-author` names. Its
+`## Logging` section, the logging rules and hard stops, and the sibling `LOGGING.md` moved into one new
+universal skill, `python-logging`, as a single `SKILL.md` (about 230 lines, so no sibling): the event
+shape, levels, who logs an error, the failed undo under compensation, configuring once at the entry
+point, a distributed package that configures nothing, what never reaches a log line, and a program's
+stdout result as output rather than a log. The rules moved verbatim and were renumbered 1–6
+(`python-style` 10, 11, 17, 18, 12, 13 in that order); `python-style`'s remaining rules 14–16 became
+10–12, and its `description` now covers typing and comments only. The ownership table in
+`meta-skill-author` gives logging its own row; every pointer to `python-style` for logging, and the two
+citations of its old rule 17, now name `python-logging` (rule 3). Universal goes from 12 to 13 skills,
+the catalogue from 47 to 48.
+**Reverse by:** moving the body of `python-logging` back under `python-style`'s `## Logging` (the
+binding, examples and level guide into a sibling `LOGGING.md`), restoring its rules 10–13, 17 and 18,
+its logging hard stops and its three-subject `description`, deleting the `python-logging` directory, and
+repointing the references, the ownership row, both indexes and the counts.
+
 ### D111 — Settings are built by calling the class; no factory function that only returns it
 `get_foo_settings()`, `get_postgres_settings()`, `get_foo_api_settings()` and `get_settings()` each
 returned their class's no-argument construction and added nothing. The obligation behind them is

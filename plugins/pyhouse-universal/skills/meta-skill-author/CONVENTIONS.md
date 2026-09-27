@@ -4,18 +4,19 @@ Shared vocabulary and index for the catalogue. The authoritative format lives in
 
 ## Index
 
-The 47 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 48 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
 too. The counts in every heading are the number of directories on disk.
 
-### Universal (12)
+### Universal (13)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
 - `coupling` — Consult alongside either style anchor when the architecture choice depends on component volatility.
-- `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, the logging allocation that keeps every re-raising scope silent, whatever the project's layering, and a closed set of constants as an `Enum`, with logging configured only at the entry point.
+- `python-style` — Owns the 3.13 house floor, the declared-type-over-bare-`dict` rule with a `type` alias for a repeated complex type, and a closed set of constants as an `Enum`; what to log and who logs it is `python-logging`.
+- `python-logging` — The logging allocation that keeps every re-raising scope silent, whatever the project's layering, one structured event per occurrence under a never-renamed name, and logging configured only at the entry point — never inside a distributed package; a program's result on stdout is not a log.
 - `python-packaging` — Decides whether a module wants a class at all before capping it at one — a closed set of declarations may share a module by test, and a module a framework dictates follows the framework — and keeps collapsed imports within one re-export hop so runtime resolution and type checking agree.
 - `python-settings` — One settings class per configured component, reading only its own non-strict namespace and built once at the program's composition root; no default on a required field, a secret or a tunable, and a published library reads no environment at all.
 - `python-toolchain` — The configuration every distribution carries once, whatever its family — the src layout, a narrow lint selection with every size and complexity threshold written, strict type checking over `src` and `tests` alike, the sanctioned suppressions, one line length, and a floor only at a named break; which libraries a service's roles bring stays with the family's setup skill.
@@ -91,7 +92,7 @@ skill only as an example and must read correctly in a repository with no Python 
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 12 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 13 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (24) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |

@@ -1,6 +1,6 @@
 # House-style skills
 
-47 skills: 45 project-neutral Python skills in seven families — Universal (12), Meta (1), Hex core
+48 skills: 46 project-neutral Python skills in seven families — Universal (13), Meta (1), Hex core
 (12), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
@@ -50,7 +50,7 @@ character cap: `description` has no documented maximum, `description` + `when_to
 **1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
 rewritten as complete sentences to fit, never truncated.
 
-## Universal (12) — always in play
+## Universal (13) — always in play
 
 These skills bind in **every** project in this style, whichever architecture it uses. They are
 unprefixed because they belong to neither architecture family. `architecture-choice` is the one read
@@ -61,7 +61,8 @@ once rather than throughout — before the family is known:
 | `architecture-choice` | **Which family a service belongs to** — the question that decides it, the confirming evidence, what each choice costs, the projects too small for either family, and the shapes this catalogue does not cover |
 | `naming` | **What anything is called** — the derivation procedure, the six tests, kind-by-kind rules (incl. protocol, error-class and repository-class forms — `Repository` whether or not a port stands in front), the vague-noun families and the role suffixes an architecture defines, renaming |
 | `coupling` | Where boundaries go and what may cross them — split vs merge, contract vs shared knowledge, the three coupling dimensions, the balance rule, design effort by volatility |
-| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, closed constant sets as an `Enum`, structured logging configured once at the entry point, comments |
+| `python-style` | The 3.13 house floor, typing forms, `type` aliases, `collections.abc`, the `from __future__` ban, declared record types over bare `dict`s, which builtin holds which kind of scalar, closed constant sets as an `Enum`, comments |
+| `python-logging` | One structured event per occurrence with a stable name and identifiers as fields, the levels, which scope logs an error and the warning a failed undo earns, logging configured once at the entry point and never by a distributed package, what never reaches a log line, and a program's stdout result as output rather than a log |
 | `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules |
 | `python-settings` | **Configuration read from the environment** — one settings class per configured component, its non-strict namespace, no default on a required field, a secret or a tunable, the secret type and where it is unwrapped, derived values, validation that only normalizes or rejects, construction at the composition root, and a published library that reads nothing |
 | `python-toolchain` | **What every distribution configures once** — the src layout, the lint selection with written function-size and complexity thresholds, the sanctioned suppressions, strict type checking over `src` and `tests`, the line length, development dependencies by role, and a version floor only at a named break |
@@ -126,7 +127,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 
 Hex projects also use the universal skills unchanged. `hex-architecture` adds the re-export
 rules the layer split imposes on top of `python-packaging`; `hex-architecture` allocates logging by layer
-(domain never logs, application logs successes only) under `python-style`'s log-once rule.
+(domain never logs, application logs successes only) under `python-logging`'s log-once rule.
 
 ## Hex REST API (4)
 

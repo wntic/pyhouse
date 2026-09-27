@@ -33,7 +33,7 @@ never its layout.
 - Where the boundary between two components goes at all → `coupling`. A name cannot rescue a wrong
   boundary; if a thing resists naming, suspect the split before the vocabulary.
 - Log event names, exception `code` values, job or task names registered by string, database
-  constraint names → those are *frozen external contracts*, owned by `python-style`,
+  constraint names → those are *frozen external contracts*, owned by `python-logging`,
   `exception-catalog` and whichever skill owns that artifact. See **Renaming** below.
 - A test builder, fixture or failure-injection subclass needs a name → this skill for the name;
   `test-principles` for whether it should be a fixture at all.

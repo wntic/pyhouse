@@ -29,8 +29,8 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
   (`hex-domain-model`, `hex-domain-ports`, `hex-domain-service`, `hex-application`, `hex-persistence`,
   `hex-restapi-endpoint`, …). Each already assumes the boundaries this skill sets.
 - One class per module, `__all__`, the `__init__.py` contract, relative vs absolute → `python-packaging`.
-- Choosing an annotation form, a collection type, or the level and fields of a log event → `python-style`;
-  which layer logs is below.
+- Choosing an annotation form or a collection type → `python-style`; the level and fields of a log
+  event → `python-logging`; which layer logs is below.
 - The error catalog → `exception-catalog`.
 - Deriving a concrete path or class name from an identifier → `hex-conventions`.
 - Library substrate and the migration bootstrap → `hex-project-setup`; toolchain config → `python-toolchain`.
@@ -146,7 +146,7 @@ defect. Siblings are `cli/` and `worker/`.
 
 ### Who logs, by layer
 
-`python-style`'s rule — an error is logged once, by the scope that stops it — lands here as a layer
+`python-logging`'s rule — an error is logged once, by the scope that stops it — lands here as a layer
 table: every error propagates to one central handler, so the scope that does not re-raise is the
 entrypoint.
 
@@ -154,10 +154,10 @@ entrypoint.
 |---|---|
 | `domain/` | **Nothing.** Zero IO includes the log socket; raise an exception carrying `context` instead. |
 | `infrastructure/` | **Nothing.** An adapter translates and re-raises, so it is never the layer that stops; the low-level detail goes into the translated exception's `context`, where the layer that does log will find it. |
-| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a failed undo stopped under best-effort compensation, which the handler running the compensation logs at `warning` (`python-style`'s `LOGGING.md`, "A failed undo under compensation"). |
+| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a failed undo stopped under best-effort compensation, which the handler running the compensation logs at `warning` (`python-logging`, "A failed undo under compensation"). |
 | entrypoints | Errors, once, at the central handler, with request context attached. |
 
-**A central handler takes `python-style`'s level guide (`LOGGING.md`)**, plus one case only it sees: an exception that is not a
+**A central handler takes `python-logging`'s level guide**, plus one case only it sees: an exception that is not a
 catalogue class → `error`, logged *before* the framework turns it into a 500, or it is never seen.
 The call that implements it is `error_handler.py` in `hex-restapi-app`.
 

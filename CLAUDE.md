@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
-maintainer script. The "code" is 47 `SKILL.md` files — 45 that tell an agent how to write Python
+maintainer script. The "code" is 48 `SKILL.md` files — 46 that tell an agent how to write Python
 services, and two that tell it how to commit and branch. The Python in them is template content,
 not executed as part of anything here.
 
@@ -163,7 +163,7 @@ tools/check_template_imports.py          resolves every import in every template
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
 .claude/backlog.md                       catalogue edits agreed or proposed, not yet made
-plugins/pyhouse-universal/               13 skills (12 universal + meta-skill-author),
+plugins/pyhouse-universal/               14 skills (13 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     24 hex-* skills
 plugins/pyhouse-flat/                    8 flat-* skills
@@ -264,8 +264,10 @@ re-set the precedent by adding another.
 
 `python-style` was the other item and is done: the two bullets that named a DI library and a UUID
 package in prose are gone, and its validation-constraint rule is stated as an obligation with the
-library named once as an example. What it still names is legitimate — a structured logger under a
-heading that says so, and a driver exception as the example in a rule that reads without it.
+library named once as an example. The two library names it kept — a structured logger, and a driver
+exception in a logging example — left with logging for `python-logging`, which binds the logger under
+a template heading that names it and uses the exception only as an example in a rule that reads
+without it.
 
 ## Two indexes, kept in step by hand
 

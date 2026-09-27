@@ -224,7 +224,7 @@ class InfrastructureProvider(Provider):
 7. **A secret is unwrapped once, in the constructor of the adapter that sends it**
    (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
    private attribute and never unwrapped again per call — the point of use `python-settings` rule 9
-   names. A secret never reaches a log line (`python-style`) and never reaches an exception's `context`
+   names. A secret never reaches a log line (`python-logging`) and never reaches an exception's `context`
    (rule 10).
 
 ### Exception translation
