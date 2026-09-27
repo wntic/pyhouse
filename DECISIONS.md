@@ -1471,6 +1471,48 @@ that are the contract."), the class-only `NotFoundError` asserts in `hex-test-re
 and the `match=`-free `pytest.raises(ValueError)` in `hex-test-domain` (template and rule 15) and
 `pytest.raises(RuntimeError)` in the first undo test of `hex-test-application-handler/FAKES.md`.
 
+### D117 — The flat entrypoint templates mark their optional blocks; a delivered record is timed by its sender
+Shape 1's process definition in `flat-entrypoint` and the uvicorn process definition in its `HTTP.md`
+built an engine and, in Shape 1, an HTTP client, followed by a sentence saying each block exists only
+for a role the service has. An agent copies the template and not the sentence after it, so a queue
+consumer that stores nothing got an engine. Shape 1 now marks every line that exists only with a
+store or an upstream, imports included, so honouring the markers leaves valid code: `httpx` and the
+`foo_api` import `# only with an upstream`, the `postgres` import `# only with a store`, the engine line
+`# only with a store (so are try/finally, repository)`, the `api` line saying the run moves out of the
+client block without one, and that block's line `# only with an upstream` — the way the family's trees
+mark theirs. The sentence is gone. The uvicorn template carries no marker: its route and run function
+exist only with a store, so the engine there is not optional. The longer comment wordings the review
+proposed did not fit the catalogue's 120-column line length (`python-toolchain`).
+Rule 9 said a redelivered request already recorded is answered as a success, which a route satisfies
+while rewriting the row with a new timestamp; it now also changes nothing, agreeing with rule 15's
+idempotency under redelivery, and the hard stop names both failures. The `HTTP.md` run function took
+`observed_at` from the wall clock, so every redelivery rewrote the row. The stamp belongs to what a
+sender delivers, not to the shared wire record a fetched upstream also returns — putting it on
+`FooPayload` would have failed every poll's validation — so `HTTP.md` declares
+`FooDelivery(FooPayload)` with `sent_at: AwareDatetime` in `schemas/`, the route validates it and
+`record_foo` writes its `sent_at`, and a sentence states the split: a delivered record is timed by its
+sender, a fetched one by the run. The prose after `record_foo` claims only that an exact redelivery
+writes what the row holds, and leaves keeping the newer of two out-of-order deliveries to the conflict
+clause (`flat-persistence`); Shape 3's consumer paragraph gains the same clock clause. In
+`flat-test-run-function` the HTTP wrapper test posts `sent_at`, and the poll idempotence paragraph says
+the second run "adds no row" rather than "changes nothing", since the run's own clock rewrites
+`observed_at`; its rule 3 asks the second run to have added no row and changed nothing its input
+determines, rather than an unchanged observable state. `FooDelivery` imports `FooPayload` from its
+sibling module by one dot (`python-packaging`). `record_batch([foo])` stays; no single-row method was
+added.
+**Reverse by:** in `flat-entrypoint/SKILL.md`, removing the `# only with …` comments from Shape 1's
+imports and body, restoring the paragraph "Each block here exists only for a role the service has: a
+service with no store builds no engine, one with no upstream builds no transport." after it, dropping
+"and changes nothing" from rule 9, restoring its hard stop to "…answered as a failure → stop (rule 9).",
+and dropping ", the run writing values taken from the message, never the clock" from Shape 3; in
+`HTTP.md`, restoring `FooPayload` in `web/app.py`'s `myapp.schemas` import and the route's parameter to
+`payload: FooPayload` passed on as `payload`, "validates the body with the payload model", removing the
+delivered-record paragraph, the `FooDelivery` template and the paragraph after `record_foo`, and
+restoring `record_foo(repository, payload: FooPayload)` with `observed_at=datetime.now(UTC)` and its
+`datetime` import; in `flat-test-run-function`, removing `sent_at` from the HTTP test's body, restoring
+"changes nothing" in the idempotence paragraph and "run twice, assert the observable state is
+unchanged" in rule 3.
+
 ### D118 — Smaller leftovers: a `context` key names the input, and the checker's dead placeholders go
 `exception-catalog` states that a `context` key names the input, not the failure, and then showed
 `{"field": "name", "constraint": "uq_foos_name"}` as its example — a key that names the constraint that

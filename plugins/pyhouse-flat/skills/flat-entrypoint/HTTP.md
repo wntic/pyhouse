@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from myapp.exceptions import InvalidPayloadError, MyappError
 from myapp.foo_record import record_foo
 from myapp.postgres import FooRepository
-from myapp.schemas import FooPayload, RunResult
+from myapp.schemas import FooDelivery, RunResult
 
 __all__ = ["build_app"]
 
@@ -63,8 +63,8 @@ def build_app(repository: FooRepository) -> FastAPI:
         return _log_and_render(InvalidPayloadError("the request is invalid", {"fields": fields}))
 
     @app.post("/foos")
-    async def receive_foo(payload: FooPayload) -> RunResult:
-        return await record_foo(repository, payload)
+    async def receive_foo(delivery: FooDelivery) -> RunResult:
+        return await record_foo(repository, delivery)
 
     return app
 ```
@@ -87,27 +87,47 @@ test could not hand it a test container's engine. A route whose run function cal
 that client the same way, as one more argument of `build_app`.
 
 A request from a third party is verified in the wrapper (rule 9). Such a route takes the raw request,
-verifies it, then validates the body with the payload model; the parsed-parameter signature above is for
+verifies it, then validates the body with the delivery model; the parsed-parameter signature above is for
 a caller the network already trusts.
 
 ## The route's run function
 
+A record a sender delivers — a webhook body, a queue message — carries the instant the sender stamped,
+and a run over it writes that, never the clock; a record the service fetches has no such stamp and is
+timed by the run. `src/myapp/schemas/foo_delivery.py` declares it beside the wire record, since the
+route and the run function both read it, and `schemas/__init__.py` re-exports it (`flat-layered`); the
+instant is aware (`python-style`):
+
+```python
+from pydantic import AwareDatetime
+
+from .foo_payload import FooPayload
+
+__all__ = ["FooDelivery"]
+
+
+class FooDelivery(FooPayload):
+    sent_at: AwareDatetime
+```
+
 `src/myapp/foo_record.py` — framework-free like every run function:
 
 ```python
-from datetime import UTC, datetime
-
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooPayload, FooReference, RunResult
+from myapp.schemas import Foo, FooDelivery, FooReference, RunResult
 
 __all__ = ["record_foo"]
 
 
-async def record_foo(repository: FooRepository, payload: FooPayload) -> RunResult:
-    foo = Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=datetime.now(UTC))
+async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
+    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.sent_at)
     await repository.record_batch([foo])
     return RunResult(recorded=1)
 ```
+
+An exact redelivery therefore writes what the row already holds (rule 9). Where an older delivery can
+arrive after a newer one for the same reference, keeping the newer is the conflict clause's job
+(`flat-persistence`).
 
 ## The process definition — uvicorn
 
