@@ -107,7 +107,7 @@ Test skills were not swept.
 #### 31. Command sequences the "a template earns its place by being copied" bullet flags
 `flat-persistence/SETUP.md` (the alembic commands) and `python-versioning/SKILL.md` (tag and push) are
 sequences a project runs, not files it copies. Also `meta-skill-author` says the skill shapes "add and
-remove nothing" (~line 368) while a reference skill omits `Template(s)`; reword it.
+remove nothing" (~line 378) while a reference skill omits `Template(s)`; reword it.
 `git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
 rest.
 
@@ -125,3 +125,5 @@ skills loaded, defects → rules).
 
 ### 16. Sweep every skill against the hard-stop test
 Sweep every skill's `## Rules` and `## Hard stops` against the new test in `meta-skill-author`.
+`plugins/pyhouse-universal/agents/pyhouse-reviewer.md` (~line 81, "A hard stop is its rule's trigger")
+describes stops as the old test did and is updated in the same sweep.

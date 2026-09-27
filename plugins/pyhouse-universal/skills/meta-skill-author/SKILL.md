@@ -165,7 +165,7 @@ artifact, so the reader need not pull the full cross-cutting skill when only a f
 ## Hard stops
 
 <Bullet list of "asked for X → stop, use `<other-skill>` (or fix the request)". One line each, and
-only for a wrong turn a rule alone does not catch (rule 7). These are how a reader self-detects "I'm
+only for a wrong turn taken before any rule applies (rule 7). These are how a reader self-detects "I'm
 in the wrong skill".>
 ```
 
@@ -219,7 +219,8 @@ lands in the wrong skill and finds no route out does the work in the wrong place
 
 A skill ships to projects the author has never seen, so it is written against five questions and
 re-read against them before every edit. The swap test above answers question 3 only — a skill can pass
-it while saturated with one project's directory roles and workload assumptions.
+it while saturated with one project's directory roles and workload assumptions. Whatever a question
+flags is replaced with a placeholder or deleted before the skill ships.
 
 1. **Provenance** — does anything name or imply one particular application: its domain, services,
    tables, queues, env prefixes, role names, or vocabulary invented for it?
@@ -282,12 +283,12 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
    is fine, and so is one skill covering several artifacts a single change always adds at once.
 6. **Cross-cutting rules are referenced, not restated.** Point to the owner in the table below rather
    than copying its rules; an inlined slice of 3–6 load-bearing bullets is the one exception.
-7. **A hard stop is a test, not a limit.** It exists only for a wrong turn a rule alone does not
-   catch — a plausible action an agent takes before it would reach the rule, stated as the action it
-   is about to take. Every plausible wrong-skill case is one, with a redirect. A stop that restates a
-   rule as "X → stop" adds nothing and is deleted; where the stop names the action better than the
-   rule does, the rule is reworded and the stop goes. A hard stop keeps its *reason*; softening
-   "X → stop, use `Y`" into advice deletes the rule.
+7. **A hard stop catches a wrong turn no rule governs.** It exists only for an action taken before
+   any rule applies — the request itself, the choice of skill, whether to write at all — stated as
+   that action. Every plausible wrong-skill case is one, with a redirect. A stop about content a rule
+   already governs is deleted; if its wording names the mistake better, that wording moves into the
+   rule first. A hard stop keeps its *reason*; softening "X → stop, use `Y`" into advice deletes the
+   rule.
 8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `myapp` for
    a distribution's own root package, `myschema` for a library several distributions share, `myrepo`
    for the repository root, `myframework` for a framework a rule is about wrapping. Never name a real
