@@ -19,6 +19,8 @@ adapters.
 
 ## Template — standalone form
 
+`_SORT_COLUMNS` holds one entry per `FooSort` member; the member encodes column and direction.
+
 ```python
 from collections.abc import Sequence
 from typing import Any, cast
@@ -40,28 +42,11 @@ from ..tables.foos import foos_table
 
 __all__ = ["FooRepository"]
 
-# One entry per FooSort member; the member encodes column and direction.
 _SORT_COLUMNS = {
     FooSort.CREATED_AT_DESC: foos_table.c.created_at.desc(),
     FooSort.CREATED_AT_ASC: foos_table.c.created_at.asc(),
     FooSort.NAME_ASC: foos_table.c.name.asc(),
 }
-
-
-def _map_integrity_error(exc: IntegrityError) -> Exception:
-    cause = exc.orig.__cause__ if exc.orig else None
-    constraint = getattr(cause, "constraint_name", None) if cause else None
-    pgcode = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
-
-    if constraint == "uq_foos_name":
-        return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
-    if pgcode == "23514" and constraint and "name_non_empty" in constraint:
-        return ValidationError("name cannot be empty", {"field": "name", "constraint": constraint})
-
-    return ConflictError(
-        "integrity violation",
-        {"constraint": constraint or "unknown", "pgcode": pgcode or "unknown"},
-    )
 
 
 class FooRepository:
@@ -130,6 +115,22 @@ class FooRepository:
             if result.rowcount == 0:
                 raise NotFoundError("Foo not found", {"id": str(id)})
             await session.commit()
+
+
+def _map_integrity_error(exc: IntegrityError) -> Exception:
+    cause = exc.orig.__cause__ if exc.orig else None
+    constraint = getattr(cause, "constraint_name", None) if cause else None
+    pgcode = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
+
+    if constraint == "uq_foos_name":
+        return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
+    if pgcode == "23514" and constraint and "name_non_empty" in constraint:
+        return ValidationError("name cannot be empty", {"field": "name", "constraint": constraint})
+
+    return ConflictError(
+        "integrity violation",
+        {"constraint": constraint or "unknown", "pgcode": pgcode or "unknown"},
+    )
 
 
 def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:

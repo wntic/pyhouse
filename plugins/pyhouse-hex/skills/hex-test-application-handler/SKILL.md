@@ -265,13 +265,13 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 7. **Cascades match the schema.** When the real schema has `ON DELETE CASCADE`, the fake removes the dependent rows: it holds the owned children in a second dict keyed by id, and its `delete` drops every child whose parent id matches before dropping the parent. Skipping the cascade in the fake produces a green unit test that a failing integration test then catches — defeats the point.
 8. **Default-happy-path only.** No `fail_next_create=True` flags or `_should_raise` knobs. Tests needing one-off failures declare a private subclass at the **handler test module scope**, which is this skill's pattern:
 
-   ```python
-   class _RaiseInUseFooRepo(FakeFooRepository):
-       async def delete(self, id: UUID) -> None:
-           raise InUseError("Foo is referenced", {"id": str(id)})
-   ```
+```python
+class _RaiseInUseFooRepo(FakeFooRepository):
+    async def delete(self, id: UUID) -> None:
+        raise InUseError("Foo is referenced", {"id": str(id)})
+```
 
-   The storage fake's `uploads` / `deletes` call records are the only sanctioned per-call observation surface — and they observe, they do not inject failure. A test that needs an injected failure uses the inline-subclass pattern above, not a flag or a hook on the fake.
+The storage fake's `uploads` / `deletes` call records are the only sanctioned per-call observation surface — and they observe, they do not inject failure. A test that needs an injected failure uses the inline-subclass pattern above, not a flag or a hook on the fake.
 
 9. **Never hand back the object the caller passed in — copy on write and on read, and record every `update()`.** The real repository round-trips through the database: a mutation is persisted **only** by an explicit `update()`, and a later read returns the persisted row, not the caller's object. A fake that stores and returns the same instance aliases it, so a handler that mutates the entity **in place and never calls `update()`** still sees its change on the next read — the mutate-but-never-persist bug passes green and no persistence assertion can pin it. So copy on write (`self._store[id] = replace(foo)`) and on read (`return replace(self._store[id])`) — a shallow copy via `dataclasses.replace`, deep only when a field is itself mutable and the test mutates through it — and keep an `updated: list[UUID]` call record. Handler tests then pin persistence twice, that `update` was called and that the new state reads back, and a body that forgets it reds both.
 

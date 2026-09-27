@@ -9,10 +9,9 @@ first.
 
 ## Naming convention (load-bearing — do not deviate)
 
-Defined once in `infrastructure/postgres/metadata.py`:
+Defined once in `src/myapp/infrastructure/postgres/metadata.py`:
 
 ```python
-# src/myapp/infrastructure/postgres/metadata.py
 from sqlalchemy import MetaData
 
 __all__ = ["metadata"]
@@ -41,8 +40,9 @@ stable, descriptive suffix.
 
 ## Template — table file
 
+In `src/myapp/infrastructure/postgres/tables/foos.py`:
+
 ```python
-# src/myapp/infrastructure/postgres/tables/foos.py
 from sqlalchemy import CheckConstraint, Column, DateTime, Table, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func

@@ -7,8 +7,9 @@ the route ordering that puts a literal path such as `/import` above `/{id}`.
 
 ## `upload` — multipart upload
 
+In the router file, beside `router = APIRouter(...)`, the app's upload ceiling is stated once:
+
 ```python
-# In the router file, beside `router = APIRouter(...)`: the app's ceiling, stated once.
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
@@ -67,7 +68,7 @@ async def export_foos(
     data = await handler.execute(ExportFoosQuery())
     return StreamingResponse(
         iter([data]),
-        media_type="text/csv",  # the type this export actually produces
+        media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="foos.csv"'},
     )
 ```

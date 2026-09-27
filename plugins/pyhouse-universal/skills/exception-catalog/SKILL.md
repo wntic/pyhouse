@@ -68,8 +68,9 @@ same rule under its own name (a process exit code, a gRPC status), or far more o
 
 ## Template — stdlib exceptions
 
+In `myapp/exceptions.py`:
+
 ```python
-# myapp/exceptions.py
 __all__ = [
     "MyappError",
     "NotFoundError",

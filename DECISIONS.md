@@ -1526,3 +1526,130 @@ before and after. The flat/hex difference in the test engine's pool pre-ping is 
 neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
+
+### D119 — In a module holding a class, its private helpers come after it
+The maintainer's read-through found both orders in the templates, once in the same module
+(`hex-persistence`'s repository put `_map_integrity_error` above the class and `_apply_filter` below it).
+The maintainer chose *after*: a module reads from its interface down to its details — constants, then
+the class, then the helpers it calls. `python-packaging` states it beside the rule that lets a module
+hold one class and several private functions, and in its rule 3; the two repository templates move
+their helpers below the class. The rule is scoped to a module holding a class, which is the question
+asked: modules made only of functions — test modules, `__main__`, an app factory — keep their helpers
+where they are, and 17 of them put helpers first; widening the rule to them is a separate decision.
+**Reverse by:** deleting the sentence and the clause of rule 3 in `python-packaging`, and moving
+`_translate` and `_map_integrity_error` back above their classes.
+
+### D120 — `when_to_use` is optional, and neither its presence nor its absence is a defect
+18 skills carry `when_to_use` and 30 do not, nearly all of `pyhouse-hex` among the latter. The
+maintainer chose to legalize that state as it is rather than even it out: the field is Claude Code
+only, every other client matches on `description` alone, so it is written where there are trigger
+phrasings worth adding beyond what `description` already carries, and `description` must stand alone
+either way. `meta-skill-author` now says so beside the field. No skill changes, and no sweep follows.
+**Reverse by:** deleting that sentence, and then either adding the field to the 30 or removing it
+from the 18.
+
+### D121 — A template earns its place by being copied
+The maintainer's read-through found `## Template(s)` filled where nothing is copied: `git-branching`
+carried a fourteen-line script — switch, fixup, autosquash, force-with-lease push, open and merge the
+request — that no repository takes as written, that rule 4 does not need, and that named its branch
+`feat/…` where this repository's own flow says `feature/…`. `meta-skill-author` now says a template is a
+file or block of text most projects would take as written, and anything else is prose beside the rule
+or nothing. `git-branching` keeps the branching section a repository records and the forge settings
+that enforce it, and the script becomes one sentence carrying the only fact it had that an agent may
+not know (the git 2.44 `--autosquash` behaviour), keeping `GIT_SEQUENCE_EDITOR=:` in the fold command,
+without which a non-interactive agent's `rebase -i` opens an editor and hangs. A skill left with
+nothing to copy omits `## Template(s)`, as a reference or process skill does, and the required-sections
+sentence points at that exception. `git-commit-message` keeps its format block: every
+commit message is written from it. No other skill was swept against the new line; that is lens-1 work
+for `/review-skills` as each skill comes up.
+**Reverse by:** deleting the bullet in `meta-skill-author`'s universal rules and restoring the script
+in `git-branching`.
+
+### D122 — `flat-project-setup` lays the migration bootstrap with the tool's init and states what to change
+Block B carried a full `env.py`, a full `script.py.mako` and a `0001_baseline.py`, and the body opened
+with a directory tree. The tree restated `python-toolchain`'s src layout; where migrations go is rule 1's,
+now worded to carry the location the tree showed. The two generated files are what `alembic init -t
+async migrations/postgres`, run from the distribution root, already writes; what this family adds is
+only the handful of changes, so block B now gives the command and the obligations on its output: nothing
+in `alembic.ini` names a database, the environment builds its engine from the data-access component's
+settings and disposes it however the run ends, `target_metadata` is the package's one metadata, every
+table module is imported, and offline mode is refused. Checked against Alembic 1.20's async template:
+its `env.py` builds the engine from the ini section, sets `target_metadata = None` (autogenerate then
+refuses to run), disposes only after a clean run and carries an offline branch; its `script.py.mako`
+annotates with `typing.Union`/`typing.Sequence` and orders `from alembic import op` before
+`import sqlalchemy as sa`, which breaks `python-style` and the `I` selection — so the template's edits
+are stated as a rule rather than the house forms being assumed. The baseline's obligations were already
+rule 7 (now 8) and the hard stops; its code block is reduced to a sentence. Rules 5 and 6 absorb what the
+templates carried (disposal, the metadata target), a new rule 7 states that the generated bootstrap is
+changed before the first revision, and a hard stop names the unchanged-output failure; rule 7 and that
+hard stop restate what the deleted templates enforced by being the file itself. One thing is not a
+restatement: the generated `env.py` calls `fileConfig` on `alembic.ini`, whose logging sections — `[loggers]`,
+`[handlers]`, `[formatters]` and the `[logger_*]`, `[handler_*]`, `[formatter_*]` sections they list — give Alembic's records their own handler and format beside the service's
+structured stream — `python-logging` rule 3 and its hard stop on a library's records bypassing the
+configured logger. The deleted `env.py` configured no logging at all, so the skill said nothing either
+way; block B now has the environment configure logging as the service's other process definitions do,
+deletes the ini's logging sections with it, and names `fileConfig` in the hard stop. The same pass
+states that `init`'s `README` is deleted, that the tool's explanatory comments go (`python-style`,
+Comments), and spells the import-order edit as `import sqlalchemy as sa` ahead of `from alembic import
+op`; `flat-layered`'s pointer for the tree beside `src/` moves from this skill to `python-toolchain`
+rule 1.
+**Reverse by:** restoring the directory tree after the opening paragraph, the `alembic.ini`, `env.py`,
+`script.py.mako` and `0001_baseline.py` blocks in block B with the prose between them, rules 1, 5 and 6
+to their earlier wording, dropping rule 7 and renumbering 8 back to 7, dropping the unchanged-output hard
+stop, the logging bullet and the logging clause of the `alembic.ini` paragraph, and restoring the
+description's parenthesis "(`alembic.ini`, the environment under `migrations/postgres/` that reads the
+connection string at its own composition root, the revision template, and a baseline only over a schema
+that already exists)".
+
+### D123 — Fifteen skills' production templates drop the comments `python-style` does not sanction
+An agent copies a template verbatim, so every comment and docstring in one lands in every project, and
+`python-style` allows a comment only as a single short line of non-obvious *why*. The production
+templates carried more. `hex-wiring`'s `CONTAINER.md` had a docstring on each provider class and on
+`create_container`, a two-line note on where the repository binding is merged from and a per-line
+`# one line per handler`; all are gone and their content is a paragraph before the block. In
+`hex-restapi-app`, `main.py`'s middleware placeholder comment and its commented-out router include
+are gone — the notes under the block say where a middleware and a router are added — and so is the
+comment above `MIDDLEWARE_ERRORS`, which the prose after the block already states. In
+`hex-restapi-auth`, the field comment on `CurrentUser.id` (restated by the prose below it), the
+"protocol is NOT imported" import comment (now named in the paragraph that points at
+`hex-capability-adapter`) and `_RoleDependency`'s docstring (now the sentence introducing the gate)
+are gone. `hex-application`'s `# <file>.py` headers in its two-file query blocks became a line of
+prose naming the files, as its other two-file sections already do without them. `python-logging`'s
+note that a distributed package uses the stdlib logger moved into the sentence before its example.
+`hex-capability-adapter`'s "protocol is NOT imported" import comment is gone; its rule 2 and its import
+rules already state it. The file-path header comment opening a block became a line of prose naming the
+file before it in `hex-patterns` (both unit-of-work blocks), `hex-persistence`'s `TABLE.md` (two) and
+`REVISION.md`, `hex-project-setup` (`alembic.ini` and `env.py`, whose "async, online mode only" reason
+moved into that line), `exception-catalog`, `python-versioning` and `python-workspace`.
+`python-packaging`'s `# imports` elision marker, a structural label `python-style` bans by name, became
+a real import the block uses (`from dataclasses import dataclass` on the class), so the order imports →
+`__all__` → definitions reads the same. In `hex-restapi-endpoint`'s `TRANSFER.md` the "beside
+`router = APIRouter(...)`" comment moved into the prose before the upload block and the `media_type`
+annotation is gone; `hex-restapi-schema`'s paging comment on `FooListResponse` is gone, rule 7 stating
+it; `hex-persistence`'s `REPOSITORY.md` comment on `_SORT_COLUMNS` moved into the prose before its
+block. With `main.py` no longer carrying a router include, `hex-restapi-endpoint` states where the
+include goes — between `register_error_handlers(app)` and `setup_dishka(...)`.
+Kept, and why: the two one-line *why* comments in `hex-restapi-app`'s `schemas/errors.py` (the bare
+number for an unknown status; the annotation that strict mypy needs at the decorator), which are true
+in the reader's file; every optional-line marker (`# only with …`, `# only where …`), including
+`flat-entrypoint`'s extended ones, because D117 put that instruction in the template precisely because
+an agent does not copy the sentence after it, and because `python-style`'s `## Comments` now says such a
+marker is addressed to whoever copies the template and never lands in the project's file; the
+`env.py` unused-import suppression and its reason, which `hex-project-setup` sanctions; and the
+`# yes` / `# no` contrast labels and per-line annotations in `python-packaging` and `python-logging`,
+which are illustrations of a rule rather than files a project copies. Test skills are not covered by
+this change, and production templates outside the fifteen skills named here were not swept.
+**Reverse by:** restoring the docstrings on `SettingsProvider`, `InfrastructureProvider`,
+`FoosProvider` and `create_container`, the repository-binding comment and the per-handler comment in
+`CONTAINER.md`, and dropping the paragraph before its block; restoring the middleware comment and the
+commented-out router include in `hex-restapi-app`'s `main.py`, its "router-include block is a
+placeholder" note, the shorter "No other middleware is presumed" note and "`main.py` leaves a
+placeholder where they are wired in", and the comment above `MIDDLEWARE_ERRORS`; restoring the
+`CurrentUser.id` field comment, the import comment and the `_RoleDependency` docstring in
+`hex-restapi-auth` and dropping the prose that replaced them; restoring the `# <file>.py` headers in
+`hex-application`; moving the distributed-package note in `python-logging` back into its example;
+restoring the import comment in `hex-capability-adapter`, the file-path header comments (and
+`hex-project-setup`'s reason on `env.py`'s) in place of the prose lines naming those files, the
+`# imports` marker in `python-packaging`, the `TRANSFER.md`, `hex-restapi-schema` and `REPOSITORY.md`
+comments, and `hex-restapi-endpoint`'s shorter router-registration sentence; and dropping the
+optional-marker paragraph from `python-style`'s `## Comments`.

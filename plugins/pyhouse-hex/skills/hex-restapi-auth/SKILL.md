@@ -58,7 +58,7 @@ __all__ = ["CurrentUser"]
 
 @dataclass(frozen=True, slots=True)
 class CurrentUser:
-    id: str  # the issuer's opaque subject
+    id: str
 ```
 
 `id` is the credential's subject exactly as the issuer states it. It is converted to the app's own id
@@ -92,14 +92,15 @@ adapter's alone (rule 13).
 
 ### Template — PyJWT
 
-Placement (`infrastructure/jwt/`, the external tech), constructor injection, secret handling and the
-no-logging rule are `hex-capability-adapter`'s; this is the sync pure-CPU adapter that skill describes in
-prose, bound to PyJWT. Translation of the library's parse/verify errors follows `exception-catalog`.
+Placement (`infrastructure/jwt/`, the external tech), constructor injection, secret handling, the
+no-logging rule and not importing the port it satisfies (`ICanVerifyToken`) are
+`hex-capability-adapter`'s; this is the sync pure-CPU adapter that skill describes in prose, bound to
+PyJWT. Translation of the library's parse/verify errors follows `exception-catalog`.
 
 ```python
 import jwt
 
-from myapp.domain.auth import CurrentUser  # the protocol (ICanVerifyToken) is NOT imported
+from myapp.domain.auth import CurrentUser
 from myapp.domain.exceptions import UnauthorizedError
 
 from .settings import JwtSettings
@@ -281,7 +282,7 @@ however many it has; a route template names the slot — `Role.<MIN_RANK>` — n
 test covers `satisfies` at, above and below the bar (`hex-test-domain`).
 
 `restapi/dependencies.py` gains the gate below `get_current_user`, and `require_role` joins its
-`__all__`:
+`__all__`. The gate is a callable class, not a closure, so the role it gates on is a typed attribute:
 
 ```python
 from fastapi import Depends
@@ -291,8 +292,6 @@ from myapp.domain.exceptions import ForbiddenError
 
 
 class _RoleDependency:
-    """A callable CLASS, not a closure, so the gated role is a typed attribute."""
-
     def __init__(self, required: Role) -> None:
         self.required_role = required
 

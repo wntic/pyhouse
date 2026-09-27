@@ -32,21 +32,6 @@ _BIND_PARAMETER_CAP = 32767
 _CHUNK_SIZE = _BIND_PARAMETER_CAP // len(foo_table.columns)
 
 
-def _translate(exc: DBAPIError | OSError) -> MyappError:
-    orig = exc.orig if isinstance(exc, DBAPIError) else None
-    driver_error = orig.__cause__ if orig is not None else None
-    sqlstate = getattr(driver_error, "sqlstate", None)
-    if sqlstate is not None and sqlstate[:2] in _REFUSED_DATA_CLASSES:
-        return StorageWriteRejectedError(
-            "the datastore rejected the write",
-            {"sqlstate": sqlstate, "constraint": getattr(driver_error, "constraint_name", None)},
-        )
-    return StorageUnavailableError(
-        "the datastore could not complete the operation",
-        {"sqlstate": sqlstate},
-    )
-
-
 class FooRepository:
     def __init__(self, engine: AsyncEngine, *, chunk_size: int = _CHUNK_SIZE) -> None:
         self._engine = engine
@@ -70,6 +55,21 @@ class FooRepository:
                     )
         except _DRIVER_ERRORS as exc:
             raise _translate(exc) from exc
+
+
+def _translate(exc: DBAPIError | OSError) -> MyappError:
+    orig = exc.orig if isinstance(exc, DBAPIError) else None
+    driver_error = orig.__cause__ if orig is not None else None
+    sqlstate = getattr(driver_error, "sqlstate", None)
+    if sqlstate is not None and sqlstate[:2] in _REFUSED_DATA_CLASSES:
+        return StorageWriteRejectedError(
+            "the datastore rejected the write",
+            {"sqlstate": sqlstate, "constraint": getattr(driver_error, "constraint_name", None)},
+        )
+    return StorageUnavailableError(
+        "the datastore could not complete the operation",
+        {"sqlstate": sqlstate},
+    )
 ```
 
 **The batch is optional.** A method that takes one `Foo` — a webhook's `record(foo)` — runs one

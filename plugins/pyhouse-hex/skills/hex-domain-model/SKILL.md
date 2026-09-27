@@ -113,12 +113,13 @@ Distinguishing characteristics:
   process-lifetime; `FooSettings` stands for whichever settings class declares the field
   (`python-settings`), bound in `SettingsProvider` like any other:
 
-  ```python
-  class FoosProvider(Provider):
-      @provide(scope=Scope.APP)
-      def foo_retention_tunable(self, settings: FooSettings) -> FooRetentionTunable:
-          return FooRetentionTunable(retention_days=settings.foo_retention_days)
-  ```
+```python
+class FoosProvider(Provider):
+    @provide(scope=Scope.APP)
+    def foo_retention_tunable(self, settings: FooSettings) -> FooRetentionTunable:
+        return FooRetentionTunable(retention_days=settings.foo_retention_days)
+```
+
 - Injected into domain services and application handlers, never into entities. Entities do not read
   tunables; services do.
 - Every value-object rule still applies: frozen, no methods, primitive or VO fields only. Which

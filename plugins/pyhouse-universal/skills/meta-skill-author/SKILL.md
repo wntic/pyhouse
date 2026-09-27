@@ -57,7 +57,10 @@ paths: <optional — activation globs, Claude Code only>
 - **`description`** — what the skill covers and when to apply it. This is what gets matched to decide
   whether to load the skill, and it is the **only** field every client reads.
 - **`when_to_use`** — a valid, documented Claude Code field carrying additional invocation context.
-  Optional. It supplements `description`; it never replaces part of it.
+  Optional, and read by Claude Code only. It supplements `description`; it never replaces part of it.
+  Write it when there are trigger phrasings worth adding beyond what `description` already carries. A
+  skill without it is not missing anything, and one with it is not a defect — `description` must stand
+  alone either way.
 - **`paths`** — a valid, documented Claude Code field carrying glob patterns that limit when a skill
   auto-activates. Optional, and not restricted to test skills. It **narrows** auto-activation, so a
   too-tight glob makes a skill unfindable in a project whose layout differs slightly. Glob the layer
@@ -113,7 +116,8 @@ this catalogue's channel — is unaffected.
 ## Body — the canonical sections
 
 Every skill has these sections, in this order, with these exact headings — templates have one
-allowance, stated in rule 1. Four sections are required; three (`Other bindings`, `Inlined typing /
+allowance, stated in rule 1. Four sections are required (`Template(s)` only where the skill has
+something to copy — see the universal rules); three (`Other bindings`, `Inlined typing /
 import rules`, `Package wiring`) are optional, included only when load-bearing.
 
 ```markdown
@@ -420,7 +424,13 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
 - No section describing what the skill returns or who invokes it (rule 10).
 - Hard stops use the canonical phrasing: "X → stop, use `<other-skill>`" or "X → stop, <action>".
 - A reference skill omits `Template(s)`, `Other bindings` and `Package wiring`; everything else keeps
-  all four required sections, under the allowances of rule 1.
+  all four required sections, under the allowances of rule 1, except that a skill with nothing to copy
+  omits `Template(s)` (below).
+- **A template earns its place by being copied.** It shows a file, or a block of text, that most
+  projects using the skill would take as written. A sequence of commands, a walkthrough or a
+  demonstration of the mechanism behind a rule is not a template: it becomes a sentence of prose beside
+  the rule, or nothing. A skill left with nothing to copy omits `## Template(s)`, as a reference or
+  process skill does.
 - A universal (unprefixed) skill may name a `hex-*` or `flat-*` skill as an example, but may not
   *require* one — the `pyhouse-universal` plugin must be installable alone. See the packaging table in
   the sibling `CONVENTIONS.md`.

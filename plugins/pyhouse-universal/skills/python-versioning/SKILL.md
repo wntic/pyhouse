@@ -83,10 +83,9 @@ git push origin v1.4.0
 Runtime access reads the installed distribution's metadata rather than a second literal, and reads it
 when asked, not at import — `python-packaging` rule 8 builds nothing at import time, and a metadata
 lookup is a filesystem read. The function lives in a module of its own, or where the version is
-reported; what the package root holds is `python-packaging`'s:
+reported; what the package root holds is `python-packaging`'s. In `src/myapp/version.py`:
 
 ```python
-# src/myapp/version.py
 from importlib.metadata import version
 
 
