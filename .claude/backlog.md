@@ -122,6 +122,10 @@ remove nothing" (~line 368) while a reference skill omits `Template(s)`; reword 
 `git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
 rest.
 
+#### 32. No test skill shows a fake unit of work
+`hex-test-application-handler` has no guidance for a handler that takes an `IUnitOfWork`, so an agent
+invents one. Decide whether one rule (not a template) in that skill covers it.
+
 ## Agreed
 
 ### 4. Re-run the short-prompt scenario on the current skills

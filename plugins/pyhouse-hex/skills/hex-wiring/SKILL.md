@@ -97,7 +97,8 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   root exactly once, which runs every declared teardown (`hex-restapi-app`).
 - **Bindings are reached by type, not by name.** A call site names the type it needs; the composition
   root decides what satisfies it. Nothing outside the composition root may depend on how a binding is spelled.
-- **A unit of work is bound as its factory callable, never as an instance** (`hex-persistence`, `UNIT_OF_WORK.md`).
+- **A unit of work is bound as its factory callable, never as an instance**, so each call opens its own
+  transaction and no two callers share one. `hex-persistence`'s `UNIT_OF_WORK.md` shows the form it binds.
 
 ### Where a settings class sits
 

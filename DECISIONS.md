@@ -1672,7 +1672,7 @@ which already owned it; commit last, no catch, no retry) and a sentence added to
 repository is handed the open handle, never a factory). Compensation went to `hex-application`: its
 seven rules became a `Compensation` subsection of Rules (rule 1, the only sanctioned `try/except`, was
 already command handler rule 5(a) and merged there; the when-to-use bullets, the several-side-effects
-and success-path-cleanup paragraphs became rules 1, 6 and 7), and its template — `hex-application`'s
+and success-path-cleanup paragraphs became rules 1, 6 and 8), and its template — `hex-application`'s
 own `CreateFooHandler` with the undo — went to a sibling `COMPENSATION.md`, because in the body it would
 have taken `SKILL.md` past ~500 lines for a form most hex services do not have. Dropped: the "both
 patterns together" template (a sentence in each file says compensation's `try` wraps the `async with`),

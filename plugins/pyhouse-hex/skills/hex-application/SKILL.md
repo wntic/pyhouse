@@ -413,9 +413,9 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    re-raising scope stays silent (`python-logging`).
 6. **Several side effects are recorded as each lands, and on failure each recorded one is undone behind
    its own guard**, so a failure part-way still cleans what already landed.
-7. **Compensation wraps a unit of work, never the reverse.** Cleanup of a replaced resource after a
-   successful commit is not compensation: no failure is propagating, so its failure propagates like any
-   other step's.
+7. **Compensation wraps a unit of work, never the reverse.**
+8. **Disposing of a replaced resource after a successful commit is not compensation** — no failure is
+   propagating, so its failure propagates like any other step's.
 
 ### Query handler
 
