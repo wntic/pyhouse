@@ -22,7 +22,7 @@ What they do *not* decide is which package a module belongs in. That is the arch
 - Creating a module or an `__init__.py`, or changing a package's public surface → this skill.
 - Any question of relative vs absolute, or how to spell an import → this skill.
 - A circular import, or an import pushed into a function body to break one → this skill; the cycle is
-  a structural problem and the hard stops below say so.
+  a structural problem and rule 11 says so.
 - Which package a module belongs in → `hex-architecture` (in the `pyhouse-hex` plugin) or
   `flat-layered` (in `pyhouse-flat`).
 - Annotation forms, comments → `python-style`; logging → `python-logging`.
@@ -345,75 +345,44 @@ hand-written imports land in the right block.
 2. **One class per module, unless the classes are one closed set of declarations.** Several classes
    share a module only when every one is a declaration with no state, injection or lifecycle, they
    change as one unit, and the module is named for the set; a class with behaviour always has its own
-   module. The only other allowances are a private declaration that never leaves its module and a
-   module whose name and contents a framework dictates. The rule caps classes and does not require one,
-   so a function-only module does not engage it. Whether the module wants a class at all is **When a
-   module needs a class at all**: state its methods share, or no class.
+   module. The only other allowances are a private declaration that never leaves its module — the day
+   another module imports it, it moves to its own module and loses the underscore — and a module whose
+   name and contents a framework dictates. The rule caps classes and does not require one, so a
+   function-only module does not engage it. Whether the module wants a class at all is **When a module
+   needs a class at all**: state its methods share, or no class — and a helper that never touches
+   `self` is a module-level function, not a private method.
 3. Put module exports between imports and definitions, using the placement shown in **Modules**; in a
    module holding a class, the definitions run constants, then the class, then its private helpers.
 4. Check each re-exporting `__init__.py` against all four parts of the re-export contract.
 5. When adding a public module, complete all four package edits listed under that contract.
-6. Apply each re-export carve-out at its documented scope: the distribution root by what that root is —
-   an application's stays empty, a library's carries the names it publishes and no others —
-   side effects or colliding exports, and bare-object modules.
+6. **A package re-exports its immediate children**, except at each carve-out's documented scope: the
+   distribution root by what that root is — an application's stays empty, a library's enumerates the
+   names it publishes and no others, leaving a name that pulls a heavy or optional dependency to its
+   own module path — side effects or colliding exports, and bare-object modules.
 7. Select relative or absolute reach using **Relative vs absolute**, without routing a sibling import
-   through its parent. A layer boundary is a package boundary and takes the absolute form.
+   through its parent. Three or more dots, and any layer boundary — which is a package boundary — take
+   the absolute form.
 8. **Build nothing at import time.** Importing a module binds names; anything that reaches the network
    or filesystem, reads the environment, or needs either is built inside a function the caller runs — so
    importing a module never demands the environment of an object the importer did not ask for.
-9. Collapse symbols from the same direct package into the documented sorted import form; keep the
-   re-export reach to one hop.
+9. Import from the package that directly contains the defining module, never from the inner module
+   and never through a grandparent — one re-export hop — and collapse its symbols into the documented
+   sorted form.
 10. Keep imports in the five documented groups; apply `python-style` to the empty future-import slot.
-11. Check wildcard use, module aliases and cycle workarounds against the hard stops below.
+11. **Spell an import as what it uses, and never to work around a cycle.** No `from x import *` outside
+    an `__init__.py` — it pollutes the namespace and breaks linting; no module alias
+    (`import myapp.foos as fs`) — `from … import` shows what is used; and no import moved into a
+    function body or a `TYPE_CHECKING` block to break a cycle — the cycle is a structural problem, and
+    the structure is what gets fixed.
+12. **No mutable module-level state.** A dict used as a cache, an accumulating list, a registry filled
+    at run time is a singleton nobody declared, shared by every caller and every test; give it an owner
+    or drop it. Module-level constants are correct.
 
 ## Hard stops
 
-- A class with behaviour — state, an injected collaborator, a lifecycle — sharing its module with any
-  other public class, or with a private class that has behaviour of its own → stop, split it; a class
-  with behaviour always has its own module, and the private allowance covers declarations only.
-- Several declarations in one module that do not change as one unit, or a set module named after one
-  of its members → stop, split it or name the module for the set; the allowance is for one closed set,
-  not for any classes that happen to be small.
-- A private helper type in a shared module being imported by another module → stop, give it its own
-  module and drop the underscore; the allowance ends when it leaves.
-- A module filename that does not match its class in snake_case → stop, rename the file.
-- A class carrying **behaviour** with no constructor state, whose methods never read an attribute its
-  `__init__` set → stop, the module is already the namespace; these are module-level functions. This
-  does not reach a class that declares a type — a `Protocol`, an enum, an exception class or a frozen
-  record is a name for a shape and needs no state to deserve one.
-- A private method that never touches `self` → stop, it is a module-level function, and moving it there
-  is what tells the reader it holds no state.
-- A mutable module-level binding — a dict used as a cache, an accumulating list, a registry filled at
-  run time → stop, it is a singleton nobody declared, shared by every caller and every test; give it an
-  owner or drop it.
-- `__all__` placed above the imports → stop, it goes after the imports and before the class.
-- An `__init__.py` with `from .module import ClassName` instead of the wildcard → stop, use the wildcard
-  so the package `__all__` can be `+`-joined.
-- An `__init__.py` holding class definitions, constants or logic → stop, imports and `__all__` only.
-- An `__init__.py` referencing `module.__all__` with no matching `from . import module` line → stop, add
-  the explicit submodule import; the wildcard alone does not bind the name for the type checker.
-- A package with children and an empty `__init__.py` → stop, re-export them — unless it is an
-  application's distribution root (carve-out 1) or a package kept empty under carve-out 2.
-- An application's distribution root `__init__.py` wildcarding its subpackages → stop, nothing outside
-  imports that root, and every importer would pay for the dependencies it drags in; it stays empty.
-- A library or SDK root re-exporting whatever sits beneath it rather than the names it publishes → stop,
-  that root is the contract; enumerate it, and leave a name whose import pulls a heavy or optional
-  dependency to its own module path.
-- A module with import-time side effects being wildcarded into its package → stop, importing the package
-  would now run it.
-- A module-level `settings = Settings()`, client, engine, connection or metadata-read `__version__` →
-  stop, build it inside a function the caller runs; as written, every importer pays for it and the
-  failure names the import instead of the missing value.
-- Importing an inner module rather than its package (`from pkg.foo.foo import Foo`) → stop, import from
-  the package.
-- Reaching a symbol through a grandparent package → stop, one hop; the middle `__all__` is computed and
-  will not type-check.
-- `from x import *` outside an `__init__.py` → stop, a wildcard inside a regular module pollutes the
-  namespace and breaks linting.
-- A three-or-more-dot relative import → stop, switch to absolute.
-- `import myapp.foos as fs` followed by `fs.FooParser` → stop, use `from … import`; a module alias hides
-  what is actually used.
-- An import inside a function body, or a `TYPE_CHECKING` block, used purely to break a cycle → stop, the
-  cycle points at a structural problem; fix the structure.
-- Any identifier is being chosen, or carried over from ported or generated code → `naming` owns that
-  judgment and carries its own hard stops; this skill's stops cover only the packaging mechanics.
+- Any identifier is being chosen, or carried over from ported or generated code → stop, use `naming`;
+  this skill checks the filename against the class once the name exists.
+- Asked which package a module belongs in → stop, use `hex-architecture` (in `pyhouse-hex`) or
+  `flat-layered` (in `pyhouse-flat`).
+- Asked whether the boundary between two modules or packages should exist at all → stop, use
+  `coupling`; this skill owns the mechanics once it is drawn.
