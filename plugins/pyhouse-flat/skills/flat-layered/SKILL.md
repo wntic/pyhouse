@@ -136,10 +136,10 @@ src/myapp/
 └── entrypoints/       # only with more than one process: one module per process, replacing __main__.py
 ```
 
-The tree sits under `src/`, beside the distribution's `pyproject.toml` and `tests/` (`flat-project-setup`).
-A record one package alone reads lives in that package; a record that crosses packages — the service's
-own record, a wire record one package parses and another consumes, what a run returns — sits in
-`schemas/`. A service with a framework adds one wrapper package — the HTTP shape's, or a
+The tree sits under `src/`, beside the distribution's `pyproject.toml` and `tests/` (`python-toolchain`
+rule 1). A record one package alone reads lives in that package; a record that crosses packages — the
+service's own record, a wire record one package parses and another consumes, what a run returns — sits
+in `schemas/`. A service with a framework adds one wrapper package — the HTTP shape's, or a
 durable-execution engine's together with its guarded helper module (`flat-entrypoint`). A second store is
 a sibling of `postgres/` named for its own technology (rule 4).
 

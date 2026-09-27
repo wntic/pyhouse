@@ -1,6 +1,6 @@
 ---
 name: flat-project-setup
-description: Use when laying a flat-layered service down once — which runtime and development libraries each of its roles brings, with the version floors this family's templates rely on, and the relational migration bootstrap (`alembic init -t async` under `migrations/postgres/`, then the generated environment changed to read the connection string at its own composition root and see every table, the revision template to the house annotation forms, and a baseline only over a schema that already exists). The src layout, ruff and mypy, the line length and the dependency-floor discipline every Python project shares are `python-toolchain`'s. Never per feature — each later schema revision is `flat-persistence`'s, and the package layout inside `src/` is `flat-layered`'s. A hexagonal project's setup is `hex-project-setup`, in the `pyhouse-hex` plugin.
+description: Use when laying a flat-layered service down once — which runtime and development libraries each of its roles brings, with the version floors this family's templates rely on, and the relational migration bootstrap (`alembic init -t async` under `migrations/postgres/`, then the generated environment changed to read the connection string at its own composition root and see every table, the revision template changed to the house annotation forms, and a baseline only over a schema that already exists). The src layout, ruff and mypy, the line length and the dependency-floor discipline every Python project shares are `python-toolchain`'s. Never per feature — each later schema revision is `flat-persistence`'s, and the package layout inside `src/` is `flat-layered`'s. A hexagonal project's setup is `hex-project-setup`, in the `pyhouse-hex` plugin.
 when_to_use: Also when asked to start a new worker, pipeline or ETL service, which libraries it needs, to add a dependency or justify one of this family's version floors, or to add migrations to a flat service that has none.
 ---
 
@@ -85,12 +85,13 @@ alembic init -t async migrations/postgres
 ```
 
 It writes `alembic.ini` with `script_location` already pointing at `migrations/postgres`, and in that
-directory `env.py`, `script.py.mako` and an empty `versions/`. What it writes is the tool's generic
-starting point, not this family's bootstrap; before the first revision, the generated files are changed
-to do what follows.
+directory `env.py`, `script.py.mako`, a `README` and an empty `versions/`. The `README` is deleted. What
+it writes is the tool's generic starting point, not this family's bootstrap; before the first revision,
+the generated files are changed to do what follows.
 
-**Nothing in `alembic.ini` names a database.** The `sqlalchemy.url` line `init` writes is deleted; the
-rest may stay as generated.
+**Nothing in `alembic.ini` names a database.** The `sqlalchemy.url` line `init` writes is deleted, and so
+are the `[loggers]`, `[handlers]` and `[formatters]` sections, which only the generated logging setup
+reads; the rest may stay as generated.
 
 **The migration environment is the migration run's process definition**, so it is the one place outside
 the service's own entrypoints that builds the data-access component's settings. `env.py` is changed so
@@ -106,15 +107,21 @@ that:
 - **every table module is imported, one line each**, because a table module's names are bare objects
   the data-access package does not re-export (`python-packaging`), and autogenerate compares only the
   tables that registered; a new table module adds its line in the same change that adds the module;
+- logging is configured as every other process definition of the service configures it — the service's
+  own logging setup, called once before the run — in place of the generated `fileConfig` call on
+  `alembic.ini`, which would give the tool's records their own handler and format beside the service's
+  structured stream (`python-logging` rule 3);
 - offline mode is refused rather than half-supported — the generated offline branch is replaced by an
-  error, because every migration runs against a live connection.
+  error, because every migration runs against a live connection;
+- the tool's explanatory comments go, as they do from any source file (`python-style`, Comments).
 
 **The revision template is kept as `init` writes it, with one edit: the forms it renders.** The
 generated `script.py.mako` annotates its revision identifiers with `typing.Union` and `typing.Sequence`
 and places `from alembic import op` ahead of `import sqlalchemy as sa`, so every revision it rendered
 would break `python-style`'s annotation forms and fail the linter's import sort. Its annotations become
-`str | Sequence[str] | None` with `Sequence` from `collections.abc`, and its imports are put in sorted
-order; nothing else in it changes.
+`str | Sequence[str] | None` with `Sequence` from `collections.abc`, `import sqlalchemy as sa` moves
+ahead of `from alembic import op` — the order the linter's import sort requires — and the tool's
+explanatory comments go (`python-style`, Comments); nothing else in it changes.
 
 **This block sanctions two lint suppressions, the ones `python-toolchain` rule 5 leaves to it.** The
 inline unused-import suppression on the environment's registration imports: they exist only for their
@@ -143,9 +150,11 @@ through it; a fresh one — the integration suite's — runs it like any revisio
 - **Another package manager.** poetry or pdm replace `uv add`; the roles and what each brings, and the
   floors with their APIs, are unchanged. The rest is `python-toolchain`'s.
 - **Another migration tool.** Its init command, config file, revision template and autogenerate
-  command change, and so do the lines its generated environment needs changed; the history in `migrations/postgres/` at the distribution root, the environment reading the
-  connection string at its own composition root and seeing every table, a greenfield chain rooted at its first real revision,
-  a frozen baseline only over an existing schema, and a reverse operation in every revision do not.
+  command change, and so do the lines its generated environment needs changed; the history in
+  `migrations/postgres/` at the distribution root, the environment reading the connection string at its
+  own composition root, seeing every table and logging through the service's one configuration, a
+  greenfield chain rooted at its first real revision, a frozen baseline only over an existing schema,
+  and a reverse operation in every revision do not.
 
 ## Rules
 
@@ -170,8 +179,9 @@ through it; a fresh one — the integration suite's — runs it like any revisio
    metadata, every table module is imported by it, and a new table module adds its import in the same
    change.
 7. **The generated bootstrap is the tool's starting point, not the bootstrap.** Lay it with the tool's
-   own init, then change what it wrote to meet rules 5 and 6, refuse offline mode, and render revisions
-   in `python-style`'s forms and the linter's import order.
+   own init, then change what it wrote to meet rules 5 and 6, configure logging as the service's other
+   processes do, refuse offline mode, and render revisions in `python-style`'s forms and the linter's
+   import order.
 8. **A greenfield chain is rooted at its first real revision; a baseline exists only over a schema that
    already exists.** Greenfield, `versions/` starts empty and the first table's reviewed, autogenerated
    revision is the root. Over an existing schema the baseline holds that schema as hand-written DDL, is
@@ -187,8 +197,8 @@ through it; a fresh one — the integration suite's — runs it like any revisio
 - `alembic.ini` carries a connection string, or the migration environment builds one from anything but
   the data-access component's settings → stop, read it at the environment's composition root.
 - The migration environment is left as `alembic init` wrote it — the engine built from `alembic.ini`,
-  `target_metadata = None`, an offline branch — or the revision template still renders `typing.Union`
-  → stop, change them (rule 7).
+  `target_metadata = None`, `fileConfig` on `alembic.ini`, an offline branch — or the revision template
+  still renders `typing.Union` → stop, change them (rule 7).
 - A baseline revision is being written into a `versions/` that already holds revisions → stop, the chain
   has started; write a revision (`flat-persistence`).
 - The baseline calls `metadata.create_all` or imports the tables → stop, it is frozen DDL of what already

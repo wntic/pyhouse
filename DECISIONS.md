@@ -1543,11 +1543,22 @@ annotates with `typing.Union`/`typing.Sequence` and orders `from alembic import 
 is stated as a rule rather than the house forms being assumed. The baseline's obligations were already
 rule 7 (now 8) and the hard stops; its code block is reduced to a sentence. Rules 5 and 6 absorb what the
 templates carried (disposal, the metadata target), a new rule 7 states that the generated bootstrap is
-changed before the first revision, and a hard stop names the unchanged-output failure. No obligation
-changed.
+changed before the first revision, and a hard stop names the unchanged-output failure; rule 7 and that
+hard stop restate what the deleted templates enforced by being the file itself. One thing is not a
+restatement: the generated `env.py` calls `fileConfig` on `alembic.ini`, whose `[loggers]`, `[handlers]`
+and `[formatters]` sections give Alembic's records their own handler and format beside the service's
+structured stream — `python-logging` rule 3 and its hard stop on a library's records bypassing the
+configured logger. The deleted `env.py` configured no logging at all, so the skill said nothing either
+way; block B now has the environment configure logging as the service's other process definitions do,
+deletes the ini's logging sections with it, and names `fileConfig` in the hard stop. The same pass
+states that `init`'s `README` is deleted, that the tool's explanatory comments go (`python-style`,
+Comments), and spells the import-order edit as `import sqlalchemy as sa` ahead of `from alembic import
+op`; `flat-layered`'s pointer for the tree beside `src/` moves from this skill to `python-toolchain`
+rule 1.
 **Reverse by:** restoring the directory tree after the opening paragraph, the `alembic.ini`, `env.py`,
 `script.py.mako` and `0001_baseline.py` blocks in block B with the prose between them, rules 1, 5 and 6
 to their earlier wording, dropping rule 7 and renumbering 8 back to 7, dropping the unchanged-output hard
-stop, and restoring the description's parenthesis "(`alembic.ini`, the environment under
-`migrations/postgres/` that reads the connection string at its own composition root, the revision
-template, and a baseline only over a schema that already exists)".
+stop, the logging bullet and the logging clause of the `alembic.ini` paragraph, and restoring the
+description's parenthesis "(`alembic.ini`, the environment under `migrations/postgres/` that reads the
+connection string at its own composition root, the revision template, and a baseline only over a schema
+that already exists)".
