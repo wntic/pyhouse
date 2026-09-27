@@ -1394,3 +1394,20 @@ paragraph in `flat-test-persistence`, and the helper wording in `flat-persistenc
 its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
+
+### D115 — `flat-test-integration-setup` points at `test-principles` instead of restating it
+The skill restated what its own rules and `test-principles` already carry. Rule 4's pool and transaction
+scopes are now the *Fixture scope rules* subsection's, cited, with only the one-connection consequence
+kept. The `filterwarnings` hard stop points at reliability rule 9, which states the narrow `"ignore:…"`
+entry and its reason. The prose after the pytest configuration shrinks to a pointer at rule 8, which
+already explains the closed-loop crash, and the `truncate_all` paragraph keeps only the autouse
+finalization order that rule 7 relies on without explaining. Rule 2 opens with its condition — where the
+suite can reach a database it did not start — as rule 3 already did, since the template's `db_dsn`
+yields only the suite's own container and has nothing to guard. The hard stop against relaxing the
+guard for a local database duplicated the first guard stop, whose reason now ends that stop.
+`## Other bindings` gains one sentence for a second, non-relational store: its own session-scoped
+container and client, isolated by a per-test namespace deleted at teardown. No obligation changed.
+**Reverse by:** restoring rule 2's unconditional opening, rule 4's two-sentence scope argument, the
+local-database hard stop, the `filterwarnings` stop's `"ignore:..."` wording, the loop-scope paragraph
+and the full `truncate_all` paragraph in `flat-test-integration-setup`, and removing its second-store
+bullet under `## Other bindings`.
