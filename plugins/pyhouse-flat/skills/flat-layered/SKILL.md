@@ -173,7 +173,7 @@ class Foo:
 `src/myapp/schemas/foo_payload.py` — the wire record, parsed and validated where it arrives:
 
 ```python
-from pydantic import BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict
 
 __all__ = ["FooPayload"]
 
@@ -183,7 +183,11 @@ class FooPayload(BaseModel):
 
     ref: str
     name: str
+    sent_at: AwareDatetime
 ```
+
+`sent_at` is the instant the source stamped on the record; the validator refuses one with no offset
+(`python-style`).
 
 `src/myapp/schemas/run_result.py` — the aggregate a run returns (`flat-entrypoint` rule 5):
 

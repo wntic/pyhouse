@@ -68,7 +68,10 @@ from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
 from myapp.schemas import RunResult
 
-_TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b"}]}
+_SENT_AT = "2024-01-01T00:00:00Z"
+_TWO_FOOS = {
+    "items": [{"ref": "alpha", "name": "a", "sent_at": _SENT_AT}, {"ref": "beta", "name": "b", "sent_at": _SENT_AT}]
+}
 
 
 async def test_a_run_records_what_it_fetched(
@@ -188,7 +191,7 @@ async def http(engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
 
 
 async def test_a_posted_foo_reaches_the_run_function(http: httpx.AsyncClient) -> None:
-    response = await http.post("/foos", json={"ref": "alpha", "name": "a"})
+    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "sent_at": "2024-01-01T00:00:00Z"})
 
     assert response.json() == {"recorded": 1}
 

@@ -69,6 +69,8 @@ async def foo_client(foo_api: respx.MockRouter) -> AsyncIterator[FooClient]:
 `tests/unit/test_foo_client.py`:
 
 ```python
+from datetime import UTC, datetime
+
 import httpx
 import pydantic
 import pytest
@@ -81,13 +83,15 @@ from myapp.schemas import FooPayload
 
 async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
     route = foo_api.get("/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]})
+        return_value=httpx.Response(
+            200, json={"items": [{"ref": "f1", "name": "alpha", "sent_at": "2024-01-01T00:00:00Z"}]}
+        )
     )
 
     result = await foo_client.fetch_foos()
 
     assert route.called
-    assert result == (FooPayload(ref="f1", name="alpha"),)
+    assert result == (FooPayload(ref="f1", name="alpha", sent_at=datetime(2024, 1, 1, tzinfo=UTC)),)
 
 
 async def test_fetch_foos_sends_a_get_to_the_collection(foo_api: respx.MockRouter, foo_client: FooClient) -> None:

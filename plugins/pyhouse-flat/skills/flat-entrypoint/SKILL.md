@@ -122,13 +122,13 @@ from myapp.postgres import FooRepository, PostgresSettings, get_engine
 
 
 async def _run() -> None:
-    api = FooApiSettings()
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())
+    api = FooApiSettings()  # only with an upstream
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store
     try:
-        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:
+        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:  # only with an upstream
             await run_once(FooClient(http), FooRepository(engine))
     finally:
-        await engine.dispose()
+        await engine.dispose()  # only with a store
 
 
 def main() -> None:
@@ -139,9 +139,6 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 ```
-
-Each block here exists only for a role the service has: a service with no store builds no engine, one with
-no upstream builds no transport.
 
 **Logging is configured once, first** (`python-logging` rule 3). **The run is not guarded:** a failure
 propagates out of `main()` to a non-zero exit, which is how the scheduler that started the process
@@ -313,7 +310,7 @@ for rule 9.
    one place, never per route, and logged once there. A route that branches on the data, reaches the
    repository class, or catches a catalogue error itself has become a second place the work lives. A
    request from a third party is verified against the raw body it signed before the body is parsed, and
-   a redelivery of one already recorded is answered as a success.
+   a redelivery of one already recorded is answered as a success and changes nothing.
 10. **An input whose size the service does not control is processed in bounded memory.** An upstream
     file, an export or a feed is streamed — read, transformed and written in bounded batches — and
     nothing in the process accumulates a whole source: no list of every record, no in-process set of
@@ -433,7 +430,8 @@ separately from the rules and cited elsewhere as *durable obligation N*.
 - An HTTP route reaches the repository class or the client itself, or maps a catalogue error to a status of
   its own → stop, route through a run function and let the one handler render it.
 - A third party's request body is parsed before its signature is verified against the raw bytes, or a
-  redelivery of a request already recorded is answered as a failure → stop (rule 9).
+  redelivery of a request already recorded is answered as a failure or changes what was recorded → stop
+  (rule 9).
 - The web app is built at module scope → stop, build it in a factory the process definition calls with
   the dependencies it built.
 - A run reads a whole unbounded source into memory, or deduplicates one with an in-process set → stop,

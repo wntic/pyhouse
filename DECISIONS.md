@@ -1394,3 +1394,22 @@ paragraph in `flat-test-persistence`, and the helper wording in `flat-persistenc
 its description, its hard stops and the neighbour lines in `flat-test-integration-setup` and
 `flat-test-run-function`, from the parent of the commits that added this entry, with D20's
 superseded marker removed.
+
+### D117 — The flat entrypoint templates mark their optional lines; a webhook redelivery changes nothing
+Shape 1's process definition in `flat-entrypoint` and the uvicorn process definition in its `HTTP.md`
+built an engine and, in Shape 1, an HTTP client, followed by a sentence saying each block exists only
+for a role the service has. An agent copies the template and not the sentence after it, so a queue
+consumer that stores nothing got an engine. The lines now carry `# only with a store` (the engine and
+its disposal) and `# only with an upstream` (the client's settings and the client block), the way the
+family's trees already mark theirs, and the sentence is gone. Rule 9 said a redelivered request already
+recorded is answered as a success, which a route satisfies while rewriting the row with a new
+timestamp; it now also changes nothing, agreeing with rule 15's idempotency under redelivery, and the
+hard stop names both failures. The `HTTP.md` run function took `observed_at` from the wall clock, so
+every redelivery rewrote the row; it now takes it from the event, and `FooPayload` in `flat-layered`
+gains `sent_at: AwareDatetime`, the instant the source stamped, which the upstream-client, run-function
+and HTTP-wrapper test templates now send. `record_batch([foo])` stays; no single-row method was added.
+**Reverse by:** removing the `# only with …` comments from both process definitions and restoring the
+"Each block here exists only for a role the service has" paragraph after Shape 1; dropping "and changes
+nothing" from rule 9 and "or changes what was recorded" from its hard stop; restoring
+`observed_at=datetime.now(UTC)` and its import in `HTTP.md`'s `record_foo`; and removing `sent_at` from
+`FooPayload` and from the payload bodies in `flat-test-service-client` and `flat-test-run-function`.

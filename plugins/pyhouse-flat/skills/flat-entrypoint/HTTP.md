@@ -95,8 +95,6 @@ a caller the network already trusts.
 `src/myapp/foo_record.py` — framework-free like every run function:
 
 ```python
-from datetime import UTC, datetime
-
 from myapp.postgres import FooRepository
 from myapp.schemas import Foo, FooPayload, FooReference, RunResult
 
@@ -104,10 +102,13 @@ __all__ = ["record_foo"]
 
 
 async def record_foo(repository: FooRepository, payload: FooPayload) -> RunResult:
-    foo = Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=datetime.now(UTC))
+    foo = Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=payload.sent_at)
     await repository.record_batch([foo])
     return RunResult(recorded=1)
 ```
+
+Every value written comes from the request, never the clock, so a redelivery rewrites the row with what
+it already holds and changes nothing (rule 9).
 
 ## The process definition — uvicorn
 
@@ -131,13 +132,13 @@ from myapp.web import build_app
 
 async def _serve() -> None:
     settings = Settings()
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())
+    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store
     try:
         app = build_app(FooRepository(engine))
         config = uvicorn.Config(app, host=settings.http_host, port=settings.http_port, log_config=None)
         await uvicorn.Server(config).serve()
     finally:
-        await engine.dispose()
+        await engine.dispose()  # only with a store
 
 
 def main() -> None:
