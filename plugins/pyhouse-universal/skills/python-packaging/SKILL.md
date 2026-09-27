@@ -94,6 +94,8 @@ somewhere; it has a lifecycle to open and close.
 level beside the class is the better shape, not a compromise: it cannot reach instance state, so a
 reader knows it is stateless without reading it, and a test can call it without constructing anything.
 This is why a module may hold one class and several private functions and still obey the rule above.
+**The private functions come after the class**, so the module reads from its interface down to its
+details: constants first, then the class, then the helpers it calls.
 
 **Module-level constants are correct; module-level mutable state is not.** A compiled pattern, a
 timeout, a lookup table belongs at module level, where it is built once and is easy to find — hoisting
@@ -347,7 +349,8 @@ hand-written imports land in the right block.
    module whose name and contents a framework dictates. The rule caps classes and does not require one,
    so a function-only module does not engage it. Whether the module wants a class at all is **When a
    module needs a class at all**: state its methods share, or no class.
-3. Put module exports between imports and definitions, using the placement shown in **Modules**.
+3. Put module exports between imports and definitions, using the placement shown in **Modules**; in a
+   module holding a class, the definitions run constants, then the class, then its private helpers.
 4. Check each re-exporting `__init__.py` against all four parts of the re-export contract.
 5. When adding a public module, complete all four package edits listed under that contract.
 6. Apply each re-export carve-out at its documented scope: the distribution root by what that root is —

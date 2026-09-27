@@ -1526,3 +1526,15 @@ before and after. The flat/hex difference in the test engine's pool pre-ping is 
 neither family states a rule about it, so there is nothing to align.
 **Reverse by:** restoring the `{"field": "name", "constraint": "uq_foos_name"}` example in
 `exception-catalog`'s `What context carries` and the three names in the checker's `PLACEHOLDERS`.
+
+### D119 — In a module holding a class, its private helpers come after it
+The maintainer's read-through found both orders in the templates, once in the same module
+(`hex-persistence`'s repository put `_map_integrity_error` above the class and `_apply_filter` below it).
+The maintainer chose *after*: a module reads from its interface down to its details — constants, then
+the class, then the helpers it calls. `python-packaging` states it beside the rule that lets a module
+hold one class and several private functions, and in its rule 3; the two repository templates move
+their helpers below the class. The rule is scoped to a module holding a class, which is the question
+asked: modules made only of functions — test modules, `__main__`, an app factory — keep their helpers
+where they are, and 17 of them put helpers first; widening the rule to them is a separate decision.
+**Reverse by:** deleting the sentence and the clause of rule 3 in `python-packaging`, and moving
+`_translate` and `_map_integrity_error` back above their classes.
