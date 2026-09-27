@@ -51,27 +51,10 @@ gh api -X PATCH repos/{owner}/{repo} \
   -F delete_branch_on_merge=true
 ```
 
-One change, from branch to mainline:
-
-```bash
-git switch main && git pull --ff-only
-git switch -c feat/foo-export
-
-# commit each logical change by git-commit-message; a fix to a commit on this branch is a fixup
-git commit --fixup=<sha-it-fixes>
-
-# before the request lands: fold the fixups and replay onto current main
-git fetch origin
-GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main
-git push --force-with-lease -u origin feat/foo-export
-
-gh pr create --fill
-gh pr merge --merge --delete-branch     # deletes both copies of the branch, returns to main
-git pull --ff-only
-```
-
-`GIT_SEQUENCE_EDITOR=:` accepts the folded plan without opening an editor. Before git 2.44,
-`--autosquash` without `-i` is silently ignored and the fixups land as they are.
+A fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before the request lands
+by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <mainline>` (rule 4), which accepts the folded plan
+without opening an editor; before git 2.44, `--autosquash` without `-i` is silently ignored and the
+fixups land as they are.
 
 ## Other bindings
 

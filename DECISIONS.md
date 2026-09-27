@@ -1547,3 +1547,20 @@ phrasings worth adding beyond what `description` already carries, and `descripti
 either way. `meta-skill-author` now says so beside the field. No skill changes, and no sweep follows.
 **Reverse by:** deleting that sentence, and then either adding the field to the 30 or removing it
 from the 18.
+
+### D121 — A template earns its place by being copied
+The maintainer's read-through found `## Template(s)` filled where nothing is copied: `git-branching`
+carried a fourteen-line script — switch, fixup, autosquash, force-with-lease push, open and merge the
+request — that no repository takes as written, that rule 4 does not need, and that named its branch
+`feat/…` where this repository's own flow says `feature/…`. `meta-skill-author` now says a template is a
+file or block of text most projects would take as written, and anything else is prose beside the rule
+or nothing. `git-branching` keeps the branching section a repository records and the forge settings
+that enforce it, and the script becomes one sentence carrying the only fact it had that an agent may
+not know (the git 2.44 `--autosquash` behaviour), keeping `GIT_SEQUENCE_EDITOR=:` in the fold command,
+without which a non-interactive agent's `rebase -i` opens an editor and hangs. A skill left with
+nothing to copy omits `## Template(s)`, as a reference or process skill does, and the required-sections
+sentence points at that exception. `git-commit-message` keeps its format block: every
+commit message is written from it. No other skill was swept against the new line; that is lens-1 work
+for `/review-skills` as each skill comes up.
+**Reverse by:** deleting the bullet in `meta-skill-author`'s universal rules and restoring the script
+in `git-branching`.
