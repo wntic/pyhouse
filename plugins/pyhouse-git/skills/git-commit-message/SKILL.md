@@ -101,16 +101,20 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    authorship or sign-off makes a claim the author did not make.
 9. **The convention holds wherever the surviving message is written.** Under a squash merge the
    request's title replaces every commit on the branch, so the title is what must be conventional —
-   fixed before merging, never after — and one request is one logical change. Under a merge commit every branch commit lands, so each must be.
-   Either is fine and both at once is not: the check then has to sit in two places, and usually sits in
-   one. Pick one, state it where contributors read, and enforce it there — `git-branching` rule 2.
-   Where it is not recorded, the forge's merge setting is the answer; failing that, the mainline's
-   shape — merge commits on it mean every branch commit lands, and single-parent commits whose subjects
-   end in a request number mean squashing; anything else, ask. The merge commit git writes itself is
-   not a message anyone composed and is exempt, so a tool reading the history skips it.
+   fixed before merging, never after — and one request is one logical change. Under a merge commit
+   every branch commit lands, so each must be. Either is fine and both at once is not: the check then
+   has to sit in two places, and usually sits in one. Pick one, state it where contributors read, and
+   enforce it there — `git-branching` rule 2. Where it is not recorded, the forge's merge setting is
+   the answer; failing that, the mainline's shape — merge commits on it mean every branch commit
+   lands, and single-parent commits whose subjects end in a request number mean squashing; anything
+   else, ask. The merge commit git writes itself is not a message anyone composed and is exempt, so a
+   tool reading the history skips it.
 
 ## Hard stops
 
-- Asked which merge method a repository uses, or to rebase, fold or clean up a branch before it lands
+- Asked to choose a repository's merge method, or to rebase, fold or clean up a branch before it lands
   → stop, use `git-branching`.
 - Asked what the next version is, or to cut a release → stop, use `/release`.
+- Asked to enforce the convention at commit time → stop, use `/install-commit-hook`.
+- Asked for release notes → stop, write them for the consumer, never generated from these messages
+  (for a Python distribution, `python-versioning`, in the `pyhouse-universal` plugin).

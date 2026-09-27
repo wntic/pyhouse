@@ -64,7 +64,8 @@ fixups land as they are.
   no local hook sees it. Rules 1, 2, 3 and 5 are unchanged; rule 4 moves from the branch to the title.
 - **Committing straight to the mainline** (trunk-based, no requests). Workable where one person owns
   the repository and the checks run before each push. Rule 1's gate moves from the request to the
-  push; rule 5 then has no branch to protect but the mainline.
+  push; rule 5 then has no branch to protect but the mainline; rule 4 applies to the local commits
+  before each push.
 - **GitFlow** — a long-lived integration branch beside the mainline, plus release and hotfix branches.
   Earned when a release has to stabilise while other work continues, or several released lines are
   maintained at once; it is rule 7's exception, taken deliberately and recorded under rule 2.
@@ -78,9 +79,8 @@ fixups land as they are.
 2. **The strategy is chosen once per repository and recorded where contributors read.** How a change
    reaches the mainline, and the merge method a request lands with, are one decision — not a choice
    per request, because `git-commit-message` puts the convention's check in a different place under
-   each method. Every request lands the recorded way; a method chosen per request splits where the
-   message convention is checked. Enforce it in the forge's settings where the forge allows it.
-   Changing it later is a recorded decision too.
+   each method. Every request lands the recorded way. Enforce it in the forge's settings where the
+   forge allows it. Changing it later is a recorded decision too.
 3. **A branch carries one logical change, starts from the current mainline, and lives until that change
    lands.** A long-lived branch drifts from what it will merge into, and its conflicts arrive all at
    once, late. Name it for the change, in the pattern the repository already uses. Where changes land
@@ -98,7 +98,8 @@ fixups land as they are.
    that refuses to overwrite commits the author has not seen (a lease), never a bare force.
 6. **A branch is deleted once it has landed; until then, only by whoever created it.** A branch whose
    commits are not on the mainline is someone's unfinished work; deleting it destroys that work with no
-   record it existed, so anyone else asks its owner first. Once it has landed nothing is lost, so the forge deleting it on merge is right.
+   record it existed, so anyone else asks its owner rather than deleting it. Once it has landed nothing
+   is lost, so the forge deleting it on merge is right.
 7. **The mainline is the only long-lived branch until another one earns its place.** A second
    integration line, a release-stabilisation branch or a per-environment branch each doubles where a
    change has to land. One earns its place only by a need rule 1 cannot meet — a release stabilising
