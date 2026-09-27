@@ -1321,7 +1321,7 @@ prose now says "settings provider" rather than "settings factory".
 wording of the rules, hard stops and hex prose above, from before the change that added this
 entry.
 
-### D112 — The test engine keeps the pool's liveness check, and `/commit` checks the placeholder table
+### D112 — The test engine drops its pool-liveness opt-out, and `/commit` points at the placeholder table
 `flat-test-integration-setup` rule 9 told the suite to turn off the pool's per-checkout liveness check
 against its own container (`pool_pre_ping=False` in the conftest template); `hex-test-integration-setup`
 had already lost the same opt-out. It is a small per-checkout saving with no correctness stake, which
