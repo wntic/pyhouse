@@ -148,7 +148,7 @@ adapter. A project that has one merges its binding into the base: each line into
 the same name, after the lines already there. It is process-lifetime — an adapter keeps no state across
 calls (rule 13).
 
-The HTTP gateway: the settings factory, one shared client closed after its yield — the timeout is read
+The HTTP gateway: the settings provider, one shared client closed after its yield — the timeout is read
 here, where the client is built — and the adapter bound to its port.
 
 ```python

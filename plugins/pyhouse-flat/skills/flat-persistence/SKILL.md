@@ -68,7 +68,7 @@ rule 15 says what that changes.
 src/myapp/postgres/
 ├── __init__.py            # re-exports the repository class, the settings and the engine helpers
 ├── metadata.py            # the one MetaData, carrying the naming convention
-├── settings.py            # this package's own settings class and its factory
+├── settings.py            # this package's own settings class
 ├── engine.py              # the engine factory and the chunked bulk write helpers
 ├── foo_table.py           # the Table definitions
 └── foo_repository.py      # the class that owns each write's transaction
@@ -187,13 +187,14 @@ layout. Only this file is loaded automatically, so open the one you need:
     function every table shares.** A random identifier scatters rows inserted together across the index for no benefit, and a
     database-side default means the writer cannot know the id it just created without reading it back.
     One table diverging onto a different scheme splits the schema's id policy in two.
-14. **This package declares its own connection settings, and engines, sessions and those settings are
-    all reached through factories and passed as arguments below the process definition.** Being a
-    component with configuration of its own, it states that configuration in one settings class inside
-    the package (`flat-layered` rule 8, `python-settings`) and exposes a factory for it. Nothing here
-    builds a settings object, an engine or a session at import time (`python-packaging` rule 8), and no
-    module in this package calls either factory: the process definition calls them and hands the values
-    down (`flat-layered` rule 7).
+14. **This package declares its own connection settings, and those settings and the engine built from
+    them reach everything below the process definition as arguments.** Being a component with
+    configuration of its own, it states that configuration in one settings class inside the package
+    (`flat-layered` rule 8, `python-settings`), and builds its engine through a factory that takes the
+    connection string. Nothing here builds a settings object, an engine or a session at import time
+    (`python-packaging` rule 8), and no module in this package constructs its settings class or calls
+    the engine factory: the process definition does both and hands the values down (`flat-layered`
+    rule 7).
 15. **Where several distributions share a store, exactly one of them owns its schema and its migration
     history** — `python-workspace` rule 3. A service reading a store another project owns declares only
     the tables it reads, carries no migration history for them, and its suite creates that schema from

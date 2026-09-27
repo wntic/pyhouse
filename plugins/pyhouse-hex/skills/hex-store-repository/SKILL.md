@@ -134,7 +134,7 @@ completeness.
 
 The binding, an add-on to the base composition root in `hex-wiring`'s `CONTAINER.md`, which binds no
 client store. A project that keeps `Baz` here merges the first two classes into the base's providers of
-the same name and adds `BazsProvider()` to the `create_container` list: the settings factory, the client
+the same name and adds `BazsProvider()` to the `create_container` list: the settings provider, the client
 built once by the connection factory above and closed after its yield,
 and the repository bound to its port per operation, like every repository (`hex-wiring`).
 

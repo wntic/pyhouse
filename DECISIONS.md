@@ -1301,6 +1301,26 @@ endpoint is tested like any endpoint. The page-size default is the filter's alon
 **Reverse by:** restoring the hex skill files and the `README.md` index line from the commit before
 this one.
 
+### D111 — Settings are built by calling the class; no factory function that only returns it
+`get_foo_settings()`, `get_postgres_settings()`, `get_foo_api_settings()` and `get_settings()` each
+returned their class's no-argument construction and added nothing. The obligation behind them is
+`python-packaging` rule 8 — nothing is built at import time — and calling the class inside the function
+that composes the process meets it. The settings templates in `python-settings` and `flat-persistence`'s
+`SETUP.md` declare the class alone; the process definitions in `flat-entrypoint` and its `HTTP.md`, and
+the migration environment in `flat-project-setup`, call `FooApiSettings()`, `PostgresSettings()` and
+`Settings()` where they build the rest. `python-settings` rule 13 says the root constructs each class
+once and that a factory function is written only when it adds something — a cache, assembly from
+several sources — with a hard stop for an uncached one outside the composition root; a container's
+provider method is the composition root and stays. When to cache a factory is `python-packaging` rule 8
+alone, and its "yes" example is the class called inside `main()`. `flat-layered` rules 7 and 8,
+`flat-persistence` rule 14 and the hard stops that named a factory say "build" or "construct", and the
+`flat-layered` sentences restating rule 7 or `python-packaging` rule 8 are gone. A module-level instance
+stays forbidden. The hex family was already this shape — its provider methods call the class — and its
+prose now says "settings provider" rather than "settings factory".
+**Reverse by:** restoring the factory functions, their `__all__` entries and the call sites, and the
+wording of the rules, hard stops and hex prose above, from before the change that added this
+entry.
+
 ### D112 — The test engine keeps the pool's liveness check, and `/commit` checks the placeholder table
 `flat-test-integration-setup` rule 9 told the suite to turn off the pool's per-checkout liveness check
 against its own container (`pool_pre_ping=False` in the conftest template); `hex-test-integration-setup`

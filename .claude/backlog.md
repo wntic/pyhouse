@@ -20,17 +20,6 @@ in `meta-skill-author`, every pointer to `python-style` for logging (grep "pytho
 "log"), both indexes, counts (universal 12 → 13 + meta), `architecture-choice`'s list of universal
 skills, `DECISIONS.md`. A minor for `pyhouse-universal`.
 
-### 2. No settings factory functions in the templates
-`get_foo_settings()` only returns `FooSettings()`; it adds nothing. The obligation behind it is
-`python-packaging` rule 8 — nothing is built at import time — and that is met by calling the class in
-the composition root. Proposal: templates call the class where the process is composed
-(`settings = FooSettings()` inside `main()` / the provider method); a module-level instance stays
-forbidden; a factory function is written only when it adds something (a cache, assembly from several
-sources). Touches: `python-settings` (template, rule 13, hard stops), `flat-layered` (rule 7 wording,
-`FooApiSettings`), `flat-persistence` (`get_postgres_settings`, rule 14, `SETUP.md`), `flat-entrypoint`
-and `HTTP.md` process templates, `flat-project-setup` migration env, `hex-wiring` (already says a
-container's provider replaces the factory), test templates that call the factories.
-
 ### 3. Replace the generic `bulk_upsert` helper with the repository's own statement
 `bulk_upsert(conn, table, rows: Iterable[Mapping[str, Any]], conflict_columns, update_columns)` is a
 table-agnostic helper carried over from the application the first skills were written from. The
