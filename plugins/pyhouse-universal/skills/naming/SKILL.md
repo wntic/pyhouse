@@ -314,54 +314,20 @@ name alongside it and retire the old one deliberately, with a migration.
    for a repository port, `ICan<Verb>` for a capability port, both mandatory. A published protocol of a
    distributed library follows `typing`'s naming instead.
 9. Apply the scope, abbreviation and acronym-casing choices in **Length, abbreviations, consistency**.
-10. Keep the repository's concept-to-word mapping unambiguous in both directions.
+10. Keep the repository's concept-to-word mapping unambiguous in both directions — one concept, one
+    word; one word, one concept. A port that brings a second word for a concept the repo already names
+    takes the existing word.
 11. Perform renames separately from behaviour changes; complete port-time naming before callers spread.
+    A module that has outgrown its name is renamed, in its own commit, before it is extended.
 12. Check the frozen-contract list in **Renaming** before changing a published name; migrate those names
     instead of replacing them in place.
 
 ## Hard stops
 
-- A name is being carried over from a ported file, a template, an example or a sibling project
-  without being re-derived for *this* context → stop, that is how one word ends up on five unrelated
-  things.
-- A ported identifier introduces a second word for a concept the repo already names → stop, use the
-  existing word.
-- The same word now names two different concepts in the project → stop, it identifies neither.
-- A class named `…Data`, `…Info`, `…Details`, `…Manager` or `…Processor` → stop, name the subject and
-  what it asserts, unless a framework defines the word and the class is that (**Other exceptions**).
-- A class carrying a role suffix (`…Result`, `…Payload`, `…Handler`, `…Service`, `…Request`,
-  `…Response`) with no subject in front, or on a class that does not play the role the architecture
-  defines for that word → stop, name the subject and what it asserts; the carve-out covers the role,
-  not the word.
-- A module named `utils.py`, `helpers.py`, `common.py`, `misc.py`, `base.py` with no subject, or a
-  bare `worker.py`/`service.py`/`data.py` → stop, name it for its responsibility.
-- A function whose verb is `process`, `handle`, `do` or `check` → stop, use the real verb; a `check_`
-  says neither what it checks nor what happens on failure, whatever it returns.
-- An unqualified `get_` on a function or method (`get_foo()`) → stop, the caller cannot tell whether it
-  crosses the wire; use `fetch_`, `build_`, or a `get_by_<field>` that names its lookup key.
-- A method that raises on a broken rule but is named as a predicate, or one named `assert_*` that returns
-  a value instead of raising → stop, the three prefixes are a promise about failure and the call site is
-  written against it.
-- A second settings class taking a prefix a sibling already uses, or one prefixed after the product
-  rather than the component that owns it → stop, the two then read each other's variables. So does an
-  outer class declaring a field that begins with a nested component's segment.
-- A `typing.Protocol` port declared without the `I` prefix, or a capability port spelled anything but
-  `ICan<Verb>` → stop, the prefix is what lets a call site tell the port from the adapter satisfying
-  it without opening either file.
-- A name encodes the current mechanism rather than the job (`redis_cache`, `celery_task`) → stop, it
-  will lie the day the mechanism changes.
-- Two siblings differ only by a qualifier (`handler`/`handler2`, `client`/`new_client`, `x`/`x_impl`)
-  → stop, either the split is wrong or one of them was never named.
-- A boolean named as a negation (`not_ready`, `disable_x`) → stop, invert it.
-- A duration, size or rate with no unit in the name → stop, add the unit.
-- An invented abbreviation or a vowel-dropped word (`cnt`, `msg`, `res`, `conf`) → stop, write the
-  word.
-- A name repeats a qualifier the package or class already supplies (`FooPackageFooClient`,
-  `StripeClient.fetch_stripe_charge`) → stop, delete the repeated word.
-- A module has outgrown its name and is being extended anyway → stop, rename it first, in its own
-  commit.
-- A log event name, exception `code`, job or task name registered by string, queue name,
-  database constraint name, serialization alias or env-var name is being renamed in place → stop,
-  those are external contracts; add the new one and retire the old deliberately.
 - A thing resists every candidate name because no sentence describes it without "and" → stop, this is
   a boundary problem, not a vocabulary problem; load `coupling`.
+- Asked about one class per module, `__all__`, the `__init__.py` re-exports or import spelling → stop,
+  use `python-packaging`; this skill names the module, that one owns the mechanics around it.
+- Asked which package a module belongs in → stop, use `flat-layered` (in `pyhouse-flat`) or
+  `hex-architecture` (in `pyhouse-hex`), whichever the project uses.
+- Asked to name a test function or a test file → stop, use `test-principles`.
