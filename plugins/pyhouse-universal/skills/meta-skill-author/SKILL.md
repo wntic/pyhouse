@@ -285,10 +285,12 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
    than copying its rules; an inlined slice of 3–6 load-bearing bullets is the one exception.
 7. **A hard stop catches a wrong turn no rule governs.** It exists only for an action taken before
    any rule applies — the request itself, the choice of skill, whether to write at all — stated as
-   that action. Every plausible wrong-skill case is one, with a redirect. A stop about content a rule
-   already governs is deleted; if its wording names the mistake better, that wording moves into the
-   rule first. A hard stop keeps its *reason*; softening "X → stop, use `Y`" into advice deletes the
-   rule.
+   that action. The remedy decides it, not the phrasing: a stop whose remedy is another skill, or not
+   doing the request as asked, stays; one whose remedy is how to write something in this skill is
+   deleted however it is worded, its better wording moving into the rule first. Every plausible
+   wrong-skill case is one, with a redirect. A stop about content a rule already governs is deleted;
+   if its wording names the mistake better, that wording moves into the rule first. A hard stop keeps
+   its *reason*; softening "X → stop, use `Y`" into advice deletes the rule.
 8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `myapp` for
    a distribution's own root package, `myschema` for a library several distributions share, `myrepo`
    for the repository root, `myframework` for a framework a rule is about wrapping. Never name a real

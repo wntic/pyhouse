@@ -1663,7 +1663,10 @@ it would be met by merging unrelated rules or dropping real ones, the same defec
 exists only for a wrong turn no rule governs — an action taken before any rule applies: the request
 itself, the choice of skill, whether to write at all — stated as that action, and every plausible
 wrong-skill case is one, with a redirect. A stop about content a rule already governs is deleted; if
-its wording names the mistake better, that wording moves into the rule first. An intermediate reading
+its wording names the mistake better, that wording moves into the rule first. The remedy decides
+which a stop is, not its phrasing: one whose remedy is another skill, or not doing the request as
+asked, stays, and one whose remedy is how to write something in this skill goes however it is worded —
+a stop can always be reworded as an action, so the phrasing alone decides nothing. An intermediate reading
 kept a content stop wherever it named a concrete action an agent is about to take; the maintainer
 chose the narrower criterion over it, because such a stop still guards what a rule already governs and
 is paid for twice. The portability gate's intro gains the remedy one deleted stop carried: whatever a
@@ -1682,7 +1685,7 @@ the three that name an action taken before any rule applies stay — asked for a
 covers, asked for one built on another frontmatter field, and writing one from material nothing
 survives. The last was reworded as the action. The four shapes' descriptions and examples moved to
 `## Skill shapes` in the sibling `CONVENTIONS.md`, the picking table staying with a pointer, which
-with the stops brings `SKILL.md` from 510 lines to 455. The sweep of every other skill against the
+with the stops brings `SKILL.md` from 510 lines to 458. The sweep of every other skill against the
 test is a separate change, backlog item 16.
 **Reverse by:** restoring rule 7 as "**Hard stops are explicit.** Every plausible wrong-skill case
 becomes a hard stop with a redirect. This is how a reader recovers from misclassification without
@@ -1734,13 +1737,14 @@ patterns together" template (a sentence in each file says compensation's `try` w
 the separate `CreateFooCommand` block (a sentence says the one command gains `data: bytes`), the
 structured-logger bullet under Other bindings (`hex-application` already has one), the neighbour line
 on CLIs and workers, and the hard stops a rule already catches — one repository only, per-aggregate
-naming, a settable protocol member, a mismatched `__aexit__`, and an unguarded undo. Kept as hard stops,
-because a rule does not route them: no reversing method on the port, an undo's failure stopped anywhere
-but the handler's guard, a saga, and a unit of work spanning two backends. `paths` gained
+naming, a settable protocol member, a mismatched `__aexit__`, an unguarded undo, and an undo's failure
+stopped anywhere but the handler's guard (its remedy is how to write the undo, now the end of
+Compensation rule 4). Kept as hard stops, because a rule does not route them: no reversing method on
+the port, a saga, and a unit of work spanning two backends. `paths` gained
 `**/domain/uow/**` on `hex-persistence`; `hex-application`'s stays `**/application/**`.
 **Reverse by:** recreating `plugins/pyhouse-hex/skills/hex-patterns/SKILL.md` from the commit before
 this one, deleting `hex-persistence/UNIT_OF_WORK.md`, `hex-application/COMPENSATION.md`,
 `hex-persistence` rules 15–17, the rule-7 sentence and its two-backends hard stop, `hex-application`'s
-Compensation subsection and its three compensation hard stops, restoring both descriptions and the
+Compensation subsection and its two compensation hard stops, restoring both descriptions and the
 `hex-persistence` `paths`, repointing every reference named in this commit back to `hex-patterns`, and
 restoring the counts (48 skills, 24 hex, Hex core 12).

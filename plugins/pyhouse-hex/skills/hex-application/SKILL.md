@@ -408,7 +408,8 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 3. **Catch `Exception`, not specific classes**, so the undo runs whatever the cause.
 4. **The undo is the port's plain reversing method (`delete`, `retract`), which raises like any other
    call, wrapped in its own guard inside the `except`** — `exception-catalog`'s best-effort
-   compensation, logging its one warning in `python-logging`'s shape.
+   compensation, logging its one warning in `python-logging`'s shape — never a dedicated
+   `*_best_effort` method, never swallowed without its warning.
 5. **The original failure is re-raised unchanged with a bare `raise` and not logged here** — a
    re-raising scope stays silent (`python-logging`).
 6. **Several side effects are recorded as each lands, and on failure each recorded one is undone behind
@@ -467,9 +468,6 @@ provider that constructs a handler is `hex-wiring`.
   factory the handler opens.
 - The undo a compensation needs has no reversing method on the port → stop, declare it beside the
   forward operation first (`hex-domain-ports`).
-- The undo's failure is stopped anywhere but the handler's `except` that caught the original — inside a
-  dedicated `*_best_effort` method, or swallowed with no event logged → stop, the undo raises and only
-  that guard may stop it (`exception-catalog`).
 - Compensation would span two unrelated backends in both directions → stop, that is a saga, and out of
   scope.
 - Asked for a Pydantic model in a response → stop, use `hex-restapi-schema` for the entrypoint translation.

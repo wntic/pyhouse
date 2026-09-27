@@ -32,7 +32,8 @@ candidate for `/review-skills`, not a decision.
   the run function and `containment.py` bind the logger in a skill that owns triggers. `python-logging`
   owns the logger; the templates could log through it without naming the library, or not log at all
   (the guard is the only line that must). Same question in `hex-application` (7 mentions),
-  `hex-application/COMPENSATION.md` and `hex-persistence/UNIT_OF_WORK.md` (2 each), `hex-restapi-app` (2), `flat-entrypoint/HTTP.md` (2).
+  `hex-application/COMPENSATION.md` (3), `hex-persistence/UNIT_OF_WORK.md` (2), `hex-restapi-app` (2),
+  `flat-entrypoint/HTTP.md` (2).
 - 29 hard stops and 26 rules (15 + 11 durable): the largest skill in the flat family (see item 16).
 
 #### 13. `flat-entrypoint/HTTP.md` is one module of FastAPI doing four jobs
@@ -109,6 +110,9 @@ rest.
 `hex-test-application-handler` has no guidance for a handler that takes an `IUnitOfWork`, so an agent
 invents one. Decide whether one rule (not a template) in that skill covers it.
 
+#### 33. `hex-conventions` does not know `domain/uow/`
+`hex-conventions` does not know the `domain/uow/` path `hex-persistence/UNIT_OF_WORK.md` introduces.
+
 ## Agreed
 
 ### 4. Re-run the short-prompt scenario on the current skills
@@ -124,4 +128,8 @@ skills loaded, defects → rules).
 ### 16. Sweep every skill against the hard-stop test
 Sweep every skill's `## Rules` and `## Hard stops` against the new test in `meta-skill-author`.
 `plugins/pyhouse-universal/agents/pyhouse-reviewer.md` (~line 81, "A hard stop is its rule's trigger")
-describes stops as the old test did and is updated in the same sweep.
+describes stops as the old test did and is updated in the same sweep; it must land before any release
+that ships the current `meta-skill-author`, or the reviewer judges stops by a test the author no longer
+states. `CLAUDE.md`'s sentence describing the engine rules in `flat-entrypoint` and
+`flat-test-run-function` as having "a matching subsection of `## Hard stops`" (~line 257) is updated
+in the same sweep, to whatever those subsections become.
