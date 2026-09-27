@@ -132,7 +132,7 @@ arrive after a newer one for the same reference, keeping the newer is the confli
 ## The process definition — uvicorn
 
 `src/myapp/settings.py` — the process's own `Settings` class in the shape `flat-layered` shows — holds the
-two fields the server binds to, required like every other tunable (`flat-layered` rule 10):
+two fields the server binds to, required like every other tunable (`flat-layered` rule 9):
 `http_host: str` and `http_port: int`, read from `MYAPP_HTTP_HOST` and `MYAPP_HTTP_PORT`.
 
 `src/myapp/__main__.py` where the server is the service's one process — in `entrypoints/`, beside
@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
 The server is served on the process's own event loop, inside the block that owns the engine, rather than
 through `uvicorn.run`, which starts a loop of its own: the engine is then opened and closed on the loop
-the app's requests run on, once for the life of the server (`flat-layered` rule 14). `log_config=None`
+the app's requests run on, once for the life of the server (`flat-layered` rule 12). `log_config=None`
 keeps the server from configuring logging a second time (`python-logging` rule 3).
 
 `src/myapp/web/__init__.py` re-exports `build_app`, and the project adds `fastapi` and `uvicorn` to its

@@ -100,7 +100,7 @@ that:
 
 - the engine comes from the data-access package's engine factory, given the connection string read
   through that component's own settings class — the variable it owns (`MYAPP_POSTGRES_DSN`), unwrapped
-  where the engine is built (`flat-layered` rules 7 and 8), in place of the generated engine built from
+  where the engine is built (`flat-layered` rules 6 and 7), in place of the generated engine built from
   the ini section;
 - the engine is disposed however the run ends, not only after a clean one;
 - `target_metadata` is the data-access package's one `MetaData`; left at the generated `None`,

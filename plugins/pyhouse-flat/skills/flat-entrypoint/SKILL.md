@@ -148,11 +148,11 @@ sees it. `python -m myapp` runs the one process; a service with several defines 
 
 **The process definition builds every settings object and hands concrete values down** — it is
 this family's composition root, so the rule is `python-settings` rule 13 and its flat spelling
-`flat-layered` rule 7.
+`flat-layered` rule 6.
 
 **The transport and the engine are built once and wrap the whole run.** One pooled `httpx.AsyncClient`
 and one engine exist before the run starts and are closed when it ends, the engine disposed even when
-the run leaves by an exception (`flat-layered` rule 14). A second process definition building the same
+the run leaves by an exception (`flat-layered` rule 12). A second process definition building the same
 things takes them from one builder rather than a copy (rule 14).
 
 ### A process that outlives one run
@@ -199,7 +199,7 @@ obligation 8, which run functions call.
 Reach here only once one of the three conditions above has earned it. The shape is **three modules**:
 an orchestration module that invokes units of work and computes nothing, a wrapper class adapting the
 run function into the engine's unit of work, and a process definition that builds the dependencies once
-and serves the engine's work — the only modules importing the engine's SDK (`flat-layered` rule 9). The
+and serves the engine's work — the only modules importing the engine's SDK (`flat-layered` rule 8). The
 run function does not move, and none of the rules below changes.
 
 Under a managed cloud orchestrator the orchestration definition leaves the repository and the wrapper
@@ -228,7 +228,7 @@ A consumer's broker is its trigger: the SDK that receives messages is imported o
 framework-wrapper package, which parses the message, runs the run function under `guarded`, and
 acknowledges on `True` or returns the message on `False` (rules 11, 15), the run writing values taken
 from the message, never the clock. A broker the service publishes to is an external system with a
-package of its own (`flat-layered` rule 16).
+package of its own (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 
@@ -287,7 +287,7 @@ for rule 9.
 6. **The routing name a run is addressed to has exactly one source, and every participant reads it from
    that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is
    normally a per-deployment value and then belongs with the rest of the process's settings
-   (`flat-layered` rule 8); where the platform makes the schedule itself code in the same repository, the
+   (`flat-layered` rule 7); where the platform makes the schedule itself code in the same repository, the
    name is a module constant both the schedule and the process serving it import, and a firewall rule
    pins that both read the one source. What is never
    acceptable is two sources — a schedule resolving the name from one environment and the process
@@ -341,7 +341,7 @@ for rule 9.
     engine lives in one builder there that every process definition imports, never copied into each; a
     copy per process is one wiring per copy, and they drift. The builder owns the thing's end as well as
     its start — the pool closed, the engine disposed — when the process leaves it, by any exit
-    (`flat-layered` rule 14).
+    (`flat-layered` rule 12).
 15. **A unit a broker delivered and the guard contained is neither acknowledged as done nor retried
     without bound.** It returns for redelivery up to a declared limit, then goes to a dead-letter
     destination the operator can read. The limit and the dead-letter destination are the broker's own
@@ -390,7 +390,7 @@ separately from the rules and cited elsewhere as *durable obligation N*.
    no framework context — the guard is what lets the body keep one shape under every trigger. **The
    helper is one named module at the root of the distribution's own package**, and it is the one module
    outside the framework-wrapper package allowed to import the framework, which is why the architecture
-   firewall's allow-list names it (the firewall is `flat-layered` rule 9's). Where several
+   firewall's allow-list names it (the firewall is `flat-layered` rule 8's). Where several
    distributions share one repository it is promoted to a library they both depend on, and the
    exemption is the same one.
 9. **A healthcheck declares no retries.** Its whole job is to turn red the moment the thing it watches
@@ -405,7 +405,7 @@ separately from the rules and cited elsewhere as *durable obligation N*.
     one made.
 11. **The engine's connection settings are required, with no default.** Its address, and whatever
     namespace or tenant it routes by, come from the process's settings like any other tunable
-    (`flat-layered` rule 10); a default lets a deployment that forgot one start and reach the wrong
+    (`flat-layered` rule 9); a default lets a deployment that forgot one start and reach the wrong
     engine instead of failing at startup.
 
 ## Hard stops
@@ -417,7 +417,7 @@ separately from the rules and cited elsewhere as *durable obligation N*.
   state table, a lease, an attempt counter, an at-most-once guard → stop, that is a workflow engine
   being reimplemented; adopt one, and read the durable obligations for what it then obliges.
 - A run function imports a framework → stop, the framework belongs in the framework-wrapper package
-  (`flat-layered` rule 9); the body must stay callable from a loop and a test.
+  (`flat-layered` rule 8); the body must stay callable from a loop and a test.
 - Retry logic is being hand-written inside a run function with sleeps and counters → stop, declare the
   retry where the work is invoked.
 - A run function returns a list of ids or records → stop, return an aggregate dataclass; a trigger's

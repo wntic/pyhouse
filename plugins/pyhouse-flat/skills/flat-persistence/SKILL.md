@@ -139,7 +139,7 @@ layout. Only this file is loaded automatically, so open the one you need:
    everywhere. This is the positive form of `flat-layered` rule 4.
 2. **No `Protocol` over the datastore, and that is a decision rather than an omission.** The main
    datastore is a sticky dependency with no nameable alternative the business would plausibly adopt, so
-   it never qualifies for an interface however generic it looks (`flat-layered` rule 5). Test doubles come
+   it never qualifies for an interface however generic it looks (`flat-layered` rule 3). Test doubles come
    from the real backend or from subclassing the concrete class (`test-principles`).
 3. **Transaction ownership is one declared decision per callable.** A callable either *accepts* a live
    connection and never commits, or *opens and owns* one for the whole of its work. The two forms are
@@ -191,11 +191,11 @@ layout. Only this file is loaded automatically, so open the one you need:
 14. **This package declares its own connection settings, and those settings and the engine built from
     them reach everything below the process definition as arguments.** Being a component with
     configuration of its own, it states that configuration in one settings class inside the package
-    (`flat-layered` rule 8, `python-settings`), and builds its engine through a factory that takes the
+    (`flat-layered` rule 7, `python-settings`), and builds its engine through a factory that takes the
     connection string. Nothing here builds a settings object, an engine or a session at import time
     (`python-packaging` rule 8), and no module in this package constructs its settings class or calls
     the engine factory: the process definition does both and hands the values down (`flat-layered`
-    rule 7).
+    rule 6).
 15. **Where several distributions share a store, exactly one of them owns its schema and its migration
     history** — `python-workspace` rule 3. A service reading a store another project owns declares only
     the tables it reads, carries no migration history for them, and its suite creates that schema from
