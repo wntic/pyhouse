@@ -16,8 +16,8 @@ isolation fixtures. **Its home is the distribution's own `tests/integration/conf
 callable in the data-access package either *accepts* a live connection and never commits, or *opens and owns*
 one for the whole of its work (`flat-persistence` rule 3). That declaration decides the fixture:
 
-- **`conn`** — a rollback-scoped connection, for anything that *accepts* one: the bulk write helpers, and
-  every assertion query. Fast, nothing reaches disk.
+- **`conn`** — a rollback-scoped connection, for anything that *accepts* one: a function in the
+  data-access package that takes one, and every assertion query. Fast, nothing reaches disk.
 - **`truncate_all`** — wipes every table after each test, for anything that *opens and owns* its
   transaction: repository classes, run functions, and the wrappers above them. A test's outer transaction
   can neither see nor roll back a connection the code under test opened for itself.
@@ -30,7 +30,7 @@ The split is about ownership, not about which family the service is in.
 
 - Laying or changing the fixtures themselves, or the pytest configuration block that loads them → this
   skill.
-- A test of a table, a bulk helper or the repository class → `flat-test-persistence`, which consumes both
+- A test of a table or the repository class → `flat-test-persistence`, which consumes both
   `conn` and `truncate_all` and lays none of its own.
 - A run function, a trigger wrapper or the orchestration above them → `flat-test-run-function`; its code
   owns its transactions, so it takes the wipe.
