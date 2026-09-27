@@ -225,15 +225,19 @@ class InfrastructureProvider(Provider):
    (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
    private attribute and never unwrapped again per call — the point of use `python-settings` rule 9
    names. A secret never reaches a log line (`python-logging`) and never reaches an exception's `context`
-   (rule 10).
+   (rule 10), because `context` is rendered into the error response and logged verbatim.
 
 ### Exception translation
 
 8. **Translate at the boundary, chaining the cause.** Catch the library's own exception family inside the
    adapter and raise a catalogue exception `from` it. The catalogue and the cause-chaining rule are
    `exception-catalog`'s.
-9. **The library's exception type never escapes the adapter.** No SDK error, HTTP status error or parse
-   error crosses into `application/` or an entrypoint — the application layer catches only `MyappError`.
+9. **The library's exception type never escapes the adapter, and neither does a bare `Exception`.** No
+   SDK error, HTTP status error or parse error crosses into `application/` or an entrypoint — the
+   application layer catches only `MyappError`. Where the request does not say which external errors a
+   method raises, derive the mapping from the library's documented exception family: the specific cases
+   are judgement, the broad catch-and-translate fallback (rule 10) is not — no method is left able to
+   raise an untranslated external exception.
 10. **The fallback, the most specific class, the identifying `context` and the no-secret ban are
     `exception-catalog`'s rules**, applied here without change. What they come to in an adapter: the
     fallback is `UpstreamError` for a network or third-party failure (5xx, unknown codes), and that
@@ -276,21 +280,5 @@ For package wiring, see `python-packaging`; for infrastructure placement, see `h
 ## Hard stops
 
 - The adapter is asked to carry relational aggregate CRUD — a table, the statements against it and the
-  migration that ships it → stop, that is a repository and not a capability; use `hex-persistence`.
-- The adapter is asked to inherit from `ICanX` explicitly → stop, structural subtyping is the contract.
-- The adapter is asked to log → stop, adapters do not log; the central error handler owns failure logs.
-- The adapter is asked to retry, cache, or batch internally → stop, configure that on the client where
-  the client is built, or extract a separate wrapper class.
-- The adapter is asked to construct its own SDK client (`httpx.AsyncClient()`, an SDK's client factory) →
-  stop, both the client and the settings are injected by the composition root.
-- The adapter is asked to raise an SDK exception type or bare `Exception` → stop, every external
-  exception is translated into a catalogue exception at the boundary (`exception-catalog` owns the
-  catalogue).
-- A secret is about to be placed in an exception's `context` or a log field → stop, `context` is rendered
-  into the error response and logged verbatim.
-- The change does not say which external errors a fallible method raises → stop, derive the mapping from
-  the library's documented exception family and apply the mandatory fallback: `UpstreamError` for a
-  network or third-party failure, the upstream rejecting the adapter's own credential included, and
-  `UnauthorizedError` only for a caller's credential the adapter verifies (rule 10). The specific cases are
-  judgement; the broad catch-and-translate fallback is not — never leave a method able to raise an
-  untranslated external exception.
+  migration that ships it → stop, that is a repository and not a capability; use `hex-persistence`, or
+  `hex-store-repository` for an aggregate held in a key-value or document store.
