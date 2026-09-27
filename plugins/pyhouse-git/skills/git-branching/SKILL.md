@@ -78,27 +78,32 @@ fixups land as they are.
 2. **The strategy is chosen once per repository and recorded where contributors read.** How a change
    reaches the mainline, and the merge method a request lands with, are one decision — not a choice
    per request, because `git-commit-message` puts the convention's check in a different place under
-   each method. Enforce it in the forge's settings where the forge allows it. Changing it later is a
-   recorded decision too.
+   each method. Every request lands the recorded way; a method chosen per request splits where the
+   message convention is checked. Enforce it in the forge's settings where the forge allows it.
+   Changing it later is a recorded decision too.
 3. **A branch carries one logical change, starts from the current mainline, and lives until that change
    lands.** A long-lived branch drifts from what it will merge into, and its conflicts arrive all at
-   once, late. Name it for the change, in the pattern the repository already uses.
+   once, late. Name it for the change, in the pattern the repository already uses. Where changes land
+   through requests, nothing is committed straight onto the mainline — except the repository's first
+   commit, which creates the mainline and has nothing to branch from.
 4. **Before a branch lands under a keep-every-commit method, its history is made true.** A fix to a
    change that has not landed yet is folded into the commit it fixes, never committed as a `fix` of its
-   own — that records a defect no release ever carried. Work-in-progress commits are folded or
-   reworded. This is the curation a squash would otherwise do, done where the author still knows what
+   own — that records a defect no release ever carried; it is committed as a fixup of that commit and
+   folded, so no `fixup!` or `squash!` commit reaches the mainline. Work-in-progress commits are folded
+   or reworded. This is the curation a squash would otherwise do, done where the author still knows what
    each commit was.
 5. **History someone else may have built on is never rewritten.** The mainline, and any branch another
-   person or process has fetched, are never rebased, amended or force-pushed. A branch only its author
-   has used may be, until it lands — with a force that refuses to overwrite commits the author has not
-   seen.
+   person or process has fetched, are never rebased, amended or force-pushed; a mistake on them is
+   corrected by a new commit. A branch only its author has used may be, until it lands — with a force
+   that refuses to overwrite commits the author has not seen (a lease), never a bare force.
 6. **A branch is deleted once it has landed; until then, only by whoever created it.** A branch whose
    commits are not on the mainline is someone's unfinished work; deleting it destroys that work with no
-   record it existed. Once it has landed nothing is lost, so the forge deleting it on merge is right.
+   record it existed, so anyone else asks its owner first. Once it has landed nothing is lost, so the forge deleting it on merge is right.
 7. **The mainline is the only long-lived branch until another one earns its place.** A second
    integration line, a release-stabilisation branch or a per-environment branch each doubles where a
    change has to land. One earns its place only by a need rule 1 cannot meet — a release stabilising
-   while other work continues, or an old line still maintained.
+   while other work continues, or an old line still maintained. Without one of those it is GitFlow's
+   cost without the need that pays for it.
 8. **A released version is fixed on the mainline and shipped as the next number, unless something
    still runs that version and cannot take the latest.** Only then is a maintenance branch cut from
    its tag, the fix landed there and on the mainline, and the maintenance release tagged from that
@@ -106,21 +111,5 @@ fixups land as they are.
 
 ## Hard stops
 
-- A commit is going straight onto the mainline in a repository whose changes land through requests →
-  stop, branch from the mainline and open a request. A repository's first commit is the exception: it
-  creates the mainline, and there is nothing yet to branch from.
-- The mainline, or a branch someone else has fetched, is about to be rebased, amended or force-pushed →
-  stop; its history is someone else's base. Correct it with a new commit.
-- A force-push of your own branch that would overwrite what you have not seen → stop, use a lease
-  (`--force-with-lease`), never a bare force.
-- A request is about to land by a method other than the one the repository recorded → stop, land it the
-  recorded way; a method chosen per request splits where the message convention is checked.
-- A `fix` commit corrects a commit on the same unlanded branch → stop, make it a fixup of that commit
-  and fold it before landing.
-- A `fixup!` or `squash!` commit is about to land on the mainline → stop, fold it first.
-- A branch whose commits are not on the mainline, and that you did not create, is about to be deleted
-  → stop, ask its owner.
-- A long-lived branch is being added beside the mainline with no release to stabilise and no old line
-  to maintain → stop; that is GitFlow's cost without the need that pays for it.
 - Asked what a commit message or its type should be → stop, use `git-commit-message`.
 - Asked what the next version is, or to cut a release → stop, use `/release`.
