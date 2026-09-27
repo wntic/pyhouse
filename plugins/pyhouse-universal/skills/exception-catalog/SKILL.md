@@ -141,8 +141,8 @@ Three consequences:
 
 - **The raise site and its test agree on one key set**, and that set is as stable as the `code` beside
   it. Renaming a key is the same class of change as renaming the `code`.
-- **A key names the input, not the failure.** `{"foo_name": foo.name}` — not `{"detail": "..."}`,
-  `{"msg": "..."}` or a stringified exception.
+- **A key names the input or the upstream's own code, never prose about the failure.**
+  `{"foo_name": foo.name}` — not `{"detail": "..."}`, `{"msg": "..."}` or a stringified exception.
 - **No secret goes in `context`.** A password, token, key or connection string placed there reaches the
   log line and, where the project renders errors, the response body — by construction, because both
   render `context` verbatim. This is the same ban `python-logging` states for a log line, and `context` is
