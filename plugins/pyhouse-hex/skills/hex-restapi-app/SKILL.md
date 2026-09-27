@@ -364,8 +364,8 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 
 1. **One-shot.** This skill runs once per project. After bootstrap, this file set is stable; updates to `main.py` go through whichever skill needs them (typically `hex-restapi-endpoint` appending an `include_router(...)` line).
 2. **The catalog is dynamic.** The registry derives from `domain.exceptions.__all__` at import time.
-3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behavior comes from the `MyappError` subclass's `code` / `http_status`. The framework's own rejection of malformed input is translated into the catalogue's validation class and rendered by the same handler, so a route's advertised input-validation response is the body the client actually receives.
-4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened.
+3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behavior comes from the `MyappError` subclass's `code` / `http_status`, so new behaviour is a new subclass, never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class and rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
+4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened. `lifespan` holds that teardown and nothing else — no business logic.
 5. **Routes receive their dependencies by type** (`hex-restapi-endpoint`); `main.py` neither resolves anything nor exposes the composition root for others to resolve from. Never module-level resolution.
 
 6. **A middleware is transport-level and nothing else.** Bytes, headers, timing, the logging context.
@@ -403,12 +403,9 @@ For `restapi/__init__.py` and `restapi/middleware/__init__.py`, follow `python-p
 
 ## Hard stops
 
-- Asked to attach business logic to lifespan → stop, reserve lifespan for infrastructure teardown only: disposing the resources the app's datastores opened.
-- Asked to make the translator branch on a second exception class → stop, encode new behavior via subclass `code`/`http_status` instead; the one sanctioned branch is the auth challenge (`hex-restapi-auth`). The request-validation handler in the template is not such a branch: it translates the framework's input rejection into the catalogue's `ValidationError` and hands it to the domain handler, so it stays.
 - `domain/exceptions.py` does not exist yet → stop, use `exception-catalog` bootstrap first.
 - `myapp/containers.py` does not exist yet → stop, use `hex-wiring` first.
 - `lifespan` is asked to dispose a named engine or client → stop, declare that release beside the resource's construction in `hex-wiring`; `lifespan` closes the composition root and nothing else.
 - A concern is for one route rather than all → stop, use `hex-restapi-endpoint` plus a handler.
 - A middleware needs a domain entity, a repository or an application handler → stop, use `hex-application` for application logic.
 - A middleware authenticates or authorizes → stop, use `hex-restapi-auth`; caller authentication is a route dependency, not a middleware.
-- A route advertises a middleware's status before it is registered → stop, register it first (*Registering a middleware's status*).
