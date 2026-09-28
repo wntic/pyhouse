@@ -1,6 +1,6 @@
 # hex-restapi-endpoint — what a route advertises
 
-Topic file of `hex-restapi-endpoint`. The mechanism-free obligations are rules 8–11 in `SKILL.md`; what
+Topic file of `hex-restapi-endpoint`. The mechanism-free obligations are rules 7–10 in `SKILL.md`; what
 follows is the **FastAPI decorators, OpenAPI document** binding that satisfies them.
 
 One declaration a route makes about itself: **which HTTP error codes it can produce**, published into
@@ -36,12 +36,13 @@ Where `Foo` references another aggregate by id, create advertises `404` for an i
 (update already carries it).
 
 FastAPI publishes its own `422`, describing an `HTTPValidationError` body the shell never sends
-(`hex-restapi-app`). The decorator's entry replaces it (rule 11), and `hex-test-app-invariants` rule 4
+(`hex-restapi-app`). The decorator's entry replaces it (rule 10), and `hex-test-app-invariants` rule 4
 fails a published `422` in any other shape.
 
 **List a code only if the route can actually produce it.** No `409` on a read or on a write the store
 cannot reject, and no `413` on a route with no size cap in front of it. The converse holds too: a code
-the write path can raise is listed.
+the write path can raise is listed. `500` is never advertised — every route can produce it, so listing it
+tells a client nothing.
 
 ## Other bindings
 
@@ -50,14 +51,12 @@ the write path can raise is listed.
   the framework injects an input-validation response the decorator cannot see. Unchanged:
   advertise-exactly-what-you-produce, and the allowed-code set taken from the boundary's status map and
   its registry of middleware-introduced statuses.
-- **A framework that injects nothing of its own.** Then rule 11 is the only thing putting the
+- **A framework that injects nothing of its own.** Then rule 10 is the only thing putting the
   input-validation status in the document, and the exemption `hex-test-app-invariants` rule 4 makes
   disappears with it — the invariant test can check that code like any other.
 
 ## Hard stops
 
-- A route lists a status neither `STATUS_BY_ERROR` nor `MIDDLEWARE_ERRORS` holds → stop; if nothing on
-  the route's path can raise it, drop the code (rule 9); a status something does raise earns a class
-  first (`exception-catalog`) and its entry in the map, or a registered middleware status
-  (`hex-restapi-app`).
+- A route needs a status neither `STATUS_BY_ERROR` nor `MIDDLEWARE_ERRORS` holds → stop; add the class
+  under `exception-catalog` and its map entry, or register the middleware status (`hex-restapi-app`).
 - Asked to add branching logic to `restapi/error_handler.py` → stop, use `hex-restapi-app` (rule 3).
