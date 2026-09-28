@@ -243,7 +243,7 @@ def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
     return out
 ```
 
-`STATUS_BY_ERROR` is the one place a catalogue class meets an HTTP status. `status_for` is `exception-catalog` rule 13's ancestry lookup, so a refinement (`FooNotFoundError`) needs no entry, and a class nothing maps answers `500`, as the root. The statuses a route may advertise are that map's values and `MIDDLEWARE_ERRORS`' — nothing else reaches a client.
+`STATUS_BY_ERROR` is the one place a catalogue class meets an HTTP status. `status_for` is `exception-catalog` rule 13's ancestry lookup, so a refinement (`FooNotFoundError`) needs no entry, and a class nothing maps answers `500`, as the root. The statuses a route may advertise are that map's values and `MIDDLEWARE_ERRORS`', `500` aside, which every route can produce.
 
 A response entry carries no description: the framework fills in the status's standard phrase.
 
@@ -329,7 +329,7 @@ carries that same code (rule 9).
 ## Rules
 
 1. **One-shot.** This skill runs once per project. After bootstrap, this file set is stable; updates to `main.py` go through whichever skill needs them (typically `hex-restapi-endpoint` appending an `include_router(...)` line).
-2. **A route may advertise only a status `STATUS_BY_ERROR` or `MIDDLEWARE_ERRORS` holds**; the map is this boundary's, under `exception-catalog` rules 6 and 13.
+2. **A route may advertise only a status `STATUS_BY_ERROR` or `MIDDLEWARE_ERRORS` holds, and never `500`**; the map is this boundary's, under `exception-catalog` rules 6 and 13.
 3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behaviour comes from the `MyappError` subclass and its mapped status, so new behaviour is a new subclass — and, where its status differs from its parent's, one map entry — never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class, and its answer to an unknown path into the not-found class, each rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
 4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened. `lifespan` holds that teardown and nothing else — no business logic.
 5. **`main.py` neither resolves anything nor exposes the composition root for others to resolve from**; how a route receives its handler is `hex-restapi-endpoint`'s.
