@@ -126,7 +126,7 @@ def make_foo(sf: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uu
 ## Hard stops
 
 - Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this catalogue's binding) → stop, use `hex-test-integration-setup`; the missing thing is the guarantee, not the fixture name.
-- Asked to register the new endpoint in a hand-maintained route or expectation table so a global check sees it → stop, use `hex-test-app-invariants`; the global checks derive their inputs from the running app, so a new route joins them with nothing to update.
+- Asked to register the new endpoint in a hand-maintained route or expectation table so a global check sees it → stop, use `hex-test-app-invariants`; the global checks derive their inputs from the running app, so a new route joins them with nothing to update. The auth probe's public set is the one exception (rule 3).
 - A test asserts a role rejection or a cross-tenant 404 here → stop, use `hex-test-restapi-auth`; those assertions need a caller identity this skill does not mint.
 - A test asserts on a response field that is not in the Pydantic response schema → stop, use `hex-restapi-schema` to extend the schema first.
 - A test uses a plain `AsyncClient` for a request to a route that attaches an auth dependency → stop, use `hex-test-restapi-auth`'s authenticated client; a plain client on a gated route tests the rejection, not the endpoint.
