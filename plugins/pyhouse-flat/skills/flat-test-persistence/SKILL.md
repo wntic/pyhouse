@@ -17,8 +17,8 @@ own exception.
 Where several distributions share one data-access library, the files sit with that library's own tests
 instead — `myschema/tests/integration/` — and nothing else changes.
 
-**Which isolation fixture applies follows from the declared transaction owner** (`flat-persistence`
-rule 3), never from a guess:
+**Which isolation fixture applies follows from the declared transaction owner** (`persistence`
+rule 1), never from a guess:
 
 - Every assertion query, and any callable that **accepts** a connection → the **`conn`** fixture.
   Rolled back, nothing reaches disk.
@@ -119,7 +119,7 @@ on every run.
 Where a method takes a batch, the in-batch duplicate test hands one call two foos with one reference. One
 statement touching one row twice is refused by Postgres (SQLSTATE `21000`), and the translator would
 report it as the store being unavailable; one row carrying the later foo's name is what collapsing the
-batch by its key first guarantees (`flat-persistence` rule 18).
+batch by its key first guarantees (`persistence` rule 13).
 
 The translation test forces the write through the public method a caller uses, refused by the store
 itself — a NUL character, which a Postgres text value cannot hold, is SQLSTATE `22021` in the

@@ -305,7 +305,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    package, and every other package asks it for data — never a statement in a work unit, never one
    store's access scattered across packages. A second store is a second package beside the first, named
    for its technology like the first (`postgres/`, `clickhouse/`), with its own settings class,
-   connection factory and, where this service owns its schema (`flat-persistence` rule 15), migration
+   connection factory and, where this service owns its schema (`flat-persistence` rule 8), migration
    history — never a second set of tables, or a second store's fields, inside the first. A store's SQL
    is findable in one place or it is everywhere. What such a package contains, and what changes where
    several distributions share one store, is `flat-persistence`.
