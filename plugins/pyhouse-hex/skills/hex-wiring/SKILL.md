@@ -103,8 +103,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 
 ### Where a settings class sits
 
-- **One settings class per infrastructure subpackage, beside the adapter it configures**:
-  `src/myapp/infrastructure/<subpackage>/settings.py` (`hex-conventions`). There is no central settings
+- **The module a settings class sits in** → `hex-conventions` block A. There is no central settings
   module.
 - **The prefix's stem names the deployable, never a bounded context.** `naming` owns the prefix
   (`MYAPP_` plus the integration's segment). What only a hexagonal service adds: a deployable serves
