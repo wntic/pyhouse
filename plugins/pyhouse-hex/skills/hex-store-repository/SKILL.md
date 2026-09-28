@@ -66,7 +66,7 @@ class BazRepository:
         except RedisError as exc:
             raise UpstreamError(
                 "store write failed",
-                {"key": self._key(baz.id), "reason": exc.__class__.__name__},
+                {"key": self._key(baz.id)},
             ) from exc
 
     async def get_by_id(self, id: UUID) -> Baz:
@@ -75,7 +75,7 @@ class BazRepository:
         except RedisError as exc:
             raise UpstreamError(
                 "store read failed",
-                {"key": self._key(id), "reason": exc.__class__.__name__},
+                {"key": self._key(id)},
             ) from exc
         if raw is None:
             raise NotFoundError("Baz not found", {"id": str(id)})
@@ -87,7 +87,7 @@ class BazRepository:
         except RedisError as exc:
             raise UpstreamError(
                 "store delete failed",
-                {"key": self._key(id), "reason": exc.__class__.__name__},
+                {"key": self._key(id)},
             ) from exc
         if removed == 0:
             raise NotFoundError("Baz not found", {"id": str(id)})
