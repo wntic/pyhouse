@@ -233,7 +233,7 @@ class InfrastructureProvider(Provider):
 
 ### Compensating-transaction contract
 
-13. **Mutating capabilities expose both the forward operation and the undo.** A storage adapter has `upload` *and* `delete`; a publisher that supports retraction has `publish` *and* `retract`. The catch-and-undo logic lives in the application handler (`hex-application`, Compensation), not in the adapter. The adapter's job is to make the undo callable; like every other method it raises a catalogue exception when it fails, and the handler decides whether that failure may be tolerated.
+13. **A capability whose write a handler compensates exposes the undo beside the forward operation** (`hex-application`, Compensation, decides which writes need one): a storage adapter has `upload` *and* `delete`; a publisher that supports retraction has `publish` *and* `retract`; a write nothing compensates has no undo. The catch-and-undo logic lives in the application handler (`hex-application`, Compensation), not in the adapter. The adapter's job is to make the undo callable; like every other method it raises a catalogue exception when it fails, and the handler decides whether that failure may be tolerated.
 
 ## Inlined typing / import rules
 
