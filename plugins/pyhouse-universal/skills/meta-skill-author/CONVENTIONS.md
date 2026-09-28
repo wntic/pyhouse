@@ -50,7 +50,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-restapi-app` — Establish the shared shell before adding resource routers; the shell it lays presumes no authentication and no declared middleware, CORS included; the status each error class answers with, and a status a middleware emits, are registered here.
 - `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body, and keeps the errors the route advertises aligned with what it can actually produce; a route that carries a file moves the bytes and nothing else.
 - `hex-restapi-schema` — Match the domain filter's chosen pagination shape and the command DTO's partial-update contract.
-- `hex-restapi-auth` — Add only when the entrypoint itself authenticates; a gateway- or mTLS-fronted service declares no auth and skips it. The caller is an opaque subject, and a rank exists only where a route gates on one.
+- `hex-restapi-auth` — Add only when a route needs its caller's identity; a service whose routes need none, behind a gateway or not, declares no auth and skips it. The caller is an opaque subject, and a rank exists only where a route gates on one.
 
 ### Hex tests (8)
 

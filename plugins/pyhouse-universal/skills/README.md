@@ -137,8 +137,9 @@ rules the layer split imposes on top of `python-packaging`; `hex-architecture` a
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
 | `hex-restapi-auth` | Caller identity as the issuer's opaque subject, with a rank only where a route gates on one; the token-verifier port and adapter, route dependencies, and the auth codes a route advertises |
 
-**The first three are complete on their own.** `hex-restapi-auth` is optional: a service behind an
-authenticating gateway, an mTLS-fronted API or a public one declares no auth and never loads it.
+**The first three are complete on their own.** `hex-restapi-auth` is optional: a service whose routes
+need no caller identity — a public one, or one behind a gateway that authenticates for it — declares no
+auth and never loads it.
 
 ## Hex tests (8)
 
