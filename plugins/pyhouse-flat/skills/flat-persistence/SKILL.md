@@ -10,8 +10,8 @@ The package a `flat-layered` service keeps its data access in — the *data acce
 skill's import contract — named for the store's technology: `postgres/` for the relational store the
 templates bind. It holds the table definitions, the write path and the mapping from stored rows back to
 the service's own types. **No other package in the service constructs a statement or opens a
-connection.** The store's migration history is data, not code, and sits at the distribution root under
-`migrations/` in a directory named for the same store.
+connection.** Where the service owns the store's schema, its migration history is data, not code, and
+sits at the distribution root under `migrations/` in a directory named for the same store.
 
 **Which rules below bind depends on four properties of the store, not on its name.** Answer these before
 reading the rules, because a rule whose property is absent has nothing to be true about:
@@ -34,7 +34,8 @@ poor fit for this skill — the rules that lapse lapse because their subject doe
 
 The default subject is **one distribution with one store**. **A service with a second store has a second
 package** (rule 17): a sibling of `postgres/` named for that store's technology, answering the four
-questions above for itself, with its own settings class, connection factory and migration directory.
+questions above for itself, with its own settings class, connection factory and, where its schema is
+versioned, migration directory.
 Where several distributions share one store, the package becomes a library they all depend on and
 rule 15 says what that changes.
 
@@ -73,25 +74,17 @@ src/myapp/postgres/
 ├── foo_table.py           # the Table definitions
 └── foo_repository.py      # the class that owns each write's transaction and builds its statements
 
-alembic.ini                # at the distribution root — `flat-project-setup`
-migrations/
+alembic.ini                # only where this service owns the schema (rule 15) — `flat-project-setup`
+migrations/                # only where this service owns the schema (rule 15)
 └── postgres/
     ├── env.py             # laid once — `flat-project-setup`
     ├── script.py.mako
     └── versions/          # one revision per schema change
 ```
 
-A second store adds one sibling package and one sibling migration directory, and edits neither of the
-first's. `<store>` is that store's technology name — `clickhouse`, `mongodb`, `opensearch`:
-
-```
-src/myapp/
-├── postgres/
-└── <store>/               # its settings class, its connection factory, its repository classes
-migrations/
-├── postgres/
-└── <store>/               # its history, in the format its own migration tool reads
-```
+A second store adds one sibling package, `src/myapp/<store>/`, and — only where its schema is
+versioned — one sibling migration directory, `migrations/<store>/`, and edits neither of the first's;
+`<store>` is that store's technology name — `clickhouse`, `mongodb`, `opensearch` (rule 17).
 
 The full file templates live in three topic files beside this one, one per group of artifacts in that
 layout. Only this file is loaded automatically, so open the one you need:
@@ -136,8 +129,7 @@ layout. Only this file is loaded automatically, so open the one you need:
 ## Rules
 
 1. **One package per store owns a service's data access to it, and nothing outside that package
-   constructs a statement or opens a connection.** A service's SQL is findable in one place or it is
-   everywhere. This is the positive form of `flat-layered` rule 4.
+   constructs a statement or opens a connection** (`flat-layered` rule 4).
 2. **No `Protocol` over the datastore, and that is a decision rather than an omission.** The main
    datastore is a sticky dependency with no nameable alternative the business would plausibly adopt, so
    it never qualifies for an interface however generic it looks (`flat-layered` rule 3). Test doubles come
@@ -209,13 +201,14 @@ layout. Only this file is loaded automatically, so open the one you need:
     its metadata (`flat-test-integration-setup`, `## Other bindings`).
 16. **Migrations run as a deploy step, before the new code starts, and every schema change is
     compatible with the code still running.** During a deploy the old code keeps serving against the new
-    schema, so a change lands in two releases — expand first (add the column, the table, the nullable
-    field), contract in a later release once nothing reads what is being removed. Each change is one
+    schema, so a change lands in two releases — expand first (add the table, or the column nullable or
+    with a default the store fills in), contract in a later release once nothing reads what is being
+    removed. A column added `NOT NULL` with no default passes autogenerate and the empty-database round
+    trip, then fails the deploy on a populated table. Each change is one
     revision whose `downgrade()` reverses its `upgrade()`; the migration round trip the integration suite
     replays is what proves that it does (`flat-test-integration-setup`).
-17. **A service with more than one store keeps one data-access package per store, each named for its
-    store's technology, with its own settings class and prefix, its own connection factory and its own
-    migration directory.** Two stores never share a package, a settings class or a history: they differ
+17. **A second store is a second package (`flat-layered` rule 4), and two stores never share a package,
+    a settings class or a migration history:** they differ
     in which rules above bind, in their drivers' failure types and in how their schema changes, and one
     package holding both turns every one of those differences into a branch inside it. Work
     that writes to both is handed both packages' objects by the process definition, like any other
