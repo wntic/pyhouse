@@ -1,9 +1,10 @@
 # hex-persistence — the `Table`
 
-Topic file of `hex-persistence`. The mechanism-free obligations are `persistence` rules 5 and 7–11;
-what follows is the **SQLAlchemy Core + Postgres** binding that satisfies them.
+Topic file of `hex-persistence`. The mechanism-free obligations are `persistence` rules 7 and 9–13
+(the table-name derivation is `hex-conventions`' `pluralize`); what follows is the **SQLAlchemy Core +
+Postgres** binding that satisfies them.
 
-Column types are a design decision (`persistence` rule 8) — a JSON column, an array column, a check
+Column types are a design decision (`persistence` rule 10) — a JSON column, an array column, a check
 constraint, a foreign key — which is why the column-type rules come first.
 
 ## Naming convention (load-bearing — do not deviate)
@@ -66,25 +67,24 @@ foos_table: Table = Table(
 `ix_foos_created_at`, exactly what the revision writes out. `unique=True` on `name` exists only where the
 aggregate has a natural key, and `name` is this template's: an aggregate identified by its id alone
 drops it, and with it the translator's `uq_foos_name` branch and the conflict class that branch
-returns.
+returns. Where the list still filters or sorts on it, it keeps an index instead (`index=True`,
+`ix_foos_name`, `persistence` rule 12), and the revision's `UniqueConstraint` becomes
+`op.create_index`.
 
 ## Rules — column types
 
 - **UUID:** `UUID(as_uuid=True)` from the dialect module. Never plain `UUID()`.
 - **Timestamps:** `DateTime(timezone=True)` with `server_default=func.now()` for `created_at` /
   `updated_at`. Never naive.
-- **Text:** `Text`, not `String(n)`. No length-bounded varchars — a length limit is a domain
-  constraint, enforced by a check constraint the domain owns, not a storage decision that should need a
-  migration to change.
+- **Text:** `Text`, not `String(n)` (`persistence` rule 11).
 - **Integers:** `Integer`; `SmallInteger` only when the domain is genuinely bounded.
 - **Booleans:** `Boolean`.
 - **Enums:** `Text` plus a `CheckConstraint` listing the valid values, never a database `ENUM` type
-  (`persistence` rule 9).
+  (`persistence` rule 11).
 
 ## Rules — FK `ondelete`
 
-- `RESTRICT` — the target is a **referenced lookup**. The repository translates the resulting
-  `IntegrityError` to `InUseError`.
+- `RESTRICT` — the target is a **referenced lookup**.
 - `CASCADE` — the target is the **parent of an owned child** (`foo_children.foo_id → foos.id`).
 - `SET NULL` — only when the column is nullable and absence carries domain meaning. Rare.
 
@@ -92,7 +92,7 @@ Pick once, and document the consequence in the repository's `delete`.
 
 ## Rules — indexes
 
-- What to index is `persistence` rule 10; an FK column's index is declared, because the library creates
+- What to index is `persistence` rule 12; an FK column's index is declared, because the library creates
   none for it.
 - Single-column index name: `ix_<table>_<col>`. A composite index is named explicitly with the same
   prefix.
@@ -127,10 +127,9 @@ Pick once, and document the consequence in the repository's `delete`.
 
 ## Rules — server vs application defaults
 
-- `created_at` / `updated_at` use `server_default=func.now()`, so existing rows behave correctly during a
-  migration.
+- `created_at` / `updated_at` use `server_default=func.now()`.
 - Application-managed `updated_at` on update: the repository sets it with `func.now()` in the `UPDATE`
-  (`persistence` rule 7).
+  (`persistence` rule 9).
 - A domain-meaningful default uses `server_default="…"`, and the value stays **identical** between the
   table definition and the revision.
 

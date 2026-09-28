@@ -6,17 +6,12 @@ paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**", "**/domain/
 
 # Hexagonal Persistence (relational)
 
-The table, the repository that queries it, and the migration that ships it. They live together because
-**the constraint names are one contract across all three**: the table declares them through a naming
-convention, the repository's integrity-error translator matches on them to produce the right domain
-exception, and the revision writes them out in full. Rename one and all three change, in the same
-commit.
+The table, the repository that queries it, and the migration that ships it, kept together because the
+constraint names are one contract across all three (`persistence` rule 7).
 
-**The store-generic obligations these files meet are `persistence`'s** — the declared transaction
-owner, translation at the adapter's edge with the field and the full constraint name in the context,
-the one naming convention, the pure mapping, stored types and indexes, and migrations as a reversible
-expand-then-contract deploy step. The rules below are the hexagonal shape around them: an adapter
-behind a port, its two constructor forms, the paired revision and the unit of work.
+**Load `persistence` before writing any file below**; the templates satisfy its rules and do not
+restate them. The rules here are the hexagonal shape around them: an adapter behind a port, its two
+constructor forms, the paired revision and the unit of work.
 
 For a non-relational store — a key-value, cache or document backend — use the client-repository form
 instead. The store profile decides which applies (`hex-conventions` block B).
@@ -112,18 +107,16 @@ loaded automatically:
 4. **A schema change is a coordinated pair in one commit** — the table definition and one new
    migration. What the migration itself owes — a deploy step compatible with the running code, a
    reversing downgrade proven by the round trip, a generated draft reviewed before commit — is
-   `persistence` rules 15 and 16.
-5. **Extract a shared integrity-error mapper on repetition, never preemptively**, and migrate every
-   existing repository in the commit that introduces it — partial adoption causes drift.
-6. **A unit of work exists only where one command writes two or more repositories that must commit
+   `persistence` rules 19 and 20.
+5. **A unit of work exists only where one command writes two or more repositories that must commit
    together, and there is one per transactional scope, never one per aggregate.** Every repository that
    may join the transaction is a member of the same domain protocol, typed by its port. A second one is
    earned only by a genuinely different scope and is named for that scope's role, never for its backend.
-7. **One unit of work per `execute`, opened by the handler from an injected zero-argument factory.**
+6. **One unit of work per `execute`, opened by the handler from an injected zero-argument factory.**
    Never shared across calls, never pooled: a shared one merges two callers' writes into one
    transaction, so one caller's failure rolls back the other's work. The composition root binds the
    factory, never an instance (`hex-wiring`).
-8. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
+7. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
    Nothing after the commit may fail non-idempotently. Nothing inside the block catches — only
    compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
    the transaction is unusable once a statement in it failed.

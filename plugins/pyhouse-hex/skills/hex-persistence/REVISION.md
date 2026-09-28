@@ -1,12 +1,12 @@
 # hex-persistence — the revision
 
 Topic file of `hex-persistence`. The mechanism-free obligations are rule 4 in `SKILL.md` and
-`persistence` rules 15 and 16; what follows is the **Alembic** binding that satisfies them.
+`persistence` rules 19 and 20; what follows is the **Alembic** binding that satisfies them.
 
 The migration tool owns the revision chain: `alembic revision` assigns the id and `down_revision` from
 the current head — the two placeholders below are what it fills in, never values to type. A schema
 change is a coordinated pair — the `Table` (`TABLE.md`) and a new revision — landing in the same commit
-(rule 4). `--autogenerate` produces only a draft (`persistence` rule 16): it misses naming-convention
+(rule 4). `--autogenerate` produces only a draft (`persistence` rule 20): it misses naming-convention
 nuance, partial indexes and seed data, so hand-edit it against the rules in `TABLE.md`. The one-time
 bootstrap that lets the chain exist at all is `hex-project-setup`.
 
@@ -69,7 +69,7 @@ def downgrade() -> None:
 A check constraint's `name` is the suffix, as in the `Table`: the convention prepends `ck_foos_`, so a
 full name there comes out doubled.
 
-`downgrade()` reverses the operations in the opposite order (`persistence` rule 16); the round trip
+`downgrade()` reverses the operations in the opposite order (`persistence` rule 20); the round trip
 that proves it is `hex-test-repository-contract`'s. This revision only adds, so it is the expand half
-`persistence` rule 15 lets ship alone.
+`persistence` rule 19 lets ship alone.
 

@@ -2,7 +2,7 @@
 
 Topic file of `hex-persistence`, read only when one command writes **two or more repositories that must
 commit together** — two aggregates changed at once, an aggregate plus an outbox row. The
-mechanism-free obligations are rules 2 and 6–8 in `SKILL.md`, and `persistence` rule 1; what follows is
+mechanism-free obligations are rules 2 and 5–7 in `SKILL.md`, and `persistence` rules 1 and 4; what follows is
 the **SQLAlchemy async session + dishka** binding that satisfies them: the domain protocol, its
 implementation, its binding, and the handler form that opens it.
 
@@ -55,7 +55,10 @@ In `src/myapp/infrastructure/postgres/sqlalchemy_unit_of_work.py`:
 from types import TracebackType
 from typing import Self
 
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from myapp.domain.exceptions import UpstreamError
 
 from .repositories import BarSessionRepository, FooSessionRepository
 
@@ -92,7 +95,10 @@ class SqlAlchemyUnitOfWork:
             await self._session.close()
 
     async def commit(self) -> None:
-        await self._session.commit()
+        try:
+            await self._session.commit()
+        except (DBAPIError, OSError) as exc:
+            raise UpstreamError("the datastore could not commit the unit of work", {}) from exc
 ```
 
 Each member is `REPOSITORY.md`'s unit-of-work-managed form, and the class does not inherit from
@@ -105,6 +111,9 @@ ordinary correctness too:
 - `__aexit__` has the protocol's **exact three-parameter signature**; a near-match fails the structural
   check where the factory is bound.
 - The session is closed in a `finally`, so a failing `rollback()` cannot leak the connection.
+
+`commit()` is a public method like any repository's, and the commit is where a deferred failure or a
+dropped connection surfaces, so it translates the driver's error too (`persistence` rule 4).
 
 The session and its repositories are built in the constructor, since the factory makes a fresh instance
 per `execute`. Creating a session opens no connection and begins its transaction lazily, so there is no
