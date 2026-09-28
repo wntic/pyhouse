@@ -10,7 +10,8 @@ Consult `test-principles` for the testing constitution. Where this skill contrad
 
 One-shot per distribution. Everything under its `tests/integration/` depends on this file: the datastore
 the suite runs against, the migration history replayed onto it, the engine every test shares, and the two
-isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.**
+isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.** A distribution
+with no relational store takes only the pytest configuration block.
 
 **Two isolation fixtures, and which one a test uses follows from the declared transaction owner.** Every
 callable in the data-access package either *accepts* a live connection and never commits, or *opens and owns*
@@ -24,8 +25,6 @@ one for the whole of its work (`persistence` rule 1). That declaration decides t
 - **`truncate_all`** — wipes every table after each test, for anything that *opens and owns* its
   transaction: repository classes, the work a trigger calls, and the wrappers above them. A test's outer transaction
   can neither see nor roll back a connection the code under test opened for itself.
-
-Both are always present, and neither is a workaround (`test-principles` reliability rule 2).
 
 ## When to use vs. neighbours
 
@@ -215,10 +214,7 @@ pure-unit collection pays nothing for it.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
    still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to
-   diverge. Where the fixtures are shared by several distributions, the shared module declares the wipe
-   without autouse (`test-principles`, *Where tests and fixtures sit* rule 4), since it would fire for
-   every collection in the repository, and each member whose code commits turns it on in a one-line
-   autouse wrapper.
+   diverge. Shared across distributions, it loses autouse (`## Other bindings`).
 7. **Do not request the wipe by name in a test that only uses the rollback connection.** The rollback
    already covers it, and a by-name request loses the autouse ordering that keeps the wipe's exclusive
    table lock from meeting the connection's still-open transaction.
@@ -230,8 +226,7 @@ pure-unit collection pays nothing for it.
 
 ## Hard stops
 
-- The distribution has no relational store → stop; none of these fixtures applies, since there is no
-  transaction to roll back and no schema to truncate — only the pytest configuration block, and a
-  non-relational store's own container under `## Other bindings`.
+- The distribution has no relational store → stop; none of these fixtures applies — no transaction to
+  roll back, no schema to truncate.
 - The code under test sits behind a domain port and a dishka container → stop, use
   `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
