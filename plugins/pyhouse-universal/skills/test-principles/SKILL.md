@@ -125,7 +125,6 @@ entrypoint, the layer is leaking and the speed budget is gone.
 ### Test naming
 
 - **Test file**: mirror the source file with a `test_` prefix, inside the tests of the distribution that owns it. `src/myapp/foo_summary.py` → `tests/unit/test_foo_summary.py`.
-- **A file whose subject is one operation of a module holding several is named for that operation** — `test_create_foo.py`, not a file per module that gathers every operation's tests.
 - **Test function**: `test_<rule_being_pinned>` in snake_case. `test_assigns_uuid_and_stores`, `test_duplicate_name_raises_conflict`, `test_partial_update_leaves_unspecified_fields_untouched`. The name **is** the spec line — reading the file's `def test_*` list reads as a list of behaviors.
 - **A test file whose subject is the tree, not a module, is named for the property it pins**, because
   there is no source file to mirror — `test_architecture.py` for the static source rules
@@ -138,7 +137,7 @@ entrypoint, the layer is leaking and the speed budget is gone.
 
 **Use `@pytest.mark.parametrize`** when:
 
-- The parameter set is **discovered from the running system** — every protected route in `app.routes`, every operation in `app.openapi()`. `hex-test-app-invariants` is the canonical example.
+- The parameter set is **discovered from the running system** — every operation an app serves, every entry its published document lists; `hex-test-app-invariants`, in the `pyhouse-hex` plugin, is one example.
 - The test is **input-domain coverage**: a single behavior verified against many inputs (10 invalid emails, 20 valid date formats). The behavior is one thing; the inputs vary.
 - Adding a new parameter would extend, not duplicate, an existing test set.
 
