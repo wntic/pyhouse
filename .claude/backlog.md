@@ -38,17 +38,6 @@ naming the old shape: `hex-domain-ports`, `hex-test-capability-adapter`,
   update is guarded by the row's ordering stamp, so the older never overwrites the newer. `HTTP.md`'s
   pointer then names that rule. No template: most services do not have the case.
 
-### 31. A routine is a sentence; a block laid once as written stays
-The criterion for command blocks: one a project runs once, as written — the `alembic init` bootstrap in
-the setup skills, `git-branching`'s one-time `gh api` block (D121) — stays; a routine repeated per change
-or per release becomes a sentence beside its rule.
-- `flat-persistence/SETUP.md`: the `alembic revision --autogenerate` / `alembic upgrade head` block → a
-  sentence.
-- `python-versioning/SKILL.md`: the `git tag -a` / `git push` block → a sentence (an annotated tag
-  carrying the `v`).
-- `meta-skill-author` (~line 378): "shapes add and remove nothing" is reworded — a shape adds no section,
-  and the one section a skill may omit is `Template(s)`, when it has nothing to copy.
-
 ### 14. A universal `persistence` skill owns every store-generic obligation
 A new universal skill (working name `persistence`; reference shape, no template) owns what holds in any
 Python project with a store, whatever its family:
