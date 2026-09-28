@@ -200,8 +200,9 @@ in-process one alone.
    client's own request building and error translation out of the test, and substituting the datastore
    removes the only thing this level can prove.
 3. **Where a run can repeat over the same input, its test file pins what the second run does.** A
-   scheduled pass over a feed that mostly repeats, and any run a trigger may retry after a partial
-   failure, both meet that condition — run twice, assert the second run added no row and changed nothing its
+   scheduled pass over a feed that mostly repeats, a delivery the sender may repeat (a webhook
+   redelivery, an at-least-once broker delivery), and any run a trigger may retry after a partial
+   failure all meet that condition — run twice, assert the second run added no row and changed nothing its
    input determines. A run whose input is consumed once, or that is by construction never repeated, has
    nothing to pin and the test would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
