@@ -120,11 +120,9 @@ entrypoint, the layer is leaking and the speed budget is gone.
 - **Function scope** — everything else: every isolation handle, every per-test namespace, every
   row factory, every client over a stubbed transport. Per-test rows are non-negotiable: rollback or
   wipe isolation requires them.
-- **A session-scoped async resource and everything that uses it share one event loop.** A pool whose
-  connections outlive the loop they were opened on crashes at teardown the first time a statement
-  *errors* — the driver cannot cancel an aborted command on a closed loop — so the failure surfaces as an
-  unrelated "event loop is closed" on an ordinary constraint-violation test, and only once some test
-  runs a statement that errors. Under this binding both `asyncio_default_fixture_loop_scope` and
+- **A session-scoped async resource and everything that uses it share one event loop.** A connection
+  or client opened on one loop fails when used or closed on another — on first use, or with some drivers
+  only at teardown after a command errors, as an unrelated "event loop is closed". Under this binding both `asyncio_default_fixture_loop_scope` and
   `asyncio_default_test_loop_scope` are `"session"`.
 - **No `module`-scoped or `class`-scoped fixtures.** Two scopes are enough — one for what is expensive and stateless across tests, one for everything else — and every scope beyond them is state shared with tests that never asked for it, in a grouping (the file, the class) that exists for readability rather than for lifecycle. A test that passes alone and fails beside its neighbours is the cost.
 
@@ -190,7 +188,7 @@ defensive `any(...)` filters, no `+1` for the test's own row.
 3. **For an echoed or derived field, pick an input a constant would not satisfy.** Asserting a returned role, a token subject or a copied identifier against a default or fixed-looking value passes a body that returns a constant. Choose a non-default input, so only the real wiring satisfies it.
 4. **On a reject path, assert that no side effect occurred — not just the raised exception.** Over-quota, already-in-final-state, not-found and unauthorized must also assert that nothing was persisted, sent or recorded, or a body that raises *after* writing still passes.
 5. **Exercise a non-boundary case, not only the boundary.** A test that pins only the `>=` edge, or only one tier of a graded rule, leaves the selection logic — is the right threshold even chosen? — unpinned. Add a case clearly inside the rule alongside the one on its edge.
-6. **On a raise path, expect the narrowest class the contract raises**, never `Exception` or any ancestor of that class shared with unrelated failures, and assert the one attribute that distinguishes this failure from others of the same class — an error code, a key in the exception's context, the offending input — or, where the class carries none, the part of its message that does. A bare `Exception` passes a body that fails for any reason at all, a misspelled name included.
+6. **On a raise path, expect the narrowest class the contract raises**, never `Exception` or any ancestor of that class shared with unrelated failures, and assert the one attribute that distinguishes this failure from others of the same class — an error code, a key in the exception's context, the offending input — or, where the class carries none, the part of its message that does. A bare `Exception` passes a body that fails for any reason at all, a misspelled name included. Where the raised class translates another failure, assert that failure is its cause.
 
 **Assert against literal expected values.** Never re-implement the rule under test to compute the
 expected value — that hides the defect where both sides make the same mistake.
@@ -266,7 +264,8 @@ calling either:
 3. **Every happy-path test asserts the route it exercises was actually hit — on that route's own call record, never by requiring every stubbed route to be called.** An interception layer answers whatever arrives and reports success by default, so a subject that never made the call — an un-awaited coroutine is the standing case — passes a test that only checks the return value. Requiring every route in a shared router to be called (`assert_all_called` here) pins how many requests the subject happens to make instead, so an added prefetch or a dropped retry reddens a test that was about neither.
 4. **Trigger a transport failure with a transport-level error, not a status code.** Only a raised connect or timeout error (`side_effect=httpx.ConnectError(...)`) reaches the subject's transport-error arm; every status-code test lands on the response arm and leaves that branch unexercised.
 5. **At least one test pins what the subject sent that the route does not already match on** — the query, the headers the upstream requires (its credential, where it takes one), the body — read back from the route's own call record. The route's match (rule 2) already pins method and path; a subject that parses a canned response correctly while sending the wrong query or body passes every response-shaped test. Where a call sends nothing beyond its method and path, the route being hit (rule 3) is that pin.
-6. **A success response whose body the subject cannot parse is tested, and it fails as the catalogue exception** (`exception-catalog`) with the parse error as its cause — never a bare decode or key error escaping to the caller. Both halves of parsing are covered: a body that is not the declared format at all, and one that is but does not fit the declared shape.
+6. **Where the subject parses a response body, a success response whose body it cannot parse is tested, and it fails as the catalogue exception** (`exception-catalog`) with the parse error as its cause — never a bare decode or key error escaping to the caller. Both halves of parsing are covered: a body that is not the declared format at all, and one that is but does not fit the declared shape.
+7. **A stubbed body is copied from the upstream's documented or recorded response, never written from the subject's own model** — a stub shaped by the parser it feeds passes whatever the parser expects.
 
 ### Datastore contract
 
@@ -275,27 +274,34 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
 
 1. **The store is real, and the assertion reads it back.** Nothing below the data-access code is
    substituted — a double answers none of the questions this layer exists for — and what the store
-   holds after the act is asserted through a query of the test's own, never through the write's return
-   value alone, which is what the statement said and so the thing under test.
+   holds after the act is read back — through a query of the test's own, or through the subject's own
+   read where that read is under test too — never taken from the write's return value alone, which is
+   what the statement said and so the thing under test.
 2. **Where the translator branches on a constraint's name, the test pins that name, not just the
    exception class**, on the raised exception's identifying context (`persistence` rules 6 and 7). The
    name comes from the declared convention, and asserting it catches a migration that dropped or
    renamed the intended constraint.
-3. **A unique constraint the translator branches on is tested on the plain write *and* on the
-   conflict-resolution or update path.** A partial or expression index can be honoured by an insert and
+3. **A unique constraint the translator branches on is tested on the plain write *and*, where the code
+   has one, on the conflict-resolution or update path.** A partial or expression index can be honoured by an insert and
    silently not matched by a conflict clause, and a translator can handle the insert's violation and
    miss the update's; only exercising both paths separates those outcomes.
-4. **A forced driver error asserts the catalogue exception and its identifying context, on a write and,
-   where the code has one, on a read** — never the driver's own class, which is precisely what must
+4. **A forced driver error asserts the catalogue exception and its identifying context, on each kind of
+   call the code makes — a write and a read, each where it has one** — never the driver's own class, which is precisely what must
    never escape (`persistence` rule 4). A translation written only around the writes leaves every read
    leaking the driver's type, and no write test notices. The failure is forced through something the
    store itself refuses, or a store it cannot reach, never through a value that only happens to be
    rejected today.
-5. **The subject's own rows are arranged through the subject, or, where it has no write for them,
-   through the schema's own declaration** — never a hand-written statement against the table under
-   test, which drifts from the schema silently, and never another test's leftovers, which isolation
-   removes. A contract test that seeds behind its own subject proves nothing about the subject; a row
+5. **The subject's own rows are arranged through the subject**; where it has no write for them, through
+   the layout the code itself declares, where it declares one, rather than a second hand-written copy of
+   that layout in the test — and never from another test's leftovers, which isolation removes. A
+   contract test that seeds behind its own subject proves nothing about the subject; a row
    the subject only references is not its own and is seeded directly.
+6. **Where writes for one key can arrive out of order, a test writes the newer record and then the
+   older, with stamps that differ, and asserts the newer's values remain** (`persistence` rule 16); a
+   builder that fixes the stamp makes every write equally new and pins nothing.
+7. **Where a write takes a batch, one call carries two inputs sharing a key**, and one record holding
+   the input the collapse keeps is asserted (`persistence` rule 17); under an ordering guard the newer
+   stamp goes first, so a collapse that keeps the last input fails.
 
 ### Reliability rules (local-vs-CI parity)
 
@@ -313,11 +319,12 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    about this suite.
 2. **Every test starts from state it established itself, never from a predecessor's leftovers**, and
    the isolation that guarantees it is part of the suite rather than something a test remembers to do.
-   Where the subject has a datastore that means an empty database at the start of every test — either
-   the outer-transaction rollback or a whole-schema truncation, and which one follows from who owns the
-   transaction (`persistence` rule 1): code handed the test's connection is covered by the rollback;
-   code that opens its own is covered only by the wipe, since an outer transaction can neither see nor
-   roll back a connection it did not open. Where it has none, the same rule binds whatever
+   Where the subject has a datastore that means an empty store at the start of every test — a store
+   created per test where that is cheap (a file-backed or in-process one, in the test's temporary
+   directory), otherwise the outer-transaction rollback, a whole-schema truncation, or a per-test
+   namespace where the store has no transactions. The rollback covers only code handed the test's
+   connection (`persistence` rule 1): an outer transaction can neither see nor roll back a connection it
+   did not open, so code that opens its own takes the wipe. Where it has none, the same rule binds whatever
    state there is: a temporary directory created per test, a fresh in-process object rather than a
    module-level one, an environment the test sets and the fixture restores. So the suite's result does
    not depend on the order it was collected in: run it once in a randomized order and once in file
@@ -337,7 +344,7 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    passes or flakes by coincidence.
 5. **A UUID a test asserts on is constructed inside that test**, never drawn from `uuid.uuid4()` at
    module scope and shared with its neighbours.
-6. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The fixture that provisions the store handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`. A test that needs a settings object constructs it with explicit values and passes it in; one that needs the store takes the suite's fixture and never builds an engine or pool of its own nor calls the program's engine factory, which would sit outside the isolation and the session's teardown — the one exception is an engine that reaches no datastore, built and disposed inside the test that forces a failed connection. A test never mutates or reassigns a factory's cached value. Only a test of the settings parsing itself lets it read an environment, one the test sets, and it disables the loader's file sources, since a dotenv or config path resolved against the working directory makes the test pass or fail by where the runner was started.
+6. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The fixture that provisions the store handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`. A test that needs a settings object constructs it with explicit values and passes it in; one that needs the store takes the suite's fixture and never builds a connection, client or pool of its own nor calls the program's own factory for one, which would sit outside the isolation and the session's teardown — the one exception is a client pointed at an address nothing listens on, built and disposed inside the test that forces a failed connection. A test never mutates or reassigns a factory's cached value. Only a test of the settings parsing itself lets it read an environment, one the test sets, and it disables the loader's file sources, since a dotenv or config path resolved against the working directory makes the test pass or fail by where the runner was started.
 7. **Where a test sits is what decides which layer it belongs to — not a tag on it, and not a tag on
    its event loop.** A test under `unit/` is a unit test because of where it is, and where the suite
    has async tests, async-ness is declared once for the project rather than per function. Two tags can
