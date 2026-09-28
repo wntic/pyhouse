@@ -1,6 +1,6 @@
 ---
 name: flat-test-service-client
-description: Use when testing one external-service client class with `respx` over real `httpx` transport — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception. A unit test needing no database and no container, unlike `flat-test-run-function`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
+description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `respx` over `httpx`. A unit test needing no database and no container, unlike `flat-test-run-function`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat-Layered Test — Service Client
@@ -90,15 +90,6 @@ async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter,
     assert result == (FooPayload(ref="f1", name="alpha"),)
 
 
-async def test_fetch_foos_sends_a_get_to_the_collection(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json={"items": []}))
-
-    await foo_client.fetch_foos()
-
-    assert route.calls.last.request.method == "GET"
-    assert route.calls.last.request.url.path == "/foos"
-
-
 @pytest.mark.parametrize("status", [400, 404, 500, 503])
 async def test_non_2xx_becomes_a_foo_client_error(
     foo_api: respx.MockRouter, foo_client: FooClient, status: int
@@ -141,14 +132,21 @@ interception is lifted and the transport closed at teardown — and they sit in 
 rather than in each test module because three files at two levels take them. The client fixture builds
 its `httpx.AsyncClient` exactly as the process definition does — base URL and timeout from constants in
 place of settings — and **requests the stub**, so no test can hold the client without the interception
-under it (rule 8). `assert_all_called=False` is rule 7, stated where the stub is made.
+under it (rule 7). `assert_all_called=False` is rule 6, stated where the stub is made. Where the process
+definition hands the transport an auth flow (`flat-layered` rule 13), the fixture builds it the same
+way, and the tests pin the refresh: one rejected credential is renewed once and the request resent, and
+a second rejection raises the catalogue error.
+
+`fetch_foos` sends nothing beyond its method and path, so the route being hit is its request pin
+(rule 3); a method that sends a query, a header or a body reads it back from
+`route.calls.last.request`.
 
 The error tests assert the translated class and its chained cause. `fetch_foos` takes no input, so its
 `context` is empty; a method that takes one also asserts the `context` key set the raise site and its
 test agree on — never the message text, which is free to change (`exception-catalog`). The malformed-body
 cases cover both halves of parsing: a body that is not JSON, and JSON that does not fit the payload.
 
-A caller's test makes this client fail at its transport (`flat-test-run-function` rule 2).
+A caller's test makes this client fail at its transport (`flat-test-run-function` rule 1).
 
 ## Other bindings
 
@@ -168,41 +166,32 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
 
 ## Rules
 
-1. **The transport is stubbed, never the client.** A test that patches `FooClient.fetch_foos` is testing
-   nothing; the parsing and translation under test live inside that method. Nor is a `Protocol`
-   extracted so the client can be swapped (`flat-layered` rule 3): the transport stub already
-   substitutes at the right seam.
-2. **Assert the translation, not just the type.** Every error status and every transport failure must
-   surface as the service's own catalog exception — carrying the identifying input in its `context`
-   where the call takes one — and the original must still be reachable as that exception's cause: that
-   is what raising *from* the original at the boundary buys, and it is the thing a careless refactor
-   drops. Assert on `context`, never on the message text.
-3. **Pin the request, not only the response.** At least one test asserts what the client actually sent —
-   path, query, headers, body — read back from what the stub recorded (`route.calls.last.request` here).
-   A client that parses a canned response correctly while requesting the wrong URL passes every
-   response-shaped test.
-4. **Input coverage is parametrized; a differing behaviour gets its own named test.** Four error statuses
-   against one behaviour is input coverage and belongs in one parametrized test (`pytest.mark.parametrize`
-   here). A 404 that must return `None` instead of raising is a *different* behaviour and gets its own
-   name, because the name is the spec line.
-5. **Malformed responses are part of the contract.** A 200 with a body the client cannot parse must fail
-   as the catalog exception, not as a bare `KeyError` or `JSONDecodeError` escaping to the caller.
-6. **The base URL is a constant beside the fixture that builds the client, and is passed in.** Never let
+1. **The transport is stubbed, never the client** (`test-principles`, the substitution ladder, rung 2),
+   and no `Protocol` is extracted for it (`flat-layered` rule 3). A test that patches
+   `FooClient.fetch_foos` is testing nothing; the parsing and translation under test live inside it.
+2. **Assert the translation, not just the type** — the catalogue class, its `context` keys where the
+   call takes an input, and the chained cause, never the message (`test-principles`, *Assert strength*
+   recipe 6; `exception-catalog` rules 8 and 11).
+3. **Pin what the client sent beyond its route** — `test-principles`, *Intercepting HTTP* rule 5
+   (`route.calls.last.request` here).
+4. **A 200 the client cannot parse is part of its contract** — `test-principles`, *Intercepting HTTP*
+   rule 6; the template's two malformed cases are its two halves.
+5. **The base URL is a constant beside the fixture that builds the client, and is passed in.** Never let
    the test depend on a settings value — hand the client an HTTP client built with an explicit
    `base_url`, which is why the client is handed its transport rather than building one.
-7. **Assert the route a test exercises, never that every stubbed route was called** —
+6. **Assert the route a test exercises, never that every stubbed route was called** —
    `test-principles`, *Intercepting HTTP* rule 3. The shared router therefore turns its own
    all-called check off (`assert_all_called=False` here).
-8. **Every test in the file intercepts the transport; none may reach a real host.** A test that escapes
-   the stub — an unmatched URL, a client that builds a transport the stub does not cover — is
-   non-deterministic, slow, and fails in CI on the day the vendor has an outage. A response shape is
-   recorded as a fixture and asserted against, never read live — that is a contract test against
-   someone else's uptime.
+7. **No test reaches a real host** (`test-principles`, *Intercepting HTTP* rule 1), and a stubbed body
+   is copied from the system's documented or recorded response — never written from the client's own
+   model, nor read live.
 
 ## Hard stops
 
 - The client swallows a transport or parsing failure internally, returning a default instead of raising
-  → stop, fix the client (`flat-layered` rule 5); a boundary that hides its failures cannot be tested,
+  → stop, fix the client (`exception-catalog` rule 15); a boundary that hides its failures cannot be tested,
   and its caller cannot tell a failure from an empty answer.
 - The client returns raw `httpx.Response` objects to its caller → stop, fix the client (`flat-layered`);
   the client owns parsing, and a test cannot pin behaviour that lives in the caller.
+- The client is an adapter behind a hexagonal `ICan<Verb>` port → stop, use
+  `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
