@@ -34,7 +34,8 @@ candidate for `/review-skills`, not a decision.
   (the guard is the only line that must). Same question in `hex-application` (7 mentions),
   `hex-application/COMPENSATION.md` (3), `hex-persistence/UNIT_OF_WORK.md` (2), `hex-restapi-app` (2),
   `flat-entrypoint/HTTP.md` (2).
-- 29 hard stops and 26 rules (15 + 11 durable): the largest skill in the flat family (see item 16).
+- 27 rules (16 + 11 durable) and, since the hard-stop sweep (D127), 2 hard stops: still the largest
+  skill in the flat family.
 
 #### 13. `flat-entrypoint/HTTP.md` is one module of FastAPI doing four jobs
 `build_app` holds the error rendering, the unexpected-failure middleware, the validation handler and
@@ -124,12 +125,3 @@ skills loaded, defects → rules).
 - `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
   `hex-application` template shows — acceptable as "written like any other handler", revisit if a
   review flags it.
-
-### 16. Sweep every skill against the hard-stop test
-Sweep every skill's `## Rules` and `## Hard stops` against the new test in `meta-skill-author`.
-`plugins/pyhouse-universal/agents/pyhouse-reviewer.md` (~line 81, "A hard stop is its rule's trigger")
-describes stops as the old test did and is updated in the same sweep; it must land before any release
-that ships the current `meta-skill-author`, or the reviewer judges stops by a test the author no longer
-states. `CLAUDE.md`'s sentence describing the engine rules in `flat-entrypoint` and
-`flat-test-run-function` as having "a matching subsection of `## Hard stops`" (~line 257) is updated
-in the same sweep, to whatever those subsections become.

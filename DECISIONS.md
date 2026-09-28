@@ -1750,3 +1750,31 @@ this one, deleting `hex-persistence/UNIT_OF_WORK.md`, `hex-application/COMPENSAT
 Compensation subsection and its two compensation hard stops, restoring both descriptions and the
 `hex-persistence` `paths`, repointing every reference named in this commit back to `hex-patterns`, and
 restoring the counts (48 skills, 24 hex, Hex core 12).
+
+### D127 — Every skill swept against the hard-stop test: a stop survives only where its remedy writes nothing here
+Taken by the maintainer (backlog item 16). `meta-skill-author` rule 7 decides a hard stop by its
+remedy: one that sends the work to another skill, or writes nothing, stays; one whose remedy writes
+something in this skill differently is a rule, and its better wording moves into that rule before the
+stop is deleted. Every skill in all four plugins was swept against it. Bullets under `## Hard stops`
+went from 182 to 54 in `pyhouse-universal`, 18 to 6 in `pyhouse-git`, 213 to 82 in `pyhouse-hex` and
+117 to 20 in `pyhouse-flat` — 530 to 162. Nothing a deleted stop said was dropped unless a rule already
+said it; the rest was folded into the rule it restated, and a stop whose obligation no rule stated
+became one (`flat-layered` rule 15, `flat-entrypoint` rule 16). The review of the sweep narrowed both
+to the stop they replaced — business logic, not wiring, logging or the loop around a run; a process
+that waits, not a consumer that never does — restored the `hex-test-domain` stop that writes no file
+for a value object with no invariant and no custom equality, and kept three `python-versioning` limits
+unconditional (no bump for elapsed time or effort, no break shipped as a smaller segment, no fix as a
+post-release, with rule 15's release note) rather than lifted with rules 6 and 8 by the precondition
+table. `pyhouse-reviewer` Step 3 now judges a stop by the same test, keeping that a rule's exception
+holds wherever the rule is applied, and `CLAUDE.md`'s sentence on the engine rules no longer promises
+a matching subsection of `## Hard stops`.
+Rules merged or emptied by the sweep renumbered their neighbours: `flat-layered` (3 and 5 merged, 13
+removed: 6–12 → 5–11, 14–16 → 12–14, 15 new), `test-principles` reliability rules 4–9 → 3–8,
+`architecture-choice` 9 → 8, `hex-test-repository-contract` 20 → 19 and 22 → 20, `hex-test-restapi-auth`
+18–24 → 17–23; every live citation was updated to the new numbers. Citations in earlier entries of this
+file keep the old numbers on purpose: each records the skill as it stood when that decision was taken.
+**Reverse by:** restoring each skill's `## Hard stops` from the commit before the sweep's first commit,
+reversing the renumberings above and every citation updated for them, removing `flat-layered` rule 15
+and `flat-entrypoint` rule 16, restoring `pyhouse-reviewer` Step 3's "a hard stop is its rule's trigger"
+paragraph and the `CLAUDE.md` sentence — and, unless rule 7 is reversed with it, the next review will
+find every restored stop a restated rule.
