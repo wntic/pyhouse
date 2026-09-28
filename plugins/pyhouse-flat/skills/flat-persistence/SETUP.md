@@ -104,12 +104,8 @@ No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the 
 The migration environment and the revision template are laid once, with the project, under
 `migrations/postgres/` at the distribution root (`flat-project-setup`); `alembic.ini` beside
 `pyproject.toml` points its `script_location` there. What recurs is one revision per schema change,
-authored from the metadata above and reviewed before it is committed:
-
-```bash
-alembic revision --autogenerate -m "create foos"
-alembic upgrade head
-```
+authored from the metadata above by `alembic revision --autogenerate -m "<change>"`, reviewed before it
+is committed, and applied by `alembic upgrade head`.
 
 Both run from the directory holding `alembic.ini` — the distribution's own root, or the owning library's
 where several distributions share the store (rule 15) — so whatever runs the upgrade at deploy carries
