@@ -1,7 +1,6 @@
 ---
 name: hex-restapi-app
-description: Use when bootstrapping a FastAPI shell once per project, or changing request handling shared by every route — `restapi/main.py`, `restapi/error_handler.py`, `restapi/schemas/errors.py`, app lifecycle, CORS, middleware, central error translation. Not one resource's router (`hex-restapi-endpoint`) or its wire models (`hex-restapi-schema`).
-paths: ["**/restapi/**", "**/api/**"]
+description: Use when bootstrapping a FastAPI shell once per project, or changing request handling shared by every route — `restapi/main.py`, `restapi/error_handler.py`, `restapi/schemas/errors.py`, app lifecycle, CORS, middleware, central error translation and the HTTP status each error class maps to. Not one resource's router (`hex-restapi-endpoint`) or its wire models (`hex-restapi-schema`).
 ---
 
 # Hex REST App
@@ -19,7 +18,7 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - Which error codes a route advertises → `hex-restapi-endpoint`.
 - Constructing or extending the composition root this shell attaches → `hex-wiring`.
 - Creating the application handlers routes receive from it → `hex-application`.
-- Whether the service should be hexagonal at all → `architecture-choice`; the project substrate, dependencies and initial Alembic setup around this shell → `hex-project-setup`; lint and type-check configuration → `python-toolchain`.
+- Whether the service should be hexagonal at all → `architecture-choice`; the project substrate and dependencies around this shell, and the migration bootstrap where the service owns a relational schema → `hex-project-setup`; lint and type-check configuration → `python-toolchain`.
 - An HTTP service with no rules of its own to protect — internal CRUD over its store, a webhook, a proxy → `flat-entrypoint`'s HTTP trigger shape, in the `pyhouse-flat` plugin, once `architecture-choice` has settled the family.
 - Middleware class naming and the `restapi/middleware/` package layout → `naming` and `python-packaging`.
 - The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-app-invariants`.
@@ -28,7 +27,7 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 
 ## Template(s) — FastAPI, dishka-wired, structlog logging
 
-**The shell presumes no authentication.** The templates below are the complete file set for a service with no auth at all — an API behind an authenticating gateway, an mTLS-fronted service, an internal worker-facing API, or simply a public one. The translator is a bare `MyappError` dispatcher with no auth import and no auth branch, and there is no `restapi/dependencies.py`: FastAPI's home for shared route dependencies has no occupant until something needs one. An app that **does** declare auth adds the dependency file and one `isinstance` branch to the translator — both owned by `hex-restapi-auth`, which states what changes here and what does not. Whether an app has auth follows from its routes (some endpoint non-anonymous, or a token-verifier capability wired), never from a separate flag.
+**The shell presumes no authentication.** The templates below are the complete file set for a service with no auth at all — an API behind an authenticating gateway, an mTLS-fronted service, an internal worker-facing API, or simply a public one. The translator is a bare `MyappError` dispatcher with no auth import and no auth branch, and there is no `restapi/dependencies.py`: FastAPI's home for shared route dependencies has no occupant until something needs one. An app that declares auth adds what `hex-restapi-auth` states.
 
 ```
 src/myapp/restapi/
@@ -80,8 +79,8 @@ Notes:
 - **`configure_logging()` runs first**, before the composition root is built — the process's one logging setup (`python-logging` rule 3), which `hex-project-setup` lays. The server is pointed at the factory (`uvicorn --factory myapp.restapi.main:create_app`), never at a module-level `app`, which would build the composition root at import; so the setup runs after the server has configured its own loggers and takes them over, and their records reach the one stream in its format. A process that builds the app itself passes the server `log_config=None`. Each test builds the app again, which rule 3 makes safe.
 - **`lifespan` is the resource-teardown hook**, and closing the composition root is the whole of it. Each long-lived handle declares its own release beside its construction (`hex-wiring`) and runs in reverse order of construction, so this file never names a datastore and never grows a per-app variant; an app that opens nothing disposable still closes cleanly.
 - **The catch-all, `UnexpectedErrorMiddleware`, is added first**, which makes it the innermost layer: every declared middleware wraps it, so the failure it logs carries the logging context bound outside it, and its `500` leaves through every layer, CORS included, like any other response.
-- **Where browsers call the API cross-origin, add `CORSMiddleware` next, with every value from settings** — never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
-- **No other middleware is presumed** — not even a request-size cap. A declared one is added after the catch-all, before the error handlers are registered (`## Middleware`). Starlette wraps the last-added outermost, so the last one listed is the request's outermost layer (rule 10).
+- **Where browsers call the API cross-origin, add `CORSMiddleware` last of the declared middleware, with every value from settings** — the outermost of them, so every response, a middleware's rejection included, carries its headers; never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
+- **No other middleware is presumed** — not even a request-size cap. A declared one is added after the catch-all and before CORS, all of them before the error handlers are registered (`## Middleware`). Starlette wraps the last-added outermost, and `setup_dishka` then adds dishka's scope middleware outside every declared one (rule 10).
 - **`setup_dishka` is called last**, after the routers are included: it attaches the composition root to the app (as `app.state.dishka_container`) and installs the middleware that opens and closes a per-request scope. Every construction path must reach it before the app is served.
 - **The `container` parameter is the test seam.** `hex-test-integration-setup`'s `real_app` add-on passes its `container` fixture — a composition root built with test bindings; production passes nothing and gets `create_container()`.
 - **Routers are included between the error handlers and `setup_dishka`.** The template includes none; each `hex-restapi-endpoint` invocation adds its router's import at the top of the file and its own `app.include_router(...)` line there.
@@ -162,9 +161,7 @@ def register_error_handlers(app: FastAPI) -> None:
 
 The translator stays minimal forever. New domain exceptions plug in without touching this file — the
 handler renders the body off the attributes `exception-catalog` defines and takes the status from
-`status_for`. The block above is the primary
-form and has **no** `isinstance` branch at all, because an app with no auth has no `UnauthorizedError`
-in its catalog to branch on.
+`status_for`.
 
 **The framework's own input rejection is translated, not left in the framework's shape.** FastAPI
 rejects a malformed path parameter, query parameter or body before any route runs, and by default
@@ -177,6 +174,12 @@ location (`body.name`, `path.id`) and never echoes the input values, which may c
 translation of the framework's exception into the catalogue, not a branch in the translator, so rule 3's
 cap is untouched.
 This is why the shell needs `ValidationError` in the catalogue alongside `MyappError`.
+
+**The router's own rejections are the framework's too.** An unknown path (`404`) and a method the path
+does not serve (`405`) leave in the framework's `{"detail": ...}` shape and are logged nowhere, since
+neither handler above receives them — under this binding they arrive as Starlette's `HTTPException`.
+They are rendered as `ErrorResponse` and logged by the same domain handler, or left in the framework's
+shape only where the API documents that shape.
 
 **An unexpected failure is caught in the ASGI layer, by `UnexpectedErrorMiddleware`**, because FastAPI's
 handler for bare `Exception` re-raises to the server, which logs it a second time. The catch-all logs it
@@ -194,13 +197,6 @@ definition no catalogue class was raised. It is a constant of this template, not
 `NotFoundError` `hex-restapi-endpoint`'s routes; each class is added under `exception-catalog` only
 when something raises it, and its status joins `STATUS_BY_ERROR` below in the same change —
 `hex-restapi-auth` adds 401 and 403, a translated constraint 409.
-
-#### `error_handler.py` — authenticated variant (the app declares auth)
-
-An app that declares auth adds the `UnauthorizedError` import and the translator's single `isinstance`
-branch, which attaches the RFC-7235 `WWW-Authenticate` challenge. Nothing else in the file changes, and
-rule 3 below caps the file at **at most one** branch. The variant itself, with the realm rule that goes
-with it → `hex-restapi-auth`.
 
 ### `restapi/schemas/errors.py`
 
@@ -328,7 +324,7 @@ carries that same code (rule 9).
 2. **A status is the HTTP boundary's, mapped from the class.** The catalogue carries no transport's vocabulary (`exception-catalog`); this boundary maps a class to its status once, resolved through the class's ancestry so a refinement answers as its parent, and a route may advertise only a status that map or the middleware registry holds.
 3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behaviour comes from the `MyappError` subclass and its mapped status, so new behaviour is a new subclass — and, where its status differs from its parent's, one map entry — never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class and rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
 4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened. `lifespan` holds that teardown and nothing else — no business logic.
-5. **Routes receive their dependencies by type** (`hex-restapi-endpoint`); `main.py` neither resolves anything nor exposes the composition root for others to resolve from. Never module-level resolution.
+5. **`main.py` neither resolves anything nor exposes the composition root for others to resolve from**; how a route receives its handler is `hex-restapi-endpoint`'s.
 
 6. **A middleware is transport-level and nothing else.** Bytes, headers, timing, the logging context.
    Anything that needs a domain entity, a repository or an application handler is not a middleware.
