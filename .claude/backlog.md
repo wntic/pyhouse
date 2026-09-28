@@ -65,6 +65,13 @@ remove nothing" (~line 378) while a reference skill omits `Template(s)`; reword 
 `git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
 rest.
 
+#### 34. Hex templates still name the structured logger
+D129 took structlog out of `flat-entrypoint`, which now logs through the service's logger per
+`python-logging`. The hex templates still name it: `hex-application`, `hex-application/COMPENSATION.md`,
+`hex-persistence/UNIT_OF_WORK.md` and `hex-restapi-app`. Decide the same way: drop the name where the
+log line can go, keep one binding line where a template must run as copied (as `flat-entrypoint/HTTP.md`
+does).
+
 ## Agreed
 
 ### 4. Re-run the short-prompt scenario on the current skills
