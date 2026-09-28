@@ -114,7 +114,8 @@ container's provider method — and a missing required variable fails there (rul
 12. **Field validation only normalizes or rejects.** Normalization accepts an environment-friendly form
     and stores the canonical one (an escaped newline in a multi-line key); rejection refuses a value that
     would cause silent misbehaviour (an algorithm outside an allowlist). Nothing else — no IO, no
-    lookups. The message names the variable, because it is read at startup.
+    lookups; that work belongs to the code that uses the value. The message names the variable, because
+    it is read at startup.
 13. **Settings are built at the program's composition root and passed down as values.** The composition
     root is the one place a program assembles its objects: a service's container or process
     definition, a CLI command's entry function, a migration environment, the test infrastructure. It
@@ -123,7 +124,8 @@ container's provider method — and a missing required variable fails there (rul
     when it adds something the call does not, a cache (`python-packaging` rule 8) or assembly from several sources. Never at
     import time (`python-packaging` rule 8), and never below the root — owning a settings class is not
     permission for a component to build it, and a client, repository or unit of work that builds its
-    own settings cannot be given different ones.
+    own settings cannot be given different ones. A container's provider method is the composition root
+    and constructs the class directly.
 14. **A published library reads no environment.** Its importer is the program with a composition root,
     so the library's constructors and functions take plain values and the importer's own settings supply
     them. A library shared inside one repository may declare a settings class under its own stem
@@ -148,30 +150,8 @@ The settings module re-exports its class like any other module (`python-packagin
 
 ## Hard stops
 
-- `os.environ`, `os.getenv` or a dotenv read outside a settings class → stop, add a field to the
-  component's settings class and hand the value in (rule 3).
-- A default on a required field or a required secret → stop, remove it; the default is what lets a
-  broken deployment start (rules 4 and 8).
-- A default on a timeout, a pool size or a batch size in a deployable → stop, make it required (rule 5).
-- A placeholder string standing for "not set" → stop, the field is `T | None = None` (rule 6).
-- A password, key or token typed as a plain string → stop, give it the secret type (rule 7).
-- A secret unwrapped into a log call, an exception's context, or a string built for anything but its
-  use → stop, unwrap it only where it is used (rule 9).
-- A consumer reassembling a connection string or URL from settings fields → stop, derive it once on the
-  settings class (rule 10).
-- One class holding two components' fields, or one class importing another to reuse its fields → stop,
-  one class per component, fields copied (rules 1 and 11).
-- A settings class made strict about undeclared variables in its namespace → stop, an unrelated
-  variable then takes the process down (rule 2).
-- A validator doing IO, a lookup, or anything but normalizing or rejecting → stop, move that work to the
-  code that uses the value (rule 12).
-- A settings object built at module level → stop, `python-packaging` rule 8; built inside a client, a
-  repository, a handler or a run function → stop, the composition root builds it and passes it down
-  (rule 13).
-- A function outside the composition root whose whole body returns the settings class's no-argument
-  construction, uncached → stop, delete it and call the class where the process is composed (rule 13);
-  a container's provider method is the composition root and stays.
-- A published library reading an environment variable → stop, take the value as a parameter (rule 14).
-- A value the caller picks per run or per call read from the environment → stop, make it an argument
-  or a parameter (rule 15).
-- Choosing or checking an environment prefix → stop, use `naming`.
+- Choosing or checking an environment prefix, or renaming a deployed variable → stop, use `naming`.
+- A settings object built at module level → stop, `python-packaging` rule 8 owns building nothing at
+  import time; rule 13 here says where it is built instead.
+- Building settings inside a test, setting variables for one, or a dotenv file leaking into a test run
+  → stop, use `test-principles`.

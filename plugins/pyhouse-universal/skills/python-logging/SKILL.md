@@ -162,46 +162,31 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
    program whose stdout is its product writes every log event to stderr.
 2. **Give every event a stable snake_case `<subject>_<past_tense_verb>` name, and carry its identifiers
    and counts as fields rather than interpolating them into the message.** A value inside a sentence
-   cannot be filtered, grouped or counted, and a renamed event silently breaks every dashboard keyed on
-   the old string.
+   cannot be filtered, grouped or counted — on every binding, the stdlib one included — and a renamed
+   event silently breaks every dashboard keyed on the old string.
 3. **Configure the logger once, in the process's entry point, before its first event.** Nothing below
    the entry point configures logging, and that one configuration picks the rendering for the sink —
    machine-readable wherever a collector reads it; on an interactive terminal it may be human-readable —
-   and routes the standard library's loggers (a framework's, a driver's) through it.
+   and routes the standard library's loggers (a framework's, a driver's) through it, so no library's
+   records bypass it with a handler or format of their own.
 4. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
    nothing** — no handler, no level, no format; the application importing it owns all three.
 5. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
    from the raise to the first scope that handles the exception rather than re-raising it; a project
    that funnels failures into one handler makes that handler the scope. A scope that re-raises does
-   not log; the detail it would have logged goes into the exception's `context`. The one failure a
-   re-raising scope stops — an undo's, under `exception-catalog`'s best-effort compensation — ends
-   there, so that scope logs it: one `warning` event naming the failed undo, before re-raising the
-   original.
+   not log — a log call followed by `raise` is two entries for one event; the detail it would have
+   logged goes into the exception's `context`. The one failure a re-raising scope stops — an undo's,
+   under `exception-catalog`'s best-effort compensation — ends there, so that scope logs it: one
+   `warning` event naming the failed undo, before re-raising the original. Never unlogged, never at
+   `error`, never by the undo itself — it is the only record that an effect was left behind.
 6. Check logged fields against **What never reaches a log line** before emitting them; the same bans
    on an exception's `context` are `exception-catalog`'s.
 
 ## Hard stops
 
-- `log.x(...); raise` in the same scope → stop, that is two entries for one event; put the detail in the
-  exception's `context` and let the layer that stops it log. A failed undo stopped and logged before the
-  original is re-raised is two events, not this case.
-- An undo's failure stopped under best-effort compensation with no log line, or logged at `error`, or
-  logged by the undo itself → stop, the compensating scope logs one `warning` naming the failed undo; it
-  is the only record that an effect was left behind.
-- A log call emitting an interpolated sentence — no event name, no fields (`log.info(f"created foo
-  {foo.id}")`) → stop, nothing in that line can be filtered, grouped or alerted on; emit an event name
-  plus the identifiers as fields. This fires on every binding, the stdlib one included.
-- `print()` used for diagnostics outside an entry-point debug path behind a flag → stop, use the
-  structured logger. A program's result written to stdout is not a diagnostic.
-- Log events written to the stdout that carries a program's result → stop, send them to stderr (rule 1);
-  a caller reading the result would parse them as data.
-- Logging configured — a handler added, a level or format set — anywhere but the process's entry point,
-  or inside a distributed package at all → stop, the entry point configures once and a package's
-  importer owns every one of those choices.
-- A second logging mechanism introduced beside the one already configured → stop, one logger everywhere;
-  two split the event stream and neither half is complete.
-- An application's entry point leaves a library's or framework's records bypassing the configured logger
-  — their own handler, their own format → stop, route them through the one configuration (rule 3).
-- An event name that is not snake_case past tense (`FooCreated`, `create-foo`) → stop, rename it to
-  `foo_created`. Once shipped, never rename — dashboards depend on the string.
-- Logging a full body, a secret, or a bare `UUID` object → stop.
+- Choosing an annotation form, a record type or a comment → stop, use `python-style`.
+- Defining an error class, deciding what its `context` carries, or writing the translation or the
+  compensation itself → stop, use `exception-catalog`.
+- Asked which layer of a service may log at all, or where a flat run's guard sits → stop, use
+  `hex-architecture` (in `pyhouse-hex`) or `flat-layered` and `flat-entrypoint` (in `pyhouse-flat`).
+- Asked whether a test may assert on what was logged → stop, use `test-principles`.

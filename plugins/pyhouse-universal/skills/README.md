@@ -182,7 +182,9 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
 
 ## Conventions across both sets
 
-- Each skill ends in **Hard stops** — absolute conditions that mean "do not proceed as asked".
+- Each skill ends in **Hard stops** — the wrong turns taken before any rule applies, which mean "do
+  not proceed as asked": the wrong skill, with a redirect, or nothing to write. The obligations
+  themselves are the numbered rules.
 - Each opens with **When to use vs. neighbours**, so the wrong skill routes to the right one.
 - Rules that are non-obvious carry their *reason*, and a few carry an explicit **withdrawal condition**
   — the observation that would retire the rule. Those are deliberate; do not strip them.

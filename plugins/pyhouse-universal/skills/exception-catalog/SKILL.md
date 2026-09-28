@@ -223,20 +223,26 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 ## Rules
 
 1. **Never define an exception outside the catalog file.** Not beside the code that raises it, not in a
-   client module, not in a test helper. New classes are added to the catalog or not at all.
+   client module, not in a test helper. New classes are added to the catalog or not at all. There is
+   one catalog, the module `exceptions.py` — never `exceptions/__init__.py`, which holds only imports
+   and `__all__` — placed where every part of the codebase may import it; a package that cannot import
+   it is answered by moving the one file, never by adding a second.
 2. **Never inherit from bare `Exception` or a stdlib exception** except for the root itself. Everything
    else inherits from the root or one of its subclasses.
 3. **`code` is a stable contract.** Once shipped, never rename or reassign one — clients, dashboards and
    alerts key on it. If the meaning changes, add a new class with a new code and deprecate the old one
    separately.
-4. **Subclasses do not override `__init__`.** Structured detail goes through the inherited `context` dict
-   at the raise site.
+4. **Subclasses do not override `__init__` or add fields.** Structured detail goes through the inherited
+   `context` dict at the raise site.
 5. **Subclass attributes use bare assignment.** `code = "X"`, not `code: str = "X"`.
-6. **An inherited value is not restated.** A subclass sets a field the project added, such as
-   `http_status`, only where it differs from the parent's.
+6. **A field beyond `code` is added only when something reads it, and an inherited value is not
+   restated.** The root gains `http_status` only where the project has an HTTP entrypoint — with no HTTP
+   surface nothing reads it and `code` is the contract — and a subclass sets such a field only where it
+   differs from the parent's.
 7. **`code` values are `SCREAMING_SNAKE_CASE`**, and every one is unique across the catalog.
 8. **Every library exception is translated at its boundary, with `from exc`.** A third-party type
-   reaching a caller is a leak.
+   escaping the module that called the library is a leak, and a translation without `from exc` loses
+   the cause and becomes unprovable.
 9. **Prefer the most specific existing class.** A refinement beats its parent; a near-duplicate of an
    existing class is a reuse, not a new entry.
 10. **The fallback is mandatory.** A translation that matches some failures still raises a catalogue
@@ -259,10 +265,13 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
     — bad, missing, expired or unverifiable (`UnauthorizedError`) — and a second covers a known caller
     who is not permitted (`ForbiddenError`); never a parallel class for either. A dependency rejecting the project's own credential is an
     upstream failure and is translated as one. A project that verifies nobody has neither class.
-15. **A failure is never swallowed** — caught and neither re-raised nor logged by the scope that
-    stops it. Best-effort compensation is the one case where a scope that re-raises also stops a
-    failure, on the three conditions in **Swallowing, stopping, and best-effort compensation**. Never a
-    bare `except: pass`.
+15. **A failure is never swallowed** — caught and dropped (`pass`, a bare `return`, a default value)
+    with neither a re-raise nor a log line from the scope that stops it; it reads as a success. A caught
+    failure is re-raised, translated, or stopped and logged once. Best-effort compensation is the one
+    case where a scope that re-raises also stops a failure, on the three conditions in **Swallowing,
+    stopping, and best-effort compensation**: the undo's failure is stopped by the scope that caught the
+    original, never inside the undo method in case a caller is compensating, and never raised in place
+    of the original. Never a bare `except: pass`.
 
 ## Inlined typing / import rules
 
@@ -274,28 +283,10 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 
 ## Hard stops
 
-- A new exception type is being defined outside the catalog file → stop, add it there first.
-- A second catalog is being added because some package cannot import the first one → stop, the catalog
-  is placed where every part of the codebase may import it; move the one file rather than splitting it.
-- The catalog's classes are being written into an `exceptions/__init__.py` → stop, make it the module
-  `exceptions.py`; an `__init__.py` holds only imports and `__all__`.
-- A subclass is being given an `__init__` override or extra fields → stop, use the inherited `context`.
-- A library exception is re-raised without `from exc` → stop, the cause is lost and the translation
-  becomes unprovable.
-- A library or SDK exception type escapes the module that called the library → stop, translate it.
-- A translation's unmatched branch returns the raw exception, re-raises it unchanged, or swallows it with
-  `pass` → stop, the fallback raises a catalogue class; a partial translation still leaks.
-- A failure caught and dropped — `pass`, a bare `return`, a default value — with no re-raise and no log
-  line from the scope that stops it → stop; that is a swallow, and it reads as a success. Re-raise it,
-  translate it, or stop it and log it once.
-- A method drops its own failure because a caller might be compensating (a `*_best_effort` variant
-  that catches internally), or an undo's failure is raised in place of the original → stop; the scope
-  that caught the original stops the undo's failure and re-raises the original.
-- A `context` key invented at the raise site that no test asserts on, or a key renamed on a shipped
-  class → stop, the key set is a contract between the raise site, its test and the log line.
-- A password, token, API key or connection string being put in `context` → stop, it is rendered verbatim
-  into the log line and the error response.
-- A shipped `code` is being changed → stop, that breaks every client keyed on it; add a new class.
-- The new class would duplicate an existing one's semantics → stop and reuse the existing one.
-- `http_status` is being added to a project with no HTTP surface → stop, nothing reads it; the `code`
-  is the contract.
+- Translating a database driver's error at a repository boundary → stop, use `hex-persistence` (in
+  `pyhouse-hex`) or the flat family's data-access skill (`flat-persistence`, in `pyhouse-flat`); they
+  name the target class from here.
+- Rendering a caught error as a response, or writing the central handler that does it → stop, use
+  `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`).
+- Deciding where an error is logged and by whom → stop, use `python-logging`.
+- Choosing what an error class is called → stop, use `naming`.

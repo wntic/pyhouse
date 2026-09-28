@@ -237,7 +237,7 @@ pure-unit collection pays nothing for it.
   both are how a suite ends up truncating a developer's database; the suite TRUNCATEs every table it can
   see.
 - The external-database branch is being keyed on `CI` or any other ambient variable → stop, use
-  `test-principles` reliability rule 7.
+  `test-principles` reliability rule 6.
 - An autouse fixture is being added to a fixture module shared with other distributions → stop, it fires
   for every collection in the repository, pure-unit runs included; define it non-autouse there and wrap
   it as autouse where the tests actually commit.
@@ -250,7 +250,7 @@ pure-unit collection pays nothing for it.
 - A test calls `create_async_engine` itself instead of taking the `engine` fixture → stop, that is a
   second pool against the same container and it will not be disposed.
 - `filterwarnings = ["error"]` is being dropped because a dependency is noisy → stop, add the exception
-  as `test-principles` reliability rule 9 states it.
+  as `test-principles` reliability rule 8 states it.
 - The distribution has no relational store at all → stop, none of this applies; there is no transaction to
   roll back and no schema to truncate.
 - The migration fixture is trimmed to `upgrade head` alone where this distribution owns the history →

@@ -152,7 +152,8 @@ Consult `test-principles` for the testing constitution. Where this skill contrad
 thing, which verb — are `naming`'s decision; the **patterns those words go into are rule 2 here**.
 
 1. **One test function per rule, with nothing around it.** No fixtures, no parametrization, no async —
-   `def test_*() -> None` under the pytest binding. The test name **is** the rule, and the file's test
+   `def test_*() -> None` under the pytest binding — and no `try/except` or conditional skip around the
+   search, which would break the unconditional property that makes a firewall worth having. The test name **is** the rule, and the file's test
    list reads as the workspace's structural constitution.
 2. **A rule's name states its scope and what is absent, in its family's form.** Do not pluralize, do
    not add qualifiers.
@@ -171,7 +172,8 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
    moves, and the rule keeps passing over a directory that no longer exists.
 5. **Run the rule against the current tree before committing.** Confirm zero unexpected hits, and
    never ship a firewall that is already red — narrow it or fix the hits. A rule that arrives red
-   teaches everyone to skip it.
+   teaches everyone to skip it. A sweep widened over a directory holding a sanctioned exception lands
+   with that exception's allow-list entry, in the same change.
 6. **Exceptions are allow-listed inside the test, by name, and cap at three.** Filter the result
    against named paths — `startswith(...)` against a path constant under the grep binding — rather
    than weakening the pattern, so the pattern stays readable and the exception is visible to whoever
@@ -201,23 +203,12 @@ Each architecture family lists the invariants worth a firewall in its own archit
 
 ## Hard stops
 
-- The pattern produces unintended hits in the current tree → stop, fix them or narrow the pattern before
-  the test is committed.
-- The rule depends on intent or on runtime state → stop, this is not a grep-firewall rule.
-- The allow-list would need a fourth entry → stop, the rule is too leaky; restructure or demote it.
-- A fixture, `parametrize` or `async` is being added → stop, one plain `def test_*` per rule.
-- A `try/except` or a conditional skip is being wrapped around `_grep` → stop, that breaks the
-  unconditional property that makes a firewall worth having.
+- The rule depends on intent or on runtime state → stop, this is not a grep-firewall rule; runtime
+  behaviour is an ordinary test, and an intent-based rule is prose in the skill that owns the layer.
 - The rule restates something the linter or type checker already enforces → stop, two enforcers for one
   rule means two places to change it.
 - A "no `Protocol` in services" rule is proposed → stop unless the repository genuinely has none: a
   style that permits a port the moment a second implementation exists turns this into an allow-list
   that outgrows three entries, which rule 6 forbids. It is prose, not a firewall — the flat family
   already carries it as prose in `flat-layered`, in the `pyhouse-flat` plugin.
-- A grep rule imports anything from `myapp` → stop, importing the thing you forbid defeats the firewall.
-- A rule exempts a package by a hardcoded directory name rather than by the role the repository
-  declared → stop, read the name from a constant (rule 9); otherwise the rule is green on every
-  repository that named that package something else, and it is checking nothing.
-- A sweep is widened over a directory holding a sanctioned exception, without the allow-list entry
-  landing in the same change → stop, the firewall goes red on its own exception; land both together.
-- A literal path is inlined inside a test → stop, use the `_<NAME>` constants at module top; add a new constant if a new scope is needed.
+- Asked for the testing constitution the whole suite obeys → stop, use `test-principles`.
