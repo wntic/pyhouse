@@ -66,23 +66,20 @@ it alone; bumping as each change lands carries the number past anything that was
 ```toml
 [project]
 name = "myapp"
-version = "1.4.0"
-requires-python = ">=3.13"
+version = "0.1.0"
 ```
 
 Three integer components, no `v`, no hyphen, no plus sign. The pre-release ladder, when one is cut,
-is exactly three phases and no others:
+is exactly three phases and no others — `1.5.0a1`, `1.5.0b1`, `1.5.0rc1`, then `1.5.0`.
 
-```
-1.5.0a1  →  1.5.0b1  →  1.5.0rc1  →  1.5.0
-```
+The release is an annotated tag on the release commit, spelled `v0.1.0` (rule 5) —
+`git tag -a v0.1.0 -m "myapp 0.1.0"`.
 
-The release is an annotated tag (`git tag -a`) on the release commit, spelled `v1.4.0` (rule 5).
-
-Runtime access reads the installed distribution's metadata rather than a second literal, and reads it
-when asked, not at import — `python-packaging` rule 8 builds nothing at import time, and a metadata
-lookup is a filesystem read. The function lives in a module of its own, or where the version is
-reported; what the package root holds is `python-packaging`'s. In `src/myapp/version.py`:
+Where the program reports its version — a `--version` flag, a health endpoint — it reads the installed
+distribution's metadata rather than a second literal, when asked and not at import (`python-packaging`
+rule 8 builds nothing at import time, and a metadata lookup is a filesystem read). The function lives
+in a module of its own, or where the version is reported; what the package root holds is
+`python-packaging`'s. In `src/myapp/version.py`:
 
 ```python
 from importlib.metadata import version
@@ -135,7 +132,8 @@ That call takes the **distribution** name, which need not equal the import packa
    number, a branch — is the tag's and the artifact metadata's job, never the version's.
 
 5. **The `v` belongs on the tag and nowhere else.** In a version field it is ignored and stripped, so
-   it is a character that survives review and not the build.
+   it is a character that survives review and not the build. A repository whose tags already run
+   without it keeps that spelling; one series never mixes the two.
 
 6. **A change that can break a consumer who used only the declared surface is a major** — from
    `1.0.0` on; below it, rule 9 says what it bumps. That includes removing or renaming a name in it,
