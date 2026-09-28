@@ -5,7 +5,14 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-Nothing open.
+### 35. A side effect after the store write has no rule
+Found by item 19's review (lens 3). `hex-application` Compensation rule 1 puts a notification after
+`repo.create` with nothing after it, and command handler rule 5 forbids a `try/except`, so a partner
+timeout answers 502 for a stored foo (the client's retry then conflicts), a queue redelivery conflicts
+forever, or an agent spawns an unobserved task. Proposed rule, mechanism left open: a side effect after
+the store write never reports a committed command as failed and is never dropped unrecorded — the
+handler stops its failure and logs it once, after the success event, or hands it to something that
+retries it.
 
 ## Agreed
 
@@ -21,14 +28,6 @@ command handler rule 6 (the handler logs the command's success), the warning a f
 compensation, and the central error handler logging a failure once. Nothing is removed. The binding is
 already named in `hex-application`'s template heading; name it in `hex-restapi-app`'s template heading
 and at `hex-persistence/UNIT_OF_WORK.md`'s handler template, which uses it without saying so.
-
-### 19. `hex-capability-adapter`'s template becomes one neutral capability call
-Replace `HttpBarGateway.fetch_token(subject)` / `BarToken` / `ICanFetchBarToken` with one capability
-call carrying only the house pattern — an injected client and settings, a request built from domain
-types, the response mapped to a domain type, an upstream status mapped to the catalogue at the boundary
-— and nothing a vendor supplies (no token, expiry, subject, pagination). In the same change, everything
-naming the old shape: `hex-domain-ports`, `hex-test-capability-adapter`,
-`hex-test-application-handler/FAKES.md`.
 
 ### 11. Webhook redelivery and ordering get a word, not a template
 - No new test. `flat-test-run-function` rule 3 already pins the second run of "any run a trigger may

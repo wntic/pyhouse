@@ -1831,3 +1831,28 @@ is named only as an example of a fuller shell.
 of `flat-entrypoint` rule 8, the containment template and the old rule 8 of `flat-test-run-function`,
 and the "run function" definition in `flat-layered`, from the parent of the commits that added this
 entry; restoring `HTTP.md` and the structlog lines from the same parent.
+
+### D132 — The capability adapter templates one neutral call, with one client per integration
+Taken by the maintainer (backlog item 19). `hex-capability-adapter`'s HTTP gateway was one application's
+token client — `HttpBarGateway.fetch_token(subject) -> BarToken` behind `ICanFetchBarToken` — so every
+service that copied it carried a subject, an expiry and a token type it did not have. The template is now
+`HttpFooClassifier.classify(foo) -> FooKind` behind `ICanClassifyFoos`: an injected client and settings,
+a request built from `Foo`, the body mapped into the existing `FooKind` inside its own translated scope,
+and the status mapped as `exception-catalog`'s fallback example does. What only some services have is
+shown as marked lines rather than removed — the credential (the secret field, its one unwrap in the
+constructor, the header, the test's assertion of it) and the `400` row that becomes `ValidationError` —
+each marker on its own line above a block, so honouring every marker leaves code that parses, type-checks
+and passes the house lint. The review added obligations: each integration's factory builds its own
+client, so a second upstream never inherits the first one's timeout (rule 5, `hex-wiring`'s
+`CONTAINER.md`); settings sit one class per configured component, owned by `hex-conventions` block A; a
+secret never rides in a URL the client library logs (rule 7); the upstream's labels are mapped onto the
+domain's values, and whatever the conversion raises is the upstream's fault (rules 8–9). It reduced
+others: rule 8 and most of rule 10 restated `exception-catalog` and are a pointer (rules renumbered
+9–14 → 8–13); the error arms no longer put the exception's class name in `context` (`exception-catalog`
+rule 11); the undo rule narrowed to a capability whose write a handler compensates. The test skill tests
+the same arms plus the fallback row, with settings as a module constant and file names mirroring the
+adapter's module. `hex-conventions` no longer uses a token manager as its adapter example.
+**Reverse by:** restoring `hex-capability-adapter`, `hex-test-capability-adapter`, `hex-domain-ports`,
+`hex-wiring` (`SKILL.md`, `CONTAINER.md`), `hex-conventions` and `hex-test-application-handler/FAKES.md`
+from the parent of the first commit that added this entry; the shared-client binding then returns with
+its single-timeout defect.
