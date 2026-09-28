@@ -158,7 +158,8 @@ entrypoint.
 | entrypoints | Errors, once, at the central handler, with request context attached. |
 
 **A central handler takes `python-logging`'s level guide**, plus one case only it sees: an exception that is not a
-catalogue class → `error`, logged *before* the framework turns it into a 500, or it is never seen.
+catalogue class → `error`, logged by the entrypoint's own catch-all, which answers it without handing it
+back to the framework or server, whose last-resort handler would log it a second time.
 The call that implements it is `error_handler.py` in `hex-restapi-app`.
 
 ### Top-level layout
