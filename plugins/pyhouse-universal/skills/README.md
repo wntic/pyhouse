@@ -1,6 +1,6 @@
 # House-style skills
 
-47 skills: 45 project-neutral Python skills in seven families — Universal (13), Meta (1), Hex core
+48 skills: 46 project-neutral Python skills in seven families — Universal (14), Meta (1), Hex core
 (11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
@@ -15,7 +15,7 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 13 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 14 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
@@ -30,7 +30,7 @@ it lists the whole catalogue, including the skills of a family plugin that is no
 
 **The two architecture families are mutually exclusive.** A service is hexagonal (`hex-*`) or
 flat-layered (`flat-*`); no service is both. **The universal skills bind either way** — they govern
-names, Python forms, packaging, settings, the toolchain, errors, boundaries and testing whichever family a project chose. The
+names, Python forms, packaging, settings, the toolchain, errors, data access, boundaries and testing whichever family a project chose. The
 architecture chooser, **`architecture-choice`**, picks between the two families for a greenfield
 service — and says when neither of them applies — a project too small to need one, or a shape the
 catalogue does not cover. It is itself universal, because it is what you consult before you know
@@ -50,7 +50,7 @@ character cap: `description` has no documented maximum, `description` + `when_to
 **1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
 rewritten as complete sentences to fit, never truncated.
 
-## Universal (13) — always in play
+## Universal (14) — always in play
 
 These skills bind in **every** project in this style, whichever architecture it uses. They are
 unprefixed because they belong to neither architecture family. `architecture-choice` is the one read
@@ -68,12 +68,13 @@ once rather than throughout — before the family is known:
 | `python-toolchain` | **What every distribution configures once** — the src layout, the lint selection with written function-size and complexity thresholds, the sanctioned suppressions, strict type checking over `src` and `tests`, the line length, development dependencies by role, and a version floor only at a named break |
 | `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
+| `persistence` | **The store-generic data-access obligations**, whatever the family — which of them bind given the store's properties, one declared transaction owner, driver errors translated at the data-access edge with the field and the full constraint name, one constraint-naming convention and one table-name rule, the pure row mapping, stored types, closed sets and indexes, explicit conflicts with an ordering guard, deduplication left to the store, cursor reads over a total order, expand-then-contract reversible migrations, and no logging |
 | `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, and best-effort compensation |
 | `test-principles` | The testing constitution for any Python project — layer budgets, where tests and fixtures sit and the closed autouse set, fixture versus builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, HTTP interception, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
 Load them alongside the architecture skill. The architecture says *which package* a module belongs
-in; the universal skills govern names, Python forms, packaging, settings, the toolchain, errors, boundaries, and testing.
+in; the universal skills govern names, Python forms, packaging, settings, the toolchain, errors, data access, boundaries, and testing.
 `test-principles` is the source of truth for every test family: where another test skill contradicts
 it, that skill is wrong.
 
@@ -115,7 +116,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-architecture` | Once the family is hexagonal — layer boundaries, dependency direction, the composition root, ports vs adapters |
 | `hex-conventions` | Identifier → file path and class name; the two store profiles and their connection-factory names (the factories themselves sit with their store skills); multi-context resolution |
 | `hex-project-setup` | Which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap — a baseline only over a schema that already exists; the toolchain is `python-toolchain`'s |
-| `hex-persistence` | The relational table, repository adapter (standalone and unit-of-work-joining), and paired migration revision, and the store's settings class, engine and session factories, and container binding; the unit of work over two repositories and the handler form that opens it |
+| `hex-persistence` | `persistence`'s store-generic rules bound behind a port — the relational table, repository adapter (standalone and unit-of-work-joining), and paired migration revision, and the store's settings class, engine and session factories, and container binding; the unit of work over two repositories and the handler form that opens it |
 | `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filter records with their sort enum, and tunable thresholds with no default |
 | `hex-domain-ports` | Aggregate repository protocols, including one for a store that answers only some reads, and external-capability protocols — async by default, a reversible pair, sync for pure CPU |
 | `hex-domain-service` | Stateless domain rules that need state one entity cannot see, with injected ports; a pure transformation stays a module function |
@@ -158,7 +159,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | Skill | Owns |
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with a skeleton of only what most flat services have — packages at the package root, each named for a role the service has; a package and settings class per configured component, a directory written for another reader included, built by the process definition, and the one-implementation client over one pooled transport with a refreshable credential |
-| `flat-persistence` | One package per store, named for its technology, owning a service's data access — four store properties decide which of its rules bind; transaction ownership, driver-error translation, row mapping, chunked writes, deduplication left to the store, cursor reads over a total order, one migration directory per store, and none for a store another project owns |
+| `flat-persistence` | One package per store, named for its technology, owning a service's data access and binding `persistence`'s store-generic rules to SQLAlchemy Core — chunked multi-row writes, read-back of resolved keys, time-ordered keys, the component's settings class and engine factory, one migration directory per store, and none for a store another project owns |
 | `flat-entrypoint` | Trigger choice — one run per process by default, a loop, a stream or queue consumer, a thin HTTP wrapper receiving a body, or durable execution — and the framework-free function every trigger calls: bounded memory, progress markers after their data, atomic writes of files another reader collects, containment only in a process that outlives one run, bounded redelivery with a dead letter, fan-out failure containment, and the obligations an engine adds once one is earned |
 | `flat-project-setup` | The one-time project setup — which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap under `migrations/postgres/` with a baseline only over an existing schema; the toolchain is `python-toolchain`'s, per-change revisions `flat-persistence`'s |
 

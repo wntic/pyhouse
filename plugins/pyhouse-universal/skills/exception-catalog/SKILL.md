@@ -37,8 +37,10 @@ same rule under its own name (a process exit code, a gRPC status), or far more o
 - A new named error is needed to express a rule violation → this skill. **First confirm no existing class
   already serves the rule** — scan `__all__` for a semantic match and read the candidate's body; if one
   fits, reuse it rather than minting a near-duplicate.
-- Translating a database `IntegrityError` at a repository boundary → `hex-persistence`, in the
-  `pyhouse-hex` plugin, which references this skill for the target class name.
+- Where a database driver's error is translated, and the field and constraint name its context
+  carries → `persistence`; the translator itself is the family's data-access skill's —
+  `hex-persistence`, in the `pyhouse-hex` plugin, or `flat-persistence`, in the `pyhouse-flat`
+  plugin — which references this skill for the target class name.
 - Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
   plugin, same relationship.
 - Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
@@ -283,9 +285,10 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 
 ## Hard stops
 
-- Translating a database driver's error at a repository boundary → stop, use `hex-persistence` (in
-  `pyhouse-hex`) or the flat family's data-access skill (`flat-persistence`, in `pyhouse-flat`); they
-  name the target class from here.
+- Translating a database driver's error at a repository boundary → stop, use `persistence` for where
+  it binds and what its context carries, and the family's data-access skill for the translator
+  (`hex-persistence`, in `pyhouse-hex`, or `flat-persistence`, in `pyhouse-flat`); they name the
+  target class from here.
 - Rendering a caught error as a response, or writing the central handler that does it → stop, use
   `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`).
 - Deciding where an error is logged and by whom → stop, use `python-logging`.
