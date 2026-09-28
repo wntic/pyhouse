@@ -35,7 +35,6 @@ where the identity carries one, so a route stamping either binds `user`. Which f
 how the handler scopes by them are `hex-application`'s.
 
 ```python
-# read — no caller_id needed
 async def list_foos(
     handler: FromDishka[ListFoosHandler],
     limit: Annotated[int, Query(ge=1, le=_MAX_PAGE_SIZE)] = FooListFilter.limit,
@@ -43,7 +42,6 @@ async def list_foos(
     _: CurrentUser = Depends(get_current_user),
 ) -> FooListResponse: ...
 
-# mutation — caller_id flows into the command
 async def create_foo(
     body: FooCreateRequest,
     handler: FromDishka[CreateFooHandler],
@@ -56,7 +54,8 @@ async def create_foo(
     ...
 ```
 
-Both are `hex-restapi-endpoint`'s templates with the auth parameter added last.
+Both are `hex-restapi-endpoint`'s templates with the auth parameter added last: the read binds `_`,
+since it needs no `caller_id`, and the mutation binds `user`, whose id flows into the command.
 
 ### Deriving the authenticated form of a route
 

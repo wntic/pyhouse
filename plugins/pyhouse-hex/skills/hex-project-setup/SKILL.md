@@ -112,7 +112,7 @@ import asyncio
 from alembic import context
 from sqlalchemy import Connection
 
-import myapp.infrastructure.postgres.tables  # noqa: F401  — registers every Table on the shared metadata
+import myapp.infrastructure.postgres.tables  # noqa: F401
 from myapp.infrastructure.postgres import DbSettings, create_engine
 from myapp.infrastructure.postgres.metadata import metadata
 from myapp.logging import configure_logging
