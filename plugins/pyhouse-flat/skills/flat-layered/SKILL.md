@@ -251,10 +251,10 @@ when the process ends (`flat-entrypoint`) — and passes it to `FooClient`. A te
 builds the same client against a stub base URL and hands that in, without touching the environment.
 
 **An upstream that issues an expiring token keeps the refresh on the transport** (rule 13). Under httpx
-that is an `httpx.Auth` subclass passed as `auth=` where the process definition builds the transport:
-its flow logs in when it holds no token, and on a 401 logs in once and resends. The client's methods
-stay as above, and a second 401 leaves through `raise_for_status` as a `FooClientError` like any other
-refusal.
+that is an `httpx.Auth` subclass overriding `auth_flow`, passed as `auth=` where the process definition
+builds the transport: its flow logs in when it holds no token, and on a 401 logs in once and resends.
+The client's methods stay as above, and a second 401 leaves through `raise_for_status` as a
+`FooClientError` like any other refusal.
 
 **Parsing sits inside the translated scope.** A 200 whose body is not JSON, or is JSON of the wrong
 shape, is as much an upstream failure as a 503, so decode and validation run inside the request's `try`
