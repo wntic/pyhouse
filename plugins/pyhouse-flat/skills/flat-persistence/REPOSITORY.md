@@ -39,7 +39,7 @@ class FooRepository:
         self._chunk_size = chunk_size
 
     async def record_batch(self, foos: Sequence[Foo]) -> None:
-        latest_by_reference = {foo.reference: foo for foo in foos}
+        latest_by_reference = {foo.reference: foo for foo in sorted(foos, key=lambda foo: foo.observed_at)}
         rows = [
             {"reference": foo.reference, "name": foo.name, "observed_at": foo.observed_at}
             for foo in latest_by_reference.values()
@@ -96,12 +96,12 @@ with an empty `SET` is a syntax error.
 
 `record_batch` is `persistence` rule 17's worked case: a foo already recorded is resolved by the
 statement's own conflict clause, never by asking which references exist before writing. **Two foos in
-one batch sharing a reference are collapsed before the statement** — the newest `observed_at` winning
-wherever the guard above is present, the later one otherwise or among equals (`persistence` rules 16
-and 17) — because Postgres refuses an `ON CONFLICT DO UPDATE` that touches one row twice (SQLSTATE
-`21000`), and would fail the whole batch as `StorageUnavailableError` over data that was never
-unavailable. It is keyed on the reference exactly as the table stores it, because that is the key the
-constraint sees. An empty batch runs no statement.
+one batch sharing a reference are collapsed before the statement** — the newest `observed_at` wins, and
+among equal stamps the later in the batch, since the sort is stable (`persistence` rules 16 and 17), so
+the collapse agrees with the guard above wherever it is present — because Postgres refuses an
+`ON CONFLICT DO UPDATE` that touches one row twice (SQLSTATE `21000`), and would fail the whole batch
+as `StorageUnavailableError` over data that was never unavailable. It is keyed on the reference exactly as
+the table stores it, because that is the key the constraint sees. An empty batch runs no statement.
 
 **Where one write spans statements** — a parent and its children, a later statement that needs keys an
 earlier one resolved — every statement sits inside this one `engine.begin()`, and the keys come back

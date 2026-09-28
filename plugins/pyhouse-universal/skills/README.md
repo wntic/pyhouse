@@ -70,7 +70,7 @@ once rather than throughout — before the family is known:
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
 | `persistence` | **The store-generic data-access obligations**, whatever the family — which of them bind given the store's properties, one declared transaction owner and none across two stores, driver errors translated at the data-access edge by one shared translator, the field and the full constraint name in the context, one constraint-naming convention and one table-name rule, the pure row mapping, stored types, closed sets and indexes, no schema created at runtime, explicit conflicts, an older write never replacing a newer one, deduplication left to the store, paged reads over a total order, migrations that run once before the new code and reverse, and no logging |
 | `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, and best-effort compensation |
-| `test-principles` | The testing constitution for any Python project — layer budgets, where tests and fixtures sit and the closed autouse set, fixture versus builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, HTTP interception, reliability |
+| `test-principles` | The testing constitution for any Python project — layer budgets, where tests and fixtures sit and the closed autouse set, fixture versus builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, HTTP interception, the datastore contract, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
 Load them alongside the architecture skill. The architecture says *which package* a module belongs
@@ -169,7 +169,7 @@ auth and never loads it.
 | Skill | Owns |
 |---|---|
 | `flat-test-integration-setup` | The suite-owned container, the safety guard any database the suite did not start must pass, and the isolation fixture each declared transaction owner needs |
-| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
+| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, an ordering-stamp guard from both directions, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
 | `flat-test-service-client` | One client class's test |
 | `flat-test-run-function` | What a trigger runs — the body end to end with an idempotence test wherever a run can repeat, the containment test only where a process outlives one run, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 

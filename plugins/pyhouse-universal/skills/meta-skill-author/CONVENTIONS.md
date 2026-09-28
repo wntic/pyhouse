@@ -25,7 +25,7 @@ too. The counts in every heading are the number of directories on disk.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
 - `persistence` — The store-generic data-access obligations whatever the family, and which of them lapse for a store without transactions, named constraints, a conditional write, a schema of its own, migrations or two versions running at once; it binds no library and writes no file, leaves the identity scheme to the family, and points at `exception-catalog` for the translation itself.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; transport rendering, and the status a transport maps a class to, stay at the boundary.
-- `test-principles` — The testing constitution for any Python project, and it wins wherever an artifact-specific test skill contradicts it — where tests and fixtures sit and the closed autouse set, one substitution ladder, assert strength with literal expected values, and HTTP interception asserted on the exercised route's own call record.
+- `test-principles` — The testing constitution for any Python project, and it wins wherever an artifact-specific test skill contradicts it — where tests and fixtures sit and the closed autouse set, one substitution ladder, assert strength with literal expected values, HTTP interception asserted on the exercised route's own call record and pinning what the route does not match on, and a datastore contract that reads the store back and forces translated driver errors.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
 ### Meta (1)
@@ -74,7 +74,7 @@ too. The counts in every heading are the number of directories on disk.
 ### Flat tests (4)
 
 - `flat-test-integration-setup` — The suite starts its own datastore container; choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
-- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception, a paged read's page edge — and atomicity only where one write spans statements.
+- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, an ordering-stamp guard from both directions, the translated exception, a paged read's page edge — and atomicity only where one write spans statements.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
 - `flat-test-run-function` — Test the body end to end, the containment only where a process outlives one run, and the wrapper that invokes it; the orchestration level above them only where a durable-execution engine was earned.
 

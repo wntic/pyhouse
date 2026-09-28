@@ -30,12 +30,17 @@ first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, w
 findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
 file or skill deleted, a rule reversed — goes to the maintainer.
 
-### 26. Audit the test skills the same way
-After 14, 19 and 24 have landed, run `/review-skills` over every `hex-test-*` and `flat-test-*` skill,
-in two batches, and apply the findings. Known echoes: the unit-of-work and session fakes (14), the
-repository-contract and persistence tests against the new universal owner (14), the restapi tests (24),
-the template comments (D123, D128). `hex-test-restapi-auth` and `hex-test-application-handler/FAKES.md`
-are the densest in domain nouns.
+### 26. Audit the test skills the same way — batch 2 remains
+Batch 1 (the four `flat-test-*` skills) is done (D136); `hex-test-restapi-auth` and
+`hex-test-restapi-endpoint` were audited with item 24 (D135). Remaining: `hex-test-app-invariants`,
+`hex-test-application-handler` (with `FAKES.md`), `hex-test-capability-adapter`, `hex-test-domain`,
+`hex-test-integration-setup` (whose obligations 2–5 read as universal) and
+`hex-test-repository-contract`, reviewed with `/review-skills` and the findings applied. Known echoes:
+`hex-test-repository-contract` rule 18 no longer names the classes it promises; `hex-test-application-
+handler` rule 6's `FooConflictError` example assumes a natural key; the `note` field carried through
+`Foo` across hex; `flat-test-integration-setup` rule 9 still restates `test-principles` reliability rule
+2 beside its savepoint clause; the credential-refresh obligation sits in `flat-test-service-client`'s
+prose, not its rules; nothing obliges a test of what a read-only repository returns.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM

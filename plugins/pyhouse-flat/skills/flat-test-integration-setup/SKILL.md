@@ -10,21 +10,21 @@ Consult `test-principles` for the testing constitution. Where this skill contrad
 
 One-shot per distribution. Everything under its `tests/integration/` depends on this file: the datastore
 the suite runs against, the migration history replayed onto it, the engine every test shares, and the two
-isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.**
+isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.** A distribution
+with no relational store takes only the pytest configuration block.
 
 **Two isolation fixtures, and which one a test uses follows from the declared transaction owner.** Every
 callable in the data-access package either *accepts* a live connection and never commits, or *opens and owns*
 one for the whole of its work (`persistence` rule 1). That declaration decides the fixture:
 
 - **`conn`** — a rollback-scoped connection, for anything that *accepts* one: a function in the
-  data-access package that takes one, and every assertion query. Fast, nothing reaches disk.
+  data-access package that takes one, and every assertion query. Fast, nothing reaches disk. Never for
+  arranging rows that code which opens its own connection will read or write: those rows are
+  uncommitted, so that code cannot see them, and a write to the same key waits on their lock until
+  teardown. Such rows are written in `async with engine.begin()`, and `truncate_all` removes them.
 - **`truncate_all`** — wipes every table after each test, for anything that *opens and owns* its
   transaction: repository classes, the work a trigger calls, and the wrappers above them. A test's outer transaction
   can neither see nor roll back a connection the code under test opened for itself.
-
-Both are always present, and neither is a workaround. A hexagonal service whose adapter owns its
-transaction needs the same wipe; a flat callable that accepts a connection is covered by the rollback.
-The split is about ownership, not about which family the service is in.
 
 ## When to use vs. neighbours
 
@@ -88,7 +88,6 @@ def _alembic(dsn: str, *args: str) -> None:
 @pytest.fixture(scope="session")
 def _migrated_db(db_dsn: str) -> str:
     """Up, down to the base and up again, so every downgrade() runs once per session."""
-    # a store another project owns: await conn.run_sync(metadata.create_all) instead (rule 1)
     _alembic(db_dsn, "upgrade", "head")
     _alembic(db_dsn, "downgrade", "base")
     _alembic(db_dsn, "upgrade", "head")
@@ -180,20 +179,15 @@ pure-unit collection pays nothing for it.
   but loses `autouse=True` and each member whose code commits turns it on for its own tests in a
   one-line wrapper fixture.
 - **A pre-provisioned throwaway database** — a compose service, a CI service container, one issued per
-  branch. `db_dsn` gains a branch taken only behind a dedicated opt-in flag, which raises a named error
-  listing every variable it needs and finds unset (rule 3), and **that branch arrives together with the
-  exact-name guard**, inside `db_dsn` itself (rule 2): a separate guard fixture is bypassed by any test
-  that reaches for the connection string directly, and a port heuristic waves through a dev stack
-  remapped to non-default ports. The names it accepts are declared by the project in one constant and
-  compared by whole-name equality. The migration run, the engine scope and both isolation fixtures are
-  unchanged, and the guard is the only line of defence, since the suite still TRUNCATEs every table it
-  can see.
+  branch. `db_dsn` gains a branch behind a dedicated opt-in flag, carrying rules 2 and 3; the migration run,
+  the engine scope and both isolation fixtures are unchanged.
 - **An in-process or file-backed engine** (SQLite through an async driver). Cheapest to start, and it
   costs what this level buys: upsert semantics, generated constraint names and transaction behaviour are
   no longer production's, so `flat-test-persistence`'s constraint-name and conflict-path assertions stop
   meaning anything. Never for the data-access package's own suite.
-- **A second, non-relational store** gets its own session-scoped container and client beside these, and
-  isolates by a per-test namespace deleted at teardown — there is no transaction to roll back.
+- **A non-relational store**, beside a relational one or alone, gets its own session-scoped container
+  and client, and isolates by a per-test namespace deleted at teardown — there is no transaction to roll
+  back.
 - **Creating the schema from the metadata instead of replaying the migration history.** Faster, and it
   stops testing that the migrations produce the schema the code expects — which is the drift the history
   exists to prevent. Keep the history wherever the migrations are themselves an artifact the project
@@ -203,45 +197,36 @@ pure-unit collection pays nothing for it.
 
 ## Rules
 
-1. **The migration runs from wherever the schema is defined** — this distribution when it owns its
-   store, the owning library when several share one. One store, one history, replayed the same way the
-   deploy command replays it, and taken down to the base and up again once per session so every
-   `downgrade()` runs. A store owned by a project outside the repository has no history here to replay,
-   and the suite creates the tables the service declares from its metadata instead.
-2. **Where the suite can reach a database it did not start, the safety guard lives inside the fixture
-   producing the connection details**, and guards on an exact database name drawn from a
-   project-declared constant, never a port or substring heuristic. A guard in a fixture of its own is
-   bypassed by whatever reaches for the connection details directly, and a heuristic waves through a
-   developer's database — which the suite then truncates, since it TRUNCATEs every table it can see.
-3. **Using a datastore the suite did not start is opt-in and explicit** — `test-principles` reliability
-   rules 1 and 6 — behind a dedicated flag, never keyed on `CI` or any other ambient variable. Raise a
-   named error listing every missing variable rather than letting a `KeyError` escape.
+1. **The migration runs from wherever the schema is defined** — this distribution, or the owning
+   library when several share one — with the round trip of `persistence` rule 20; a store another
+   project owns is created from the metadata instead.
+2. **Where the suite can reach a database it did not start, the guard of `test-principles` reliability
+   rule 1 lives inside the fixture producing the connection details**, comparing the database name by
+   whole-name equality against one project-declared constant. A guard fixture of its own is bypassed by
+   whatever reaches for the connection details directly.
+3. **Using a datastore the suite did not start is opt-in behind a dedicated flag** (`test-principles`
+   reliability rules 1 and 6); raise a named error listing every missing variable.
 4. **One pool per run, one transaction per test** — the scopes `test-principles` *Fixture scope rules*
    set. A session-scoped connection would serialize the suite onto one connection.
-5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** A second pool
-   against the same datastore runs outside the session's loop and teardown and is never disposed. Tests
-   take the shared fixture and pass it explicitly to whatever needs one.
+5. **Nothing under `tests/` builds its own pool or calls the production engine factory**
+   (`test-principles` reliability rule 6, and its one exception). Tests take the shared fixture and pass
+   it explicitly to whatever needs one.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
    still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to
-   diverge. Where the fixtures are shared by several distributions, the shared module declares the wipe
-   without autouse (`test-principles`, *Where tests and fixtures sit* rule 4), since it would fire for
-   every collection in the repository, and each member whose code commits turns it on in a one-line
-   autouse wrapper.
+   diverge. Shared across distributions, it loses autouse (`## Other bindings`).
 7. **Do not request the wipe by name in a test that only uses the rollback connection.** The rollback
    already covers it, and a by-name request loses the autouse ordering that keeps the wipe's exclusive
    table lock from meeting the connection's still-open transaction.
-8. **Every fixture and test in a run that shares a session-scoped pool runs on one event loop.** A
-   session-scoped pool whose connections outlive the loop they were opened on crashes at teardown the
-   first time a statement *errors* — the driver cannot cancel an aborted command on a closed loop — so
-   the failure surfaces as an unrelated "event loop is closed" on an ordinary constraint-violation test.
+8. **Every fixture and test shares the session-scoped engine's one event loop** — `test-principles`,
+   *Fixture scope rules*; the pytest block's two loop-scope lines are that rule here.
 9. **Code that opens and owns its transaction is isolated by the wipe, never by a rollback or savepoint
    fixture.** It opens its own connection (`persistence` rule 1), so a savepoint isolates a
    connection nothing under test uses, and the test passes while asserting nothing.
-10. **Warnings are errors for the whole suite.** A noisy dependency gets the narrow exception
-    `test-principles` reliability rule 8 states, never the setting dropped.
 
 ## Hard stops
 
-- The distribution has no relational store at all → stop, none of this applies; there is no transaction to
-  roll back and no schema to truncate.
+- The distribution has no relational store → stop; none of these fixtures applies — no transaction to
+  roll back, no schema to truncate.
+- The code under test sits behind a domain port and a dishka container → stop, use
+  `hex-test-integration-setup`, in the `pyhouse-hex` plugin.
