@@ -68,7 +68,6 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
-from myapp.domain.auth import Role  # rank apps only, with the `role` parameter below
 from myapp.infrastructure.jwt import JwtSettings
 from tests.helpers.jwt import RsaKeypair, generate_rsa_keypair, sign_token
 
@@ -94,13 +93,8 @@ def authed_client(
     rsa_keypair: RsaKeypair,
     jwt_settings: JwtSettings,
 ) -> Callable[..., AsyncClient]:
-    def _factory(
-        role: Role | None = None,
-        **extra_claims: object,
-    ) -> AsyncClient:
+    def _factory(**extra_claims: object) -> AsyncClient:
         claims: dict[str, object] = {"sub": str(uuid4()), **extra_claims}
-        if role is not None:
-            claims["role"] = role.value
         token = sign_token(
             claims,
             private_pem=rsa_keypair.private_pem,
@@ -117,6 +111,9 @@ def authed_client(
 
     return _factory
 ```
+
+A rank app adds `role: Role | None = None` before `**extra_claims`, importing `Role` from
+`myapp.domain.auth`, and sets `claims["role"] = role.value` when one is given.
 
 ## The `container` substitution this skill adds
 
@@ -256,39 +253,26 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 ## `test_<verb>_<noun>.py` — the authenticated endpoint forms
 
 The endpoint-test file's shape, its one-file-per-endpoint rule, body assertions and per-resource
-fixtures are `hex-test-restapi-endpoint`'s. These are the auth-carrying variants of that shape, and the
-`Role.LOWER` / `Role.HIGHER` ladder they name is the catalogue's **placeholder** pair
-(`hex-restapi-auth`) — substitute the app's own members, and however many of them it has.
+fixtures are `hex-test-restapi-endpoint`'s. This is the auth-carrying variant of that shape.
 
-### JSON mutation, role-gated (rank apps only)
-
-A route that only authenticates takes `authed_client()` with no role and has no 403 case.
+### JSON mutation
 
 ```python
 from collections.abc import Callable
 
 from httpx import AsyncClient
 
-from myapp.domain.auth import Role
-from myapp.domain.exceptions import ForbiddenError
-
 
 async def test_create_foo_returns_the_created_foo(authed_client: Callable[..., AsyncClient]) -> None:
-    async with authed_client(role=Role.HIGHER) as client:
+    async with authed_client() as client:
         response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 201
     assert response.json()["name"] == "alpha"
-
-
-async def test_create_foo_forbidden_for_lower_role(authed_client: Callable[..., AsyncClient]) -> None:
-    async with authed_client(role=Role.LOWER) as client:
-        response = await client.post("/foos", json={"name": "alpha"})
-
-    assert response.status_code == 403
-    assert response.json()["code"] == ForbiddenError.code
 ```
 
-On a mutation, the rejection also shows nothing was written — read it back as an allowed caller
-(`authed_client(...)` twice, rule 6).
+A rank app passes `role=` and adds the below-the-bar case (rule 17), asserting `ForbiddenError.code`;
+on a mutation that rejection also shows nothing was written — read it back as an allowed caller
+(`authed_client(...)` twice, rule 6). Its `Role.LOWER` / `Role.HIGHER` are the catalogue's
+**placeholder** pair (`hex-restapi-auth`) — substitute the app's own members, however many it has.
 

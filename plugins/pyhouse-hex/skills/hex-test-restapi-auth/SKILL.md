@@ -83,10 +83,8 @@ Consult `test-principles` for the testing constitution.
 1. **The verifier's unit test is `hex-test-capability-adapter`'s pure-CPU flavour** (its rules 2–3 and
    20–22) — real keys and real signatures, settings and keys at module scope, no fixtures, and the file
    under `tests/unit/infrastructure/<adapter>/`.
-2. **One test per check the verifier makes** — the signature, each claim it validates or requires, and
-   any guard it raises itself — each asserting the `context` value that case sets. Counting `raise`
-   statements undercounts: a catch-all branch covering issuer, audience and signature is one raise site
-   and three cases.
+2. **One test per check the verifier makes** (`hex-test-capability-adapter` rule 21) — the signature and
+   each claim it validates or requires.
 3. **One signer for the whole suite.** The unit test and the integration fixtures mint tokens through
    the same helper, so a change to the claim shape cannot leave them disagreeing.
 
@@ -126,8 +124,7 @@ Consult `test-principles` for the testing constitution.
 
 12. **Protected is the default; public is declared.** Probe every operation the app serves — walked as
     `hex-test-app-invariants` rule 2 walks them, and requested under the path a client must use — except
-    those the app declares public: a named set of operations in the probe file, or a marker the public
-    route itself carries. Never classify by whether the auth dependency is present: a route that forgot
+    those named in the probe file's public set. Never classify by whether the auth dependency is present: a route that forgot
     it looks exactly like a public one, and that classification drops it from the probe instead of
     failing it (`hex-restapi-auth` rule 9). Every input comes off the app and the declaration, so a new
     protected endpoint joins the probe with nothing to edit.
@@ -165,8 +162,8 @@ Consult `test-principles` for the testing constitution.
 - The verifier unit test adds `cryptography.hazmat.*`, `myapp.domain.auth`, `myapp.domain.exceptions`
   and `myapp.infrastructure.jwt.*`; no `myapp.application.*` and no `myapp.restapi.*` — it drives the
   adapter directly.
-- The api conftest adds `httpx`, `jwt` (PyJWT), `cryptography.hazmat.*`, `myapp.domain.auth` and
-  `myapp.infrastructure.jwt.settings`; full annotations on the factory and its `_factory` closure.
+- The api conftest adds `httpx`, `jwt` (PyJWT), `cryptography.hazmat.*` and
+  `myapp.infrastructure.jwt.settings`, and `myapp.domain.auth` in a rank app; full annotations on the factory and its `_factory` closure.
 - The probe adds `pytest`, `fastapi`, `fastapi.routing`, `httpx`, `myapp.restapi.main`,
   `myapp.domain.exceptions` for the `UnauthorizedError.code` constant it asserts against, and
   `myapp.infrastructure.jwt` with `tests.helpers.jwt` for the untrusted credential. It never imports `myapp.containers`: `create_app()` builds the real
