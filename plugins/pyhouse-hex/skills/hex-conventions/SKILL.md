@@ -69,9 +69,9 @@ every derived path and class name here, multiplying one careless choice across t
 | application command | `CreateBar` (subdomain derived, see below) | `CreateBarCommand` + `CreateBarHandler` | `application/bars/create_bar_command.py` + `application/bars/create_bar_handler.py` |
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |
 | datastore | named `<name>`, kind `<kind>` (e.g. `baz_store` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
-| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/settings.py` — subpackage = the consuming tech; the module is always `settings.py`, one settings class per subpackage |
+| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/settings.py` — subpackage = the consuming tech; one settings class per configured component (`python-settings` rule 1) — `settings.py` where the subpackage configures one, `<component>_settings.py` each where it configures several, as a shared `http/` does |
 | repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repo-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
-| capability adapter | implements `ICanManageTokens`, adapter `jwt`, role `TokenManager` | `JwtTokenManager` | `infrastructure/jwt/jwt_token_manager.py` |
+| capability adapter | implements `ICanClassifyFoos`, adapter `http`, role `FooClassifier` | `HttpFooClassifier` | `infrastructure/http/http_foo_classifier.py` |
 | wire schema | `FooCreateRequest` for resource `foos` | `FooCreateRequest` | grouped into `restapi/schemas/foos.py` |
 | endpoint | method + path, resource `foos` | endpoint function (name from method + path) | grouped into `restapi/routers/foos.py` |
 | middleware | `RequestId` | `RequestIdMiddleware` | `restapi/middleware/request_id.py` |
@@ -98,9 +98,9 @@ depending on `IBarRepository` (subdomain `bars`) lands in `application/bars/`.
   datastore that uses it; a settings class with no consumer falls back to its own snake name.
 
 **Capability adapter class** = `<AdapterPascal><Suffix>`, where `Suffix` is the capability's agent-noun
-role when there is one (adapter `jwt`, role `TokenManager` → `JwtTokenManager`) and otherwise the
-protocol name minus its `ICan` prefix (adapter `jwt`, implements `ICanManageTokens`, no role →
-`JwtManageTokens`). The role is named explicitly precisely because the agent-noun is not mechanically
+role when there is one (adapter `http`, role `FooClassifier` → `HttpFooClassifier`) and otherwise the
+protocol name minus its `ICan` prefix (adapter `http`, implements `ICanClassifyFoos`, no role →
+`HttpClassifyFoos`). The role is named explicitly precisely because the agent-noun is not mechanically
 derivable from the verb.
 
 **Repository file stem — aggregate-derived for a relational store, protocol-derived for a client store.**

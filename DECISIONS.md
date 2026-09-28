@@ -1886,3 +1886,58 @@ template gains a line for the guard; a test pinning it is left to item 26.
 12 and 18, its precondition row and other-engine bullet; `flat-test-run-function` rule 3, its idempotence
 template and paragraph and its wrapper test body; `flat-entrypoint` rule 10 and Shape 3; and `HTTP.md`'s
 work paragraph, template (`sent_at`, `record_batch([foo])`) and pointer.
+
+### D132 — The capability adapter templates one neutral call, with one client per integration
+Taken by the maintainer (backlog item 19). `hex-capability-adapter`'s HTTP gateway was one application's
+token client — `HttpBarGateway.fetch_token(subject) -> BarToken` behind `ICanFetchBarToken` — so every
+service that copied it carried a subject, an expiry and a token type it did not have. The template is now
+`HttpFooClassifier.classify(foo) -> FooKind` behind `ICanClassifyFoos`: an injected client and settings,
+a request built from `Foo`, the body mapped into the existing `FooKind` inside its own translated scope,
+and the status mapped as `exception-catalog`'s fallback example does. What only some services have is
+shown as marked lines rather than removed — the credential (the secret field, its one unwrap in the
+constructor, the header, the test's assertion of it) and the `400` row that becomes `ValidationError` —
+each marker on its own line above a block, so honouring every marker leaves code that parses, type-checks
+and passes the house lint. The review added obligations: each integration's factory builds its own
+client, so a second upstream never inherits the first one's timeout (rule 5, `hex-wiring`'s
+`CONTAINER.md`); settings sit one class per configured component, owned by `hex-conventions` block A; a
+secret never rides in a URL the client library logs (rule 7); the upstream's labels are mapped onto the
+domain's values, and whatever the conversion raises is the upstream's fault (rules 8–9). It reduced
+others: rule 8 and most of rule 10 restated `exception-catalog` and are a pointer (rules renumbered
+9–14 → 8–13); the error arms no longer put the exception's class name in `context` (`exception-catalog`
+rule 11); the undo rule narrowed to a capability whose write a handler compensates. The test skill tests
+the same arms plus the fallback row, with settings as a module constant and file names mirroring the
+adapter's module. `hex-conventions` no longer uses a token manager as its adapter example.
+**Reverse by:** restoring `hex-capability-adapter`, `hex-test-capability-adapter`, `hex-domain-ports`,
+`hex-wiring` (`SKILL.md`, `CONTAINER.md`), `hex-conventions` and `hex-test-application-handler/FAKES.md`
+from the parent of the first commit that added this entry; the shared-client binding then returns with
+its single-timeout defect.
+
+### D133 — Every hex template that logs does so once, configured, with its binding named
+Taken by the maintainer (backlog item 34), widened by its review. The hex templates keep the structured
+logger: unlike `flat-entrypoint` before D129, each hex log line carries an obligation — `hex-application`
+Command handler rule 6, the warning a failed undo earns under compensation, and the central error
+handler logging a failure once. What changed is that each line now logs once, under one configuration,
+with its binding named. **Named:** `hex-restapi-app`'s template heading adds structlog;
+`hex-persistence/UNIT_OF_WORK.md`'s handler heading names it and its lead sends another facade to
+`hex-application`'s `## Other bindings`; its implementation heading names dishka. `hex-restapi-app` gets
+no logging bullet of its own — `python-logging`'s *Configuring the logger* already covers the
+alternative (lens 2 over lenses 3 and 4). **Once:** the shell's handler for bare `Exception` ran in
+Starlette's outermost layer, which re-raises to the server, so one crash logged twice under uvicorn. It
+is replaced by `UnexpectedErrorMiddleware`, a raw-ASGI class in `error_handler.py`, added first so every
+declared middleware wraps it (the 500 keeps CORS headers and the event keeps a request id bound outside
+it); after the response has started it re-raises unlogged, leaving the server one traceback. Every
+`ErrorResponse` renders with `model_dump(mode="json")` — a UUID in a catalogue error's context had turned
+an advertised 404 into a 500 logged twice — and the domain handler logs the rendered body's `context`,
+so the log field is the string the body carries. **Configured:** `create_app` calls
+`configure_logging()` first; the note names `uvicorn --factory` (never a module-level `app`), so the
+setup runs after the server configured its loggers and takes them over. `python-logging` rule 3 now
+requires the setup to be safe to run again — one handler of its own, none it did not install removed —
+because each test builds the app again. `hex-project-setup` states the setup and that every entrypoint
+calls it in block A and rule 1, not only in the migration block. `hex-architecture` says the
+entrypoint's catch-all logs a non-catalogue failure without handing it back to the framework.
+**Reverse by:** restoring `_handle_unexpected` as an `@app.exception_handler(Exception)`, dropping
+`UnexpectedErrorMiddleware` and its `main.py` line, note and rule 6 clause; removing `configure_logging()`
+from `create_app` and rule 3's added sentence, and moving the setup sentence back into
+`hex-project-setup` block B and rule 6; reverting `model_dump(mode="json")` and the logged `context`; and
+restoring the headings, the `UNIT_OF_WORK.md` lead, the replaced paragraphs and the indexes' "no
+middleware", from the parent of the commits that added this entry.
