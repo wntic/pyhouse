@@ -44,7 +44,7 @@ tests/
         ├── conftest.py                          # rsa_keypair, jwt_settings, authed_client
         ├── test_unauth_returns_401.py           # the discovered probe
         └── <resource>/
-            └── test_<verb>_<noun>.py            # the authenticated endpoint forms
+            └── test_<verb>_<noun>.py            # the authenticated endpoint form
 ```
 
 Two topic files carry the worked binding — **PyJWT, `cryptography`, httpx over ASGI, FastAPI and
@@ -55,7 +55,7 @@ before writing it** — only this file is loaded automatically:
   check the verifier makes.
 - **`INTEGRATION.md`** — the signer helper, the api conftest and its authenticated client, the DI
   substitution that makes a minted token verify against the real app, the discovered probe, and the
-  authenticated endpoint forms.
+  authenticated endpoint form.
 
 ## Other bindings
 
@@ -128,13 +128,11 @@ Consult `test-principles` for the testing constitution.
     it looks exactly like a public one, and that classification drops it from the probe instead of
     failing it (`hex-restapi-auth` rule 9). Every input comes off the app and the declaration, so a new
     protected endpoint joins the probe with nothing to edit.
-13. **The probe substitutes path placeholders with valid-shaped dummies, by pattern and never by a
-    name list.** A test for `GET /foos/{id}` with literal `{id}` in the URL hits the router as 404
-    instead of triggering auth. UUID-shaped placeholders (`00000000-...`) route correctly and the
-    request reaches the auth dependency. Substitute **every** `{...}` segment with one regex: an
-    enumerated tuple of parameter names silently stops covering the route that introduces a new one,
-    and the probe then passes by not reaching the dependency at all — the exact failure this test
-    exists to catch.
+13. **The probe fills every braced segment by one pattern, with a value the router accepts.** A plain
+    path parameter reaches the auth dependency whatever the segment holds, because dependencies run
+    before path validation, but a typed converter such as `{n:int}` rejects a mismatched value at the
+    router, before auth — the UUID-shaped dummy then answers 404, and that route fails the probe until
+    its segment gets a value the converter accepts.
 14. **An empty discovery is a failure, not a skip** (`hex-test-app-invariants` rule 3). The companion
     net test asserts the walk found operations, and that every operation declared public is still one
     the app serves, so the declaration cannot drift from the routes.

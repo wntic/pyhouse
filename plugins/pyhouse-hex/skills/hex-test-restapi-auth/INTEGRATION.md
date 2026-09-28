@@ -3,7 +3,7 @@
 Topic file of `hex-test-restapi-auth`. The obligations are rules 4–18 in `SKILL.md`; what follows is the
 **PyJWT + `cryptography` + httpx/ASGI + FastAPI + pytest** binding that satisfies them: the signer, the
 fixtures that make a minted token verify against the real app, the discovered probe, and the
-authenticated endpoint forms.
+authenticated endpoint form.
 
 ## `tests/helpers/jwt.py`
 
@@ -250,7 +250,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         metafunc.parametrize("method,path", cases, ids=[f"{m} {p}" for m, p in cases])
 ```
 
-## `test_<verb>_<noun>.py` — the authenticated endpoint forms
+## `test_<verb>_<noun>.py` — the authenticated endpoint form
 
 The endpoint-test file's shape, its one-file-per-endpoint rule, body assertions and per-resource
 fixtures are `hex-test-restapi-endpoint`'s. This is the auth-carrying variant of that shape.

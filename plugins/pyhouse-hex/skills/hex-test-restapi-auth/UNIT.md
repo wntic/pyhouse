@@ -114,7 +114,7 @@ carry a valid signature and still not describe a caller. Every case on that arm 
 ### Rank apps only — the role claim
 
 Where a route gates on rank (`hex-restapi-auth`), the verifier also requires and parses `role`, which
-adds a raise site of its own. `_token`'s default claims and the happy-path expectation grow the role
+adds a check of its own. `_token`'s default claims and the happy-path expectation grow the role
 (`{"sub": _SUBJECT, "role": Role.HIGHER.value}`, `CurrentUser(id=_SUBJECT, role=Role.HIGHER)`, with
 `Role` imported beside `CurrentUser`), and two cases join the module:
 
