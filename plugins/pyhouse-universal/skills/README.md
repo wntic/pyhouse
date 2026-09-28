@@ -168,7 +168,7 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | Skill | Owns |
 |---|---|
 | `flat-test-integration-setup` | The suite-owned container, the safety guard any database the suite did not start must pass, and the isolation fixture each declared transaction owner needs |
-| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
+| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, an ordering-stamp guard from both directions, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
 | `flat-test-service-client` | One client class's test |
 | `flat-test-run-function` | What a trigger runs — the body end to end with an idempotence test wherever a run can repeat, the containment test only where a process outlives one run, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 

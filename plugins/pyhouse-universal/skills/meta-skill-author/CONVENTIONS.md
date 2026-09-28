@@ -74,7 +74,7 @@ too. The counts in every heading are the number of directories on disk.
 ### Flat tests (4)
 
 - `flat-test-integration-setup` — The suite starts its own datastore container; choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
-- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, the translated exception, a paged read's page edge — and atomicity only where one write spans statements.
+- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, an ordering-stamp guard from both directions, the translated exception, a paged read's page edge — and atomicity only where one write spans statements.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
 - `flat-test-run-function` — Test the body end to end, the containment only where a process outlives one run, and the wrapper that invokes it; the orchestration level above them only where a durable-execution engine was earned.
 
