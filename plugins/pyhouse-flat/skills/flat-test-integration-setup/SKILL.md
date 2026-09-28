@@ -210,10 +210,12 @@ pure-unit collection pays nothing for it.
    and the suite creates the tables the service declares from its metadata instead.
 2. **Where the suite can reach a database it did not start, the safety guard lives inside the fixture
    producing the connection details**, and guards on an exact database name drawn from a
-   project-declared constant, never a port or substring heuristic.
+   project-declared constant, never a port or substring heuristic. A guard in a fixture of its own is
+   bypassed by whatever reaches for the connection details directly, and a heuristic waves through a
+   developer's database — which the suite then truncates, since it TRUNCATEs every table it can see.
 3. **Using a datastore the suite did not start is opt-in and explicit** — `test-principles` reliability
-   rules 1 and 7. Raise a named error listing every missing variable rather than letting a `KeyError`
-   escape.
+   rules 1 and 6 — behind a dedicated flag, never keyed on `CI` or any other ambient variable. Raise a
+   named error listing every missing variable rather than letting a `KeyError` escape.
 4. **One pool per run, one transaction per test** — the scopes `test-principles` *Fixture scope rules*
    set. A session-scoped connection would serialize the suite onto one connection.
 5. **Nothing under `tests/` builds its own pool or calls the production engine factory.** A second pool
@@ -222,7 +224,10 @@ pure-unit collection pays nothing for it.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
    still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to
-   diverge.
+   diverge. Where the fixtures are shared by several distributions, the shared module declares the wipe
+   without autouse (`test-principles`, *Where tests and fixtures sit* rule 4), since it would fire for
+   every collection in the repository, and each member whose code commits turns it on in a one-line
+   autouse wrapper.
 7. **Do not request the wipe by name in a test that only uses the rollback connection.** The rollback
    already covers it, and a by-name request loses the autouse ordering that keeps the wipe's exclusive
    table lock from meeting the connection's still-open transaction.
@@ -230,29 +235,13 @@ pure-unit collection pays nothing for it.
    session-scoped pool whose connections outlive the loop they were opened on crashes at teardown the
    first time a statement *errors* — the driver cannot cancel an aborted command on a closed loop — so
    the failure surfaces as an unrelated "event loop is closed" on an ordinary constraint-violation test.
+9. **Code that opens and owns its transaction is isolated by the wipe, never by a rollback or savepoint
+   fixture.** It opens its own connection (`flat-persistence` rule 3), so a savepoint isolates a
+   connection nothing under test uses, and the test passes while asserting nothing.
+10. **Warnings are errors for the whole suite.** A noisy dependency gets the narrow exception
+    `test-principles` reliability rule 8 states, never the setting dropped.
 
 ## Hard stops
 
-- The guard is being moved into its own fixture, or relaxed to a port or substring heuristic → stop,
-  both are how a suite ends up truncating a developer's database; the suite TRUNCATEs every table it can
-  see.
-- The external-database branch is being keyed on `CI` or any other ambient variable → stop, use
-  `test-principles` reliability rule 7.
-- An autouse fixture is being added to a fixture module shared with other distributions → stop, it fires
-  for every collection in the repository, pure-unit runs included; define it non-autouse there and wrap
-  it as autouse where the tests actually commit.
-- The body of `truncate_all` is being copied into a second conftest → stop, depend on the shared fixture
-  and add `autouse=True` in the wrapper; one body, one place.
-- A savepoint-rollback fixture is being added so the repository class's tests can avoid the wipe → stop, that
-  class is the declared owner of its transaction and opens its own connection (`flat-persistence`
-  rule 3); the savepoint would isolate a connection nothing under test uses, and the test would pass
-  while asserting nothing.
-- A test calls `create_async_engine` itself instead of taking the `engine` fixture → stop, that is a
-  second pool against the same container and it will not be disposed.
-- `filterwarnings = ["error"]` is being dropped because a dependency is noisy → stop, add the exception
-  as `test-principles` reliability rule 9 states it.
 - The distribution has no relational store at all → stop, none of this applies; there is no transaction to
   roll back and no schema to truncate.
-- The migration fixture is trimmed to `upgrade head` alone where this distribution owns the history →
-  stop, the down-and-up round trip is the only thing that runs each `downgrade()` before a deploy needs
-  it.

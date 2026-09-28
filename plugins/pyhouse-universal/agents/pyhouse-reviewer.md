@@ -76,10 +76,14 @@ Carry out of this step, per skill, which rules you are holding the code to. That
 
 ## Step 3 — Apply
 
-Read `## Hard stops`, `## Rules`, and the skill's precondition prose. In that order: hard stops are
-already review-shaped — "X → stop, do Y" — and they carry their own reason, which is what makes a
-finding actionable instead of a citation. Quote the reason. A hard stop is its rule's trigger, not a
-stricter rule: where the rule it matches carries an exception, the exception holds for the stop too.
+Read `## Hard stops`, `## Rules`, and the skill's precondition prose. In that order: a hard stop
+catches a wrong turn taken before any rule applies — the request itself, the choice of skill, whether
+the code should exist at all — so a stop that matches decides whether the rules are the right ones to
+hold this code to. Its finding is the redirect or the refusal it names; quote its reason. A hard stop
+restates no rule and adds none: the obligations the code is held to are the numbered `## Rules`, and
+a finding about how code was written cites the rule and its reason. Where a rule carries an
+exception, the exception holds wherever that rule is applied — through a stop that names the rule as
+its remedy as much as through the rule itself — and code inside it is no finding.
 
 **Do not review against `## Template(s)`.** A template is one binding of an obligation to one stack,
 named in its heading. A difference from it is a difference of library, and a reader cannot act on

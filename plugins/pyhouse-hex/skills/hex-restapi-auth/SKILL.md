@@ -197,19 +197,10 @@ single-line form and storing the canonical one. Settings rules, secrets and `Sec
 and validated against an allowlist at startup; the token's own header never selects it. That obligation,
 the `Authorization` header the dependency below reads and the RFC-7235 challenge the error branch
 attaches are **this scheme's own** — an opaque token, a session cookie and a gateway header have none of
-the three — so these stops sit with the template that names the stack, and they stop wherever this
-binding is in use.
-
-- The algorithm is taken from the token's `alg` header, or the allowlist is widened to include `none` or a
-  symmetric algorithm against a published public key → stop, the accepted set is configuration and is
-  validated at startup.
-- A route is asked to read the `Authorization` header directly → stop, that is what the bearer scheme
-  is for.
-- Asked to decode the token anywhere but `get_current_user` → stop, no `jwt.decode` in a route, no
-  manual header parsing.
-- Asked for `WWW-Authenticate` on a 403 → stop, that header is 401-specific by RFC 7235.
-- A literal realm (`Bearer realm="myapp"`) is frozen as the contract → stop, only the scheme is
-  load-bearing; the realm is app-specific and comes from settings, or is omitted.
+the three — so the obligation is stated here, with the template that names the stack, and holds
+wherever this binding is in use: the allowlist never widens to `none`, nor to a symmetric algorithm
+against a published public key. The header is read and the token decoded only in `get_current_user`
+(rule 3); the challenge goes on a 401 alone and freezes no literal realm (rule 9).
 
 ## The route dependencies
 
@@ -477,23 +468,10 @@ in `hex-architecture`. `restapi/dependencies.py` sits in the entrypoint package 
   auth-free by construction.
 - `domain/exceptions.py` has no `UnauthorizedError` / `ForbiddenError` → stop, use `exception-catalog`
   first; both classes are its to define.
-- A **third** auth dependency type is proposed → stop, the two above are exhaustive; express a
-  finer-grained rule in the handler instead.
-- A role-gated route advertises `401` but not `403` → stop, the advertised codes must match the chosen
-  dependency.
-- A route is asked to inline a role check after `get_current_user` → stop, use `require_role(...)`.
-- Asked for a custom verifier per route → stop, the verifier is bound in `containers.py`; routes use
-  the standard dependency.
-- A second exception class is minted for the credential case under any name → stop, use
-  `exception-catalog`'s single unauthorized class; the challenge branch keys on it.
 - The translator is asked to branch on more than the unauthorized class → stop, encode new behaviour
   via subclass `code` / `http_status` (`hex-restapi-app` rule 3 caps it at one branch).
 - The verifier is asked to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
-- Asked to omit auth on a non-public route of an app that **does** have auth → stop, authenticated is
-  the default and only routes the app declares public skip it.
-- Asked for authorization finer than a single role rank — per-row ownership, a policy matrix → stop,
-  use `hex-application`; the handler raises `ForbiddenError`.
-- An actor or tenant id is read from the path, query or body → stop, use `hex-application`; it is stamped
-  from the resolved identity.
+- Asked for authorization finer than a single role rank — per-row ownership, a policy matrix, a third
+  kind of auth dependency → stop, use `hex-application`; the handler raises `ForbiddenError`.
 - The composition root binds no verifier → stop, use `hex-wiring` to declare it before the dependency
   asks for it.

@@ -39,7 +39,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - A data-only migration (`backfill_*`, `seed_*`) with no DDL → its own revision file; this skill covers
   DDL only.
 - Asked for an ORM, a declarative base or relationships → still this skill: the templates here
-  are Core, and an ORM project satisfies rules 1–17 through the ORM bullet under `## Other bindings`;
+  are Core, and an ORM project satisfies rules 1–18 through the ORM bullet under `## Other bindings`;
   do not copy a Core template into a mapped class.
 
 ## Template(s) — SQLAlchemy Core, asyncpg, Alembic
@@ -83,7 +83,7 @@ loaded automatically:
   runs is the SQL in the file, so a query's cost is readable at the call site and lazy loading cannot
   appear behind an attribute access. Under the ORM the mapped class is *not* the domain entity — keep the
   two separate and keep the mapper, or the domain grows a persistence dependency.
-- **Another engine or driver.** Rules 1–17 hold; the dialect-specific column types, the SQLSTATE codes
+- **Another engine or driver.** Rules 1–18 hold; the dialect-specific column types, the SQLSTATE codes
   and the attribute path the translator reads the constraint name through all change together. The skill
   states that coupling where it bites (`REPOSITORY.md`), because it is the one place a driver swap is not
   mechanical.
@@ -154,6 +154,8 @@ loaded automatically:
     compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
     the transaction is unusable once a statement in it failed, so a retry policy belongs to the central
     error handler.
+18. **A repository never logs.** A failure is translated and propagates to the central error handler; a
+    success is the calling handler's to log (`hex-architecture`).
 
 ## Inlined typing / import rules
 
@@ -198,16 +200,8 @@ environment import it from its module (`from ..metadata import metadata`,
 
 ## Hard stops
 
-- Asked for a database `ENUM` type → stop, use a text column plus a check constraint (rule 4).
-- Asked for length-bounded varchars → stop, use unbounded text plus the domain's own length rule
-  (rule 4).
-- A constraint name changes → stop, that is a breaking change; the table, the repository's
-  translator and the revision all change in the same commit.
-- The repository is asked to commit inside the unit-of-work-managed form → stop, that breaks atomicity.
 - A unit of work is asked to span two backends (a table plus object storage or a cache) → stop, that is
   compensation in `hex-application`, not a unit of work.
-- The repository is asked to log → stop, a repository never logs; the central error handler or the
-  calling handler owns that (`hex-architecture`).
 - Asked for id generation inside the repository → stop, the application handler generates ids.
 - The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
   file; this skill covers DDL only.

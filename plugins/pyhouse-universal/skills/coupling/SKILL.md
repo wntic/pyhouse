@@ -218,43 +218,40 @@ one store, and two functions in one file.
    what counts as far apart, are both properties of the level being designed, not of the code. An
    unstated level is how two readers reach opposite verdicts on the same pair of components.
 3. **Never "just decouple".** Decomposition raises distance and buys lifecycle freedom you may not
-   need. Every split proposal states which imbalance it fixes and what price the new distance
-   charges.
+   need. Every split or merge proposal states which imbalance it fixes and what price the new
+   distance charges; one with no strength-and-distance reasoning behind it is fashion, not design.
 4. **Judge volatility from the domain, not the commit log.** Commit frequency conflates essential
    volatility with accidental volatility — the latter is a finding about the boundaries, not an
    input to drawing them.
-5. **Low volatility is a licence, not a debt.** A pragmatic shortcut in a supporting or generic
-   component is a decision with a reason; polishing it is effort misallocated from the core.
+5. **Effort follows volatility.** The depth of structure a component gets — ports, layers, contract
+   discipline — is proportional to how likely the business is to change it, which is a property of
+   the domain, not of the engineer's caution. Low volatility is a licence, not a debt: a pragmatic
+   shortcut in a supporting or generic component is a decision with a reason, and polishing it is
+   effort misallocated from the core.
 6. **What crosses a high-distance boundary crosses as a contract.** Intrusive knowledge — tables,
    private objects, undocumented behaviour — across a service or ownership boundary is the worst
-   square on the board, with nothing to neutralise it but luck.
+   square on the board, with nothing to neutralise it but luck. A contract that is inconvenient is
+   fixed, or the distance lowered; it is never bypassed.
 7. **Duplicated knowledge is coupling even with zero imports.** A rule implemented twice must
    change twice; that is functional coupling wearing camouflage, and grep will not find it for you.
+   A business rule is owned once and shared, never written a second time.
 8. **A boundary must have nameable encapsulated knowledge and survive its change vectors.** The
-   two-sentence test at creation time; on failure, merge or redraw — do not proceed and hope.
-9. **Effort follows volatility.** The depth of structure a component gets — ports, layers, contract
-   discipline — is proportional to how likely the business is to change it, which is a property of
-   the domain, not of the engineer's caution.
+   two-sentence test at creation time: knowledge that cannot be written in one sentence is only a
+   category word, and a boundary every plausible change crosses is drawn where change does not stop.
+   On failure, merge or redraw — do not proceed and hope.
+9. **Strength and distance counterbalance — one high, one low — wherever volatility is expected.**
+   High knowledge shared at high distance — one service reading another's tables, two services
+   mutating one shared model — is the distributed-monolith signature: lower the strength with a
+   contract or lower the distance by co-locating, and do not split reflexively. Unrelated components
+   held together by a boundary that names no knowledge is low cohesion: merge them or split them for
+   real.
 
 ## Hard stops
 
-- A split or merge is being proposed with no strength-and-distance reasoning behind it → stop; it
-  is fashion, not design.
-- Two components at high distance are sharing high knowledge in an area expected to change — one
-  service reading another's tables, two services mutating one shared model → stop; that is the
-  distributed-monolith signature. Lower the strength with a contract or lower the distance by
-  co-locating.
-- Unrelated components are being held together by a boundary that names no knowledge → stop; that
-  is low cohesion. Merge them or split them for real.
-- A new module, package or workspace member whose encapsulated knowledge cannot be written in one
-  sentence → stop; there is nothing to protect yet, only a category word.
-- Every plausible change crosses the boundary being drawn → stop; it is drawn where change does
-  not stop. Move it or merge.
-- A component's internals are being consumed across a service or ownership boundary because the
-  public contract was inconvenient → stop; fix the contract or lower the distance, never bypass
-  it.
-- A business rule is about to be implemented a second time rather than shared or owned → stop;
-  duplicated knowledge couples two components with no import to show for it.
-- Ports and layers are being erected around a component with no invariants to protect and no
-  volatility expected → stop; that is the flat-layered case — `architecture-choice`'s own style test,
-  and the volatility budget above.
+- Asked which family a whole service belongs to — whether it gets ports and layers at all → stop, use
+  `architecture-choice`; this skill supplies the volatility judgement and never picks the family.
+- Asked which package a module goes in once the boundary is drawn, or what it may import → stop, use
+  `hex-architecture` (in `pyhouse-hex`) or `flat-layered` (in `pyhouse-flat`), whichever the project
+  uses.
+- Asked what a module is called, or how it is exported and imported → stop, use `naming` or
+  `python-packaging`.

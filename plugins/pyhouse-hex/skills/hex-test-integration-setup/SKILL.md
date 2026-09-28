@@ -116,7 +116,9 @@ Consult `test-principles` for the testing constitution.
 ### Scope
 
 - **`tests/integration/conftest.py`** — the containers, the engine, the transaction-rollback `sf` and the
-  per-test `container`; `real_app` joins them only with a REST entrypoint.
+  per-test `container`; `real_app` joins them only with a REST entrypoint. A service without one —
+  queue-driven, RPC — has a base conftest that ends at `container` and imports no web framework: a
+  framework import there fails every collection of a service that does not install it.
   The contract: every integration test starts with an empty database, and rows the test (and its handler)
   commit are rolled back at teardown.
 - **`tests/integration/api/conftest.py`** — created here, empty by default. Its only current occupant is
@@ -149,6 +151,11 @@ contract tests use `sf` directly and never need it; where another entrypoint's t
 the verifier fixtures move up-tree beside `container`. The mechanism, and the override that depends on
 it, are `hex-test-restapi-auth`'s.
 
+An app without auth binds no verifier settings, so its `container` takes no settings fixture and its
+test provider substitutes none — a factory claiming to override a binding the graph never declared
+fails when the graph is assembled. Whether an app has auth follows from its routes (`hex-restapi-auth`);
+it is not a universal.
+
 ### The obligations
 
 Stated without a mechanism, because both halves of this file vary: provisioning varies by binding
@@ -156,7 +163,8 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 
 1. **Each test starts against an empty store and leaves nothing behind.** The undo is automatic — a
    property of the handle the test was given, not a teardown someone remembers to write — and it
-   covers writes the *subject* made, not only the test's own.
+   covers writes the *subject* made, not only the test's own. A row a test depends on is made per test
+   too: a fixture handing the same row to several tests sits outside the undo.
 2. **One sanctioned handle, and nothing reaches the store around it.** Every test, fixture and
    substituted infrastructure binding goes through the handle this file provides. A handle a test
    opens for itself writes outside the isolation boundary, so its rows survive into the next test and
@@ -208,12 +216,5 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 ## Hard stops
 
 - The composition root has no `session_factory` binding, or no way to pass extra providers into it → stop, use `hex-wiring` first; the substitution seam is `create_container`'s parameter, not something a test can bolt on.
-- Asked to substitute a binding on a composition root that is already built — an `.override()`-style call inside a test → stop, build a second composition root with a substituting provider instead.
-- Asked for a `function`-scoped engine (one engine per test) → stop, that rebuilds the pool for every test; the engine is session-scoped, only the connection is function-scoped.
-- Asked for session-scoped row fixtures (`make_foo` returning the same id across tests) → stop, rows are per-test; factories return fresh rows per call.
-- The guard infers "this must be a test database" from the port number, a `test` substring in the database name, or any other property of the DSN → stop, the guard takes an explicit marker set by whatever provisioned the database; a deduction passes for a real database that happens to match and the suite then migrates over it.
-- The app has no relational store — a redis-only app, say → stop, omit the Postgres engine / Alembic / savepoint-`sf` machinery; there is no SQL transaction to roll back. Isolate the client stores by per-test namespace + teardown (the per-test bucket pattern), not by this fixture.
-- The app has no auth (every endpoint anonymous) but `container` carries a verifier-settings substitution → stop, strip the fixture parameter and the factory in `TestInfraProvider`. An auth-less app binds no verifier settings, so a factory claiming to override one fails when the graph is assembled; whether an app has auth follows from its routes (`hex-restapi-auth`), it is not a universal.
 - A token-minting fixture, a signing keypair or an authenticated client is put in either conftest this skill owns → stop, use `hex-test-restapi-auth`; they belong to the auth-only fixture set.
-- The service has no REST entrypoint — queue-driven, RPC — but the base conftest imports FastAPI or defines `real_app` → stop, the base ends at `container`; `real_app` is the REST add-on's, and a framework import there fails every collection of a service that does not install it.
-- A per-resource row factory is added inside this conftest → stop, those live in `tests/integration/api/<resource>/conftest.py`.
+- A per-resource row factory (`make_foo`, …) is added inside either conftest this skill owns → stop, use `hex-test-restapi-endpoint`; those live in `tests/integration/api/<resource>/conftest.py`, next to the tests that use them.

@@ -175,7 +175,7 @@ could not observe another connection's rollback either way.
    read, it is forced to fail once too: a translation written only around the writes leaves every read
    leaking the driver's type, and no write test notices. The failure is forced through something the store itself refuses, never
    through a value that only happens to be rejected today.
-8. **A timestamp the store assigns is asserted as `test-principles` reliability rule 5 states**; under the
+8. **A timestamp the store assigns is asserted as `test-principles` reliability rule 4 states**; under the
    rollback-scoped `conn` every write shares one transaction, and so one fixed clock.
 9. **A repository-class test constructs the class with the `engine` fixture**, never with the production
    engine factory — that builds a second pool the suite never disposes (`flat-test-integration-setup`).
@@ -184,31 +184,22 @@ could not observe another connection's rollback either way.
     that passes on two rows fails on two hundred.
 11. **Where one write spans statements, it has an atomicity test** that forces its last statement to fail
     through a constraint the schema declares, expects the narrowest catalogue exception that constraint
-    produces, and asserts through a fresh connection that the earlier statements left nothing behind.
+    produces, and asserts through a fresh connection that the earlier statements left nothing behind —
+    never through `conn`, whose own transaction cannot observe another connection's rollback. Without it
+    a refactor splitting the statements into two transactions passes every test.
 12. **Where a run walks a table in pages, a test crosses a page edge where the ordering column ties.**
 13. **Where a method takes a batch, it is tested with two inputs that share one key, in one call.** The store may refuse to
     resolve one row twice in a statement; assert one row holding the later input's values.
 
+14. **This level runs against the real store and substitutes nothing below the repository class.** It
+    exists because only the real backend can answer what these rules ask; a mock that spares the
+    container answers none of them.
+15. **A test arranges every row it asserts on, as the service's declared type written through the
+    repository class, or through the schema's own table object.** Rows another test wrote are gone —
+    isolation wipes everything between tests; hand-written SQL drifts from the schema silently; and a
+    builder returning a mapping of column values bypasses the declared type (`python-style`).
+
 ## Hard stops
 
-- A repository-class test asserts a rollback through the `conn` fixture → stop, `conn` sits in its own
-  transaction and cannot observe another connection's rollback; open a fresh connection for that
-  assertion.
-- A write spanning statements has only happy-path tests → stop, add the failing-last-statement test
-  (rule 11); without it a refactor splitting the statements into two transactions passes every test.
-- A test forcing a driver error expects the driver's own exception class → stop, expect the translated
-  catalogue class (rule 7).
-- The constraint under test does not exist in a migration yet → stop, add the revision first; a test
-  asserting a constraint the schema never had passes for the wrong reason.
-- A test asserts on rows written by a *different* test → stop, isolation wipes everything between tests;
-  construct the rows this test needs.
-- A test reaches for a mock to avoid starting the container → stop, this whole level exists because the
-  real backend is the only thing that can answer these questions.
-- A test writes raw SQL to set up state a `Table` object could express → stop, use the `Table`;
-  hand-written SQL in a test drifts from the schema silently.
-- A read resumed from a cursor has no test whose page edge falls inside rows sharing the ordering value
-  → stop, write one; a cursor missing its tiebreaker passes every other test (rule 12).
-- A batch write has no test handing it two inputs with one key → stop, write one; the failure only
-  appears when a real batch repeats a key (rule 13).
-- A builder returns a mapping of column values → stop, build the service's declared type and write it
-  through the repository class (`python-style`).
+- The constraint under test does not exist in a migration yet → stop, add the revision first
+  (`flat-persistence`); a test asserting a constraint the schema never had passes for the wrong reason.

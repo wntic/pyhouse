@@ -108,12 +108,12 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The four names a
 
 3. **Only request schemas constrain their input, and the constraint is declared on the field.** Declarative, beside the field it bounds — not an imperative validation method — so the whole accepted shape is readable in one pass and the published document can be generated from it. Under the binding above that is `Annotated[T, Field(min_length=..., max_length=..., ge=..., le=..., pattern=...)]`. A response carries no constraint: its data already passed the domain's invariants.
    **Every bound restates a limit the domain already has** — an entity invariant, a value object's range, the width a field is persisted at. Restating it is intentional (schemas are wire contracts, and rejecting at the edge beats a 500 later); *inventing* it is not. A number with no domain behind it is a guess that will disagree with the domain the first time either moves.
-4. **A field constraint enforces input *shape* — length, range, pattern — never a business rule.** The test: a constraint that has to read another field, another aggregate, or the clock is a business rule, and it belongs on an entity or a policy. Only what can be checked from the one value in front of you belongs here.
+4. **A field constraint enforces input *shape* — length, range, pattern — never a business rule.** The test: a constraint that has to read another field, another aggregate, or the clock is a business rule, and it belongs on an entity or a policy. Only what can be checked from the one value in front of you belongs here; no computed property or validator method encodes a rule either.
 
 ### PATCH semantics
 
 5. **Every field on `*UpdateRequest` is `T | None = None`.** The handler interprets `None` as "leave unchanged"; an explicit value as "set to this". Non-negotiable — the command DTO encodes the same partial-update contract. A field the client may clear distinguishes absent from null: the request reads which fields were sent and the command carries that distinction; `None` alone cannot mean both.
-6. **`*CreateRequest` lists required fields without `None`**, and gives a default only to an input that is genuinely optional.
+6. **`*CreateRequest` lists required fields without `None`**, and gives a default only to an input that is genuinely optional. A create body with every field optional is an update body.
 
 ### `*ListResponse`
 
@@ -129,9 +129,7 @@ Do **not** introduce alternates (`Dto`, `Schema`, `In`, `Out`). The four names a
 ### What never goes in a schema file
 
 - **No domain types beyond enums.** `FooResponse` does not import the `Foo` entity, and a value object crosses as its primitive fields, mapped in the route.
-- **No business logic, computed properties, or `@validator`s that encode rules.** Use Pydantic's built-in `Field` constraints for shape; domain rules go elsewhere.
 - **No persistence concerns.** Nothing that builds a schema straight from a stored row or mapped object — no ORM mode, no from-row constructor, no storage library's column types. A schema that can construct itself from the database has tied the wire format to the table, and the two then have to move together.
-- **No shared base class beyond the model library's own** (rule 1).
 - **No bare `dict` or `list` field standing in for a nested object.** A nested body is its own model in this file, declared and ordered like any other; a `dict` field publishes a hole in the wire contract that no generated document can describe. `python-style` owns the declared-record rule.
 
 ### Existing cross-cutting request schemas
@@ -165,7 +163,5 @@ See `python-packaging` for package re-exports and `__all__` composition.
 
 ## Hard stops
 
-- `*Response` is asked to validate input → stop, responses don't validate. The data already passed domain invariants.
-- `*CreateRequest` is asked to allow all fields as `None` → stop, that's a `*UpdateRequest`.
-- Asked for a shared base class to deduplicate fields across resources → stop, schemas are wire contracts; repetition is intentional.
-- Asked to import a domain entity into the schema file → stop, mapping happens in the route.
+- Asked to change `ErrorResponse` or `error_responses()` in `restapi/schemas/errors.py` → stop, use `hex-restapi-app`.
+- Asked to map a schema to a command, or a result to a schema → stop, use `hex-restapi-endpoint`; the route maps field by field.

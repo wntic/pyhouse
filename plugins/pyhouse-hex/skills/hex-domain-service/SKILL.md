@@ -72,7 +72,9 @@ Path: `src/myapp/domain/foos/<class_snake>.py`. Follow `naming` for file and cla
    instance serves every call made through it, so anything it remembers leaks from one call into the
    next.
 8. **No transport, persistence or framework code.** The only IO is through the injected protocols, which
-   is what lets the service run against hand-written stubs with no infrastructure present.
+   is what lets the service run against hand-written stubs with no infrastructure present. Access the
+   service needs to a store or a vendor is added as a method on the domain protocol it already depends
+   on, never reached through a session, driver or client.
 9. **A uniqueness rule this service asserts is not a guarantee.** A check that reads and then writes
    admits the second concurrent writer — nothing between the read and the write stops it. So the
    `assert_*` method goes in paired with a unique constraint on the same key in the store — the
@@ -87,7 +89,6 @@ Path: `src/myapp/domain/foos/<class_snake>.py`. Follow `naming` for file and cla
 
 - Not an application handler — services don't know commands, queries, or transactions.
 - Not a single-entity validator — that's `__post_init__`.
-- Not an infrastructure adapter — depends on protocols, not on concrete clients.
 - Not a dumping ground for unrelated helpers.
 
 ## Inlined typing / import rules
@@ -105,5 +106,5 @@ Follow `python-packaging` for module registration and `hex-architecture` for pla
 ## Hard stops
 
 - The service accumulates methods for rules that do not share a subject — past about four or five → stop, use `coupling`; one service holds one cohesive rule set, and the count is the symptom, not the rule.
-- The class needs to reach a database session, driver or vendor client directly — a SQLAlchemy session, say → stop, add the access as a method on the existing domain protocol and depend on the protocol.
-- The class needs to read settings → stop, wrap the relevant settings in a tunable value object (see `hex-domain-model`) and inject that.
+- The rule is checkable from one entity's own fields, or is a tunable threshold → stop, use `hex-domain-model`.
+- Asked to orchestrate a use case — load, mutate, save across aggregates → stop, that is a handler; use `hex-application`.

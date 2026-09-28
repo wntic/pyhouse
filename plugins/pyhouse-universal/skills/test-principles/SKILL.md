@@ -84,7 +84,8 @@ entrypoint, the layer is leaking and the speed budget is gone.
 ### Where tests and fixtures sit
 
 1. **Tests sit beside what they cover**, in the distribution's own `tests/`, split into `unit/` —
-   nothing must be running — and `integration/` — something must. In a repository of several
+   nothing must be running, so a unit test takes a fake, a stubbed transport or nothing, never a real
+   adapter, engine or connection — and `integration/` — something must. In a repository of several
    distributions each member keeps its own, so a member is read, reviewed or extracted together with
    the tests that pin it. The one exception is a test whose subject is the repository itself, the grep
    firewall (`test-architecture-rule` owns both placements).
@@ -270,7 +271,7 @@ calling either:
    the database disposable — an exact match against a declared throwaway name, or a marker set by
    whatever provisioned it — never inferring it from the host, the port or a pattern over the DSN;
    an exact match against a declared name is a declaration. `flat-test-integration-setup` carries the declared-name form and
-   `hex-test-integration-setup` the provisioner's-marker form. An *unguarded* "developer's local database" mode → stop; the suite wipes what it
+   `hex-test-integration-setup` the provisioner's-marker form. An *unguarded* "developer's local database" mode is never offered: the suite wipes what it
    can see, and the variable that would divert it is exported by tools that know nothing
    about this suite.
 2. **Every test starts from state it established itself, never from a predecessor's leftovers**, and
@@ -279,64 +280,40 @@ calling either:
    the outer-transaction rollback or a whole-schema truncation, and `hex-test-integration-setup` and
    `flat-test-integration-setup` say which applies. Where it has none, the same rule binds whatever
    state there is: a temporary directory created per test, a fresh in-process object rather than a
-   module-level one, an environment the test sets and the fixture restores.
-3. **The suite's result does not depend on the order it was collected in.** Each test constructs the
-   state it asserts on rather than inheriting a predecessor's. Run it once in a randomized order and
-   once in file order and get the same result — under this binding, `pytest-randomly` supplies the
-   randomization and `-p no:randomly` the fixed order.
-4. **A test never waits out real time.** A test that looks like it needs a wait needs the right
+   module-level one, an environment the test sets and the fixture restores. So the suite's result does
+   not depend on the order it was collected in: run it once in a randomized order and once in file
+   order and get the same result — under this binding, `pytest-randomly` supplies the randomization and
+   `-p no:randomly` the fixed order.
+3. **A test never waits out real time.** A test that looks like it needs a wait needs the right
    `await` on the event it is actually waiting for; a test that needs the clock to move forward
    advances a clock the code under test accepts as a parameter rather than letting one pass. Sleeping
    makes the suite slower than the behaviour it pins and hides the race that will surface in CI, and
    patching a sleep so a loop exits is the same defect wearing a different hat. A runtime that
    exposes no clock control is a reason to pin the policy — the delays computed, the attempts made —
    rather than to sit through it.
-5. **A timestamp the system assigns is asserted against a bound taken around the act, never by
+4. **A timestamp the system assigns is asserted against a bound taken around the act, never by
    equality.** Read the clock before and after the act and assert the value falls between them
    (`>=`, `<=`). A store's clock is not the test's — Postgres `now()`, for one, returns the
    transaction's start time for every row written in it — so equality with a value the test computed
    passes or flakes by coincidence.
-6. **A UUID a test asserts on is constructed inside that test**, never drawn from `uuid.uuid4()` at
+5. **A UUID a test asserts on is constructed inside that test**, never drawn from `uuid.uuid4()` at
    module scope and shared with its neighbours.
-7. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The fixture that provisions the store handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`. A test that needs a settings object constructs it with explicit values and passes it in; only a test of the settings parsing itself lets it read an environment, one the test sets.
-8. **Where a test sits is what decides which layer it belongs to — not a tag on it, and not a tag on
+6. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The fixture that provisions the store handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`. A test that needs a settings object — or an engine — constructs it with explicit values, or takes the fixture, and passes it in; it never mutates or reassigns a factory's cached value. Only a test of the settings parsing itself lets it read an environment, one the test sets, and it disables the loader's file sources, since a dotenv or config path resolved against the working directory makes the test pass or fail by where the runner was started.
+7. **Where a test sits is what decides which layer it belongs to — not a tag on it, and not a tag on
    its event loop.** A test under `unit/` is a unit test because of where it is, and where the suite
    has async tests, async-ness is declared once for the project rather than per function. Two tags can
    disagree with the tree; one tree cannot disagree with itself. Under this binding that means no
    `@pytest.mark.integration`, and where the suite has async tests no `@pytest.mark.asyncio`, with
    `pytest-asyncio` in auto mode declared once in `pyproject.toml`.
-9. **A warning is a failure, not a line in the tail of the output.** `[tool.pytest.ini_options]` carries `filterwarnings` with `"error"` as its first entry, so a warning raised anywhere in the run turns the suite red. This is part of what "green" means: no extra command, no second run, nothing anyone has to remember to read.
+8. **A warning is a failure, not a line in the tail of the output.** `[tool.pytest.ini_options]` carries `filterwarnings` with `"error"` as its first entry, so a warning raised anywhere in the run turns the suite red. This is part of what "green" means: no extra command, no second run, nothing anyone has to remember to read.
    The price is that a deprecation from a library the project cannot fix reddens the suite too, so an exception is written as one narrow entry after `"error"` — `"ignore:<message>:<Category>:<module>"`, scoped as tightly as the warning allows — and it carries its reason beside it in a comment: whose warning it is, why the project cannot remove it at the source, and what will retire the entry. An exception without a reason is the rule switched off. A warning raised from the project's own `src/` never goes on that list; it gets fixed. Suppression conventions → `python-style`.
 
 ## Hard stops
 
-- A test under `unit/` imports the real adapter of an out-of-process dependency, or opens an engine or
-  a connection → stop, it belongs under `integration/`; a unit test takes a fake, a stubbed transport
-  or nothing.
-- A test uses `MagicMock` / `AsyncMock` / `patch` → stop, follow the substitution ladder.
-- An interface is being extracted so a test can substitute something → stop, stub the transport,
-  subclass, or use the real backend; a port is the architecture's decision, never the test's.
-- A test adds `@pytest.mark.integration`, or — where the suite has async tests — `@pytest.mark.asyncio`
-  → stop, the tree decides the layer and async-ness is declared once.
-- A test reads `os.environ` to fork behavior → stop, the isolation fixture handles environment differences once.
-- A test asserts that the subject logged something — an event name, a level, a captured record → stop, a log line is a side effect of success, not the contract; assert the returned value and the persisted state.
-- A test asserts `len(items) == N + 1` "to account for the test's own row plus seed rows" → stop, rollback or truncation isolation drops everything; exact equality is correct.
-- A test uses `uuid4().hex[:4]` or `[:5]` natural-key suffixes "to avoid collisions" → stop, rollback or truncation isolation makes the DB empty; fixed values like `"alpha"` are fine.
-- A test re-implements the rule under test to compute its expected value → stop, assert literal values.
-- A test pins what the data model or the type checker already guarantees — dataclass equality, hash,
-  immutability → stop, omit it; nothing the author wrote is under test.
-- A boolean result is asserted with `==` → stop, use `is True` / `is False`.
-- A test asserts that every stubbed route was called → stop, assert on the call record of the route the
-  test exercises; the rest pins how many requests the subject happens to make.
-- A stubbed route matches by pattern broad enough to answer a request the test did not intend → stop,
-  match one exact method and URL.
-- A "convenience" autouse fixture is proposed → stop, the autouse set under *Where tests and fixtures sit* is closed. New autouse fixtures cause spooky-action-at-a-distance.
-- Fixtures several distributions share are copied, put in a root conftest, or made autouse → stop, one
-  non-autouse plugin module beside the owning library's tests (rules 3 and 4).
-- A producer skill says something this skill forbids → stop, the producer skill is wrong; fix it. This skill is the source of truth.
-- A test mutates or reassigns a settings or engine factory's cached value → stop, construct what the
-  test needs, or take the fixture, and pass it in; nothing is built at import (`python-packaging`
-  rule 8), so the code under test accepts it as a parameter.
-- A settings test lets the settings loader read ambient config files → stop, disable file sources in
-  the test; a loader that resolves a dotenv or config path against the working directory makes the test
-  pass or fail depending on which directory the runner was started from.
+- A producer skill says something this skill forbids → stop, the producer skill is wrong; fix it. This
+  skill is the source of truth.
+- Asked for a distribution's integration conftest, its containers or isolation fixtures, or the shared
+  plugin module several members load → stop, use the family's integration-setup skill
+  (`hex-test-integration-setup`, in `pyhouse-hex`, or `flat-test-integration-setup`, in `pyhouse-flat`).
+- Asked for a static "no X in Y" invariant → stop, use `test-architecture-rule`.
+- Naming a builder, a fixture or a failure-injection subclass → stop, use `naming`.

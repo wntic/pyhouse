@@ -213,17 +213,21 @@ same name, different shape — is never silently merged. Stop and surface it.
 
 ## Rules
 
-1. Choose identifiers with `naming`, then check every derived artifact against block A's table.
-2. Locate an application handler by its first repository's subdomain; use its first domain entity
-   when it has no repository dependency.
+1. Choose identifiers with `naming`, then check every derived artifact against block A's table. An
+   artifact no row derives gets its row added here first; a path or class name is never invented.
+2. Derive an application handler's subdomain, never choose it: its first repository's subdomain, or its
+   first domain entity's when it has no repository dependency.
 3. Place an injected tunable value object by block A's row; how a settings class builds it is
    `hex-domain-model`'s.
-4. Select each infrastructure directory by the consuming technology, using block A's tech-token cases.
+4. Select each infrastructure directory by the consuming technology, using block A's tech-token cases —
+   never by subdomain, never under a catch-all `db/`.
 5. Derive a repository's file stem from the aggregate for relational stores and the protocol for client
-   stores; select its implementation form through block B's profile.
-6. Extend datastore support through the profile table; retain the documented fallback for unknown kinds.
+   stores, or an aggregate held on two stores lands two colliding files; select its implementation form
+   through block B's profile.
+6. Extend datastore support through the profile table — one row, never a change to a tool or a type
+   map; retain the documented fallback for unknown kinds.
 7. Write known-profile connection factories complete, per block B, under the datastore-name-derived
-   factory name.
+   factory name: a stub type-checks and lints clean, then crashes at app construct.
 8. Resolve context-qualified references through the named subdomain, using `python-packaging` for
    imports and `hex-architecture` for layer boundaries.
 9. Build the shared substrate from block C's union of contexts; deduplicate identical declarations and
@@ -232,16 +236,7 @@ same name, different shape — is never silently merged. Stop and surface it.
 
 ## Hard stops
 
-- A path or class name is being invented that the table in block A does not derive → stop, either the
-  artifact matches a row and follows it, or the row is missing and gets added here first.
-- `infrastructure/` is being grouped by subdomain, or under a catch-all `db/` → stop, it groups by the
-  external technology.
-- A handler's subdomain is being chosen rather than derived → stop, it follows the first repository
-  protocol it depends on.
-- A composite aggregate is getting one repository file stem on two different stores → stop, a
-  client-style store's repository takes the protocol-derived stem, or the two files collide.
-- A connection or engine factory is being left as `NotImplementedError` for a known profile kind →
-  stop, it is complete glue; a stub type-checks and lints clean, then crashes at app construct.
-- A store kind is being added by changing a tool or a type map → stop, it is one row in block B.
+- Asked to write the artifact whose path or name was derived here → stop, this skill produces no file;
+  the skill that owns the artifact writes it.
 - Two contexts declare the same name with different shapes → stop, do not silently merge; surface the
   conflict.

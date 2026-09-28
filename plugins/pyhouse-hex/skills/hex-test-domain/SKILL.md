@@ -163,14 +163,16 @@ async def test_assert_name_available_passes_when_free() -> None:
 1. **A domain test is synchronous unless the thing under test is awaited.** Only a test of an async
    method is declared async; making the rest async buys nothing and hides which subjects do IO-shaped
    work. Async configuration and markers → `test-principles`.
-2. The no-mocks contract → `test-principles`. The domain has no IO to stub, and where
-   a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
+2. The no-mocks contract — no `MagicMock`, `AsyncMock` or `monkeypatch` → `test-principles`. The
+   domain has no IO to stub, and where a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
    class for a narrow protocol (rule 17).
 3. Fixture-versus-builder rules → `test-principles`.
 4. Literal expected values, never a re-implementation of the rule → `test-principles`, assert strength.
 5. Test what the author wrote, never what the data model already guarantees → `test-principles`, assert
    strength. In the domain that means the constructor's invariants, the computed properties and the
-   methods, and never the equality, hash or immutability a frozen `@dataclass` supplies.
+   methods, and never the equality, hash or immutability a frozen `@dataclass` supplies — nor log
+   output: the domain layer logs nothing at all (`hex-architecture`, *Who logs, by layer*), so a test
+   asserts the return value or the raised exception.
 6. **One test per invariant, and a rejection test asserts the failure's machine-readable field key,
    never its message.** Capture the raised catalogue exception (`pytest.raises(ValidationError) as exc`)
    and assert the `context` entry naming the offending field: the message is prose and drifts, the key is
@@ -183,7 +185,9 @@ async def test_assert_name_available_passes_when_free() -> None:
    with `eq`. Do not paraphrase it.
 8. **`_make_<entity>(*, <field>: <type> = <valid default>, …)` is a module-level `def`** with one
    keyword-only, annotated parameter per declared field and valid defaults, so construction with no
-   arguments succeeds. **No logic in it beyond a fresh id** — it is a dumb spreader, and computation
+   arguments succeeds. It takes nothing the entity does not declare — `created_at` / `updated_at` are
+   the usual case: the store maintains them, so they are not entity fields (`hex-domain-model`, Entity
+   rule 6). **No logic in it beyond a fresh id** — it is a dumb spreader, and computation
    belongs in the tests.
 9. **A computed property or method gets its own `test_*`** named after the rule — but only when the entity
    actually declares one. Do not add a lifecycle or archive test to an entity that has no such property;
@@ -243,22 +247,6 @@ Identical for all four kinds:
 ## Hard stops
 
 - A test here needs a database, an HTTP endpoint or blob storage → stop, use
-  `hex-test-repository-contract` or `hex-test-restapi-endpoint`.
-- Asked for `MagicMock` / `AsyncMock` / `monkeypatch` → stop, use `test-principles`.
-- Asked for a builder or factory as a `@pytest.fixture` → stop, use `test-principles`.
-- Asked to test dataclass-given equality, hash or immutability, or a test re-implements the rule to
-  compute its expected value → stop, use `test-principles`.
-- A test asserts on log output or captured logs → stop, the domain layer logs nothing at all
-  (`hex-architecture`, *Who logs, by layer*); assert the return value or the raised exception.
-- Asked to build an entity from anything the entity does not declare → stop, the builder spreads the
-  entity's own fields and nothing else. `created_at` / `updated_at` are the usual case: the store
-  maintains them, so they are not entity fields (`hex-domain-model`, Entity rule 6).
-- The value object declares no invariant of its own and no custom equality → stop, produce no file.
-- A test loops over enum members → stop, write explicit asserts.
-- A test uses `==` for a boolean enum-method return → stop, use `test-principles`.
-- An enum's members are not known → stop, list them explicitly.
-- An inline stub stands in for a full port, or implements methods beyond the narrow protocol the
-  service's parameter declares → stop, use the port's fake from `tests.unit.fakes`, or the narrow
-  protocol exactly.
-- A test adds `@pytest.mark.asyncio` → stop, use `test-principles`.
-- A normalizing function's test omits `test_idempotent` → stop, add `test_idempotent`; idempotence is part of the contract.
+  `hex-test-repository-contract`, `hex-test-restapi-endpoint` or `hex-test-capability-adapter`.
+- The value object declares no invariant of its own and no custom equality → stop, produce no file
+  (rule 10).
