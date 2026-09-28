@@ -77,8 +77,7 @@ is exactly three phases and no others:
 1.5.0a1  →  1.5.0b1  →  1.5.0rc1  →  1.5.0
 ```
 
-The release is an annotated tag (`git tag -a`) on the release commit, `v1.4.0`, carrying the `v` that
-the version field must not.
+The release is an annotated tag (`git tag -a`) on the release commit, spelled `v1.4.0` (rule 5).
 
 Runtime access reads the installed distribution's metadata rather than a second literal, and reads it
 when asked, not at import — `python-packaging` rule 8 builds nothing at import time, and a metadata
