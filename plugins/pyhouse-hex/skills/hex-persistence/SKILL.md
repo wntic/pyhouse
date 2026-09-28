@@ -152,8 +152,7 @@ loaded automatically:
 17. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
     Nothing after the commit may fail non-idempotently. Nothing inside the block catches — only
     compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
-    the transaction is unusable once a statement in it failed, so a retry policy belongs to the central
-    error handler.
+    the transaction is unusable once a statement in it failed.
 18. **A repository never logs.** A failure is translated and propagates to the central error handler; a
     success is the calling handler's to log (`hex-architecture`).
 
@@ -202,6 +201,7 @@ environment import it from its module (`from ..metadata import metadata`,
 
 - A unit of work is asked to span two backends (a table plus object storage or a cache) → stop, that is
   compensation in `hex-application`, not a unit of work.
-- Asked for id generation inside the repository → stop, the application handler generates ids.
+- Asked to mint an id inside the repository → stop, use `hex-application`, which owns the identity
+  scheme (Command handler rule 8) and its one store-minted exception.
 - The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
   file; this skill covers DDL only.

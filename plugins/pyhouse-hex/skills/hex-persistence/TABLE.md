@@ -64,7 +64,10 @@ foos_table: Table = Table(
 ```
 
 `index=True` on a column is the single-column index with no `name=`: the convention names it
-`ix_foos_created_at`, exactly what the revision writes out.
+`ix_foos_created_at`, exactly what the revision writes out. `unique=True` on `name` exists only where the
+aggregate has a natural key, and `name` is this template's: an aggregate identified by its id alone
+drops it, and with it the translator's `uq_foos_name` branch and the conflict class that branch
+returns.
 
 ## Rules — column types
 
@@ -100,8 +103,6 @@ Pick once, and document the consequence in the repository's `delete`.
   `lower(name)` and raise at `MetaData` construction — lint and type-check stay green, only constructing
   the table catches it. A **functional index** wraps the SQL:
   `Index("ix_foos_name_lower", text("lower(name)"))`.
-- **About to pass a SQL expression to an index or a check constraint as a bare string → stop, wrap it.**
-  It raises at table-construct time with lint and type-check green.
 
 ## Rules — constraint names (load-bearing)
 
@@ -111,8 +112,7 @@ Pick once, and document the consequence in the repository's `delete`.
   **first** column only, so an auto-name silently drops the rest: `UniqueConstraint("foo_id", "position")`
   and `UniqueConstraint("foo_id", "kind")` on one table both come out `uq_<table>_foo_id` — two different
   constraints under a single name, and the translator left matching a name the database does not hold. A
-  composite index is named explicitly for the same reason. **A composite unique constraint or index
-  written without an explicit `name=` → stop, name it** — the two collide otherwise.
+  composite index is named explicitly for the same reason.
 - **Always pass `name=` (the suffix) for a `CheckConstraint`** so the convention can prepend
   `ck_<table>_`. Writing the full name yields `ck_foos_ck_foos_name_non_empty`.
 - **The same rules hold inside a revision's `op.create_table`.** `env.py` hands the shared metadata to

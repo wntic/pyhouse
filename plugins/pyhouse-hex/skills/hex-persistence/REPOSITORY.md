@@ -19,7 +19,10 @@ adapters.
 
 ## Template — standalone form
 
-`_SORT_COLUMNS` holds one entry per `FooSort` member; the member encodes column and direction.
+The template is a CRUD service's full set, as the port in `hex-domain-ports` is (its rule 4): an adapter
+implements the methods its own port declares and no others, and `_SORT_COLUMNS`, `_apply_filter` and the
+`FooListFilter`/`FooSort` imports exist only with `list` and `count`. `_SORT_COLUMNS` holds one entry per
+`FooSort` member; the member encodes column and direction.
 
 ```python
 from collections.abc import Sequence
@@ -125,7 +128,7 @@ def _map_integrity_error(exc: IntegrityError) -> Exception:
 
     if constraint == "uq_foos_name":
         return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
-    if pgcode == "23514" and constraint and "name_non_empty" in constraint:
+    if constraint == "ck_foos_name_non_empty":
         return ValidationError("name cannot be empty", {"field": "name", "constraint": constraint})
 
     return ConflictError(
@@ -232,19 +235,9 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 ## Evolution — when to extract a shared integrity-error mapper
 
-The per-repository `_map_integrity_error` is the default. When **three or more**
-repositories carry overlapping pgcode handlers (`23503` / `23505` / `23514`), extract
-`src/myapp/infrastructure/postgres/integrity_error_mapper.py`, which:
-
-- owns the pgcode-to-exception-family defaults (`23503 → NotFoundError`, `23505 → ConflictError`,
-  `23514 → ValidationError`) plus the mandatory fallback;
-- exposes `map_integrity_error(exc, *, constraint_map: Mapping[str, ConstraintRule]) -> Exception`, where
-  each repository registers only its own constraint-name overrides;
-- defines `ConstraintRule` as `(MyappError subclass, message, context_fn)` so per-repository customization
-  stays declarative.
-
-Do not introduce it preemptively. Add it the first time a third repository forces the same boilerplate,
-and migrate every existing repository in that one commit — partial adoption causes drift.
+When a third repository repeats the same SQLSTATE branches, one shared mapper takes the SQLSTATE
+defaults and the mandatory fallback, each repository passes only its own constraint-name overrides, and
+every existing repository moves to it in that commit (rule 13 in `SKILL.md`).
 
 ## The store's settings, engine and binding — pydantic-settings, SQLAlchemy, dishka
 
