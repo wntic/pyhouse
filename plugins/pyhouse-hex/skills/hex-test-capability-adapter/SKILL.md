@@ -64,7 +64,10 @@ import pytest
 import respx
 from pydantic import SecretStr  # only where the upstream takes a credential
 
-from myapp.domain.exceptions import UpstreamError, ValidationError
+from myapp.domain.exceptions import (
+    UpstreamError,
+    ValidationError,  # only where the upstream judges input the caller can correct
+)
 from myapp.domain.foos import Foo, FooKind
 from myapp.infrastructure.http import FooClassifierSettings, HttpFooClassifier
 

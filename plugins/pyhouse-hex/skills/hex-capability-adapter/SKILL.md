@@ -34,7 +34,10 @@ In `infrastructure/http/http_foo_classifier.py`, with its settings class beside 
 ```python
 import httpx
 
-from myapp.domain.exceptions import UpstreamError, ValidationError
+from myapp.domain.exceptions import (
+    UpstreamError,
+    ValidationError,  # only where the upstream judges input the caller can correct
+)
 from myapp.domain.foos import Foo, FooKind
 
 from .settings import FooClassifierSettings
@@ -59,7 +62,8 @@ class HttpFooClassifier:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
-            if status == 400:  # only where the upstream judges input the caller can correct
+            # only where the upstream judges input the caller can correct
+            if status == 400:
                 raise ValidationError("foo classifier rejected foo", {"foo_id": foo_id, "status": status}) from exc
             raise UpstreamError("foo classifier failed", {"foo_id": foo_id, "status": status}) from exc
         except httpx.HTTPError as exc:
@@ -81,7 +85,7 @@ rule 9 does the adapter's own credential.
 
 Its settings class, in `infrastructure/http/settings.py` beside it; a second upstream under `http/` gives
 each class a module named for its component (`hex-conventions` block A). The adapter reads the base URL
-and the credential; the composition root reads the timeout when it builds this integration's own
+and, where the upstream takes one, the credential; the composition root reads the timeout when it builds this integration's own
 `httpx.AsyncClient` (`hex-wiring`).
 
 ```python
