@@ -76,7 +76,7 @@ names the stack, and they stop wherever this binding is in use.
 
 ## Other bindings
 
-- **Opaque token plus an introspection endpoint** (`hex-restapi-auth`'s first alternative). Rules 1–24
+- **Opaque token plus an introspection endpoint** (`hex-restapi-auth`'s first alternative). Rules 1–23
   hold unchanged. What changes: there is no keypair and no signer, so the session-scoped fixture becomes
   a stub introspection server and the "mint a fresh token per call" rule becomes "register a fresh
   token with the stub per call". Rule 12's no-mocking line moves down a level — the verifier still runs
@@ -105,8 +105,10 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
    verifier with five raise sites has five cases.
 3. **One signer for the whole suite.** The unit test and the integration fixtures mint tokens through
    the same helper, so a change to the claim shape cannot leave them disagreeing.
-4. **Module-level settings and keys, never fixtures.** A pure-CPU adapter has no lifecycle; it is
-   constructed inline in each test.
+4. **Module-level settings and keys, never fixtures, and the file under `tests/unit/`.** A pure-CPU
+   adapter has no lifecycle; it is constructed inline in each test, and its test lives at
+   `tests/unit/infrastructure/<adapter>/` with no container — the pure-CPU flavor's path
+   (`hex-test-capability-adapter`).
 
 ### The authenticated client
 
@@ -114,7 +116,9 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
    the real app and attaching a credential header by hand is forbidden in any test file — a hand-rolled
    header is how the claim shape drifts between tests. A client with no credential is allowed in exactly
    two places: the unauthenticated probe, and an app with no auth at all
-   (`hex-test-restapi-endpoint`'s public template).
+   (`hex-test-restapi-endpoint`'s public template). The client factory lives in
+   `tests/integration/api/conftest.py`, never the root `tests/conftest.py`: a root-level app fixture
+   makes every unit test pay the infrastructure import chain (`hex-test-integration-setup`).
 6. **The client factory is entered as a context manager, never assigned.** Bare assignment leaks the
    transport and surfaces later as a consumed-client error or resource-warning noise in a run that has
    nothing to do with the test that leaked it. The scoped form is non-negotiable.
@@ -153,7 +157,8 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     function name as a string or reading an attribute off it: a renamed dependency then breaks the
     import, which is loud, where a name match would silently stop finding it. Search the **whole**
     dependency tree, not its first level — a role gate reaches the identity dependency through its own
-    dependency, and a first-level check misses every route gated that way. *FastAPI binding:* the resolved operations are
+    dependency, and a first-level check misses every route gated that way. Every input the probe uses
+    comes off the app, so the cost of adding a new endpoint here is zero. *FastAPI binding:* the resolved operations are
     `fastapi.routing.iter_route_contexts(app.routes)` filtered to contexts whose original route is an
     `APIRoute` (FastAPI 0.137.2 and later) — `include_router` keeps each included router as one entry in
     `app.routes`, and the context resolves its prefix and router-level dependencies onto each operation
@@ -165,33 +170,31 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
     enumerated tuple of parameter names silently stops covering the route that introduces a new one,
     and the probe then passes by not reaching the dependency at all — the exact failure this test
     exists to catch.
-17. **The probe discovers its inputs from the app**, never from a hand-maintained route or expectation
-    table. The cost of adding a new endpoint must be zero here.
-18. **An empty discovery is a failure, not a skip.** The companion net test asserts the walk found
+17. **An empty discovery is a failure, not a skip.** The companion net test asserts the walk found
     operations *and* found protected ones, because an empty parametrization reports "got empty parameter
     set" and leaves the run green — silence indistinguishable from an app with no protected routes.
-19. **Assert the code constant and the challenge scheme, never their literals.** The rejection body is
+18. **Assert the code constant and the challenge scheme, never their literals.** The rejection body is
     asserted against the domain exception's own code attribute, so renaming the code moves both sides
     together; the challenge is asserted on its scheme only. The realm is app-specific and is never
     frozen in an assertion.
-20. **This whole file is auth-gated**, the way an info-endpoint test is endpoint-gated. Its module-level
+19. **This whole file is auth-gated**, the way an info-endpoint test is endpoint-gated. Its module-level
     imports of the route dependency and the domain exception exist only in an app that declares auth; in
     an all-anonymous app the file would fail to import at collection time and take the whole
     `tests/integration/api/` package down with it.
 
 ### Endpoint-level assertions
 
-21. **A role-gated route is tested from below the bar as well as above it.** A happy path at the
+20. **A role-gated route is tested from below the bar as well as above it.** A happy path at the
     required rank, and a rejection at a lower one; a route whose gate is never exercised from below is
     a gate nothing proves.
-22. **Cross-tenant reads return 404, not 403.** When a resource is tenant-scoped — the endpoint reads
+21. **Cross-tenant reads return 404, not 403.** When a resource is tenant-scoped — the endpoint reads
     rows owned by a tenant other than the caller's — answering 403 leaks existence ("this resource
     exists but you can't see it"), so the route must return 404. Tenancy is derived from the auth claim
     plus the repository's owner filter, not from a declared field; test the 404 path explicitly whenever
     the resource is tenant-scoped.
-23. **Error responses are asserted by `code`, not by message** (`hex-test-restapi-endpoint`). The HTTP
+22. **Error responses are asserted by `code`, not by message** (`hex-test-restapi-endpoint`). The HTTP
     status is asserted separately.
-24. **A role ladder in a test is the app's own.** `INTEGRATION.md` uses the catalogue's placeholder
+23. **A role ladder in a test is the app's own.** `INTEGRATION.md` uses the catalogue's placeholder
     pair `Role.LOWER` / `Role.HIGHER` (`hex-restapi-auth`); substitute the app's own members, and
     however many of them it has.
 
@@ -212,40 +215,12 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 
 ## Hard stops
 
-- Asked to mock the token library, or to feed the verifier a hand-written token string → stop, sign
-  a real token with a real key; the library's behaviour is the subject of the test.
-- Only the verifier's happy path is tested → stop, cover every `raise` site with its `context` key
-  (Rule 2); a translator arm nothing exercises is the gap this test exists to close.
-- The verifier's unit test is put under `tests/integration/` or given a fixture → stop, it is
-  pure-CPU: `tests/unit/infrastructure/<adapter>/`, module-level helpers, no container
-  (`hex-test-capability-adapter`).
-- A second token signer is added beside `sign_token` → stop, one signer for the whole suite, or the
-  unit and integration paths drift apart.
-- The app has no auth (every endpoint anonymous) → stop, produce none of these files, and strip the
-  `jwt_settings` parameter from `container` and its field and factory from `TestInfraProvider`. An
-  auth-less app binds no `JwtSettings`, so a factory claiming to override one fails when the graph is
-  assembled.
+- The app has no auth (every endpoint anonymous) → stop, produce none of these files; the `container`
+  of an auth-less app substitutes no verifier settings (`hex-test-integration-setup`).
 - Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this
   catalogue's binding) → stop, use `hex-test-integration-setup`; the suite cannot collect without it.
-- A session-scoped `authed_client` is proposed "to speed up tests" → stop, the factory is
-  function-scoped because each test's transport must be closed at teardown; the cost is negligible.
-- Asked to mock the verifier → stop, the integration test signs a real token against the same
-  keypair the verifier validates.
-- A test uses `AsyncClient(transport=ASGITransport(...))` directly for an authenticated request → stop,
-  drive it through `authed_client(...)`.
-- The probe substitutes path placeholders from a fixed list of parameter names rather than by pattern → stop,
-  a route with a name the list does not carry is silently skipped.
-- The probe is written against a hardcoded URL with literal placeholders (`/foos/{id}`) → stop,
-  substitute UUID-shaped dummies so the route resolves before the auth dependency runs.
-- The probe uses string matching to identify "protected" routes (`if "auth" in route.name`) → stop, walk the
-  resolved operations and compare the callables of each one's whole dependency tree by identity.
 - Asked to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
-  returns 401 unauth") → stop, the parametrized probe already covers it via discovery; add the endpoint
-  and it joins the suite automatically.
-- A test pins the rejection body code to a literal string (`"UNAUTHORIZED"`) → stop, assert against the
-  domain exception's `.code` constant.
-- An `authed_client` fixture is added to the root `tests/conftest.py` → stop, it belongs in
-  `tests/integration/api/conftest.py`; a root-level app fixture makes every unit test pay the
-  infrastructure import chain (`hex-test-integration-setup`).
-- A per-resource row factory is added inside the api conftest → stop, those live in
-  `tests/integration/api/<resource>/conftest.py`.
+  returns 401 unauth") → stop, write nothing; the parametrized probe already covers it via discovery,
+  so add the endpoint and it joins the suite automatically.
+- A per-resource row factory is added inside the api conftest → stop, use `hex-test-restapi-endpoint`;
+  those live in `tests/integration/api/<resource>/conftest.py`.

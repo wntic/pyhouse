@@ -1,6 +1,6 @@
 # hex-test-restapi-auth — the integration half
 
-Topic file of `hex-test-restapi-auth`. The obligations are rules 5–24 in `SKILL.md`; what follows is the
+Topic file of `hex-test-restapi-auth`. The obligations are rules 5–23 in `SKILL.md`; what follows is the
 **PyJWT + `cryptography` + httpx/ASGI + FastAPI + pytest** binding that satisfies them: the signer, the
 fixtures that make a minted token verify against the real app, the discovered unauthenticated probe, and
 the authenticated endpoint forms.
