@@ -24,7 +24,7 @@ too. The counts in every heading are the number of directories on disk.
 - `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
 - `persistence` — The store-generic data-access obligations whatever the family, and which of them lapse for a store without transactions, named constraints, a conditional write, a schema of its own, migrations or two versions running at once; it binds no library and writes no file, leaves the identity scheme to the family, and points at `exception-catalog` for the translation itself.
-- `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; transport rendering stays at the boundary.
+- `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; transport rendering, and the status a transport maps a class to, stay at the boundary.
 - `test-principles` — The testing constitution for any Python project, and it wins wherever an artifact-specific test skill contradicts it — where tests and fixtures sit and the closed autouse set, one substitution ladder, assert strength with literal expected values, and HTTP interception asserted on the exercised route's own call record.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
@@ -48,10 +48,10 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Hex REST API (4)
 
-- `hex-restapi-app` — Establish the shared shell before adding resource routers; the shell it lays presumes no authentication and no declared middleware, CORS included, and a status a middleware emits is registered here.
-- `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body, and keeps the errors the route advertises aligned with what it can actually produce; file-transfer routes are read from its sibling file.
+- `hex-restapi-app` — Establish the shared shell before adding resource routers; the shell it lays presumes no authentication and no declared middleware, CORS included; the status each error class answers with, and a status a middleware emits, are registered here.
+- `hex-restapi-endpoint` — Maps transport inputs to application calls while keeping domain logic out of the route body, and keeps the errors the route advertises aligned with what it can actually produce; a route that carries a file moves the bytes and nothing else.
 - `hex-restapi-schema` — Match the domain filter's chosen pagination shape and the command DTO's partial-update contract.
-- `hex-restapi-auth` — Add only when the entrypoint itself authenticates; a gateway- or mTLS-fronted service declares no auth and skips it. The caller is an opaque subject, and a rank exists only where a route gates on one.
+- `hex-restapi-auth` — Add only when a route needs its caller's identity; a service whose routes need none, behind a gateway or not, declares no auth and skips it. The caller is an opaque subject, and a rank exists only where a route gates on one.
 
 ### Hex tests (8)
 

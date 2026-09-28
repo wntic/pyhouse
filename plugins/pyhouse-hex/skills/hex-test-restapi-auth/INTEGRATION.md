@@ -1,16 +1,15 @@
 # hex-test-restapi-auth — the integration half
 
-Topic file of `hex-test-restapi-auth`. The obligations are rules 5–23 in `SKILL.md`; what follows is the
+Topic file of `hex-test-restapi-auth`. The obligations are rules 4–18 in `SKILL.md`; what follows is the
 **PyJWT + `cryptography` + httpx/ASGI + FastAPI + pytest** binding that satisfies them: the signer, the
-fixtures that make a minted token verify against the real app, the discovered unauthenticated probe, and
-the authenticated endpoint forms.
+fixtures that make a minted token verify against the real app, the discovered probe, and the
+authenticated endpoint form.
 
 ## `tests/helpers/jwt.py`
 
 ```python
 import datetime as _dt
 from dataclasses import dataclass
-from uuid import uuid4
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -49,18 +48,13 @@ def sign_token(
     issuer: str,
     audience: str,
     algorithm: str = "RS256",
-    ttl_seconds: int = 300,
+    ttl_seconds: int | None = 300,
 ) -> str:
     now = _dt.datetime.now(_dt.UTC)
-    payload = {
-        "iss": issuer,
-        "aud": audience,
-        "iat": int(now.timestamp()),
-        "exp": int((now + _dt.timedelta(seconds=ttl_seconds)).timestamp()),
-        "jti": uuid4().hex,
-        **claims,
-    }
-    return jwt.encode(payload, private_pem, algorithm=algorithm)
+    payload: dict[str, object] = {"iss": issuer, "aud": audience, "iat": int(now.timestamp())}
+    if ttl_seconds is not None:
+        payload["exp"] = int((now + _dt.timedelta(seconds=ttl_seconds)).timestamp())
+    return jwt.encode({**payload, **claims}, private_pem, algorithm=algorithm)
 ```
 
 ## `tests/integration/api/conftest.py`
@@ -74,7 +68,6 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
-from myapp.domain.auth import Role  # rank apps only, with the `role` parameter below
 from myapp.infrastructure.jwt import JwtSettings
 from tests.helpers.jwt import RsaKeypair, generate_rsa_keypair, sign_token
 
@@ -100,20 +93,8 @@ def authed_client(
     rsa_keypair: RsaKeypair,
     jwt_settings: JwtSettings,
 ) -> Callable[..., AsyncClient]:
-    """Factory that mints a fresh JWT and returns an `AsyncClient` bound to
-    `real_app`. Each call mints a new token; the client is an async context
-    manager — always use `async with authed_client(...) as client:` so the
-    underlying ASGI transport is closed at the end of the test."""
-
-    def _factory(
-        role: Role | None = None,
-        **extra_claims: object,
-    ) -> AsyncClient:
-        # The subject, and the rank where the app has one; anything else the identity
-        # carries arrives in extra_claims (Rule 8).
+    def _factory(**extra_claims: object) -> AsyncClient:
         claims: dict[str, object] = {"sub": str(uuid4()), **extra_claims}
-        if role is not None:
-            claims["role"] = role.value
         token = sign_token(
             claims,
             private_pem=rsa_keypair.private_pem,
@@ -131,6 +112,9 @@ def authed_client(
     return _factory
 ```
 
+A rank app adds `role: Role | None = None` before `**extra_claims`, importing `Role` from
+`myapp.domain.auth`, and sets `claims["role"] = role.value` when one is given.
+
 ## The `container` substitution this skill adds
 
 `container`, `real_app` and `TestInfraProvider` live in `tests/integration/conftest.py` and are owned by
@@ -146,6 +130,10 @@ from myapp.infrastructure.jwt import JwtSettings
 ```
 
 ```python
+        self._jwt_settings = jwt_settings   # in TestInfraProvider.__init__, which takes jwt_settings: JwtSettings
+```
+
+```python
     @provide(override=True)             # in TestInfraProvider
     def jwt_settings(self) -> JwtSettings:
         return self._jwt_settings
@@ -157,24 +145,22 @@ graph is assembled.
 
 ### Fixture-resolution coupling between the two conftests
 
-`container` (defined up-tree in `tests/integration/conftest.py`) declares `jwt_settings` as one of its
-parameters and hands it to `TestInfraProvider`. Pytest resolves that name by
-walking the conftest hierarchy from the running test outward — for tests under `tests/integration/api/`,
-the `jwt_settings` fixture produced in the api conftest is visible. Without this substitution, every
-`authed_client`-minted token would be signed with the test keypair but verified against the production
-public key the real composition root would build — every authenticated test would fail with 401.
+`container`, up-tree in `tests/integration/conftest.py`, takes `jwt_settings` by name, and a fixture
+defined down-tree is visible only to tests under it (`test-principles`, *Where tests and fixtures sit*
+rule 2). Without the substitution, every `authed_client`-minted token would be verified against the
+production public key and answer 401.
 
 The coupling has a cost: `container`, and `real_app` over it, cannot be used from tests outside
 `tests/integration/api/` (e.g. `tests/integration/postgres/`), because `jwt_settings` isn't visible
-there. Repository contract tests use `sf` directly and never need it; where another entrypoint's tests
-outside `api/` do, `rsa_keypair` and `jwt_settings` move up-tree beside `container`. `test-principles` records the
-down-tree-resolution mechanism as the universal point; the `jwt_settings` instance is the conditional
-one.
+there. Repository contract tests take their store's own fixture and never need it; where another
+entrypoint's tests outside `api/` do, `rsa_keypair` and `jwt_settings` move up-tree beside `container`.
 
 ## `test_unauth_returns_401.py` — the discovered probe
 
-One file, emitted for an auth app only. It discovers every protected route off the running app and
-asserts each one rejects an anonymous caller; adding an endpoint joins it to the suite automatically.
+One file, emitted for an auth app only. It walks every operation off the running app and asserts that
+each one not declared public refuses an anonymous caller and a caller holding a token the app did not
+issue; adding an endpoint joins it to the probe automatically, and making one public adds it to
+`_PUBLIC_OPERATIONS`.
 
 ```python
 import re
@@ -185,143 +171,108 @@ from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 from httpx import ASGITransport, AsyncClient
 
 from myapp.domain.exceptions import UnauthorizedError
-from myapp.restapi.dependencies import get_current_user
+from myapp.infrastructure.jwt import JwtSettings
+from tests.helpers.jwt import generate_rsa_keypair, sign_token
+
+# Operations that answer an anonymous caller on purpose; every other one is probed.
+_PUBLIC_OPERATIONS: frozenset[tuple[str, str]] = frozenset()
+
+_UNTRUSTED_KEYPAIR = generate_rsa_keypair()
 
 
 def _api_operations(app: FastAPI) -> list[RouteContext]:
-    """Every API operation the app serves, one resolved route context each.
-
-    `include_router(...)` keeps each included router as a single entry in
-    `app.routes`; `iter_route_contexts` resolves those entries into one context
-    per operation. Two things the probe depends on are resolved onto that
-    context: `path_format`, the path a client must actually request (the
-    `include_router(prefix=...)` one, with a path converter's suffix already
-    stripped), and the dependency tree with whatever
-    `include_router(..., dependencies=[...])` added — so router-level auth is
-    seen here."""
     return [context for context in iter_route_contexts(app.routes) if isinstance(context.original_route, APIRoute)]
 
 
-def _depends_on(dependant: object, target: object) -> bool:
-    """True iff `target` is called anywhere in the dependency tree, at any
-    depth. FastAPI nests a dependency's own dependencies under it, so a check
-    of the first level misses every route that reaches the target indirectly."""
-    for dep in getattr(dependant, "dependencies", []):
-        if dep.call is target or _depends_on(dep, target):
-            return True
-    return False
+def _operations(app: FastAPI) -> list[tuple[str, str]]:
+    return [
+        (method, context.path_format or "")
+        for context in _api_operations(app)
+        for method in sorted(context.methods or ())
+        if method != "HEAD"
+    ]
 
 
-def _is_protected(route: RouteContext) -> bool:
-    """A route is protected iff `get_current_user` is in its dependency tree —
-    attached directly, or beneath `require_role(...)`, whose gate depends on it
-    (see hex-restapi-auth). Identity, not a name or an attribute, is the test.
-    Public routes (info, health, OpenAPI itself) are naturally excluded.
-
-    `dependant` is a FastAPI route internal rather than part of its documented
-    surface; the context resolves it for the operation, include-time
-    dependencies included."""
-    return _depends_on(route.dependant, get_current_user)
+def _protected_operations(app: FastAPI) -> list[tuple[str, str]]:
+    return [operation for operation in _operations(app) if operation not in _PUBLIC_OPERATIONS]
 
 
-def _protected_routes(app: FastAPI) -> list[tuple[str, str]]:
-    out: list[tuple[str, str]] = []
-    for route in _api_operations(app):
-        if not _is_protected(route):
-            continue
-        for method in sorted(route.methods or ()):
-            if method == "HEAD":
-                continue
-            out.append((method, route.path_format or ""))
-    return out
+def _requestable(path: str) -> str:
+    return re.sub(r"\{[^{}]+\}", "00000000-0000-0000-0000-000000000000", path)
 
 
-async def test_the_walk_found_protected_routes_to_probe(real_app: FastAPI) -> None:
-    """The net under the parametrized probe below, and the reason it is a test
-    of its own: an empty parameter set does not fail, it SKIPS — pytest's
-    `empty_parameter_set_mark` defaults to `skip`, so it reports `got empty
-    parameter set` and the run stays green. A walk that discovers nothing
-    therefore takes this whole file out of the run in silence, and the silence
-    is indistinguishable from an app with no protected routes. This net runs
-    whatever the walk returns, and it tells the two apart."""
-    assert _api_operations(real_app), "no API operation was discovered, so nothing was probed"
-    assert _protected_routes(real_app), (
-        "API operations were discovered but none of them is protected, in an app that "
-        "declares auth — either the auth dependency is not wired or the walk missed it"
-    )
+async def test_the_walk_found_operations_to_probe(real_app: FastAPI) -> None:
+    """An empty parametrization skips rather than fails, so this net runs whatever the walk finds."""
+    operations = set(_operations(real_app))
+    assert operations, "no API operation was discovered, so nothing was probed"
+    assert _PUBLIC_OPERATIONS <= operations, f"declared public but not served: {_PUBLIC_OPERATIONS - operations}"
 
 
-async def test_protected_route_returns_401_without_token(method: str, path: str, real_app: FastAPI) -> None:
+async def test_protected_operation_refuses_an_anonymous_caller(method: str, path: str, real_app: FastAPI) -> None:
     # `method` / `path` are parametrized by `pytest_generate_tests` below.
-    async with AsyncClient(
-        transport=ASGITransport(app=real_app),
-        base_url="http://testserver",
-    ) as client:
-        # Every braced segment, by pattern (Rule 16).
-        url = re.sub(r"\{[^{}]+\}", "00000000-0000-0000-0000-000000000000", path)
-        response = await client.request(method, url)
+    async with AsyncClient(transport=ASGITransport(app=real_app), base_url="http://testserver") as client:
+        response = await client.request(method, _requestable(path))
 
     assert response.status_code == 401
-    body = response.json()
-    assert body["code"] == UnauthorizedError.code
+    assert response.json()["code"] == UnauthorizedError.code
     assert response.headers.get("WWW-Authenticate", "").startswith("Bearer")
 
 
+async def test_protected_operation_refuses_an_untrusted_token(
+    method: str,
+    path: str,
+    real_app: FastAPI,
+    jwt_settings: JwtSettings,
+) -> None:
+    token = sign_token(
+        {"sub": "untrusted"},
+        private_pem=_UNTRUSTED_KEYPAIR.private_pem,
+        issuer=jwt_settings.issuer,
+        audience=jwt_settings.audience,
+        algorithm=jwt_settings.algorithm,
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=real_app),
+        base_url="http://testserver",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as client:
+        response = await client.request(method, _requestable(path))
+
+    assert response.status_code == 401
+    assert response.json()["code"] == UnauthorizedError.code
+
+
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    """Discover protected routes at collection time by importing `create_app`
-    once. Keeps test parametrization tied to the actual route graph instead
-    of a hand-maintained list."""
     if "method" in metafunc.fixturenames and "path" in metafunc.fixturenames:
         from myapp.restapi.main import create_app
 
-        app = create_app()
-        cases = _protected_routes(app)
+        cases = _protected_operations(create_app())
         metafunc.parametrize("method,path", cases, ids=[f"{m} {p}" for m, p in cases])
 ```
 
-## `test_<verb>_<noun>.py` — the authenticated endpoint forms
+## `test_<verb>_<noun>.py` — the authenticated endpoint form
 
-The endpoint-test file's shape, its one-file-per-endpoint rule, schema validation and per-resource
-fixtures are `hex-test-restapi-endpoint`'s. These are the auth-carrying variants of that shape, and the
-`Role.LOWER` / `Role.HIGHER` ladder they name is the catalogue's **placeholder** pair
-(`hex-restapi-auth`) — substitute the app's own members, and however many of them it has.
+The endpoint-test file's shape, its one-file-per-endpoint rule, body assertions and per-resource
+fixtures are `hex-test-restapi-endpoint`'s. This is the auth-carrying variant of that shape.
 
-### JSON mutation, role-gated (rank apps only)
-
-A route that only authenticates takes `authed_client()` with no role and has no 403 case.
+### JSON mutation
 
 ```python
 from collections.abc import Callable
 
 from httpx import AsyncClient
 
-from myapp.domain.auth import Role
-from myapp.restapi.schemas import FooResponse
 
-
-async def test_create_foo_happy_path(authed_client: Callable[..., AsyncClient]) -> None:
-    async with authed_client(role=Role.HIGHER) as client:
+async def test_create_foo_returns_the_created_foo(authed_client: Callable[..., AsyncClient]) -> None:
+    async with authed_client() as client:
         response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 201
-    body = FooResponse.model_validate(response.json())
-    assert body.name == "alpha"
-
-
-async def test_create_foo_forbidden_for_lower_role(authed_client: Callable[..., AsyncClient]) -> None:
-    async with authed_client(role=Role.LOWER) as client:
-        response = await client.post("/foos", json={"name": "alpha"})
-
-    assert response.status_code == 403
+    assert response.json()["name"] == "alpha"
 ```
 
-### Tenant-scoped reads
-
-Where the identity carries a tenant (`hex-application` caller-derived fields), a read of another
-tenant's row asserts 404, never 403. Mint the claim through `authed_client(**extra_claims)` and seed
-the row under the fixture's tenant.
-
-An authenticated multipart or streaming test is the same substitution: take
-`hex-test-restapi-endpoint`'s skeleton and drive it through `async with authed_client(…) as
-client:` instead of the plain client.
+A rank app passes `role=` and adds the below-the-bar case (rule 17), asserting `ForbiddenError.code`;
+on a mutation that rejection also shows nothing was written — read it back as an allowed caller
+(`authed_client(...)` twice, rule 6). Its `Role.LOWER` / `Role.HIGHER` are the catalogue's
+**placeholder** pair (`hex-restapi-auth`) — substitute the app's own members, however many it has.
 

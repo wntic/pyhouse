@@ -1,15 +1,10 @@
 # hex-test-restapi-auth — the verifier's unit test
 
-Topic file of `hex-test-restapi-auth`. The obligations are rules 1–4 in `SKILL.md`; what follows is the
+Topic file of `hex-test-restapi-auth`. The obligations are rules 1–3 in `SKILL.md`; what follows is the
 **PyJWT + `cryptography` + pytest** binding that satisfies them. This is
 `hex-test-capability-adapter`'s pure-CPU flavour, bound to the token verifier.
 
 ## `tests/unit/infrastructure/jwt/test_pyjwt_token_verifier.py`
-
-The verifier is a pure-CPU capability adapter, so it takes `hex-test-capability-adapter`'s pure-CPU
-flavor: `tests/unit/infrastructure/<adapter>/`, module-level helpers rather than fixtures, no container,
-and **one test per `raise` site**. Real crypto — a real keypair, real signatures — never a pre-baked
-token string the library never produced.
 
 ```python
 import pytest
@@ -37,7 +32,7 @@ def _token(
     claims: dict[str, object] | None = None,
     issuer: str | None = None,
     audience: str | None = None,
-    ttl_seconds: int = 300,
+    ttl_seconds: int | None = 300,
 ) -> str:
     return sign_token(
         {"sub": _SUBJECT} if claims is None else claims,
@@ -72,7 +67,7 @@ def test_verify_wrong_audience_raises_unauthorized_error() -> None:
     with pytest.raises(UnauthorizedError) as exc:
         verifier.verify(_token(audience="other-audience"))
 
-    assert exc.value.context["reason"] == "InvalidAudienceError"
+    assert exc.value.context == {"reason": "invalid"}
 
 
 def test_verify_wrong_issuer_raises_unauthorized_error() -> None:
@@ -81,7 +76,7 @@ def test_verify_wrong_issuer_raises_unauthorized_error() -> None:
     with pytest.raises(UnauthorizedError) as exc:
         verifier.verify(_token(issuer="other-issuer"))
 
-    assert exc.value.context["reason"] == "InvalidIssuerError"
+    assert exc.value.context == {"reason": "invalid"}
 
 
 def test_verify_tampered_signature_raises_unauthorized_error() -> None:
@@ -90,10 +85,7 @@ def test_verify_tampered_signature_raises_unauthorized_error() -> None:
     with pytest.raises(UnauthorizedError) as exc:
         verifier.verify(_token()[:-4] + "AAAA")
 
-    assert exc.value.context["reason"] in {
-        "InvalidSignatureError",
-        "DecodeError",
-    }
+    assert exc.value.context == {"reason": "invalid"}
 
 
 def test_verify_token_missing_subject_raises_unauthorized_error() -> None:
@@ -102,17 +94,27 @@ def test_verify_token_missing_subject_raises_unauthorized_error() -> None:
     with pytest.raises(UnauthorizedError) as exc:
         verifier.verify(_token(claims={}))
 
-    assert exc.value.context["reason"] == "MissingRequiredClaimError"
+    assert exc.value.context == {"reason": "invalid"}
+
+
+def test_verify_token_without_expiry_raises_unauthorized_error() -> None:
+    verifier = PyJwtTokenVerifier(settings=_SETTINGS)
+
+    with pytest.raises(UnauthorizedError) as exc:
+        verifier.verify(_token(ttl_seconds=None))
+
+    assert exc.value.context == {"reason": "invalid"}
 ```
 
 The subject is the issuer's opaque string and the verifier passes it through unparsed, so there is no
 subject-format case to test. An absent claim lands on the library's own invalid-token arm: a token can
-carry a valid signature and still not describe a caller.
+carry a valid signature and still not describe a caller. Every case on that arm asserts the same stable
+`reason`, never the library's class name (`hex-restapi-auth`).
 
 ### Rank apps only — the role claim
 
 Where a route gates on rank (`hex-restapi-auth`), the verifier also requires and parses `role`, which
-adds a raise site of its own. `_token`'s default claims and the happy-path expectation grow the role
+adds a check of its own. `_token`'s default claims and the happy-path expectation grow the role
 (`{"sub": _SUBJECT, "role": Role.HIGHER.value}`, `CurrentUser(id=_SUBJECT, role=Role.HIGHER)`, with
 `Role` imported beside `CurrentUser`), and two cases join the module:
 
@@ -123,7 +125,7 @@ def test_verify_token_missing_role_raises_unauthorized_error() -> None:
     with pytest.raises(UnauthorizedError) as exc:
         verifier.verify(_token(claims={"sub": _SUBJECT}))
 
-    assert exc.value.context["reason"] == "MissingRequiredClaimError"
+    assert exc.value.context == {"reason": "invalid"}
 
 
 def test_verify_undeclared_role_raises_unauthorized_error() -> None:

@@ -337,7 +337,7 @@ and authenticated-client fixtures, and `container` above grows the `jwt_settings
 
 ## Per-resource `conftest.py` is **not** owned here
 
-Per-resource fixtures (`make_foo`, `foo_id`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them, and each resource's tests declare the ones they need.
+Per-resource fixtures (`make_foo`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them, and each resource's tests declare the ones they need.
 
 ## How this binding spells them — testcontainers, Alembic, SQLAlchemy savepoints
 

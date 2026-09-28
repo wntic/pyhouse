@@ -13,13 +13,13 @@ One-shot per project, and everything else in the integration suite depends on it
 
 - Laying either conftest for the first time, or changing a fixture in one → this skill.
 - A repository contract test → `hex-test-repository-contract` (consumes `sf`).
-- An API endpoint test → `hex-test-restapi-endpoint` (consumes `sf` and `real_app`, the REST add-on).
+- An API endpoint test → `hex-test-restapi-endpoint` (consumes `real_app`, the REST add-on, and the store's own fixture where it seeds rows).
 - The cross-cutting OpenAPI / CORS / request-size invariants → `hex-test-app-invariants` (consumes `real_app` directly).
 - A handler test that runs on in-memory fakes and needs no database at all → `hex-test-application-handler`; none of these fixtures apply to it.
 - A capability adapter's own assertions — the respx gateway, the SDK-error translation, the pure-CPU case → `hex-test-capability-adapter`. The session-scoped container its backend needs is still declared here.
 - The signing-key and token-minting fixtures, the authenticated client, and the `jwt_settings` override `container` grows in an auth app → `hex-test-restapi-auth`. Only for an app that declares auth; this skill is complete without it.
 - The route-side auth dependencies themselves → `hex-restapi-auth`.
-- Per-resource row factories (`make_foo`, `foo_id`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
+- Per-resource row factories (`make_foo`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
 - Which scope a fixture takes, which conftest level it belongs at, builders versus fixtures → `test-principles`, the constitution. This skill is the hexagonal artifact that implements it.
 - The same fixtures for a flat-layered service → `flat-test-integration-setup`, in the `pyhouse-flat` plugin. Several hexagonal members of one workspace sharing these fixtures → this skill, under `## Other bindings`.
 - The composition root has no `session_factory` binding, or no way to pass extra providers into it → `hex-wiring` first; the substitution seam is `create_container`'s parameter, not something a test can bolt on.
@@ -144,17 +144,9 @@ by `container`, so an entrypoint never reaches a store the environment names.
 
 ### In an auth app, `container` is usable only from `tests/integration/api/`
 
-In an app that declares auth, `container` consumes a settings fixture defined **down-tree**, in
-`tests/integration/api/conftest.py`. Pytest resolves fixture names by walking the conftest hierarchy from
-the running test outward, so that only works for tests under `tests/integration/api/`. Repository
-contract tests use `sf` directly and never need it; where another entrypoint's tests outside `api/` do,
-the verifier fixtures move up-tree beside `container`. The mechanism, and the override that depends on
-it, are `hex-test-restapi-auth`'s.
-
-An app without auth binds no verifier settings, so its `container` takes no settings fixture and its
-test provider substitutes none — a factory claiming to override a binding the graph never declared
-fails when the graph is assembled. Whether an app has auth follows from its routes (`hex-restapi-auth`);
-it is not a universal.
+In an app that declares auth, `container` consumes the verifier settings fixture defined down-tree in
+`tests/integration/api/conftest.py`, and an app without auth substitutes none; the override, its cost and
+when those fixtures move up-tree are `hex-test-restapi-auth`'s.
 
 ### The obligations
 

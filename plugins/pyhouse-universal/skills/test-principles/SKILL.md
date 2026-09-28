@@ -106,7 +106,7 @@ entrypoint, the layer is leaking and the speed budget is gone.
 | | Builder (module-level `def`) | Fixture (`@pytest.fixture`) |
 |--|------------------------------|------------------------------|
 | Use for | Constructing one value with sensible defaults — a record, an entity, a payload | Anything with a lifecycle — a container, an engine, a connection, a stubbed transport and the client over it, a factory that writes real rows |
-| Lives in | The test module that uses it | A conftest at the level *Where tests and fixtures sit* rule 2 picks |
+| Lives in | The test module that uses it; one several files share is a plain function under `tests/helpers/`, imported directly | A conftest at the level *Where tests and fixtures sit* rule 2 picks |
 | Examples | `_foo(*, name: str = "alpha") -> Foo` | a rollback-scoped connection, a per-test namespace, `make_foo` writing one real row per call |
 | Why | Builders are pure Python; wrapping one in a fixture adds ceremony without value. | Fixtures own setup and teardown — sessions, transactions, transports — which is what they are for. |
 
@@ -137,7 +137,7 @@ entrypoint, the layer is leaking and the speed budget is gone.
 
 **Use `@pytest.mark.parametrize`** when:
 
-- The parameter set is **discovered from the running system** — every protected route in `app.routes`, every operation in `app.openapi()`. `hex-test-app-invariants` is the canonical example.
+- The parameter set is **discovered from the running system** — every operation an app serves, every entry its published document lists; `hex-test-app-invariants`, in the `pyhouse-hex` plugin, is one example.
 - The test is **input-domain coverage**: a single behavior verified against many inputs (10 invalid emails, 20 valid date formats). The behavior is one thing; the inputs vary.
 - Adding a new parameter would extend, not duplicate, an existing test set.
 

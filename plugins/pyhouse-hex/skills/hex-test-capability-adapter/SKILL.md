@@ -175,7 +175,7 @@ library upgrade that changed nothing on the wire that matters.
 
 `tests/unit/infrastructure/<adapter>/`, in the file mirroring the adapter's module. The worked instance is the token verifier's
 test in `hex-test-restapi-auth`'s `UNIT.md`: module-level settings and inputs, the adapter built inline
-in each test, real library calls, and one test per `raise` site asserting its `context` key (rule 21).
+in each test, real library calls, and one test per check, asserting its `context` (rule 21).
 
 ## Other bindings
 
@@ -230,7 +230,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ### CPU flavor specifics
 
 20. **Real parsing, real crypto.** Drive the actual library: feed a parser real inputs and assert literal outputs; for a verifier, generate a real key at module scope and sign with the real library. Never hand the adapter a pre-baked value the library never produced.
-21. **One `test_*` per `raise` site in the adapter** — each library-exception arm *and* each guard the adapter raises itself. Each test triggers exactly one, and asserts the `context` key that arm sets (Rule 6).
+21. **One `test_*` per check the adapter makes** — each input condition that fails, whether it lands on its own library-exception arm, on a catch-all arm shared with others, or on a guard the adapter raises itself. Each test triggers exactly one and asserts the `context` value that case sets (Rule 6). Counting `raise` statements undercounts: one catch-all arm covering three checks is three cases.
 22. **No fixtures.** Pure-CPU adapters are constructed in-line in each test from module-level settings. They have no lifecycle.
 
 ## Inlined typing / import rules
