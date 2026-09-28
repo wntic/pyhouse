@@ -1,7 +1,8 @@
 # flat-persistence — the repository class
 
 Topic file of `flat-persistence`. The mechanism-free obligations are rules 2, 3, 4, 5, 6, 7, 9, 10, 11,
-12 and 18 in `SKILL.md`; what follows is the **SQLAlchemy async + asyncpg** binding that satisfies them.
+12, 18 and 21 in `SKILL.md`; what follows is the **SQLAlchemy async + asyncpg** binding that satisfies
+them.
 
 The class that owns a write and builds its statements, the translator that turns the driver's error
 into the service's own, the pure function that maps rows back into the service's declared types.

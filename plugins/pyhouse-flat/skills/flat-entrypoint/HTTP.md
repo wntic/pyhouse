@@ -144,5 +144,5 @@ if __name__ == "__main__":
 ```
 
 The server runs on the process's own loop, inside the block that owns the engine, so the engine is
-opened and closed on the loop the requests run on (`flat-layered` rule 12); `log_config=None` keeps the
-server from configuring logging a second time (`python-logging` rule 3).
+opened and closed on the loop the requests run on; `log_config=None` keeps the server from configuring
+logging a second time (`python-logging` rule 3).
