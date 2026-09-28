@@ -1941,3 +1941,40 @@ from `create_app` and rule 3's added sentence, and moving the setup sentence bac
 `hex-project-setup` block B and rule 6; reverting `model_dump(mode="json")` and the logged `context`; and
 restoring the headings, the `UNIT_OF_WORK.md` lead, the replaced paragraphs and the indexes' "no
 middleware", from the parent of the commits that added this entry.
+
+### D134 — A universal `persistence` skill owns every store-generic data-access obligation
+Taken by the maintainer on 2026-09-28 (backlog items 14 and 21, "all store-generic"), revised by a
+four-lens review and a re-verification. One universal reference skill, `persistence`, holds what every
+program with a store obeys whatever its family: one transaction owner per callable and none across two
+stores; driver errors translated at the data-access edge on every public method, by one translator
+shared from the second class onwards, with the field and the full constraint name in the context;
+constraint names from one convention, matched whole; a pure row mapping; instants stored unambiguously;
+the stored shape decided by meaning, a closed set or a length limit being the program's rule and not a
+stored type; indexes on what is filtered, joined and sorted; a table name derived by one rule; no schema
+created as a side effect of reading or writing; explicit conflict resolution where a write resolves one;
+an older write never replacing a newer one (a conditional write, else a single writer per key);
+deduplication by the store; a total order on every paged read; migrations run once, before the new code
+touches the store, with expand-then-contract only where two releases run at once; reversible revisions;
+no logging. A precondition table says which rules lapse for a store without transactions, named
+constraints a driver reports, a conditional write, a schema of its own, migrations, or two releases at
+once. Both families had stated parts of this apart and were drifting — flat and hex set the shared
+translator at the second and third class, and hex's "defaulted database-side" timestamps contradicted the
+ordering stamp. Each family now keeps only its shape and binding and tells the agent to load
+`persistence` before writing a file: flat keeps one package per store, the chunked multi-row write,
+read-back, time-ordered keys, the settings and engine factory, retry as its cross-store choice and
+migration placement; hex keeps the structural adapter and its two forms, the port's read contract, the
+paired revision and the unit of work. The id policy stays in the families. The rule that `context` never
+carries a library's class name holds for any translation, so it went to `exception-catalog` rule 11. The
+review also made the hex templates translate every driver error on every public method, the pool's own
+timeout and the unit of work's commit included (a refusal at commit is a conflict, not unavailability),
+gave offset pages an id tiebreaker, and spelled flat's ordering guard in prose beside the upsert. Item 21
+closes here: the flat family needs no conventions skill, and the one derivation it lacked, the table
+name, is `persistence` rule 13. Declined: moving batched writes to `persistence` (the decision keeps them
+in flat) and a template line for the ordering guard (item 11's decision, D131).
+**Reverse by:** from the parent of the commits that added this entry, deleting
+`plugins/pyhouse-universal/skills/persistence/`; restoring `flat-persistence` rules 1–21 and its
+precondition table, `hex-persistence` rules 1–18, its Evolution section and topic files,
+`exception-catalog` rule 11 and its two routes, `hex-store-repository` rules 7, 13–15, and the citations
+in `flat-entrypoint`, `HTTP.md`, `flat-layered`, `flat-test-integration-setup`, `flat-test-persistence`,
+`hex-project-setup` and `hex-conventions`; and restoring the index entries, counts, ownership row,
+`plugin.json` description and `pyhouse-reviewer` pointer.

@@ -22,34 +22,6 @@ first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, w
 findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
 file or skill deleted, a rule reversed — goes to the maintainer.
 
-### 14. A universal `persistence` skill owns every store-generic obligation
-A new universal skill (working name `persistence`; reference shape, no template) owns what holds in any
-Python project with a store, whatever its family:
-- from both families: one declared transaction owner per callable, a multi-statement write as one
-  transaction, driver-error translation at the data-access edge with the offending field and the full
-  constraint name in the context, constraint names generated from one convention, the pure row mapping
-  that gives a naive timestamp its offset, migrations as an expand/contract deploy step with a
-  reversing downgrade, a repository that never logs;
-- from `hex-persistence` alone: column types chosen by meaning, timestamps stored with their offset, a
-  closed value set as a constraint over text, indexing what is filtered, joined and sorted on;
-- from `flat-persistence` alone: conflicts resolved explicitly with the matched key never updated, an older write never
-  overwriting a newer one (rule 12's ordering stamp, rule 18's collapse and merge-time clauses),
-  deduplication by the store's own write-time or merge-time mechanism, a cursor read over a total order;
-- from `hex-conventions` (item 21): that a table name is derived by one rule declared once.
-
-The id policy stays in the families (hex mints `uuid4` with no dependency, flat a time-ordered id).
-Each family skill keeps only its own shape — flat: one package per store, batched Core writes, no
-protocol; hex: port-satisfying adapters, entity mapping, the paired revision, the unit of work — and
-points at the owner. The ownership table in `meta-skill-author`, both indexes and every count move with
-it. `hex-persistence/REPOSITORY.md` says in one sentence at the constructor why `FooRepository` takes
-the session factory and `FooSessionRepository` a session (`:68`, `:152`). The test-side echo is item 26.
-
-### 21. No conventions skill for the flat family
-`hex-conventions`' registry exists because hex has fixed layers and many artifacts per aggregate; flat
-has no fixed tree by design, and its package-naming decisions are `flat-layered`'s "The package names".
-The one derivation with no flat owner, the table name, is store-generic and moves to item 14's skill.
-Closed by the change that does 14.
-
 ### 24. Audit the four `hex-restapi-*` skills and their tests
 Run `/review-skills` on `hex-restapi-app`, `hex-restapi-auth`, `hex-restapi-endpoint`,
 `hex-restapi-schema`, `hex-test-restapi-auth` and `hex-test-restapi-endpoint`, generality first, and
