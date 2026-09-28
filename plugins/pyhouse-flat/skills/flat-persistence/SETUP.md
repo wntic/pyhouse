@@ -1,7 +1,7 @@
 # flat-persistence — the shared plumbing
 
-Topic file of `flat-persistence`. The mechanism-free obligations are rules 7, 8, 9 and 10 in
-`SKILL.md`, and `persistence` rules 5, 15 and 16; what follows is the **SQLAlchemy Core + asyncpg +
+Topic file of `flat-persistence`. The mechanism-free obligations are rules 6, 7, 8 and 9 in
+`SKILL.md`, and `persistence` rules 7, 19 and 20; what follows is the **SQLAlchemy Core + asyncpg +
 Alembic** binding that satisfies them.
 
 These are the modules written once per package and then left alone — the one `MetaData`, the component's
@@ -10,8 +10,8 @@ per-change migration revision that reads the metadata back.
 
 ## The metadata module — SQLAlchemy Core (once)
 
-One `MetaData`, in a module of its own, carrying the one naming convention `persistence` rule 5 asks
-for.
+One `MetaData`, in a module of its own, carrying the one naming convention `persistence` rule 7 asks
+for — never inside a table module, which would make that table the root of the import graph.
 
 `src/myapp/postgres/metadata.py`:
 
@@ -69,8 +69,8 @@ is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the pr
 `postgres` is a reserved segment there (`naming`); where the package is shared between distributions its
 prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
 changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
-adds its fields to this one (rule 9). The process definition constructs `PostgresSettings()`, unwraps
-`dsn` and hands the value to the engine factory (`flat-layered` rule 6, and rule 7 in `SKILL.md`); the
+adds its fields to this one (rule 8). The process definition constructs `PostgresSettings()`, unwraps
+`dsn` and hands the value to the engine factory (`flat-layered` rule 6, and rule 6 in `SKILL.md`); the
 migration environment is the migration run's process definition and does the same
 (`flat-project-setup`).
 
@@ -100,19 +100,20 @@ No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the 
 The migration environment and the revision template are laid once, with the project, under
 `migrations/postgres/` at the distribution root (`flat-project-setup`). What recurs is one revision per
 schema change, authored from the metadata above by `alembic revision --autogenerate -m "<change>"`,
-reviewed against `persistence` rule 15 before it is committed, and applied by
+reviewed against `persistence` rule 19 before it is committed, and applied by
 `alembic upgrade head`. Autogenerate diffs the metadata against a live database at head, so the draft is made against one only its author
 uses — a container of the suite's image, upgraded first — and `alembic upgrade head` reaches a shared
 database only as the deploy step.
 
 Both run from the directory holding `alembic.ini` — the distribution's own root, or the owning library's
-where several distributions share the store (rule 8) — so whatever applies the history carries
-`alembic.ini` beside `migrations/` (rule 10). Alembic takes no lock of its own, so rule 10's one job per
-deploy is the exclusion. The revision lands in `migrations/postgres/versions/`. Autogenerate compares
+where several distributions share the store (rule 7) — so whatever applies the history carries
+`alembic.ini` beside `migrations/` (rule 9). Alembic takes no lock of its own, so `persistence`
+rule 19's one job per deploy is the exclusion. The revision lands in `migrations/postgres/versions/`.
+Autogenerate compares
 tables, columns, types, nullability, indexes, unique and foreign-key constraints; it does not compare a
 `CheckConstraint`, so a change to one is written into the revision by hand.
 
 Where a second store's schema is versioned too, its history sits beside this one in
 `migrations/<store>/`, in whatever format that store's migration tool reads, and is applied by that tool
-as its own deploy step (rule 10). It never goes into
+as its own deploy step (rule 9). It never goes into
 `migrations/postgres/`, and never into the package under `src/`.
