@@ -59,7 +59,7 @@ otherwise.
 ```python
 import httpx
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from myapp.foo_api import FooClient
@@ -91,7 +91,9 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
     await run_once(foo_client, FooRepository(engine))
 
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 2
+    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    rows = (await conn.execute(query)).all()
+    assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
 async def test_a_run_reports_what_it_recorded(
@@ -106,7 +108,9 @@ async def test_a_run_reports_what_it_recorded(
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
 mostly repeats has "the second run over the same batch adds no row" as its central behaviour, and it
-is the one a wrong conflict-column list breaks.
+is the one a wrong conflict-column list breaks. It compares the values the input determines, not a
+count, so a second run that rewrites one fails too. A run's own observation instant is not among them —
+each run stamps a new one — but a stamp the input carries, a delivery's `changed_at`, is.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
