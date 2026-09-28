@@ -360,7 +360,7 @@ A rule lives in exactly one skill. Every other skill points at it.
 | Settings from the environment | `python-settings` |
 | Lint and type-check configuration, the src layout, dependency declarations and floors | `python-toolchain` |
 | The error catalogue and boundary translation | `exception-catalog` |
-| Store-generic data access — transaction ownership, where a driver error is translated, constraint and table names, row mapping, stored types, conflicts and ordering, migrations as a deploy step | `persistence` |
+| Store-generic data access — which rules bind given the store, transaction ownership, where a driver error is translated (the translation itself is `exception-catalog`'s), constraint and table names, row mapping, stored types, conflicts, ordering and deduplication, paged reads, migrations as a deploy step, data-access code logging nothing | `persistence` |
 | What the version promises, and the change that moves it | `python-versioning` |
 | Where a boundary goes, split vs merge | `coupling` |
 | Testing constitution | `test-principles` |

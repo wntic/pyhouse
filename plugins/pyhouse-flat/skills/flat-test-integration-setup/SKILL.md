@@ -137,7 +137,7 @@ runs**, pinned to it, so the suite exercises the planner and DDL surface the mig
 floating tag moves the schema under the suite between runs.
 
 **The migration history runs up, down to the base, and up again, once per session.** That round trip is
-what proves every revision's `downgrade()` reverses its `upgrade()` (`persistence` rule 16), and the suite
+what proves every revision's `downgrade()` reverses its `upgrade()` (`persistence` rule 20), and the suite
 then runs against the schema the history produces. The subprocess runs from the distribution root, where
 `alembic.ini` sits, and hands the container's DSN to the migration environment under the variable that
 environment reads — the data-access component's own, `MYAPP_POSTGRES_DSN` (`flat-project-setup`).
@@ -163,7 +163,7 @@ filterwarnings = ["error"]
 Both loop-scope lines are load-bearing (rule 8).
 
 No placeholder connection string is set for collection: nothing in the service builds settings or an
-engine at import (`flat-persistence` rule 7), so an unset variable fails only the code that reads it.
+engine at import (`flat-persistence` rule 6), so an unset variable fails only the code that reads it.
 
 The container library is imported **inside** the fixture that needs it, not at module scope, so a
 pure-unit collection pays nothing for it.
@@ -198,7 +198,7 @@ pure-unit collection pays nothing for it.
   stops testing that the migrations produce the schema the code expects — which is the drift the history
   exists to prevent. Keep the history wherever the migrations are themselves an artifact the project
   ships. **For a store the service reads but another project owns, it is the only choice**: the service
-  carries no history for those tables (`flat-persistence` rule 8), so `_migrated_db` becomes one
+  carries no history for those tables (`persistence`, its schema-ownership row), so `_migrated_db` becomes one
   `metadata.create_all` over the tables the service declares, and the round trip of rule 1 lapses.
 
 ## Rules

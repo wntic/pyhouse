@@ -119,7 +119,7 @@ on every run.
 Where a method takes a batch, the in-batch duplicate test hands one call two foos with one reference. One
 statement touching one row twice is refused by Postgres (SQLSTATE `21000`), and the translator would
 report it as the store being unavailable; one row carrying the later foo's name is what collapsing the
-batch by its key first guarantees (`persistence` rule 13).
+batch by its key first guarantees (`persistence` rule 17).
 
 The translation test forces the write through the public method a caller uses, refused by the store
 itself — a NUL character, which a Postgres text value cannot hold, is SQLSTATE `22021` in the

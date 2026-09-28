@@ -41,7 +41,7 @@ special-cased.
 **`pluralize`** (table names) — `y` after a consonant → `ies`; trailing `s`/`x`/`z`/`ch`/`sh` → `+es`;
 else `+s`. So `Category` → `categories`, `Box` → `boxes`, `Foo` → `foos`. Table name =
 `pluralize(snake(aggregate))`. That a table name is derived by one rule declared once is `persistence`
-rule 11; this is the hexagonal family's rule. Singular and plural table names are both long-standing
+rule 13; this is the hexagonal family's rule. Singular and plural table names are both long-standing
 house styles with no winner, so the catalogue picks one, and a project that prefers singular changes
 this one derivation rule, not every table.
 
