@@ -134,8 +134,9 @@ its `httpx.AsyncClient` exactly as the process definition does — base URL and 
 place of settings — and **requests the stub**, so no test can hold the client without the interception
 under it (rule 7). `assert_all_called=False` is rule 6, stated where the stub is made. Where the process
 definition hands the transport an auth flow (`flat-layered` rule 13), the fixture builds it the same
-way, and the tests pin the refresh: one rejected credential is renewed once and the request resent, and
-a second rejection raises the catalogue error.
+way, and the tests pin the refresh: one rejected credential is renewed once and the request resent
+carrying the renewed credential, read back from the route's call record; a second rejection, and a
+credential request that itself fails, raise the catalogue error.
 
 `fetch_foos` sends nothing beyond its method and path, so the route being hit is its request pin
 (rule 3); a method that sends a query, a header or a body reads it back from
@@ -169,9 +170,9 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
 1. **The transport is stubbed, never the client** (`test-principles`, the substitution ladder, rung 2),
    and no `Protocol` is extracted for it (`flat-layered` rule 3). A test that patches
    `FooClient.fetch_foos` is testing nothing; the parsing and translation under test live inside it.
-2. **Assert the translation, not just the type** — the catalogue class, its `context` keys where the
-   call takes an input, and the chained cause, never the message (`test-principles`, *Assert strength*
-   recipe 6; `exception-catalog` rules 8 and 11).
+2. **Assert the translation, not just the type** — `test-principles`, *Assert strength* recipe 6: the
+   catalogue class, its `context` keys where the call takes an input (`exception-catalog` rule 11), and
+   the translated failure as its cause, never the message.
 3. **Pin what the client sent beyond its route** — `test-principles`, *Intercepting HTTP* rule 5
    (`route.calls.last.request` here).
 4. **A 200 the client cannot parse is part of its contract** — `test-principles`, *Intercepting HTTP*
@@ -183,8 +184,7 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
    `test-principles`, *Intercepting HTTP* rule 3. The shared router therefore turns its own
    all-called check off (`assert_all_called=False` here).
 7. **No test reaches a real host** (`test-principles`, *Intercepting HTTP* rule 1), and a stubbed body
-   is copied from the system's documented or recorded response — never written from the client's own
-   model, nor read live.
+   is copied from a documented or recorded response (*Intercepting HTTP* rule 7), never read live.
 
 ## Hard stops
 
