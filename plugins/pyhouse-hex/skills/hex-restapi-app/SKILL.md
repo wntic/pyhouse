@@ -152,7 +152,7 @@ def register_error_handlers(app: FastAPI) -> None:
                 code=exc.code,
                 message=str(exc),
                 context=exc.context,
-            ).model_dump(),
+            ).model_dump(mode="json"),
         )
 
     @app.exception_handler(RequestValidationError)

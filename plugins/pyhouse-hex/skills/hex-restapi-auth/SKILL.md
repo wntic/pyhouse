@@ -320,7 +320,7 @@ from myapp.domain.exceptions import MyappError, UnauthorizedError, ValidationErr
                 code=exc.code,
                 message=str(exc),
                 context=exc.context,
-            ).model_dump(),
+            ).model_dump(mode="json"),
             headers=headers or None,
         )
 ```
