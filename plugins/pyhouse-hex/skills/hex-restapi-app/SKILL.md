@@ -51,6 +51,7 @@ from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
 
 from myapp.containers import create_container
+from myapp.logging import configure_logging
 
 from .error_handler import UnexpectedErrorMiddleware, register_error_handlers
 
@@ -64,6 +65,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 
 def create_app(container: AsyncContainer | None = None) -> FastAPI:
+    configure_logging()
     app = FastAPI(title="myapp", lifespan=_lifespan)
 
     app.add_middleware(UnexpectedErrorMiddleware)
@@ -75,6 +77,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
 
 Notes:
 
+- **`configure_logging()` runs first**, before the composition root is built. The server builds the app by calling this factory, so this is where the process's one logging setup runs (`python-logging` rule 3), which `hex-project-setup` lays. The setup also takes over the server's own loggers, which the server configured before calling the factory, so their records reach the one stream in its format. A test builds the app once per test, so a second call replaces what the first configured rather than adding to it.
 - **`lifespan` is the resource-teardown hook**, and closing the composition root is the whole of it. Each long-lived handle declares its own release beside its construction (`hex-wiring`) and runs in reverse order of construction, so this file never names a datastore and never grows a per-app variant; an app that opens nothing disposable still closes cleanly.
 - **The catch-all, `UnexpectedErrorMiddleware`, is added first**, which makes it the innermost layer: every declared middleware wraps it, so the failure it logs carries the logging context bound outside it, and its `500` leaves through every layer, CORS included, like any other response.
 - **Where browsers call the API cross-origin, add `CORSMiddleware` next, with every value from settings** — never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
