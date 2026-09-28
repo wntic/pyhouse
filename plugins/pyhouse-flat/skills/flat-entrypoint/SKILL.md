@@ -95,7 +95,7 @@ async def run_once(client: FooClient, repository: FooRepository) -> RunResult:
 needs belongs in the same pure step. The body writes what one call returns; a source whose size the
 service does not control is read and written in bounded batches instead (rule 10).
 
-**The work opens no transaction.** The repository class owns its own (`flat-persistence` rule 3); a
+**The work opens no transaction.** The repository class owns its own (`persistence` rule 1); a
 body that opens a connection has moved data access out of the one package allowed it.
 
 It returns an **aggregate**, not the rows (rule 5): the rows are in the datastore, and a trigger that
@@ -210,8 +210,8 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, calls the work with it, and
 acknowledges the message once the run succeeds or returns it when the run fails (rules 11, 15), the run
-writing values taken from the message, never the clock, and ordering them by the stamp `flat-persistence`
-rule 12 names. A broker the service publishes to is an external system with a package of its own
+writing values taken from the message, never the clock, and ordering them by the stamp `persistence`
+rule 16 names. A broker the service publishes to is an external system with a package of its own
 (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
@@ -304,7 +304,7 @@ for rule 9.
     file, an export or a feed is streamed — read, transformed and written in bounded batches — and
     nothing in the process accumulates a whole source: no list of every record, no in-process set of
     every key seen. Deduplicating an unbounded input is the data-access package's job, by the record's
-    key (`flat-persistence` rules 12 and 18), not a set's. The size that fits today is the size that exhausts the
+    key (`persistence` rules 15 and 17), not a set's. The size that fits today is the size that exhausts the
     process the day upstream grows.
 11. **A progress marker is written only after the data it confirms is durably written.** A cursor, a
     watermark or a checkpoint for a unit of work is written after that unit's own writes have returned,
