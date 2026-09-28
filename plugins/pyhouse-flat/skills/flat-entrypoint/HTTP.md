@@ -85,7 +85,8 @@ is for a caller the network already trusts.
 
 ## The work the route calls
 
-`src/myapp/foo_record.py` — framework-free, named for its work. `FooDelivery`, in `schemas/`, is
+`src/myapp/foo_record.py` — framework-free, named for its work, writing through the repository's
+single-row `record` (`flat-persistence`, `REPOSITORY.md`). `FooDelivery`, in `schemas/`, is
 `FooPayload` plus the `changed_at: AwareDatetime` the sender assigned to the change, the same on every
 redelivery of it; the work writes that instant, never the clock, so a redelivery writes what the row
 already holds (rule 9):
@@ -99,7 +100,7 @@ __all__ = ["record_foo"]
 
 async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
     foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.changed_at)
-    await repository.record_batch([foo])
+    await repository.record(foo)
     return RunResult(recorded=1)
 ```
 
