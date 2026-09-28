@@ -1831,3 +1831,32 @@ is named only as an example of a fuller shell.
 of `flat-entrypoint` rule 8, the containment template and the old rule 8 of `flat-test-run-function`,
 and the "run function" definition in `flat-layered`, from the parent of the commits that added this
 entry; restoring `HTTP.md` and the structlog lines from the same parent.
+
+### D130 — A command block run once stays; a routine is a sentence; `git-branching` binds no forge
+Taken by the maintainer (backlog item 31), with a later decision on `git-branching`. `meta-skill-author`'s
+"earns its place by being copied" bullet now states the criterion D121 left implicit: a command block is
+a template only when a project runs it once, as written — a bootstrap such as `flat-project-setup`'s
+`alembic init`; commands repeated per change or per release become a sentence beside the rule, given
+inline and whole, with any flag that keeps them from prompting. By it, `flat-persistence/SETUP.md`'s
+`alembic revision --autogenerate` / `alembic upgrade head` block and `python-versioning`'s tag block
+became sentences — the tag keeps its `-m`, since `git tag -a` without one opens an editor — and the
+pre-release ladder went inline. The shapes paragraph no longer says shapes "add and remove nothing": a
+shape adds no canonical section, and `CONVENTIONS.md` points at the table instead of restating it.
+**D121's keep of the `gh api` block is reversed.** The team works on GitLab as well as GitHub, most
+members have no `gh` CLI, and the skill says it assumes no forge. The block is gone, the heading drops
+"on GitHub", the recorded block says "request" and the lead-in tells the repository to write its own
+default branch and its forge's word for it, and one sentence names the three settings the forge enforces
+once (rule 2): merge commits only, the branch deleted when it lands (rule 6), and `main` protected — no
+push straight to it and no request merged until its checks pass, which on GitLab is a separate setting.
+The fold command became `git -c sequence.editor=:`, which runs in any shell, and the recorded merge line
+says each commit is cleaned up before it lands. The review also changed: `install-commit-hook` warns
+that the shared install silences hooks a manager such as pre-commit wrote into the clone;
+`python-versioning`'s template shows `0.1.0` with no `requires-python` (the floor is `python-style`'s),
+its `version.py` exists only where a program reports its version, and rule 5 keeps an existing tag
+series' spelling; `SETUP.md` drops what `flat-project-setup` and its own rules 16 and 20 already state,
+says a revision is reviewed against rule 16 and drafted against a database only its author uses; and
+`flat-project-setup` no longer pins `--rev-id 0001`.
+**Reverse by:** from the parent of the commits that added this entry, restoring the `alembic revision` /
+`alembic upgrade` block in `SETUP.md`, the tag block, ladder, `requires-python` and `1.4.0` in
+`python-versioning`, the "sequence of commands" bullet and the shapes sentence in `meta-skill-author` and
+`CONVENTIONS.md`, and `git-branching`'s `gh api` block, "on GitHub" heading and "pull request" wording.

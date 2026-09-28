@@ -16,6 +16,10 @@ commit message is refused at commit time rather than found later.
   already there. Offer to install into that directory instead. Where a hook manager owns it and
   regenerates its files (husky, for one), a copy placed there is overwritten — add the hook through the
   manager's own configuration, calling this file, and say so.
+- **Hooks already in the clone's own hooks directory** (`git rev-parse --git-path hooks`, ignoring
+  `*.sample`) while `core.hooksPath` is unset → the shared install silences them, because git then
+  reads only `.githooks/`. Name them; where a manager wrote them (pre-commit, for one), add this hook
+  through its configuration as above, or install local.
 
 ## 2. Choose where it goes
 
@@ -95,6 +99,6 @@ closed; leave it unset when it does not.
 ## What this does not cover
 
 The hook validates commits written in this clone. **If the project squash-merges, the message that
-reaches the mainline is the merge request's title, which no local hook sees** — that check belongs in
+reaches the mainline is the request's title, which no local hook sees** — that check belongs in
 CI or in the forge's own settings. Say so when installing into a repository that squashes, rather
 than leaving the impression that the mainline is now guarded.

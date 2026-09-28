@@ -29,31 +29,29 @@ One depends on the answer:
 - Refusing a malformed message at commit time → `/install-commit-hook`. It checks a message's shape,
   not which branch it lands on.
 
-## Template — short-lived branches off one mainline, every commit kept, on GitHub
+## Template — short-lived branches off one mainline, every commit kept
 
 What the repository records, where contributors read — a `CONTRIBUTING` file, an agent instructions
-file:
+file — writing its own default branch for `main`, and its forge's word (merge request, pull request)
+for "request", where they differ:
 
 ```markdown
 ## Branching
 
 - `main` is the mainline. It always builds and passes; releases are tags on it.
-- Every change reaches `main` through a pull request whose checks pass.
-- A pull request lands with a merge commit, keeping every commit. Squash and rebase merging are off.
+- Every change reaches `main` through a request whose checks pass.
+- A request lands with a merge commit, keeping every commit, so each is cleaned up before it lands —
+  fixups folded, work in progress reworded. Squash and rebase merging are off.
 - A branch carries one change, starts from current `main`, and is deleted once it lands.
 ```
 
-The forge enforcing it, once:
-
-```bash
-gh api -X PATCH repos/{owner}/{repo} \
-  -F allow_merge_commit=true -F allow_squash_merge=false -F allow_rebase_merge=false \
-  -F delete_branch_on_merge=true
-```
+The forge enforces the block with three repository settings, made once (rule 2): merge commits only,
+with squash and rebase merging off; the branch deleted when it lands (rule 6); and `main` protected —
+no push straight to it, and no request merged until its checks pass.
 
 A fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before the request lands
-by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<mainline>` after `git fetch` (rule 4), so
-the fold is made against the mainline as it now stands; the empty editor accepts the folded plan
+by `git -c sequence.editor=: rebase -i --autosquash origin/<mainline>` after `git fetch` (rule 4), so
+the fold is made against the mainline as it now stands; the no-op editor accepts the folded plan
 without opening one. Before git 2.44, `--autosquash` without `-i` is silently ignored and the
 fixups land as they are.
 
