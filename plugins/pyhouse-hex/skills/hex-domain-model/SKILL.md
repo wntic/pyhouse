@@ -194,7 +194,9 @@ Inside this skill, pick by what the thing *is*:
 
 - A thing with a UUID and a lifecycle → **Entity**.
 - An immutable type defined by its content, or a primitive that carries a constraint, a unit or a rule → **Value object**.
-- A closed set of named values → **Enum**.
+- A closed set of named values → **Enum**. A set whose values are loaded at runtime, from
+  configuration or a store, is not closed → a **Value object**, with a lookup repository behind a port
+  (`hex-domain-ports`).
 - A read-side parameter bag passed to a repository `list`/`count` → **Filter record**.
 - An env-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable
   variant** of a value object, not a service and not a settings class.
@@ -310,13 +312,8 @@ and imports, including the module-level predicate function above.
 
 ## Hard stops
 
-- Asked for a frozen object defined by its content, with no identity → stop, model it as a value object; `id: UUID` plus mutation over time → stop, model it as an entity.
-- A constraint, a unit or a format rule sits on a bare `str`, `int` or `Decimal` field and is checked at the call site → stop, model the value as a value object and check the invariant in its `__post_init__`.
 - Asked for behaviour that needs another aggregate's state → stop, use `hex-domain-service`.
 - Asked for repository methods or persistence on any of these → stop, use `hex-domain-ports` for the interface and `hex-persistence` for the adapter.
-- Asked for runtime-extensible "enum" values loaded from config or a database → stop, model it as a value object plus a lookup repository.
 - Asked for a filter-record method that translates the filter to SQL → stop, use `hex-persistence`.
 - A filter record is asked to validate cross-aggregate state, or to range-check its own fields → stop, use `hex-application`.
-- One filter needs both `limit`/`offset` and `cursor` → stop, pick one with the user.
-- `created_at` / `updated_at` are put on an entity → stop, project the DB-managed row timestamps into a read-model DTO instead.
 - Asked for enum values persisted to a SQL column → stop, use `hex-persistence` for the column type and its mapping; the enum still belongs here.

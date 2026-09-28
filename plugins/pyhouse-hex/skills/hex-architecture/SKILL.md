@@ -219,64 +219,37 @@ subsections beneath give the reasoning and the judgement calls.
    stdlib and third-party libraries** — that last allowance is the layer's whole purpose, and the table
    above grants it. Neither imports the other, and neither imports an entrypoint. Only entrypoint
    packages may import all three.
-3. **Check no import cycle exists** between modules, subpackages or layers.
+3. **Check no import cycle exists** between modules, subpackages or layers. A cycle always signals a
+   layering violation: fix the structure, never paper over it with a type-checking-only or in-function
+   import.
 4. **Check each new module against the placement table** — pure logic in `domain/`, a rule needing a port
-   in `domain/` as a domain service, orchestration in `application/`, anything touching a datastore,
-   filesystem, HTTP API or SDK in `infrastructure/`, anything that knows a transport in an entrypoint.
+   in `domain/` as a domain service, orchestration, id generation and business-event logging in
+   `application/`, anything touching a datastore, filesystem, HTTP API or SDK in `infrastructure/`,
+   anything that knows a transport in an entrypoint.
 5. **Check every port is a `typing.Protocol` in `domain/<subdomain>/`**, one per module, named
    `I<Thing>Repository` or `ICan<Verb>`.
 6. **Check every handler constructor annotates a protocol type, not a concrete class.** `repo:
    IFooRepository`, never `repo: FooRepository`.
 7. **Check no adapter inherits from the protocol it satisfies.** Satisfaction is structural and is
-   checked at the injection site.
+   checked at the injection site; an adapter that imports the protocol it satisfies leaves an unused
+   import and gains nothing.
 8. **Check the composition root is the only module importing concrete adapters** from
    `infrastructure/` — one module, `src/myapp/containers.py` — and that it binds them at startup, not at
-   import time.
+   import time. Entrypoints resolve handlers from the container per operation and never construct an
+   adapter themselves.
 9. **Check no module-level singleton holds a stateful resource** — a connection, an engine, a client.
    Inject it.
 10. **Check every cross-layer import is absolute** and every within-layer import is relative.
 11. **Check who logs against the layer table** — nothing in `domain/` or `infrastructure/`;
-    `application/` logs successes only, apart from a failed undo under compensation.
-
-### Direction
-
-- `application/` may import from `domain/` only, beside stdlib and the logging library. Never
-  `infrastructure/`, never an entrypoint.
-- `infrastructure/` may import from `domain/` only. Never `application/`, never an entrypoint.
-- `domain/` may not import anything outside `domain/` and stdlib.
-- Entrypoints may import all three core layers.
-- **No circular imports.** Ever — between modules, between subpackages, between layers.
+    `application/` logs successes only, apart from a failed undo under compensation. Every other error
+    propagates to the entrypoint's central handler.
 
 ### Where new code goes
 
-- Pure logic depending only on data → `domain/`.
-- A rule needing a repository or a capability → `domain/`, as a domain service.
-- Orchestration of domain plus protocols, id generation, logging business events → `application/`.
-- Anything talking to a database, file system, HTTP API or SDK → `infrastructure/`.
-- Anything that knows about HTTP, CLI or queues → an entrypoint package.
-
-If you are tempted to import `infrastructure` from `application`, you are wiring a concrete adapter where
-a protocol belongs — define the protocol in `domain/` instead. If you are tempted to import `application`
-from `infrastructure`, you have an adapter that knows a use case — move the orchestration up to a handler.
-
-### Composition root
-
-- Wiring lives in `src/myapp/containers.py`, a module of the distribution's root package. It is the only place that imports concrete
-  adapters from `infrastructure/` and binds them to the domain protocol types `application/` handlers
-  consume.
-- Wire dependencies at startup, not at import time. Never a module-level singleton for a stateful object
-  — a database connection, an HTTP client. Inject them.
-- Entrypoints resolve handlers from the container at request time; they do not construct adapters.
-
-### Protocols vs concrete
-
-- A port is a `typing.Protocol` in `domain/<subdomain>/`, named `I<Thing>Repository` for persistence or
-  `ICan<Verb>` for a capability, one per module.
-- Application handlers depend on **domain protocol types** in their constructor signatures
-  (`repo: IFooRepository`), never on concrete classes (`repo: FooRepository`).
-- Infrastructure adapters **do not explicitly inherit** from protocols — satisfaction is structural, and
-  checked at the injection site. An adapter that imports the protocol it satisfies leaves an unused
-  import and gains nothing.
+If you are tempted to import `infrastructure` from `application`, you are wiring a concrete adapter
+where a protocol belongs — define the protocol in `domain/` instead. If you are tempted to import
+`application` from `infrastructure`, you have an adapter that knows a use case — move the orchestration
+up to a handler.
 
 ### Worth a firewall
 
@@ -312,19 +285,7 @@ layer-scoped test per forbidden import:
 
 ## Hard stops
 
-- `infrastructure/` imports `application/` → stop, wrong direction; move the orchestration up to a
-  handler.
-- `application/` imports `infrastructure/` → stop, that wires a concrete adapter where a protocol
-  belongs; define the protocol in `domain/` and inject the adapter.
-- `domain/` imports anything outside `domain/` and stdlib → stop, the domain layer is data plus
-  invariants only.
-- A circular import between modules, subpackages or layers → stop, it always signals a layering
-  violation. Fix the structure; do not paper over it with `TYPE_CHECKING` or an in-function import.
-- An entrypoint module instantiates a concrete adapter directly → stop, `containers.py` is the only place
-  that binds concrete classes.
-- A log call in `domain/` or `infrastructure/`, or an error logged in `application/` other than a failed
-  undo under compensation → stop, the error propagates to the central handler.
-- An adapter explicitly inherits the protocol it satisfies → stop, satisfaction is structural; remove the
-  import.
+- Whether hexagonal is the right family for this service is still open → stop, use
+  `architecture-choice` before placing anything.
 - A packaging or import rule is being decided here → stop, `python-packaging` owns those; this skill
   adds only the layer-specific re-export rules above.

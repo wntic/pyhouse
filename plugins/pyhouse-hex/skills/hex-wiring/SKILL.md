@@ -86,7 +86,8 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 
 - **Settings are constructed only at a composition root and bound there by type** (`python-settings`
   rule 13) — never in a handler, an adapter, an entrypoint module or another settings class. An adapter
-  receives the settings object it reads; nothing below the root reads the environment.
+  receives the whole settings object it reads, by type, as a constructor parameter; nothing below the
+  root reads the environment.
 - **The process's container module is the composition root.** Every concrete class is bound to the
   protocol it satisfies there and **only** there. Domain and application code never instantiates a
   concrete type.
@@ -143,16 +144,13 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ### Naming and access
 
-- Factory and attribute naming → `naming`. These names are internal to the composition root: nothing
-  outside it may reach a binding by name.
+- Factory and attribute naming → `naming`. These names are internal to the composition root.
 
 ### Settings lifecycle in the composition root
 
 - Each `*Settings` is process-lifetime, built by a provider method that constructs it with no arguments
   — the provider method builds it, so a missing required variable fails when the container is first
   resolved.
-- A consumer that needs the whole settings object declares it as a constructor parameter and receives it
-  by type.
 - A **tunable value object** that needs a single field gets a factory of its own, which reads the field
   off the settings object and passes it. Never pass raw settings fields around otherwise.
 
@@ -202,18 +200,8 @@ distribution's root package, and the root `__init__.py` does not re-export it �
 ## Hard stops
 
 - Asked for an env read, a new settings field, or a default on one → stop, use `python-settings`.
-- A settings class constructed outside a composition root → stop, bind it in `containers.py` and let
-  the consumer receive it by type (`python-settings` rule 13).
-- An adapter is asked to take individual fields instead of the settings object → stop, pass the
-  whole object. A single field is extracted only by the factory of a tunable value object.
 - Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill
   runs first.
-- Asked to bind a repository at process lifetime → stop, repositories are per-operation.
-- Asked for conditional wiring per environment → stop, that is a settings-value problem, not a wiring
-  problem.
-- Asked to import a `restapi/` symbol into `containers.py` → stop, wrong dependency direction.
-- The composition root is asked to hand out a unit of work → stop, it hands out the factory callable;
-  the unit of work's lifetime is the handler's `async with` (`hex-persistence`).
 - The composition root is asked to bind a store connection or transaction handle per operation, so a
   repository can be injected with one outside a unit of work → stop, nothing would then own the commit;
   use the standalone repository form, which opens and owns its own (`hex-persistence` for a relational

@@ -1,7 +1,7 @@
 # hex-restapi-endpoint — file-transfer routes
 
 Topic file of `hex-restapi-endpoint`, read before writing an upload or a download route. It states rules
-24–32, which hold for file-transfer routes only, and binds them — with rule 19 of `SKILL.md` — to
+24–33, which hold for file-transfer routes only, and binds them — with rule 19 of `SKILL.md` — to
 **FastAPI**. Everything else in `SKILL.md` applies unchanged: the parameter order, the advertised codes,
 the route ordering that puts a literal path such as `/import` above `/{id}`.
 
@@ -110,6 +110,9 @@ async def export_foos(
 31. **Serving a path on disk.** All file content originates from the handler's bytes.
 32. **A response model on a streaming route.** It is meaningless and misdescribes the response in the
     published document.
+33. **A response header a cross-origin page must read, left unexposed.** Where the app declares CORS,
+    the route that sets such a header adds it to the CORS middleware's exposed headers
+    (`hex-restapi-app`) in the same change.
 
 ## Inlined typing / import rules
 
@@ -119,11 +122,5 @@ async def export_foos(
 
 ## Hard stops
 
-- The route is asked to compute a size limit, or to read an upload with no bound where no size-cap
-  middleware is declared → stop, rule 28.
-- The route is asked to parse the file content → stop, that is the handler's job; the route passes
-  bytes.
-- A download response header is added without adding it to the CORS `expose_headers` setting, where the
-  app declares CORS → stop, change both together.
-- A `413` is advertised with no size-cap middleware declared → stop, `error_responses(...)` rejects it at
-  import and nothing produces it.
+- The route is asked to parse the file content → stop, that is the handler's job (`hex-application`);
+  the route passes bytes.
