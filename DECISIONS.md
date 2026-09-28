@@ -1778,3 +1778,29 @@ reversing the renumberings above and every citation updated for them, removing `
 and `flat-entrypoint` rule 16, restoring `pyhouse-reviewer` Step 3's "a hard stop is its rule's trigger"
 paragraph and the `CLAUDE.md` sentence — and, unless rule 7 is reversed with it, the next review will
 find every restored stop a restated rule.
+
+### D128 — Five read-through items closed: the row mapper, hex's migration bootstrap, template comments, a fake unit of work, `domain/uow/`
+Taken by the maintainer (backlog items 28–30, 32 and 33). **28:** `python-packaging` owns helper
+placement and wins — a helper that reads no `self` is a private module function after the class.
+`hex-persistence` rule 11 and `REPOSITORY.md` rule 23 no longer make a single-use helper a private
+method, and `_row_to_entity` is a module function after `FooRepository`, shared with the session form.
+**29:** `hex-project-setup` block B now states what `flat-project-setup` does: `script.py.mako` takes
+the house annotation forms, `import sqlalchemy as sa` ahead of `from alembic import op`, and loses the
+tool's comments; `env.py` disposes the engine in a `finally`, refuses offline mode and configures
+logging as the service's other entrypoints do (`python-logging` rule 3); rule 6 states the three.
+**30:** the template comments `python-style` does not sanction are gone — the check-constraint suffix
+note in `hex-persistence/REVISION.md`, the read/mutation labels in `hex-restapi-auth/ROUTES.md`, the
+`409` notes in `hex-restapi-endpoint`, the SQLSTATE gloss in `flat-persistence/REPOSITORY.md` and the
+explanation after `hex-project-setup`'s `noqa` (no suppression requires a reason) — each instruction
+moved into prose; the `cast` reason in `hex-persistence/REPOSITORY.md` and the invariant note in
+`hex-restapi-schema` are a single short *why* each and stay. **32:** `hex-test-application-handler`
+Fakes rule 10 obliges a fake unit of work that hands out the fake repositories, records its commit and
+exposes writes only on commit, with the test pinning that and that an exception commits nothing — a
+rule, not a template, since most handlers take no unit of work. **33:** `hex-conventions`' derivation
+table gains the unit-of-work protocol's row, `domain/uow/i_unit_of_work.py`, as `UNIT_OF_WORK.md`
+places it.
+**Reverse by:** restoring the private-method wording in `hex-persistence` rule 11 and `REPOSITORY.md`
+rule 23 with `_row_to_entity(self, …)` inside the class (and then reconciling `python-packaging`,
+which would lose); restoring block B's generated-as-is revision template, the unguarded dispose and the
+env.py with no offline check or logging call, and deleting `hex-project-setup` rule 6; putting the
+removed comments back in the templates; deleting Fakes rule 10; deleting the `hex-conventions` row.
