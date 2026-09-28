@@ -26,11 +26,7 @@ file either way — the reason for a single file is that the catalog stays audit
 that reason is not architectural.
 
 The **shape** below is identical in every case: **`code` and the inherited `context` are the whole
-shape.** The catalogue knows no transport. An HTTP status, a process exit code or a gRPC status is the
-outcome one transport gives an error, so it is mapped from the class at the boundary that speaks that
-transport — resolved through the class's ancestry, so a refinement answers as its nearest mapped parent
-and a class nothing maps answers as the root — and a service with two transports keeps two maps, never
-two vocabularies on one class.
+shape** — the catalogue knows no transport (rules 6 and 13).
 
 ## When to use vs. neighbours
 
@@ -44,8 +40,9 @@ two vocabularies on one class.
   project's own data-access code, under this skill's rules 8–11.
 - Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
   plugin, same relationship.
-- Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
-  `pyhouse-hex` plugin, which references the new `code`.
+- The status a new class answers with on an HTTP route, and advertising it → the boundary's map
+  (`hex-restapi-app`, then `hex-restapi-endpoint`, in the `pyhouse-hex` plugin; `flat-entrypoint`'s
+  `HTTP.md`, in `pyhouse-flat`).
 - Where the error is logged and by whom → `python-logging`.
 - Whether an undo step's own failure may be stopped while another failure propagates → this skill,
   **Swallowing, stopping, and best-effort compensation**; the handler shape that runs the undo is the
@@ -221,10 +218,9 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 4. **Subclasses do not override `__init__` or add fields.** Structured detail goes through the inherited
    `context` dict at the raise site.
 5. **Subclass attributes use bare assignment.** `code = "X"`, not `code: str = "X"`.
-6. **The catalogue carries nothing a transport reads.** A status, an exit code or any other transport
-   outcome is mapped from the class at the boundary that speaks that transport, so the classes stay
-   importable by every part of the codebase and a second transport adds a second map rather than a
-   second field on every class.
+6. **The catalogue carries no transport's outcome.** A status, an exit code or any other outcome is
+   mapped from the class at the boundary that speaks that transport, so a second transport adds a
+   second map rather than a second field on every class.
 7. **`code` values are `SCREAMING_SNAKE_CASE`**, and every one is unique across the catalog.
 8. **Every library exception is translated at its boundary, with `from exc`.** A third-party type
    escaping the module that called the library is a leak, and a translation without `from exc` loses
@@ -277,7 +273,8 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
   (`hex-persistence`, in `pyhouse-hex`, or `flat-persistence`, in `pyhouse-flat`), or, with no family
   installed, the project's own data-access code, under this skill's rules 8–11; they name the target
   class from here.
-- Rendering a caught error as a response, or writing the central handler that does it → stop, use
-  `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`).
+- Rendering a caught error as an HTTP response, or writing the central HTTP handler → stop, use
+  `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`). Any other
+  transport's rendering and outcome map follow rule 13 here.
 - Deciding where an error is logged and by whom → stop, use `python-logging`.
 - Choosing what an error class is called → stop, use `naming`.
