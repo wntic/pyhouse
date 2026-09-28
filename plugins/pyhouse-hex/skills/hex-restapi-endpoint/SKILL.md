@@ -1,6 +1,6 @@
 ---
 name: hex-restapi-endpoint
-description: Use when adding or changing one REST route, or creating a resource's router file `restapi/routers/<resource>.py` — thin JSON routes, multipart upload, streaming download, dishka handler injection, route ordering, and which error codes the route advertises. Owns the per-operation code sets and advertise-only-what-you-produce. The pydantic models are `hex-restapi-schema`; the auth dependency and the `401` / `403` that follow it are `hex-restapi-auth`.
+description: Use when adding or changing one REST route, or creating a resource's router file `restapi/routers/<resource>.py` — thin routes over application handlers, a route that carries a file, dishka handler injection, route ordering, and which error codes the route advertises. Owns the per-operation code sets and advertise-only-what-you-produce. The pydantic models are `hex-restapi-schema`; the auth dependency and the `401` / `403` that follow it are `hex-restapi-auth`.
 paths: ["**/restapi/**", "**/api/**"]
 ---
 
@@ -14,7 +14,7 @@ decorator draws on; only `SKILL.md` is loaded automatically.
 
 ## When to use vs. neighbours
 
-- One new endpoint or modification of an existing one, including the multipart-upload and streaming-download kinds → this skill.
+- One new endpoint or modification of an existing one, including one that carries a file → this skill.
 - Pydantic request/response schemas this route maps to and from → `hex-restapi-schema`.
 - The `responses=error_responses(...)` declaration and which codes belong in it → this skill, in the sibling `CONTRACTS.md`.
 - Defining a new error class whose status then becomes valid for `error_responses(...)`, and boundary translation → `exception-catalog`.
@@ -76,8 +76,7 @@ _MAX_PAGE_SIZE = 100
 router = APIRouter(prefix="/foos", tags=["foos"], route_class=DishkaRoute)
 ```
 
-The skeleton imports what the CRUD routes below use; a file-transfer route adds the names its own
-template shows.
+The skeleton imports what the CRUD routes below use.
 
 **The route templates below are auth-free** — every route in an app that declares no auth, and the
 public routes of one that does. An authenticated route is derived by `hex-restapi-auth`'s `ROUTES.md`.
@@ -188,7 +187,7 @@ use.
 
 FastAPI resolves a request against the routes **in declaration order**, which makes the reachability
 obligation (rule 18) a property of where a route sits in the file. A literal sibling of `/{id}` —
-`/import`, `/export`, any collection-level action — declared after `/{id}` is captured by it: the
+`/search`, or any other collection-level action — declared after `/{id}` is captured by it: the
 literal matches `{id}`, fails its UUID validation, and the request answers `422` before any handler
 runs; the literal route is never reached.
 
@@ -198,13 +197,6 @@ routes for `/{id}`.
 
 A framework that resolves by specificity instead has no such ordering to get wrong: the obligation is
 unchanged, and nothing in the file's layout can violate it.
-
-### File transfer
-
-**Read `TRANSFER.md`** in this skill's directory before writing an upload or a download route. It
-carries the multipart upload template, the streaming download with its filename helper, the one
-sanctioned route-body `try/except` for a mixed multipart + JSON body, and rules 24–33 with the hard
-stops that hold for file-transfer routes only; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
 
@@ -267,21 +259,35 @@ handler: FromDishka[ListFoosHandler],
 
 ### What never goes in a route
 
-19. **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is the mixed multipart+JSON parse in `TRANSFER.md`.
+19. **No `try/except`.** Domain exceptions propagate to the central error handler. The only sanctioned exception is rule 26.
 20. **No logging.** Which layer logs is `hex-architecture`'s; the event's shape is `python-logging`'s.
 21. **No business logic, no policy checks, no domain construction beyond mapping body→command.** Constructing the entity is the handler's job.
 22. **No infrastructure imports.** Only `application/*` and `domain/*` types.
 23. **No `Depends` factories at module level.** The one exception is the auth pair (`hex-restapi-auth`), and even there `require_role` is called inline at each route rather than memoized.
 
-### File-transfer routes
+### Routes that carry a file — only where the resource has one
 
-Rules 24–33 are stated in `TRANSFER.md`, beside the templates they govern; they hold for upload and download routes only.
+24. **The route moves the bytes and does nothing else with them.** An upload's bytes go onto the
+    command unparsed; a download's bytes, or its stream, come back from the handler untransformed.
+    Parsing, generating and storing them are the handler's and an adapter's (`hex-application`,
+    `hex-capability-adapter`); the route never writes to or serves from a path on disk.
+25. **An upload is bounded before the framework reads it.** The framework reads the whole body before
+    the route runs, so the bound sits ahead of it — the app's request-size middleware on the declared
+    length, whose status the route then advertises, or the edge; a bounded read in the route only keeps
+    an over-size file out of memory.
+26. **A body part the framework does not validate is validated in the route, and its rejection
+    translated.** A JSON document carried in a form field beside a file is parsed with its wire model,
+    and the model library's error becomes the catalogue's validation class, naming the fields by
+    location and never echoing a value. This is rule 19's one exception; a JSON-only route never needs it.
+27. **A binary response states its media type, and the published document describes it as that type,
+    never as a JSON model.** A header a cross-origin page must read is exposed where the app declares
+    CORS (`hex-restapi-app`).
 
 ## Inlined typing / import rules
 
 - `Annotated` from `typing`; `UUID` from `uuid`.
 - `DishkaRoute`, `FromDishka` from `dishka.integrations.fastapi`. `Request` is **not** imported unless a route genuinely reads the raw request; reaching the composition root is not such a reason.
-- `APIRouter`, `Query` from `fastapi`; `Response` from `fastapi.responses`. A file-transfer route's own imports are in `TRANSFER.md`.
+- `APIRouter`, `Query` from `fastapi`; `Response` from `fastapi.responses`.
 - Application handlers imported through the subpackage (`from myapp.application.foos import ...`) — see `python-packaging` for the collapsed-import convention.
 - `error_responses` from `..schemas`.
 - Full annotations on every parameter and on the return type; no `from __future__ import annotations` (`python-style`).

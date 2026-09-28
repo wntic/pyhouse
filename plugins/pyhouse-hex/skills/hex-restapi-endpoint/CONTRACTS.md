@@ -35,7 +35,6 @@ A route puts its row's set into `responses=error_responses(...)`.
 | Delete (`{id}` path param) | `404, 422`, plus `409` where another aggregate can reference it (in use) |
 | Collection action (a literal path segment) | `422`, plus whatever its handler raises |
 | Lookup / detect (a read with input) | `404, 422` |
-| Multipart upload | whichever set applies; add `413` only where a size-cap middleware is declared |
 
 Where `Foo` references another aggregate by id, create advertises `404` for an id that does not exist
 (update already carries it).

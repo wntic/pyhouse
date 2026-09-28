@@ -25,7 +25,7 @@ is a *transport* rule — a single role-rank check — belongs here.
 ## When to use vs. neighbours
 
 - The app shell, middleware, the central error translator and `schemas/errors.py` → `hex-restapi-app`.
-- A route's signature and body, including multipart and streaming routes → `hex-restapi-endpoint`.
+- A route's signature and body → `hex-restapi-endpoint`.
 - Which error codes a route advertises for non-auth reasons → `hex-restapi-endpoint`, in its sibling
   `CONTRACTS.md`; registering a status a middleware introduces → `hex-restapi-app`, *Registering a
   middleware's status*.

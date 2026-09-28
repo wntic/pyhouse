@@ -24,7 +24,7 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - Middleware class naming and the `restapi/middleware/` package layout → `naming` and `python-packaging`.
 - The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-app-invariants`.
 
-**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes and the upload/download kinds in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no declared middleware** — no CORS, no request-size cap, no request id. The notes under `main.py` say where they are wired in, and the middleware section below is the form each one takes.
+**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no declared middleware** — no CORS, no request-size cap, no request id. The notes under `main.py` say where they are wired in, and the middleware section below is the form each one takes.
 
 ## Template(s) — FastAPI, dishka-wired, structlog logging
 
