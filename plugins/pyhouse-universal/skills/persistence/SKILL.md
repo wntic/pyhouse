@@ -44,15 +44,15 @@ before reading the rules:
 | Does the store have… | If no, these do not apply |
 |---|---|
 | multi-statement transactions | rules 1, 2 — nothing spans statements, so nothing declares an owner |
-| named constraints | rule 7, and the constraint name in rule 6 — there is no name for three artifacts to agree on |
+| named constraints, and a driver that reports the violated one's name | rule 7, and the constraint name in rule 6 — without named constraints there is no name for three artifacts to agree on; where the driver reports no name, the migration still takes its names from the convention and the translator branches on the error's code |
 | typed columns and constraints | rules 11, 13 |
 | secondary indexes | rule 12 |
 | a conditional or conflict-resolving write — a conflict clause, a `MERGE`, a conditional put | rule 15 — resolution is then the store's merge-time mechanism (rule 17), and rule 16 needs a single writer per key |
 | a schema this program owns | rules 10–13, 19, 20 — they are the owner's; the program declares only what it reads and carries no migration history for it |
 | a schema versioned by migrations | rules 19, 20 |
-| two versions of the program running against it at once — a rolling deploy, several processes on one shared store | rule 19's expand-then-contract split — a single process upgrades the store where it starts, before its first statement, and one revision carries the whole change |
+| two versions of the program running against it at once — a rolling deploy, or processes of different releases sharing one store | rule 19's expand-then-contract split — a single process upgrades the store where it starts, before its first statement, and one revision carries the whole change; such a program refuses to open a store stamped with a revision it does not know |
 
-**Rules 3–6, 8–10, 14, 16–18 and 21 hold whatever kind of store it is**, SQL or not — a columnar store,
+**Rules 3–6, 8, 9, 14, 16–18 and 21 hold whatever kind of store it is**, SQL or not — a columnar store,
 a document store, a key-value store or a vendor-managed index. A store answering *no* to every question
 is not a poor fit for this skill: the rules that lapse lapse because their subject does not exist.
 
@@ -126,7 +126,8 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
 13. **A table name is derived from the record it holds by one rule the project declares once** —
     singular or plural, the same derivation for every table — so a name is derivable rather than
     remembered, and no table's name is chosen on its own.
-14. **Data-access code creates no table, collection or index at runtime; the schema's owner does.**
+14. **Data-access code creates no table, collection or index as a side effect of reading or writing;
+    the schema changes only through its owner's migrations (rule 19).**
 
 ### Conflicts, ordering and reads
 
@@ -140,9 +141,8 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
     out of order, each carries the record's ordering stamp — a version or an instant fixed when the
     change was made or observed, the same on every delivery of it, never the time of a delivery attempt
     or of the write — and the write is conditional on it: a guarded conflict clause, a conditional put,
-    or, where the store resolves at merge time, keeping the newest by it (rule 17). An input stamped
-    older than what it would replace never replaces it, in the row or in a batch collapsed by key
-    (rule 17). A store that can make no write conditional needs a single writer per key.
+    or, where the store resolves at merge time, keeping the newest by it (rule 17). A store that can
+    make no write conditional needs a single writer per key.
 17. **Deduplication and conflict resolution belong to the store's own write-time or merge-time
     mechanism, never to an application read-before-write per row.** Where the write can resolve a
     conflict, rule 15 says how; where the store deduplicates at merge time, the store is configured for
