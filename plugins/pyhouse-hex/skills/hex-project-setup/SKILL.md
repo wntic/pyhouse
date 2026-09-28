@@ -64,7 +64,7 @@ each added with `uv add` or `uv add --dev`.
 
 Every entry is a name; a floor is written only at a known breaking boundary with the API beside it
 (`python-toolchain` rule 9), and an adapter's SDK takes one on exactly the same terms. Under the
-bindings here that case is real three times. The FastAPI one, whose line is written only with a FastAPI
+bindings here that case is real twice. The FastAPI one, whose line is written only with a FastAPI
 entrypoint:
 the app-invariant and auth-probe tests (`hex-test-app-invariants`, `hex-test-restapi-auth`) walk the
 app's resolved operations through `fastapi.routing.iter_route_contexts`, which first ships in 0.137.2,
@@ -76,7 +76,6 @@ so the floor names the release that shipped the API rather than a major:
 [project]
 dependencies = [
     "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the app-invariant tests rely on
-    "pyjwt>=2.10",  # rejects a non-string sub, which the token verifier answers 401 on
 ]
 
 [dependency-groups]
@@ -89,10 +88,6 @@ The dev one: the integration suite shares one event loop across the session (`he
 whose `CONFTEST.md` carries the `[tool.pytest.ini_options]` block that sets it), and
 `asyncio_default_test_loop_scope`, the key that puts the tests on that loop, first ships in
 `pytest-asyncio` 0.26.
-
-The SDK one, written only where `hex-restapi-auth`'s PyJWT verifier is: the verifier answers a subject
-that is not a string with 401 rather than building an identity from it, because the library refuses
-one, and it first does so in 2.10.
 
 ## B. Relational migration bootstrap (write-once) — Alembic over SQLAlchemy and Postgres
 

@@ -140,8 +140,9 @@ key it published; the settings-side allowlist validator below is what keeps that
 not describe a caller — a claim missing, a subject of the wrong type. Each of those is an unverifiable
 credential and answers 401 like a bad signature, never a 500. Here `require` turns an absent claim into
 the library's own `InvalidTokenError`, and PyJWT (2.10 and later) rejects a non-string `sub` the same
-way. **A token that states no expiry is refused rather than trusted for ever**: the library checks `exp`
-only when the claim is present, so the verifier requires it.
+way. The library is declared with that floor, `pyjwt>=2.10`, wherever this verifier is
+(`python-toolchain` rule 9). **A token that states no expiry is refused rather than trusted for ever**:
+the library checks `exp` only when the claim is present, so the verifier requires it.
 
 **`reason` is one of a fixed set the app owns** — `expired`, `invalid`, `missing_credentials`, and
 `invalid_claims` in a rank app — never the library's exception class name: `context` reaches the
@@ -180,13 +181,13 @@ class JwtSettings(BaseSettings):
 ```
 
 The allowlist is `python-settings` rule 12's rejection validator: an `alg` of `none`, or `HS256` against
-a published public key, verifies happily and forges every identity in the system, so the only place to
-catch it is process startup. A service that is its own issuer may allow one HMAC algorithm with a secret
+a published public key, verifies happily and forges every identity in the system, so the settings refuse
+it when they are built, before any token is verified. A service that is its own issuer may allow one HMAC algorithm with a secret
 key instead, never beside a published public key. Where the deployment can pass the key only on one
 line, restoring its newlines is `python-settings` rule 12's normalization. The allowlist, the
 `Authorization` header and the RFC-7235 challenge are this scheme's own — an opaque token, a session
-cookie and a gateway header have none of them — which is why they sit with this binding (this skill's
-rules 3 and 8).
+cookie and a gateway header have none of them — which is why they sit with this binding; the header is
+read in one place (rule 3) and the challenge carries the scheme alone (rule 8).
 
 ## The route dependencies
 
