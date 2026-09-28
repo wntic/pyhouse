@@ -2011,3 +2011,31 @@ verifier needs fail before the app reports ready.
 `hex-test-restapi-auth` and old rule 21 of `hex-test-capability-adapter`; the numbering of
 `hex-restapi-auth`, `hex-restapi-endpoint`, `hex-restapi-schema`, `hex-test-restapi-auth` and
 `hex-test-restapi-endpoint`; and the index lines.
+
+### D136 — The test obligations any store or HTTP test carries are `test-principles`'s; the flat test skills keep their binding
+Taken under backlog item 26 (batch 1: the four `flat-test-*` skills), after a four-lens audit, a
+four-lens verification and a check of the merged tree. What any project's store or HTTP test obliges
+lived in both families, worded apart; it now lives once in `test-principles`: a *Datastore contract*
+(the store is read back — by the test's own query or the subject's own read under test — never through
+the write's return; a constraint name the translator branches on is pinned; the plain write and, where
+the code has one, the conflict or update path are both tested; a forced driver error on each kind of
+call asserts the catalogue class; the subject arranges its own rows; an older write after a newer one
+leaves the newer; a batch with two inputs sharing a key keeps the right one, newer stamp first), three
+more *Intercepting HTTP* rules (pin what the route does not already match on; a malformed success body
+fails as the catalogue exception where the subject parses one; a stubbed body is copied from the
+upstream's documented or recorded response), the translated failure asserted as the cause, the
+one-event-loop rule, the isolation choice (a fresh store where cheap, rollback, wipe or namespace,
+decided by who owns the transaction) and no store client built in a test save one aimed at nothing. The
+flat and hex test skills point at these without renumbering. The flat skills gained what the audit found
+missing — the ordering guard tested from both directions, rows committed before a run that opens its own
+connection reads them, a signed route tested with a bad and a missing signature, a redelivered unit
+returned rather than acknowledged, a credential refresh pinned on the renewed token and a failed login,
+a run's effect as rows, a file or recorded requests — and lost the FastAPI wrapper template (one
+sentence: one test service in five has the trigger) and rules that restated `flat-entrypoint`. The flat
+repository template's batch collapse now keeps the newest stamp, so it agrees with a guard wherever one
+is added (the guard itself stays prose, per D131), and `flat-layered` names `auth_flow` as the method a
+refreshing `httpx.Auth` overrides. Batch 2 (the remaining hex test skills) stays open under item 26.
+**Reverse by:** from the parent of the commits that added this entry, restoring the four `flat-test-*`
+skills, the `test-principles` sections named above, the hex test skills' rule text in place of the
+pointers, the repository template's positional collapse and `flat-layered`'s refresh sentence; each move
+is its own commit.
