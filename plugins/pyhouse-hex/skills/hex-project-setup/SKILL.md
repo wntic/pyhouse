@@ -36,7 +36,8 @@ each added with `uv add` or `uv add --dev`.
   dependency-injection library, and the structured logger. Every hexagonal program reads configuration,
   composes its adapters at one root, and logs — a worker, a batch job and a single-command CLI included.
   `myapp.logging.configure_logging` is the service's one logging setup (`python-logging` rule 3): where
-  the service has none yet, it is written there once, and every entrypoint calls it before anything logs.
+  the service has none yet, it is written there once, safe to run again, and every entrypoint calls it
+  before anything logs.
 - **Entrypoint substrate** (whatever the entrypoint packages the project actually has require, and
   nothing else): an HTTP entrypoint brings its web framework, that framework's server, and the
   validation library its wire schemas are written in; a queue or scheduled entrypoint brings its broker
