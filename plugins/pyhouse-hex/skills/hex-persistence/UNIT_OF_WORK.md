@@ -55,12 +55,10 @@ In `src/myapp/infrastructure/postgres/sqlalchemy_unit_of_work.py`:
 from types import TracebackType
 from typing import Self
 
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from myapp.domain.exceptions import UpstreamError
-
 from .repositories import BarSessionRepository, FooSessionRepository
+from .repositories.errors import DRIVER_ERRORS, translate
 
 __all__ = ["SqlAlchemyUnitOfWork"]
 
@@ -97,8 +95,8 @@ class SqlAlchemyUnitOfWork:
     async def commit(self) -> None:
         try:
             await self._session.commit()
-        except (DBAPIError, OSError) as exc:
-            raise UpstreamError("the datastore could not commit the unit of work", {}) from exc
+        except DRIVER_ERRORS as exc:
+            raise translate(exc, {}) from exc
 ```
 
 Each member is `REPOSITORY.md`'s unit-of-work-managed form, and the class does not inherit from
@@ -112,8 +110,12 @@ ordinary correctness too:
   check where the factory is bound.
 - The session is closed in a `finally`, so a failing `rollback()` cannot leak the connection.
 
-`commit()` is a public method like any repository's, and the commit is where a deferred failure or a
-dropped connection surfaces, so it translates the driver's error too (`persistence` rule 4).
+`commit()` is a public method like any repository's, so it translates the driver's error too
+(`persistence` rule 4), through the translator its members share — `repositories/errors.py`, which
+exists as soon as two repositories do and makes `DRIVER_ERRORS` and `translate` public when they move
+there (`REPOSITORY.md` rule 12). The commit is where a deferred constraint is checked, so an
+`IntegrityError` there is a refusal of the data and reaches the conflict fallback ahead of the
+unavailable arm; a dropped connection or a pool timeout becomes the unavailable class.
 
 The session and its repositories are built in the constructor, since the factory makes a fresh instance
 per `execute`. Creating a session opens no connection and begins its transaction lazily, so there is no

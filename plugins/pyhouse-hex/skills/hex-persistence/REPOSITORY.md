@@ -29,7 +29,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import CursorResult, RowMapping, Select, func, select
-from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError, TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from myapp.domain.exceptions import (
@@ -45,7 +45,7 @@ from ..tables.foos import foos_table
 
 __all__ = ["FooRepository"]
 
-_DRIVER_ERRORS = (DBAPIError, OSError)
+_DRIVER_ERRORS = (DBAPIError, OSError, PoolTimeoutError)
 
 _SORT_COLUMNS = {
     FooSort.CREATED_AT_DESC: foos_table.c.created_at.desc(),
@@ -139,7 +139,7 @@ def _row_to_entity(row: RowMapping) -> Foo:
     return Foo(id=row["id"], name=row["name"], note=row["note"])
 
 
-def _translate(exc: DBAPIError | OSError, context: dict[str, object]) -> Exception:
+def _translate(exc: DBAPIError | OSError | PoolTimeoutError, context: dict[str, object]) -> Exception:
     if isinstance(exc, IntegrityError):
         return _map_integrity_error(exc)
     return UpstreamError("the datastore could not complete the operation", context)
@@ -174,8 +174,7 @@ standalone form too. Only the constructor and the method bodies differ: methods 
 `self._session.execute(...)` directly and **never call `commit()`** — the unit of work owns the
 transaction. The module-level helpers (`_DRIVER_ERRORS`, `_SORT_COLUMNS`, `_row_to_entity`,
 `_translate`, `_map_integrity_error`, `_apply_filter`) are shared, not copied: once both forms exist they
-move to one module both adapters import, so the constraint-name map stays single — and the translation
-moves the same way once a second repository exists (`persistence` rule 5).
+move to one module both adapters import, so the constraint-name map stays single.
 
 ```python
 class FooSessionRepository:
@@ -226,11 +225,15 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 ## Rules — translation
 
 12. **Every driver error is translated on every public method, a read included** (`persistence`
-    rule 4): the whole session block sits inside the `try`, catching `DBAPIError` and `OSError` —
-    asyncpg reports a refused connection as the socket's `OSError`, which SQLAlchemy lets through
-    unwrapped. An `IntegrityError` goes through `_map_integrity_error`; anything else becomes the
+    rule 4): the whole session block sits inside the `try`, catching `DBAPIError`, `OSError` — asyncpg
+    reports a refused connection as the socket's `OSError`, which SQLAlchemy lets through unwrapped —
+    and the pool's own `TimeoutError`, raised when no connection frees within the pool's timeout, which
+    is neither. An `IntegrityError` goes through `_map_integrity_error`; anything else becomes the
     catalogue's unavailable class with the key it was addressing. `_map_integrity_error`'s closing
-    return is the fallback `exception-catalog` rule 10 requires.
+    return is the fallback `exception-catalog` rule 10 requires. A second repository on this store moves
+    `_DRIVER_ERRORS`, `_translate` and `_map_integrity_error`'s closing fallback into one module both
+    import, `repositories/errors.py`; only an adapter's own constraint branches stay with it
+    (`persistence` rule 5).
 13. **`context` carries `"field"` and `"constraint": constraint`**, the name the driver reports, which is
     the full conventional one (`persistence` rule 6).
 14. **A branch compares `constraint` with the full name the `Table`'s convention generates — `==`, never
