@@ -95,6 +95,6 @@ closed; leave it unset when it does not.
 ## What this does not cover
 
 The hook validates commits written in this clone. **If the project squash-merges, the message that
-reaches the mainline is the merge request's title, which no local hook sees** — that check belongs in
+reaches the mainline is the request's title, which no local hook sees** — that check belongs in
 CI or in the forge's own settings. Say so when installing into a repository that squashes, rather
 than leaving the impression that the mainline is now guarded.
