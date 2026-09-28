@@ -85,7 +85,7 @@ test skills after the production skill each one follows has settled.
 `hex-persistence` rule 11 and its `REPOSITORY.md` rule 23 say a helper used by exactly one method is a
 private method, which contradicts `python-packaging`'s "a helper that does not need `self` is a module
 function, not a private method". Decide which holds and align the other. The standalone template's
-`_row_to_entity(self, …)` never reads `self`, so as copied it already trips `python-packaging`'s hard stop.
+`_row_to_entity(self, …)` never reads `self`, so as copied it already breaks `python-packaging` rule 2.
 
 #### 29. `hex-project-setup`'s migration bootstrap trails what `flat-project-setup` now states
 Block B takes `script.py.mako` as `alembic init` writes it, which renders `typing.Union` forms and an
