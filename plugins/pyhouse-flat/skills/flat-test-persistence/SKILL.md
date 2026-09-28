@@ -1,6 +1,6 @@
 ---
 name: flat-test-persistence
-description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the declared update set from both sides, the generated constraint name where the translator branches on it, an empty update set resolving to a no-op where a write declares one, a crossed chunk boundary where a write chunks, the catalogue exception a driver error is translated into on a write and, where the class has one, on a read, a cursor page edge splitting rows that share one timestamp where a run pages, two inputs with one key where a method takes a batch, and, where one write spans statements, its atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
+description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the upsert's update set from both sides, the catalogue exception a driver error is translated into on a write and a read, and each write's conditional contract where it has one — an ordering-stamp guard, an empty update set, a chunk boundary, two inputs with one key in a batch, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat Test — Data-Access Contract
@@ -17,15 +17,11 @@ own exception.
 Where several distributions share one data-access library, the files sit with that library's own tests
 instead — `myschema/tests/integration/` — and nothing else changes.
 
-**Which isolation fixture applies follows from the declared transaction owner** (`persistence`
-rule 1), never from a guess:
-
-- Every assertion query, and any callable that **accepts** a connection → the **`conn`** fixture.
-  Rolled back, nothing reaches disk.
-- The callable under test **opens and owns** its transaction — a repository class → pass the **`engine`**
-  fixture to its constructor and let `truncate_all` clean up. Assertions read through `conn`, **except
-  where the subject's own rollback is what is under test**: there the assertion opens a fresh connection,
-  because `conn` sits in a transaction of its own and cannot observe another connection's rollback.
+**The isolation fixture follows the declared transaction owner** (`test-principles` reliability
+rule 2): `conn` for every assertion query and for a callable that accepts a connection; the `engine`
+fixture handed to the repository class's constructor, with `truncate_all` cleaning up, for one that
+opens its own — asserting through a fresh connection only where its own rollback is under test
+(rule 10).
 
 ## When to use vs. neighbours
 
@@ -59,9 +55,12 @@ from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
 from myapp.schemas import Foo, FooReference
 
+_DAY_1 = datetime(2024, 1, 1, tzinfo=UTC)
+_DAY_2 = datetime(2024, 1, 2, tzinfo=UTC)
 
-def _a_foo(reference: str = "alpha", name: str = "first") -> Foo:
-    return Foo(reference=FooReference(reference), name=name, observed_at=datetime(2024, 1, 1, tzinfo=UTC))
+
+def _a_foo(reference: str = "alpha", name: str = "first", observed_at: datetime = _DAY_1) -> Foo:
+    return Foo(reference=FooReference(reference), name=name, observed_at=observed_at)
 
 
 async def test_a_second_write_of_one_reference_updates_the_set_and_keeps_the_rest(
@@ -72,10 +71,10 @@ async def test_a_second_write_of_one_reference_updates_the_set_and_keeps_the_res
     await repository.record_batch([_a_foo(name="first")])
     first_id = (await conn.execute(select(foo_table.c.id))).scalar_one()
 
-    await repository.record_batch([_a_foo(name="second")])
+    await repository.record_batch([_a_foo(name="second", observed_at=_DAY_2)])
 
-    rows = (await conn.execute(select(foo_table.c.id, foo_table.c.name))).all()
-    assert [tuple(row) for row in rows] == [(first_id, "second")]
+    rows = (await conn.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.observed_at))).all()
+    assert [tuple(row) for row in rows] == [(first_id, "second", _DAY_2)]
 
 
 # only where a method takes a batch
@@ -107,9 +106,10 @@ async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: 
 The tests drive the class a caller uses and assert through `conn`, a query against the store.
 
 The first test pins the declared update set from both sides in one comparison: one row, not two; the
-name the set covers changed; the id it does not cover kept the value the first write minted. Where the
-translator branches on a constraint's name, a test pins that name on a plain insert and one exercises
-the conflict clause against the same constraint (rules 2 and 3).
+name and stamp the set covers changed; the id it does not cover kept the value the first write minted.
+The second write carries the later stamp, so the test holds with an ordering guard on the write and
+without one. Where the translator branches on a constraint's name, a test pins that name on a plain
+insert and one exercises the conflict clause against the same constraint (rules 2 and 3).
 
 Where a write chunks, the chunk-boundary test constructs the class with `chunk_size=2` against five foos
 deliberately: it crosses the boundary three times with an uneven last chunk, which is where an off-by-one
@@ -118,19 +118,17 @@ on every run.
 
 Where a method takes a batch, the in-batch duplicate test hands one call two foos with one reference. One
 statement touching one row twice is refused by Postgres (SQLSTATE `21000`), and the translator would
-report it as the store being unavailable; one row carrying the later foo's name is what collapsing the
-batch by its key first guarantees (`persistence` rule 17).
+report it as the store being unavailable; one row carrying the name of the foo the collapse keeps is
+what collapsing the batch by its key first guarantees (`persistence` rule 17).
 
 The translation test forces the write through the public method a caller uses, refused by the store
 itself — a NUL character, which a Postgres text value cannot hold, is SQLSTATE `22021` in the
 data-exception class — so no constraint had to be invented for the test. Where the class has a read,
 one test forces that read to fail, and the error it raises is the catalogue's.
 
-Where a write resolves a conflict by doing nothing, the file gains the no-op test of rule 5. Where a
-write spans statements, it gains the atomicity test of rule 11 — its last statement forced to fail
-through a constraint the schema declares, and the absence of the earlier statements' rows asserted
-through a **fresh connection**, never through `conn`, which holds an open transaction of its own and
-could not observe another connection's rollback either way.
+Where a write resolves a conflict by doing nothing, the file gains the no-op test of rule 5; where it
+is guarded on an ordering stamp, the out-of-order test of rule 14; where it spans statements, the
+atomicity test of rule 10.
 
 ## Other bindings
 
@@ -151,15 +149,13 @@ could not observe another connection's rollback either way.
 
 ## Rules
 
-1. **Assert through a query against the store, never through the write's return value alone.** A bulk
-   write returns nothing, and where a write reads keys back its return value is what the statement
-   said, which is the thing under test. What the datastore holds afterwards is the fact.
-2. **Where the translator branches on a constraint's name, pin that name, not just the exception
-   type.** The name comes from the metadata naming convention, and asserting it catches a migration that
-   dropped the intended index.
+1. **This level runs against the real store, substitutes nothing below the repository class, and
+   asserts through a query against the store** — `test-principles`, *Datastore contract* rule 1. A bulk
+   write returns nothing, and where a write reads keys back its return value is the thing under test.
+2. **Where the translator branches on a constraint's name, pin that name** — `test-principles`,
+   *Datastore contract* rule 2.
 3. **A unique constraint the translator branches on is tested on the plain insert *and* on the
-   conflict-resolution path.** A partial or expression index can be honoured by an insert and silently
-   not matched by the conflict clause; only exercising both paths separates those two outcomes.
+   conflict-resolution path** — `test-principles`, *Datastore contract* rule 3.
 4. **Test the declared update set from both sides.** The second write must change what the set names
    *and* leave every column outside it alone — that is the whole contract of an upsert, and both are
    pinned, whether in one comparison or two.
@@ -167,39 +163,37 @@ could not observe another connection's rollback either way.
    no-op that raises nothing and changes nothing; a write that meets a key already recorded and must
    leave it alone relies on exactly that.
 6. **Where a write chunks, cross a chunk boundary with a deliberately small chunk size and an uneven
-   last chunk**, never with production-sized input. Five rows at a chunk size of two crosses it three times; proving the same
-   thing at the production size costs thousands of rows on every run.
-7. **A test that forces a driver error asserts the catalogue exception the data-access package produces,
-   not the driver's own type.** Translation is mandatory, so the driver's class is precisely what must
-   never escape — a test expecting it pins the defect instead of the contract. Where the class has a
-   read, it is forced to fail once too: a translation written only around the writes leaves every read
-   leaking the driver's type, and no write test notices. The failure is forced through something the store itself refuses, never
-   through a value that only happens to be rejected today.
-8. **A timestamp the store assigns is asserted as `test-principles` reliability rule 4 states**; under the
-   rollback-scoped `conn` every write shares one transaction, and so one fixed clock.
-9. **A repository-class test constructs the class with the `engine` fixture**, never with the production
-   engine factory — that builds a second pool the suite never disposes (`flat-test-integration-setup`).
-10. **Ordering is asserted only where the query guarantees it.** Add an explicit order clause to any
-    query whose result is compared to a list; a relational store promises no insertion order, and a test
-    that passes on two rows fails on two hundred.
-11. **Where one write spans statements, it has an atomicity test** that forces its last statement to fail
+   last chunk**, never with production-sized input. Five rows at a chunk size of two crosses it three
+   times; proving the same thing at the production size costs thousands of rows on every run.
+7. **A forced driver error asserts the catalogue exception the data-access package produces, on a write
+   and, where the class has one, on a read** — `test-principles`, *Datastore contract* rule 4. A read
+   with no input the store can refuse is forced through an engine pointed at an address nothing listens
+   on, built and disposed within the test.
+8. **Where the store assigns a timestamp, assert it as `test-principles` reliability rule 4 states.**
+9. **Ordering is asserted only where the query guarantees it.** Add an explicit order clause to any
+   query whose result is compared to a list; a relational store promises no insertion order, and a test
+   that passes on two rows fails on two hundred.
+10. **Where one write spans statements, it has an atomicity test** that forces its last statement to fail
     through a constraint the schema declares, expects the narrowest catalogue exception that constraint
     produces, and asserts through a fresh connection that the earlier statements left nothing behind —
     never through `conn`, whose own transaction cannot observe another connection's rollback. Without it
     a refactor splitting the statements into two transactions passes every test.
-12. **Where a run walks a table in pages, a test crosses a page edge where the ordering column ties.**
-13. **Where a method takes a batch, it is tested with two inputs that share one key, in one call.** The store may refuse to
-    resolve one row twice in a statement; assert one row holding the later input's values.
-
-14. **This level runs against the real store and substitutes nothing below the repository class.** It
-    exists because only the real backend can answer what these rules ask; a mock that spares the
-    container answers none of them.
-15. **A test arranges every row it asserts on, as the service's declared type written through the
-    repository class, or through the schema's own table object.** Rows another test wrote are gone —
-    isolation wipes everything between tests; hand-written SQL drifts from the schema silently; and a
-    builder returning a mapping of column values bypasses the declared type (`python-style`).
+11. **Where a run walks a table in pages, a test crosses a page edge where the ordering column ties.**
+12. **Where a method takes a batch, it is tested with two inputs that share one key, in one call**,
+    asserting one row holding the input the collapse must keep. The store may refuse to resolve one row
+    twice in a statement. Where the write is guarded on an ordering stamp, give the newer stamp to the
+    first input, so a collapse that keeps the last input fails.
+13. **A test arranges every row it asserts on as `test-principles` *Datastore contract* rule 5 states** —
+    the service's declared type written through the repository class, or through the schema's own table
+    object where the class has no write for it — and, where the subject opens its own connection,
+    committed before it runs (`flat-test-integration-setup`).
+14. **Where writes for one key can arrive out of order, a test writes the newer record and then the
+    older, with stamps that differ, and asserts the newer's values remain** (`persistence` rule 16). A
+    builder that fixes the stamp makes every write equally new and pins nothing.
 
 ## Hard stops
 
 - The constraint under test does not exist in a migration yet → stop, add the revision first
   (`flat-persistence`); a test asserting a constraint the schema never had passes for the wrong reason.
+- The adapter sits behind a domain repository protocol → stop, use `hex-test-repository-contract`, in
+  the `pyhouse-hex` plugin.
