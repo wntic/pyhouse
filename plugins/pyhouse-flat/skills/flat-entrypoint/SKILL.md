@@ -210,8 +210,9 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, calls the work with it, and
 acknowledges the message once the run succeeds or returns it when the run fails (rules 11, 15), the run
-writing values taken from the message, never the clock. A broker the service publishes to is an external system with a
-package of its own (`flat-layered` rule 14).
+writing values taken from the message's content, never the clock or a timestamp the broker sets on each
+delivery attempt (`flat-persistence` rule 12). A broker the service publishes to is an external system
+with a package of its own (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 
@@ -302,8 +303,8 @@ for rule 9.
 10. **An input whose size the service does not control is processed in bounded memory.** An upstream
     file, an export or a feed is streamed — read, transformed and written in bounded batches — and
     nothing in the process accumulates a whole source: no list of every record, no in-process set of
-    every key seen. Deduplicating an unbounded input is the store's job, by its key and its conflict
-    clause (`flat-persistence`), not a set's. The size that fits today is the size that exhausts the
+    every key seen. Deduplicating an unbounded input is the data-access package's job, by the record's
+    key (`flat-persistence` rules 12 and 18), not a set's. The size that fits today is the size that exhausts the
     process the day upstream grows.
 11. **A progress marker is written only after the data it confirms is durably written.** A cursor, a
     watermark or a checkpoint for a unit of work is written after that unit's own writes have returned,
