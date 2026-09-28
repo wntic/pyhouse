@@ -13,13 +13,13 @@ One-shot per project, and everything else in the integration suite depends on it
 
 - Laying either conftest for the first time, or changing a fixture in one → this skill.
 - A repository contract test → `hex-test-repository-contract` (consumes `sf`).
-- An API endpoint test → `hex-test-restapi-endpoint` (consumes `sf` and `real_app`, the REST add-on).
+- An API endpoint test → `hex-test-restapi-endpoint` (consumes `real_app`, the REST add-on, and the store's own fixture where it seeds rows).
 - The cross-cutting OpenAPI / CORS / request-size invariants → `hex-test-app-invariants` (consumes `real_app` directly).
 - A handler test that runs on in-memory fakes and needs no database at all → `hex-test-application-handler`; none of these fixtures apply to it.
 - A capability adapter's own assertions — the respx gateway, the SDK-error translation, the pure-CPU case → `hex-test-capability-adapter`. The session-scoped container its backend needs is still declared here.
 - The signing-key and token-minting fixtures, the authenticated client, and the `jwt_settings` override `container` grows in an auth app → `hex-test-restapi-auth`. Only for an app that declares auth; this skill is complete without it.
 - The route-side auth dependencies themselves → `hex-restapi-auth`.
-- Per-resource row factories (`make_foo`, `foo_id`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
+- Per-resource row factories (`make_foo`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
 - Which scope a fixture takes, which conftest level it belongs at, builders versus fixtures → `test-principles`, the constitution. This skill is the hexagonal artifact that implements it.
 - The same fixtures for a flat-layered service → `flat-test-integration-setup`, in the `pyhouse-flat` plugin. Several hexagonal members of one workspace sharing these fixtures → this skill, under `## Other bindings`.
 - The composition root has no `session_factory` binding, or no way to pass extra providers into it → `hex-wiring` first; the substitution seam is `create_container`'s parameter, not something a test can bolt on.

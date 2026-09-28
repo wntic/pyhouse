@@ -125,6 +125,7 @@ entrypoint, the layer is leaking and the speed budget is gone.
 ### Test naming
 
 - **Test file**: mirror the source file with a `test_` prefix, inside the tests of the distribution that owns it. `src/myapp/foo_summary.py` → `tests/unit/test_foo_summary.py`.
+- **A file whose subject is one operation of a module holding several is named for that operation** — `test_create_foo.py`, not a file per module that gathers every operation's tests.
 - **Test function**: `test_<rule_being_pinned>` in snake_case. `test_assigns_uuid_and_stores`, `test_duplicate_name_raises_conflict`, `test_partial_update_leaves_unspecified_fields_untouched`. The name **is** the spec line — reading the file's `def test_*` list reads as a list of behaviors.
 - **A test file whose subject is the tree, not a module, is named for the property it pins**, because
   there is no source file to mirror — `test_architecture.py` for the static source rules

@@ -150,7 +150,7 @@ auth and never loads it.
 | `hex-test-application-handler` | Handler unit tests for create, PATCH, delete, list and compensation, failure injection, and in-memory repository and capability fakes |
 | `hex-test-repository-contract` | Real-backend repository contracts with relational rollback or client-store namespace isolation |
 | `hex-test-capability-adapter` | Capability adapter tests — a `respx` template for the HTTP gateway; the containerized and pure-CPU flavours in prose, pointing at their worked instances |
-| `hex-test-restapi-endpoint` | Real-app ASGI integration tests, response validation, and per-resource fixtures |
+| `hex-test-restapi-endpoint` | Real-app ASGI integration tests, success-body and error-code assertions, and per-resource fixtures |
 | `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI invariant, plus CORS and request-size checks only where the app configures them |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
 
