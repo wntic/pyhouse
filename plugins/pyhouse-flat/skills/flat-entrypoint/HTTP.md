@@ -104,7 +104,7 @@ async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunRes
 ```
 
 Where an older delivery can arrive after a newer one for the same reference, keeping the newer is the
-conflict clause's job (`flat-persistence` rule 12).
+data-access package's job (`flat-persistence` rules 12 and 18).
 
 ## The process definition — uvicorn
 
