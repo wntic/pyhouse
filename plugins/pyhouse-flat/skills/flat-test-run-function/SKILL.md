@@ -152,7 +152,7 @@ async def http(engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
 
 
 async def test_a_posted_foo_is_recorded(http: httpx.AsyncClient) -> None:
-    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "sent_at": "2024-01-01T00:00:00Z"})
+    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "changed_at": "2024-01-01T00:00:00Z"})
 
     assert response.json() == {"recorded": 1}
 

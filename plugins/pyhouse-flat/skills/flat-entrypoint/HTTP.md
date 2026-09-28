@@ -86,8 +86,9 @@ is for a caller the network already trusts.
 ## The work the route calls
 
 `src/myapp/foo_record.py` — framework-free, named for its work. `FooDelivery`, in `schemas/`, is
-`FooPayload` plus the `sent_at: AwareDatetime` the sender stamped; the work writes that instant, never
-the clock, so an exact redelivery writes what the row already holds (rule 9):
+`FooPayload` plus the `changed_at: AwareDatetime` the sender assigned to the change, the same on every
+redelivery of it; the work writes that instant, never the clock, so a redelivery writes what the row
+already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
@@ -97,7 +98,7 @@ __all__ = ["record_foo"]
 
 
 async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
-    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.sent_at)
+    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.changed_at)
     await repository.record_batch([foo])
     return RunResult(recorded=1)
 ```

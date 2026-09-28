@@ -187,8 +187,9 @@ layout. Only this file is loaded automatically, so open the one you need:
     update columns; writing back the key you matched on is a no-op at best and a statement failure on a
     partial index. "Nothing to update" is a real case and must not become an update with an empty
     assignment list, which is a syntax error. Where an older write can arrive after a newer one for the
-    same key, the update is guarded by the row's ordering stamp — a version or an instant its source
-    assigned, never the writer's clock — so the older never overwrites the newer.
+    same key, the update is guarded by the row's ordering stamp — a version or an instant fixed when the
+    change was made or observed, the same on every delivery of it, never the time of a delivery attempt
+    or of the write — so an input stamped older than what it would replace never replaces it.
 13. **Every surrogate key this service mints is a time-ordered identifier minted application-side by one
     function every table shares.** A random identifier scatters rows inserted together across the index for no benefit, and a
     database-side default means the writer cannot know the id it just created without reading it back.
