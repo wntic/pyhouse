@@ -164,7 +164,9 @@ Stated without a mechanism, because both halves of this file vary: provisioning 
 3. **The expensive resource is per session; the isolated unit is per test.** Starting the store,
    establishing the schema and building the pool happen once per run; what each test owns alone is the
    cheap thing — a transaction, a namespace, a schema. Reversing either end is a defect: a per-test
-   store costs seconds a test, a per-session isolated unit serialises the suite.
+   store that takes seconds to start costs seconds a test, a per-session isolated unit serialises the
+   suite. A file-backed or in-process store created per test is `test-principles` reliability rule 2's
+   cheap case, not a reversal.
 4. **The suite refuses to run against a store nothing declared disposable.** This suite rewrites
    schema and wipes rows, so disposability is **declared** by whatever provisioned the store — never
    deduced from a port number, a substring of the name or any other property of the connection, because

@@ -1,6 +1,6 @@
 ---
 name: flat-test-persistence
-description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the catalogue exception a driver error is translated into on each write and read the class has, and each write's conditional contract where it has one — an upsert's update set from both sides, an ordering-stamp guard from both directions, an empty update set, a chunk boundary, two inputs with one key in a batch, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
+description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the generated constraint name where the translator branches on it, the catalogue exception a driver error is translated into on each write and read the class has, and each write's conditional contract where it has one — an upsert's update set from both sides, an ordering-stamp guard from both directions, an empty update set, a chunk boundary, two inputs with one key in a batch, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat Test — Data-Access Contract
@@ -164,8 +164,8 @@ atomicity test of rule 10.
 6. **Where a write chunks, cross a chunk boundary with a deliberately small chunk size and an uneven
    last chunk**, never with production-sized input. Five rows at a chunk size of two crosses it three
    times; proving the same thing at the production size costs thousands of rows on every run.
-7. **A forced driver error asserts the catalogue exception the data-access package produces, on a write
-   and, where the class has one, on a read** — `test-principles`, *Datastore contract* rule 4. A read
+7. **A forced driver error asserts the catalogue exception the data-access package produces, on each
+   write and read the class has** — `test-principles`, *Datastore contract* rule 4. A read
    with no input the store can refuse takes reliability rule 6's one exception.
 8. **Where the store assigns a timestamp, assert it as `test-principles` reliability rule 4 states.**
 9. **Ordering is asserted only where the query guarantees it.** Add an explicit order clause to any
