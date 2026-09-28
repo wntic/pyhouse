@@ -1,6 +1,6 @@
 ---
 name: exception-catalog
-description: Use when adding an error class or reusing one, translating an SDK or library exception at a boundary, or asking what status code an error maps to. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, and best-effort compensation as the one case a scope that re-raises stops a second failure. Where the error is logged is `python-logging`.
+description: Use when adding an error class or reusing one, or translating an SDK or library exception at a boundary. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, and best-effort compensation as the one case a scope that re-raises stops a second failure. The status a transport answers with is mapped at that transport's boundary, never carried by the class; where the error is logged is `python-logging`.
 ---
 
 # Exception Catalog
@@ -25,12 +25,8 @@ published surface, and a command-line tool puts it above the command modules tha
 file either way — the reason for a single file is that the catalog stays auditable in one read, and
 that reason is not architectural.
 
-The **shape** below is identical in every case: **`code` and the inherited `context` are the required
-shape.** A project may add fields of its own to the root, each read by whatever renders the error and
-added only when something does. The common one is `http_status`, and **its trigger is an HTTP
-entrypoint, not the architecture family** — a service with none carries `code` alone. An added field
-stays on the class, so no `code`→rendering map exists anywhere; a non-HTTP transport annotates by the
-same rule under its own name (a process exit code, a gRPC status), or far more often needs nothing.
+The **shape** below is identical in every case: **`code` and the inherited `context` are the whole
+shape** — the catalogue knows no transport (rules 6 and 13).
 
 ## When to use vs. neighbours
 
@@ -44,24 +40,24 @@ same rule under its own name (a process exit code, a gRPC status), or far more o
   project's own data-access code, under this skill's rules 8–11.
 - Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
   plugin, same relationship.
-- Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
-  `pyhouse-hex` plugin, which references the new `code`.
+- The status a new class answers with on an HTTP route, and advertising it → the boundary's map
+  (`hex-restapi-app`, then `hex-restapi-endpoint`, in the `pyhouse-hex` plugin; `flat-entrypoint`'s
+  `HTTP.md`, in `pyhouse-flat`).
 - Where the error is logged and by whom → `python-logging`.
 - Whether an undo step's own failure may be stopped while another failure propagates → this skill,
   **Swallowing, stopping, and best-effort compensation**; the handler shape that runs the undo is the
   architecture family's (`hex-application`, in the `pyhouse-hex` plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
-- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class, its `code` and any field the project adds to it, not the rendering.
+- Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class and its `code`, not the rendering and not the status a transport maps it to.
 
 ## File shape (the contract every entry obeys)
 
 - `__all__` **after the imports**, alphabetized — `python-packaging` owns module layout and forbids
   `__all__` above the imports. This file is stdlib-only and has no imports, so it opens the file;
   that is the same rule, not an exception to it.
-- The **root** defines `code: str` — and any field the project adds, such as `http_status: int` — with
-  type annotations and defaults, plus the `__init__` accepting `(message, context=None)` and storing
-  `self.context`.
+- The **root** defines `code: str` with its annotation and default, plus the `__init__` accepting
+  `(message, context=None)` and storing `self.context`.
 - Every subclass declares its attributes as **bare class attributes**, no type annotation; the type is
   inherited from the root's annotation.
 - **No subclass overrides `__init__`.** Every subclass automatically accepts `(message, context=None)`.
@@ -99,22 +95,6 @@ class UpstreamError(MyappError):
 
 That is the entire class body of each entry. No `__init__`, no fields, no methods. The classes a
 project needs are its own; these two show the pattern, not a list to copy.
-
-### Optional — a field the project adds
-
-Where the service has an HTTP entrypoint, the root gains one annotated line and a subclass sets the
-value only where it differs from the root's. Nothing else in the file changes:
-
-```python
-class MyappError(Exception):
-    code: str = "MYAPP_ERROR"
-    http_status: int = 500
-
-
-class NotFoundError(MyappError):
-    code = "NOT_FOUND"
-    http_status = 404
-```
 
 ### A custom subclass and its raise site
 
@@ -238,10 +218,9 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 4. **Subclasses do not override `__init__` or add fields.** Structured detail goes through the inherited
    `context` dict at the raise site.
 5. **Subclass attributes use bare assignment.** `code = "X"`, not `code: str = "X"`.
-6. **A field beyond `code` is added only when something reads it, and an inherited value is not
-   restated.** The root gains `http_status` only where the project has an HTTP entrypoint — with no HTTP
-   surface nothing reads it and `code` is the contract — and a subclass sets such a field only where it
-   differs from the parent's.
+6. **The catalogue carries no transport's outcome.** A status, an exit code or any other outcome is
+   mapped from the class at the boundary that speaks that transport, so a second transport adds a
+   second map rather than a second field on every class.
 7. **`code` values are `SCREAMING_SNAKE_CASE`**, and every one is unique across the catalog.
 8. **Every library exception is translated at its boundary, with `from exc`.** A third-party type
    escaping the module that called the library is a leak, and a translation without `from exc` loses
@@ -260,8 +239,10 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
     verbatim. `python-logging` bans the same values from a log line; this is the path around it.
 13. **A caught error is rendered in exactly one place, off the exception's own attributes.** Whatever
     the project shows the outside world — a response body, a message on stderr and an exit code, a
-    failure record — one scope produces it by reading `code`, `str(exc)` and `context`, never by mapping
-    a class onto a rendering, so a new class renders correctly the day it is added. Where the entrypoint
+    failure record — one scope produces it, reading the body off `code`, `str(exc)` and `context`, so a
+    new class renders correctly the day it is added. The transport's outcome is the one thing that scope
+    maps from the class, through the class's ancestry to its nearest mapped parent and else to the
+    root's outcome, so a new refinement answers as its parent until it is mapped itself. Where the entrypoint
     serves HTTP that scope is a central handler — `hex-restapi-app`, in the `pyhouse-hex` plugin, and
     `flat-entrypoint`'s `HTTP.md`, in the `pyhouse-flat` plugin, are examples. A library renders nothing
     and lets the class reach its importer intact.
@@ -292,7 +273,8 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
   (`hex-persistence`, in `pyhouse-hex`, or `flat-persistence`, in `pyhouse-flat`), or, with no family
   installed, the project's own data-access code, under this skill's rules 8–11; they name the target
   class from here.
-- Rendering a caught error as a response, or writing the central handler that does it → stop, use
-  `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`).
+- Rendering a caught error as an HTTP response, or writing the central HTTP handler → stop, use
+  `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`). Any other
+  transport's rendering and outcome map follow rule 13 here.
 - Deciding where an error is logged and by whom → stop, use `python-logging`.
 - Choosing what an error class is called → stop, use `naming`.

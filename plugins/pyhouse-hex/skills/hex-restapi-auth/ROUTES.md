@@ -3,7 +3,7 @@
 Topic file of `hex-restapi-auth`. `SKILL.md` builds the auth layer — the identity, the port, the
 verifier adapter, the two dependencies, the error branch and the wiring — once per project. This file
 is the half consulted **every time a route is written**: which dependency the operation takes, how the
-identity is bound, and which codes the route must then advertise. The obligations are rules 1–13 in
+identity is bound, and which codes the route must then advertise. The obligations are rules 1–12 in
 `SKILL.md`; this is the FastAPI binding of the ones about route shape and advertisement.
 
 
@@ -77,8 +77,8 @@ frozen role; it is the slot this skill fills.
 ### Coordinated advertisement — the join between the dependency and the codes
 
 The advertised codes **follow from the chosen dependency**. Getting them out of step is the failure this
-half exists to prevent — the app-wide invariant that compares the decorator against the OpenAPI spec
-fails on exactly that mismatch.
+half exists to prevent, and no test catches it: the decorator and the published document omit a `401`
+together.
 
 - `Depends(get_current_user)` → the set includes `401`.
 - `Depends(require_role(...))` → the set includes `401` **and** `403`.
@@ -86,5 +86,5 @@ fails on exactly that mismatch.
 
 **Read the base set for the operation in `hex-restapi-endpoint`'s `CONTRACTS.md`, then add the auth
 codes above and nothing else.** Which dependency an operation takes follows from the decision rule at
-the top of this file, not from its shape. In an app with no auth, `error_responses(...)` has no
-`UnauthorizedError` to validate a `401` against, so a stray one raises `ValueError` at import.
+the top of this file, not from its shape. In an app with no auth, `STATUS_BY_ERROR` maps nothing to
+`401`, so a stray one raises `ValueError` at import.

@@ -1,7 +1,6 @@
 ---
 name: hex-restapi-app
-description: Use when bootstrapping a FastAPI shell once per project, or changing request handling shared by every route — `restapi/main.py`, `restapi/error_handler.py`, `restapi/schemas/errors.py`, app lifecycle, CORS, middleware, central error translation. Not one resource's router (`hex-restapi-endpoint`) or its wire models (`hex-restapi-schema`).
-paths: ["**/restapi/**", "**/api/**"]
+description: Use when bootstrapping a FastAPI shell once per project, or changing request handling shared by every route — `restapi/main.py`, `restapi/error_handler.py`, `restapi/schemas/errors.py`, app lifecycle, CORS, middleware, central error translation and the HTTP status each error class maps to. Not one resource's router (`hex-restapi-endpoint`) or its wire models (`hex-restapi-schema`).
 ---
 
 # Hex REST App
@@ -13,22 +12,22 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - Laying the FastAPI entrypoint for the first time, or adding a middleware that wraps every route → this skill.
 - A new router added afterwards, or logic for one route → `hex-restapi-endpoint`, a thin route over an application handler that also `app.include_router(...)`s itself.
 - A resource's request/response models added into the `schemas/` package this skill creates → `hex-restapi-schema`.
-- A new domain exception is plumbed → `exception-catalog` (creates/extends `domain/exceptions.py`); the catalog used by `error_responses(...)` derives from `domain.exceptions.__all__` automatically.
+- A new domain exception is plumbed → `exception-catalog` (creates/extends `domain/exceptions.py`); the HTTP status it answers with is this skill's `STATUS_BY_ERROR`, where a refinement needs no entry of its own.
 - A middleware introducing a new HTTP status → this skill, *Registering a middleware's status* under `## Middleware`.
 - Authenticating a caller or gating a route on a role → `hex-restapi-auth`; route auth is a FastAPI dependency, not a middleware, and it is optional — this shell is complete without it.
 - Which error codes a route advertises → `hex-restapi-endpoint`.
 - Constructing or extending the composition root this shell attaches → `hex-wiring`.
 - Creating the application handlers routes receive from it → `hex-application`.
-- Whether the service should be hexagonal at all → `architecture-choice`; the project substrate, dependencies and initial Alembic setup around this shell → `hex-project-setup`; lint and type-check configuration → `python-toolchain`.
+- Whether the service should be hexagonal at all → `architecture-choice`; the project substrate and dependencies around this shell, and the migration bootstrap where the service owns a relational schema → `hex-project-setup`; lint and type-check configuration → `python-toolchain`.
 - An HTTP service with no rules of its own to protect — internal CRUD over its store, a webhook, a proxy → `flat-entrypoint`'s HTTP trigger shape, in the `pyhouse-flat` plugin, once `architecture-choice` has settled the family.
 - Middleware class naming and the `restapi/middleware/` package layout → `naming` and `python-packaging`.
 - The app-construction smoke test, the CORS-preflight and request-size-limit checks → `hex-test-app-invariants`.
 
-**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes and the upload/download kinds in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no declared middleware** — no CORS, no request-size cap, no request id. The notes under `main.py` say where they are wired in, and the middleware section below is the form each one takes.
+**This is the app shell; per-resource work lands inside it.** Produced once per project. `hex-restapi-endpoint` and `hex-restapi-schema` add their routers and schema modules into the `main.py` / `schemas/` this skill creates, and the advertised codes in `hex-restapi-endpoint` extend routes the shell hosts — so the shell must already exist when they run. That is a structural precondition (the artifacts depend on the shell), not a fixed run-schedule this skill dictates. **The shell presumes no declared middleware** — no CORS, no request-size cap, no request id. The notes under `main.py` say where they are wired in, and the middleware section below is the form each one takes.
 
 ## Template(s) — FastAPI, dishka-wired, structlog logging
 
-**The shell presumes no authentication.** The templates below are the complete file set for a service with no auth at all — an API behind an authenticating gateway, an mTLS-fronted service, an internal worker-facing API, or simply a public one. The translator is a bare `MyappError` dispatcher with no auth import and no auth branch, and there is no `restapi/dependencies.py`: FastAPI's home for shared route dependencies has no occupant until something needs one. An app that **does** declare auth adds the dependency file and one `isinstance` branch to the translator — both owned by `hex-restapi-auth`, which states what changes here and what does not. Whether an app has auth follows from its routes (some endpoint non-anonymous, or a token-verifier capability wired), never from a separate flag.
+**The shell presumes no authentication.** The templates below are the complete file set for a service with no auth at all — a service whose routes need no caller identity: a public API, an internal worker-facing one, or one behind a gateway that passes nothing inward. The translator is a bare `MyappError` dispatcher with no auth import and no auth branch, and there is no `restapi/dependencies.py`: FastAPI's home for shared route dependencies has no occupant until something needs one. An app that declares auth adds what `hex-restapi-auth` states.
 
 ```
 src/myapp/restapi/
@@ -80,8 +79,8 @@ Notes:
 - **`configure_logging()` runs first**, before the composition root is built — the process's one logging setup (`python-logging` rule 3), which `hex-project-setup` lays. The server is pointed at the factory (`uvicorn --factory myapp.restapi.main:create_app`), never at a module-level `app`, which would build the composition root at import; so the setup runs after the server has configured its own loggers and takes them over, and their records reach the one stream in its format. A process that builds the app itself passes the server `log_config=None`. Each test builds the app again, which rule 3 makes safe.
 - **`lifespan` is the resource-teardown hook**, and closing the composition root is the whole of it. Each long-lived handle declares its own release beside its construction (`hex-wiring`) and runs in reverse order of construction, so this file never names a datastore and never grows a per-app variant; an app that opens nothing disposable still closes cleanly.
 - **The catch-all, `UnexpectedErrorMiddleware`, is added first**, which makes it the innermost layer: every declared middleware wraps it, so the failure it logs carries the logging context bound outside it, and its `500` leaves through every layer, CORS included, like any other response.
-- **Where browsers call the API cross-origin, add `CORSMiddleware` next, with every value from settings** — never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
-- **No other middleware is presumed** — not even a request-size cap. A declared one is added after the catch-all, before the error handlers are registered (`## Middleware`). Starlette wraps the last-added outermost, so the last one listed is the request's outermost layer (rule 10).
+- **Where browsers call the API cross-origin, add `CORSMiddleware` last of the declared middleware, with every value from settings** — the outermost of them, so every response, a middleware's rejection included, carries its headers; never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
+- **No other middleware is presumed** — not even a request-size cap. A declared one is added after the catch-all and before CORS, all of them before the error handlers are registered (`## Middleware`). Starlette wraps the last-added outermost, and `setup_dishka` then adds dishka's scope middleware outside every declared one (rule 10).
 - **`setup_dishka` is called last**, after the routers are included: it attaches the composition root to the app (as `app.state.dishka_container`) and installs the middleware that opens and closes a per-request scope. Every construction path must reach it before the app is served.
 - **The `container` parameter is the test seam.** `hex-test-integration-setup`'s `real_app` add-on passes its `container` fixture — a composition root built with test bindings; production passes nothing and gets `create_container()`.
 - **Routers are included between the error handlers and `setup_dishka`.** The template includes none; each `hex-restapi-endpoint` invocation adds its router's import at the top of the file and its own `app.include_router(...)` line there.
@@ -91,13 +90,15 @@ Notes:
 ```python
 import structlog
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from myapp.domain.exceptions import MyappError, ValidationError
+from myapp.domain.exceptions import MyappError, NotFoundError, ValidationError
 
-from .schemas.errors import ErrorResponse
+from .schemas.errors import ErrorResponse, status_for
 
 __all__ = ["UnexpectedErrorMiddleware", "register_error_handlers"]
 
@@ -140,29 +141,35 @@ class UnexpectedErrorMiddleware:
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MyappError)
     async def _handle_domain_error(request: Request, exc: MyappError) -> JSONResponse:
+        status = status_for(exc)
         body = ErrorResponse(code=exc.code, message=str(exc), context=exc.context).model_dump(mode="json")
-        level = log.warning if exc.http_status < 500 else log.error
+        level = log.warning if status < 500 else log.error
         level(
             "request_failed",
             code=exc.code,
-            http_status=exc.http_status,
+            status=status,
             path=request.url.path,
             method=request.method,
             context=body["context"],
         )
-        return JSONResponse(status_code=exc.http_status, content=body)
+        return JSONResponse(status_code=status, content=body)
 
     @app.exception_handler(RequestValidationError)
     async def _handle_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
         fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
         translated = ValidationError("request validation failed", {"fields": fields})
         return await _handle_domain_error(request, translated)
+
+    @app.exception_handler(HTTPException)
+    async def _handle_unrouted(request: Request, exc: HTTPException) -> Response:
+        if exc.status_code != 404:
+            return await http_exception_handler(request, exc)
+        return await _handle_domain_error(request, NotFoundError("no route serves this path"))
 ```
 
 The translator stays minimal forever. New domain exceptions plug in without touching this file — the
-handler dispatches on the attributes defined by `exception-catalog`. The block above is the primary
-form and has **no** `isinstance` branch at all, because an app with no auth has no `UnauthorizedError`
-in its catalog to branch on.
+handler renders the body off the attributes `exception-catalog` defines and takes the status from
+`status_for`.
 
 **The framework's own input rejection is translated, not left in the framework's shape.** FastAPI
 rejects a malformed path parameter, query parameter or body before any route runs, and by default
@@ -170,11 +177,17 @@ answers with its own `{"detail": [...]}` body — a second error shape beside th
 route advertises for the input-validation status (`hex-restapi-endpoint`). The request-validation
 handler turns that rejection into the catalogue's `ValidationError` and hands it to the domain handler,
 so it is rendered in the one place everything else is (`exception-catalog` rule 13) and logged there
-once (`python-logging`), with the catalogue's code and status. `context` names the rejected fields by
+once (`python-logging`), with the catalogue's code and the status it maps to. `context` names the rejected fields by
 location (`body.name`, `path.id`) and never echoes the input values, which may carry a secret. It is a
 translation of the framework's exception into the catalogue, not a branch in the translator, so rule 3's
 cap is untouched.
 This is why the shell needs `ValidationError` in the catalogue alongside `MyappError`.
+
+**An unknown path is translated too.** The router answers a path no route serves with Starlette's
+`HTTPException`, which the domain handler never receives, so it would leave in the framework's
+`{"detail": ...}` shape and be logged nowhere. `_handle_unrouted` turns that `404` into the catalogue's
+`NotFoundError` and hands it to the domain handler; a method the path does not serve (`405`) stays in the
+framework's shape and is never advertised.
 
 **An unexpected failure is caught in the ASGI layer, by `UnexpectedErrorMiddleware`**, because FastAPI's
 handler for bare `Exception` re-raises to the server, which logs it a second time. The catch-all logs it
@@ -184,36 +197,25 @@ re-raises unlogged, and the server, which then drops the connection, logs it onc
 **This module is the entrypoint's one error log** (`hex-architecture`, *Who logs, by layer*); it binds
 `python-logging`'s level guide as 4xx → `warning`, 5xx and non-catalogue → `error`.
 
-`INTERNAL_ERROR` is the one response `code` not minted by `exception-catalog`, and deliberately so: by
-definition no catalogue class was raised. It is a constant of this template, not a new catalogue entry.
+`INTERNAL_ERROR` is minted by no catalogue class, and deliberately so: by definition none was raised. It
+is a constant of this template, not a new catalogue entry.
 
 **The catalogue classes the shell and the routes need.** The root is the project's own (`MyappError`,
-`exception-catalog`) and carries the optional `http_status` field, because this service has an HTTP
-entrypoint. Each class below is added under `exception-catalog` with its status, and only when
-something raises it: `ValidationError` (422) for the handler above, and `NotFoundError` (404) for
-`hex-restapi-endpoint`'s routes; `ConflictError` (409) only where a template translates a constraint,
-with a per-aggregate conflict refining it; `InUseError` only where another aggregate references this
-one.
-
-#### `error_handler.py` — authenticated variant (the app declares auth)
-
-An app that declares auth adds the `UnauthorizedError` import and the translator's single `isinstance`
-branch, which attaches the RFC-7235 `WWW-Authenticate` challenge. Nothing else in the file changes, and
-rule 3 below caps the file at **at most one** branch. The variant itself, with the realm rule that goes
-with it → `hex-restapi-auth`.
+`exception-catalog`) and carries no status. `ValidationError` and `NotFoundError` serve the handlers
+above, and `NotFoundError` `hex-restapi-endpoint`'s routes too; each class is added under `exception-catalog` only
+when something raises it, and its status joins `STATUS_BY_ERROR` below in the same change —
+`hex-restapi-auth` adds 401 and 403, a translated constraint 409.
 
 ### `restapi/schemas/errors.py`
 
 ```python
-from http import HTTPStatus
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-from myapp.domain import exceptions as _domain_exceptions
-from myapp.domain.exceptions import MyappError
+from myapp.domain.exceptions import MyappError, NotFoundError, ValidationError
 
-__all__ = ["ErrorResponse", "MIDDLEWARE_ERRORS", "error_responses"]
+__all__ = ["ErrorResponse", "MIDDLEWARE_ERRORS", "STATUS_BY_ERROR", "error_responses", "status_for"]
 
 
 class ErrorResponse(BaseModel):
@@ -222,43 +224,32 @@ class ErrorResponse(BaseModel):
     context: dict[str, object] = Field(default_factory=dict)
 
 
+STATUS_BY_ERROR: dict[type[MyappError], int] = {NotFoundError: 404, ValidationError: 422}
+
 MIDDLEWARE_ERRORS: dict[str, int] = {"INTERNAL_ERROR": 500}
 
 
-def _describe(code: int) -> str:
-    try:
-        return HTTPStatus(code).phrase
-    except ValueError:
-        # A vendor-specific status the stdlib does not know: the number, not invented wording.
-        return str(code)
-
-
-def _all_known_statuses() -> set[int]:
-    domain_statuses: set[int] = set()
-    for name in _domain_exceptions.__all__:
-        cls = getattr(_domain_exceptions, name)
-        if isinstance(cls, type) and issubclass(cls, MyappError):
-            domain_statuses.add(cls.http_status)
-    return domain_statuses | set(MIDDLEWARE_ERRORS.values())
+def status_for(exc: MyappError) -> int:
+    return next((STATUS_BY_ERROR[cls] for cls in type(exc).__mro__ if cls in STATUS_BY_ERROR), 500)
 
 
 def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
-    known = _all_known_statuses()
+    known = set(STATUS_BY_ERROR.values()) | set(MIDDLEWARE_ERRORS.values())
     unknown = [c for c in codes if c not in known]
     if unknown:
-        raise ValueError(f"HTTP statuses not produced by any MyappError or middleware: {unknown}")
+        raise ValueError(f"HTTP statuses no mapped error class or middleware produces: {unknown}")
     # Exactly FastAPI's `responses=` type; a narrower value type fails strict mypy at the decorator.
-    out: dict[int | str, dict[str, Any]] = {c: {"model": ErrorResponse, "description": _describe(c)} for c in codes}
+    out: dict[int | str, dict[str, Any]] = {c: {"model": ErrorResponse} for c in codes}
     return out
 ```
 
-The domain-side registry is **derived dynamically** from `domain.exceptions.__all__`. Adding a new `MyappError` subclass automatically widens the allowed `error_responses(...)` codes — no manual append.
+`STATUS_BY_ERROR` is the one place a catalogue class meets an HTTP status. `status_for` is `exception-catalog` rule 13's ancestry lookup, so a refinement (`FooNotFoundError`) needs no entry, and a class nothing maps answers `500`, as the root. The statuses a route may advertise are that map's values and `MIDDLEWARE_ERRORS`', `500` aside, which every route can produce.
 
-Status descriptions are **looked up, not listed** — `HTTPStatus(code).phrase`, with the bare number for a status the stdlib does not know. An app that must reword a status adds a mapping consulted first.
+A response entry carries no description: the framework fills in the status's standard phrase.
 
-`MIDDLEWARE_ERRORS` registers the codes emitted outside the domain catalogue, where no `MyappError` class produces them. `INTERNAL_ERROR` is always present: the catch-all returns it when no catalogue class was raised at all. Its status is already derivable (`MyappError` defaults to 500); its **code string** is not, and a code is a stable wire contract clients key on (`exception-catalog`), so it is registered here rather than invented at the call site. An entry is added when a declared middleware introduces a code (*Registering a middleware's status*, below) — a size-cap middleware's `PAYLOAD_TOO_LARGE` → 413.
+`MIDDLEWARE_ERRORS` registers the codes emitted with no catalogue class behind them. `INTERNAL_ERROR` is always present: the catch-all answers with it when no catalogue class was raised at all, and its entry pins the code string clients key on; `500` itself is never advertised (`hex-restapi-endpoint`). An entry is added when a declared middleware introduces a code (*Registering a middleware's status*, below) — a size cap's `PAYLOAD_TOO_LARGE` → 413.
 
-This file is the **single source of truth** for the error wire-shape, the `error_responses(...)` helper, the description lookup, and `MIDDLEWARE_ERRORS`. `hex-restapi-endpoint` only *references* it — it never writes to it or restates this template.
+This file is the **single source of truth** for the error wire-shape, the status map, the `error_responses(...)` helper and `MIDDLEWARE_ERRORS`. `hex-restapi-endpoint` only *references* it — it never writes to it or restates this template.
 
 ### `restapi/schemas/__init__.py`
 
@@ -284,19 +275,19 @@ ASGI middleware follows `naming` and `python-packaging` under `restapi/middlewar
 cross-cutting request/response concern that belongs to no single route — a correlation id, a body-size
 cap, rate limiting, timing. That list is open, not a fixed catalog.
 
-The template below is the shape that rejects a request. A pass-through middleware — a request id bound
-into the logging context, a timer — is the same class without the reject branch: it always awaits the
-wrapped app, and clears any per-request context it set in a `finally`.
+A middleware that rejects returns its error before awaiting the wrapped app; a pass-through one — a
+request id bound into the logging context, a timer — always awaits it, and clears any per-request
+context it set in a `finally`. A request-size cap, where the app declares one, is
+`MaxRequestSizeMiddleware(app, max_bytes)` — the class name and keyword `hex-test-app-invariants` finds
+it by — rejecting on the declared `Content-Length` with `PAYLOAD_TOO_LARGE`; a chunked body or a client
+that misstates its length passes it, so the absolute ceiling belongs to the edge (*Other bindings*).
 
 ### How this binding spells the middleware obligations — raw ASGI, Starlette
 
 Each line below is one obligation from `## Rules` in this stack's spelling; none of them is an
 obligation of its own.
 
-- **Raw ASGI callable, never a `starlette.middleware.base.BaseHTTPMiddleware` subclass** — that class
-  buffers the whole body, which breaks streaming and the size cap. Reaching for
-  `BaseHTTPMiddleware` → stop, write the raw ASGI class.
-- **Exact shape** (rule 7). `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on
+- **A raw ASGI class, the catch-all's form** (rule 7). `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on
   `self`; `async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None`. Configuration
   arrives as constructor keyword arguments passed at `app.add_middleware(Cls, **config)`, and the
   constructor validates them there.
@@ -306,57 +297,16 @@ obligation of its own.
 - **Reject before the wrapped app** (rule 9) — `return` **before** `await self._app(...)`, with the body
   built from `ErrorResponse`.
 - **Starlette wraps the last-added outermost** (rule 10). Each `app.add_middleware(...)` call wraps the
-  app as a new **outermost** layer, so the **last** one added is the first to see a request and the last
-  to touch a response. A size cap is therefore added **last**.
-
-### Middleware — short-circuit with an error (rejects before the route runs)
-
-```python
-from starlette.types import ASGIApp, Receive, Scope, Send
-
-from ..schemas.errors import ErrorResponse
-
-__all__ = ["MaxRequestSizeMiddleware"]
-
-_PAYLOAD_TOO_LARGE = 413
-
-
-class MaxRequestSizeMiddleware:
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
-        self._app = app
-        self._max_bytes = max_bytes
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self._app(scope, receive, send)
-            return
-        declared = dict(scope["headers"]).get(b"content-length")
-        if declared and int(declared) > self._max_bytes:
-            await _send_error(send, _PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", "Request body too large")
-            return
-        await self._app(scope, receive, send)
-
-
-async def _send_error(send: Send, status: int, code: str, message: str) -> None:
-    body = ErrorResponse(code=code, message=message).model_dump_json().encode()
-    await send({"type": "http.response.start", "status": status, "headers": [(b"content-type", b"application/json")]})
-    await send({"type": "http.response.body", "body": body})
-```
-
-The cap reads the **declared** `Content-Length` and rejects before the body is read, so nothing is
-buffered. It does not catch a chunked upload that omits the header, or a client that lies about its
-length; that absolute byte ceiling is an **edge** concern — a reverse proxy's `client_max_body_size` —
-and this middleware is the app-layer defence in depth on top of it.
+  app as a new **outermost** layer, so of the middleware `create_app` declares, the **last** one added is
+  the first to see a request and the last to touch a response — and `setup_dishka`, called after all of
+  them, adds dishka's scope middleware outside every one.
 
 ### Registering a middleware's status
 
-A status a middleware emits is registered before any route advertises it (`hex-restapi-endpoint`):
-
-1. Confirm the status has no `MyappError` behind it — the body comes from middleware, before the
-   exception handler runs. Otherwise the answer is `exception-catalog`, not this path.
-2. Add `"CODE_STRING": <status>` to `MIDDLEWARE_ERRORS` in `restapi/schemas/errors.py`.
-3. The description needs nothing: `_describe` looks the standard phrase up.
-4. The middleware emits an `ErrorResponse` body carrying the same `code` string (rule 9).
+A status a middleware emits with no `MyappError` behind it — otherwise it is a class under
+`exception-catalog` and an entry in `STATUS_BY_ERROR` — is added to `MIDDLEWARE_ERRORS` under its code
+string before any route advertises it (`hex-restapi-endpoint`), and the middleware's `ErrorResponse`
+carries that same code (rule 9).
 
 ## Other bindings
 
@@ -365,8 +315,7 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 - **A framework with its own middleware abstraction** — Litestar, Django, or a decorator-based hook.
   Unchanged: transport-only scope, configuration fixed and validated at wiring time, the shared error
   body with a registered code, and a deliberate order. What changes: the class shape and how
-  non-matching traffic is passed through, and whether the framework's own base class buffers the body —
-  the reason the primary binding refuses one here.
+  non-matching traffic is passed through.
 - **A reverse proxy or gateway in front of the app.** A concern that is purely about bytes on the wire —
   a size ceiling, a request id — may live there instead of in the app, and then no middleware is written
   at all. Unchanged: the status it returns still needs a registered code if a client can see it
@@ -380,10 +329,10 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 ## Rules
 
 1. **One-shot.** This skill runs once per project. After bootstrap, this file set is stable; updates to `main.py` go through whichever skill needs them (typically `hex-restapi-endpoint` appending an `include_router(...)` line).
-2. **The catalog is dynamic.** The registry derives from `domain.exceptions.__all__` at import time.
-3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behavior comes from the `MyappError` subclass's `code` / `http_status`, so new behaviour is a new subclass, never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class and rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
+2. **A route may advertise only a status `STATUS_BY_ERROR` or `MIDDLEWARE_ERRORS` holds, and never `500`**; the map is this boundary's, under `exception-catalog` rules 6 and 13.
+3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behaviour comes from the `MyappError` subclass and its mapped status, so new behaviour is a new subclass — and, where its status differs from its parent's, one map entry — never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class, and its answer to an unknown path into the not-found class, each rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
 4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened. `lifespan` holds that teardown and nothing else — no business logic.
-5. **Routes receive their dependencies by type** (`hex-restapi-endpoint`); `main.py` neither resolves anything nor exposes the composition root for others to resolve from. Never module-level resolution.
+5. **`main.py` neither resolves anything nor exposes the composition root for others to resolve from**; how a route receives its handler is `hex-restapi-endpoint`'s.
 
 6. **A middleware is transport-level and nothing else.** Bytes, headers, timing, the logging context.
    Anything that needs a domain entity, a repository or an application handler is not a middleware.

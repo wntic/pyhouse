@@ -17,6 +17,7 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -30,13 +31,20 @@ __all__ = ["build_app"]
 log = structlog.get_logger()
 
 
+_STATUS_BY_ERROR: dict[type[MyappError], int] = {InvalidPayloadError: 422}
+
+
+def _status_for(exc: MyappError) -> int:
+    return next((_STATUS_BY_ERROR[cls] for cls in type(exc).__mro__ if cls in _STATUS_BY_ERROR), 500)
+
+
 def _render(exc: MyappError) -> JSONResponse:
-    content = {"code": exc.code, "message": str(exc), "context": exc.context}
-    return JSONResponse(status_code=exc.http_status, content=content)
+    content = jsonable_encoder({"code": exc.code, "message": str(exc), "context": exc.context})
+    return JSONResponse(status_code=_status_for(exc), content=content)
 
 
 def _log_and_render(exc: MyappError) -> JSONResponse:
-    if exc.http_status >= 500:
+    if _status_for(exc) >= 500:
         log.error("request_failed", code=exc.code, context=exc.context)
     else:
         log.warning("request_failed", code=exc.code, context=exc.context)
@@ -70,11 +78,11 @@ def build_app(repository: FooRepository) -> FastAPI:
     return app
 ```
 
-**Every failure leaves in one shape, from this module, logged once.** The catalogue root carries the
-optional `http_status` field once the service answers HTTP (`exception-catalog`), and this module is its
-only reader: a catalogue error renders as itself, the framework's validation failure as
-`InvalidPayloadError` (`http_status = 422`), anything else as the catalogue root. The level follows the
-kind (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
+**Every failure a route raises leaves in one shape, from this module, logged once.** The catalogue
+carries no status; this module maps one from the class (`exception-catalog` rules 6 and 13). A catalogue
+error renders as itself, the framework's validation failure as `InvalidPayloadError` (`422`), anything
+else as the catalogue root, and `context` is encoded for JSON first, so an identifier in it cannot turn
+the answer into a crash. The level follows the status (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
 bare `Exception` re-raises to the server, which logs it a second time.
 
 **The app is built by a factory the process definition calls**, never as a module-level `app`, which

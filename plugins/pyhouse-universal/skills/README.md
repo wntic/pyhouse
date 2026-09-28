@@ -133,13 +133,14 @@ rules the layer split imposes on top of `python-packaging`; `hex-architecture` a
 
 | Skill | Owns |
 |---|---|
-| `hex-restapi-app` | FastAPI lifecycle, central error translation, the shared error schemas, and declared middleware — none presumed, CORS included — with the registration of a status a middleware emits |
-| `hex-restapi-endpoint` | Resource routers, JSON operations with read-back, route ordering, multipart uploads and streaming downloads, handler resolution, and the error responses a route advertises |
+| `hex-restapi-app` | FastAPI lifecycle, central error translation and the map from error class to HTTP status, the shared error schemas, and declared middleware — none presumed, CORS included — with the registration of a status a middleware emits |
+| `hex-restapi-endpoint` | Resource routers, JSON operations with read-back, route ordering, the rules for a route that carries a file, handler resolution, and the error responses a route advertises |
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
 | `hex-restapi-auth` | Caller identity as the issuer's opaque subject, with a rank only where a route gates on one; the token-verifier port and adapter, route dependencies, and the auth codes a route advertises |
 
-**The first three are complete on their own.** `hex-restapi-auth` is optional: a service behind an
-authenticating gateway, an mTLS-fronted API or a public one declares no auth and never loads it.
+**The first three are complete on their own.** `hex-restapi-auth` is optional: a service whose routes
+need no caller identity — a public one, or one behind a gateway that authenticates for it — declares no
+auth and never loads it.
 
 ## Hex tests (8)
 
@@ -150,9 +151,9 @@ authenticating gateway, an mTLS-fronted API or a public one declares no auth and
 | `hex-test-application-handler` | Handler unit tests for create, PATCH, delete, list and compensation, failure injection, and in-memory repository and capability fakes |
 | `hex-test-repository-contract` | Real-backend repository contracts with relational rollback or client-store namespace isolation |
 | `hex-test-capability-adapter` | Capability adapter tests — a `respx` template for the HTTP gateway; the containerized and pure-CPU flavours in prose, pointing at their worked instances |
-| `hex-test-restapi-endpoint` | Real-app ASGI integration tests, response validation, and per-resource fixtures |
+| `hex-test-restapi-endpoint` | Real-app ASGI integration tests, success-body and error-code assertions, and per-resource fixtures |
 | `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI invariant, plus CORS and request-size checks only where the app configures them |
-| `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the anonymous-caller probe, and role and tenancy assertions |
+| `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the probe every operation not declared public must pass, and role and tenancy assertions |
 
 ## Flat core (4)
 
