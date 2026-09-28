@@ -291,7 +291,7 @@ one `isinstance` branch, attaching the RFC-7235 challenge. Nothing else in the f
 `hex-restapi-app` rule 3 caps it at **at most one** branch.
 
 ```python
-from myapp.domain.exceptions import MyappError, UnauthorizedError, ValidationError
+from myapp.domain.exceptions import MyappError, NotFoundError, UnauthorizedError, ValidationError
 ```
 
 ```python
