@@ -1,22 +1,26 @@
 ---
 name: hex-persistence
-description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, the paired Alembic revision, or the store's settings class with its engine and repository binding — or when one command must write two or more repositories atomically through a unit of work. Owns the SQLAlchemy Core templates, the constraint-naming convention all three share, row mapping, integrity-error translation, and the unit-of-work protocol, implementation and the handler form that opens it. Not compensation for an external write (`hex-application`), not a flat-layered service's data-access package, which owns the same obligations with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
+description: Use when one hexagonal service's own relational layer changes — the `Table` and its constraints, the repository adapter satisfying a domain repository protocol, the paired Alembic revision, or the store's settings class with its engine and repository binding — or when one command must write two or more repositories atomically through a unit of work. Owns the SQLAlchemy Core templates binding `persistence`'s store-generic rules — the shared naming convention, the entity mapper, the integrity-error translator — the adapter's standalone and unit-of-work-managed forms, the port's read contract, the paired revision, and the unit-of-work protocol, implementation and handler form. Not compensation for an external write (`hex-application`), not a flat-layered service's data-access package, which binds the same rules with no port in front of it (`flat-persistence`, in the `pyhouse-flat` plugin), and not a nonrelational store (`hex-store-repository`).
 paths: ["**/infrastructure/**", "**/alembic/**", "**/migrations/**", "**/domain/uow/**"]
 ---
 
 # Hexagonal Persistence (relational)
 
-The table, the repository that queries it, and the migration that ships it. They live together because
-**the constraint names are one contract across all three**: the table declares them through a naming
-convention, the repository's integrity-error translator matches on them to produce the right domain
-exception, and the revision writes them out in full. Rename one and all three change, in the same
-commit.
+The table, the repository that queries it, and the migration that ships it, kept together because the
+constraint names are one contract across all three (`persistence` rule 7).
+
+**Load `persistence` before writing any file below**; the templates satisfy its rules and do not
+restate them. The rules here are the hexagonal shape around them: an adapter behind a port, its two
+constructor forms, the paired revision and the unit of work.
 
 For a non-relational store — a key-value, cache or document backend — use the client-repository form
 instead. The store profile decides which applies (`hex-conventions` block B).
 
 ## When to use vs. neighbours
 
+- The obligations any store's data access meets, whatever the family — transaction ownership,
+  driver-error translation, constraint names, row mapping, stored types and indexes, conflicts and
+  ordering, safe schema changes → `persistence`; this skill binds them.
 - A persistent table, its columns, constraints or indexes → `TABLE.md`.
 - The adapter satisfying a domain repository protocol on a relational store → `REPOSITORY.md`.
 - The migration pairing with a schema change → `REVISION.md`.
@@ -39,8 +43,8 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - A data-only migration (`backfill_*`, `seed_*`) with no DDL → its own revision file; this skill covers
   DDL only.
 - Asked for an ORM, a declarative base or relationships → still this skill: the templates here
-  are Core, and an ORM project satisfies rules 1–18 through the ORM bullet under `## Other bindings`;
-  do not copy a Core template into a mapped class.
+  are Core, and an ORM project satisfies the rules here and `persistence`'s through the ORM bullet under
+  `## Other bindings`; do not copy a Core template into a mapped class.
 
 ## Template(s) — SQLAlchemy Core, asyncpg, Alembic
 
@@ -83,79 +87,39 @@ loaded automatically:
   runs is the SQL in the file, so a query's cost is readable at the call site and lazy loading cannot
   appear behind an attribute access. Under the ORM the mapped class is *not* the domain entity — keep the
   two separate and keep the mapper, or the domain grows a persistence dependency.
-- **Another engine or driver.** Rules 1–18 hold; the dialect-specific column types, the SQLSTATE codes
-  and the attribute path the translator reads the constraint name through all change together. The skill
-  states that coupling where it bites (`REPOSITORY.md`), because it is the one place a driver swap is not
-  mechanical.
+- **Another engine or driver.** Every rule here and in `persistence` holds; the dialect-specific column
+  types, the SQLSTATE codes and the attribute path the translator reads the constraint name through all
+  change together. The skill states that coupling where it bites (`REPOSITORY.md`), because it is the
+  one place a driver swap is not mechanical.
 
 ## Rules
 
-1. **Constraint names are one contract across the three artifacts.** Generate them from a single
-   convention declared once, so a name is derivable rather than remembered, and so the translator can
-   match on a name the database really holds. Renaming one is a breaking change: table, translator and
-   revision change in the same commit.
-2. **Column types are a design decision, not a transcription of the entity's fields.** Choose the stored
-   type from what the value means and how it will be queried, and record the consequence where it bites —
-   an on-delete choice is answered by what the repository's `delete` raises.
-3. **Store every timestamp with its offset, defaulted database-side.** A naive timestamp is a defect, and
-   an application-side default leaves rows written by a migration without one. An `updated_at` the
-   application maintains is set explicitly in the update statement, because a database default for an
-   insert does not fire on one.
-4. **A closed value set is a constraint over a text column, not a database enum type.** It then matches
-   the domain's own enum, and widening the set is an ordinary migration rather than a type alteration.
-   The same reasoning bans length-bounded text: a length limit is a domain rule the domain enforces, not
-   a storage decision that should need a migration to change.
-5. **Index what you filter, join and sort on.** A foreign key gets no index for free, and a list
-   endpoint's ordering column is as load-bearing as its filter's.
-6. **The adapter satisfies the port structurally and never inherits it.** Signatures match the protocol
+1. **The adapter satisfies the port structurally and never inherits it.** Signatures match the protocol
    exactly — keyword-only markers and async/sync mode included — and the module does not import the
    protocol, which would leave a dead unused import.
-7. **One owner of the transaction, chosen per class.** A standalone adapter opens its own unit of work
-   and commits only on a mutation; a unit-of-work-managed one receives a live one and never commits or
-   rolls back. The two forms are mutually exclusive for one class, and no session is held in instance
-   state between methods. A joining repository is handed the open transactional handle, never a
-   factory: one that opens its own is in a different transaction, and the defect shows up as a partial
-   write rather than an error.
-8. **The read contract is the port's.** Fetch-by-identity raises rather than returning nothing, a
+2. **Each of `persistence` rule 1's two forms is its own class.** A standalone adapter opens its own
+   session and commits only on a mutation; a unit-of-work-managed one receives the unit of work's live
+   session and never commits or rolls back. A class that would need both call styles is two adapters.
+3. **The read contract is the port's.** Fetch-by-identity raises rather than returning nothing, a
    secondary lookup may return an optional, a list returns a sequence ordered by *the caller's* chosen
    sort, a count returns an integer. A hardcoded default order that ignores the filter's sort is a bug,
    not a default.
-9. **Every driver error is translated before it escapes the adapter.** Translation, its mandatory
-   fallback and the choice of the most specific class are `exception-catalog`'s (rules 8–10); for a
-   foreign key on delete, "still referenced" is that most specific class.
-10. **The context carries the offending field and the full constraint name.** The constraint name is the
-    one the convention generated, because the entrypoint and the tests both assert on it.
-11. **Row-to-entity mapping is a pure function** — no IO, no logging — and it normalizes what the driver
-    hands back, including giving a naive timestamp its offset. Needing no instance state, it is a
-    private module function after the class, never a private method (`python-packaging`).
-12. **A schema change is a coordinated pair in one commit** — the table definition and one new migration.
-    A later change is authored as a *new* migration, never by rewriting a shipped one, and generated
-    migration output is a draft to hand-edit, not a result. The reverse operation is mandatory and
-    reverses in the opposite order, because the migration round-trip test runs it — upgrade, downgrade,
-    upgrade again against a real database.
-13. **Extract a shared integrity-error mapper on repetition, never preemptively**, and migrate every
-    existing repository in the commit that introduces it — partial adoption causes drift.
-14. **Migrations run as a deploy step before the new code starts, and every schema change is compatible
-    with the code still running.** Expand first: add what the new code needs while the old code keeps
-    working against it. Contract later: dropping, renaming or tightening anything the old code still
-    reads or writes — a column removed, a `NOT NULL` added, a constraint narrowed — ships in a later
-    release, once no running code depends on it. A change that needs both halves is two revisions in two
-    releases, never one.
-15. **A unit of work exists only where one command writes two or more repositories that must commit
-    together, and there is one per transactional scope, never one per aggregate.** Every repository that
-    may join the transaction is a member of the same domain protocol, typed by its port. A second one is
-    earned only by a genuinely different scope and is named for that scope's role, never for its backend.
-16. **One unit of work per `execute`, opened by the handler from an injected zero-argument factory.**
-    Never shared across calls, never pooled: a shared one merges two callers' writes into one
-    transaction, so one caller's failure rolls back the other's work. The composition root binds the
-    factory, never an instance (`hex-wiring`).
-17. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
-    Nothing after the commit may fail non-idempotently. Nothing inside the block catches — only
-    compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
-    the transaction is unusable once a statement in it failed, so a retry policy belongs to the central
-    error handler.
-18. **A repository never logs.** A failure is translated and propagates to the central error handler; a
-    success is the calling handler's to log (`hex-architecture`).
+4. **A schema change is a coordinated pair in one commit** — the table definition and one new
+   migration. What the migration itself owes — a deploy step compatible with the running code, a
+   reversing downgrade proven by the round trip, a generated draft reviewed before commit — is
+   `persistence` rules 19 and 20.
+5. **A unit of work exists only where one command writes two or more repositories that must commit
+   together, and there is one per transactional scope, never one per aggregate.** Every repository that
+   may join the transaction is a member of the same domain protocol, typed by its port. A second one is
+   earned only by a genuinely different scope and is named for that scope's role, never for its backend.
+6. **One unit of work per `execute`, opened by the handler from an injected zero-argument factory.**
+   Never shared across calls, never pooled: a shared one merges two callers' writes into one
+   transaction, so one caller's failure rolls back the other's work. The composition root binds the
+   factory, never an instance (`hex-wiring`).
+7. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
+   Nothing after the commit may fail non-idempotently. Nothing inside the block catches — only
+   compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
+   the transaction is unusable once a statement in it failed.
 
 ## Inlined typing / import rules
 
@@ -202,6 +166,7 @@ environment import it from its module (`from ..metadata import metadata`,
 
 - A unit of work is asked to span two backends (a table plus object storage or a cache) → stop, that is
   compensation in `hex-application`, not a unit of work.
-- Asked for id generation inside the repository → stop, the application handler generates ids.
+- Asked to mint an id inside the repository → stop, use `hex-application`, which owns the identity
+  scheme (Command handler rule 8) and its one store-minted exception.
 - The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
   file; this skill covers DDL only.

@@ -2,9 +2,9 @@
 
 Topic file of `hex-persistence`, read only when one command writes **two or more repositories that must
 commit together** — two aggregates changed at once, an aggregate plus an outbox row. The
-mechanism-free obligations are rules 7 and 15–17 in `SKILL.md`; what follows is the **SQLAlchemy async
-session + dishka** binding that satisfies them: the domain protocol, its implementation, its binding,
-and the handler form that opens it.
+mechanism-free obligations are rules 2 and 5–7 in `SKILL.md`, and `persistence` rules 1 and 4; what follows is
+the **SQLAlchemy async session + dishka** binding that satisfies them: the domain protocol, its
+implementation, its binding, and the handler form that opens it.
 
 Not a unit of work: one repository per command (the standalone form in `REPOSITORY.md` owns its own
 transaction); keeping rows readable after the commit (the session factory's post-commit refresh policy
@@ -58,6 +58,7 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .repositories import BarSessionRepository, FooSessionRepository
+from .repositories.errors import DRIVER_ERRORS, translate
 
 __all__ = ["SqlAlchemyUnitOfWork"]
 
@@ -92,7 +93,10 @@ class SqlAlchemyUnitOfWork:
             await self._session.close()
 
     async def commit(self) -> None:
-        await self._session.commit()
+        try:
+            await self._session.commit()
+        except DRIVER_ERRORS as exc:
+            raise translate(exc, {}) from exc
 ```
 
 Each member is `REPOSITORY.md`'s unit-of-work-managed form, and the class does not inherit from
@@ -105,6 +109,13 @@ ordinary correctness too:
 - `__aexit__` has the protocol's **exact three-parameter signature**; a near-match fails the structural
   check where the factory is bound.
 - The session is closed in a `finally`, so a failing `rollback()` cannot leak the connection.
+
+`commit()` is a public method like any repository's, so it translates the driver's error too
+(`persistence` rule 4), through the translator its members share — `repositories/errors.py`, which
+exists as soon as two repositories do and makes `DRIVER_ERRORS` and `translate` public when they move
+there (`REPOSITORY.md` rule 12). The commit is where a deferred constraint is checked, so an
+`IntegrityError` there is a refusal of the data and reaches the conflict fallback ahead of the
+unavailable arm; a dropped connection or a pool timeout becomes the unavailable class.
 
 The session and its repositories are built in the constructor, since the factory makes a fresh instance
 per `execute`. Creating a session opens no connection and begins its transaction lazily, so there is no

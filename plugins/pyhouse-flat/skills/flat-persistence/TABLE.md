@@ -1,7 +1,8 @@
 # flat-persistence — the table
 
-Topic file of `flat-persistence`. The mechanism-free obligations are rules 8 and 13 in `SKILL.md`; what
-follows is the **SQLAlchemy Core on Postgres** binding that satisfies them.
+Topic file of `flat-persistence`. The mechanism-free obligations are rule 5 in `SKILL.md`, and
+`persistence` rules 7, 9 and 13; what follows is the **SQLAlchemy Core on Postgres** binding that
+satisfies them.
 
 ## The table — SQLAlchemy Core on Postgres
 
@@ -31,8 +32,10 @@ foo_table = Table(
 )
 ```
 
-`reference` is the natural key the source hands over, stored as it arrives; its unique constraint is
-the one the writes resolve conflicts on, and the convention names it `uq_foos_reference`.
+`foos` is the plural snake-case of the record the table holds — the one derivation a project declares
+once (`persistence` rule 13). `reference` is the natural key the source hands over, stored as it
+arrives; its unique constraint is the one the writes resolve conflicts on, and the convention names it
+`uq_foos_reference`.
 
 A table module's public names are bare `Table` objects, and `metadata.py`'s is a bare `MetaData`, so
 neither is wildcarded into the package `__init__` (`python-packaging`, carve-out 3 — `foo_table` would

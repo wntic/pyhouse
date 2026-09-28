@@ -40,9 +40,10 @@ special-cased.
 
 **`pluralize`** (table names) — `y` after a consonant → `ies`; trailing `s`/`x`/`z`/`ch`/`sh` → `+es`;
 else `+s`. So `Category` → `categories`, `Box` → `boxes`, `Foo` → `foos`. Table name =
-`pluralize(snake(aggregate))`. Singular and plural table names are both long-standing house styles with
-no winner; what matters here is that the name is **derived** rather than chosen, so the catalogue picks
-one. A project that prefers singular changes this one derivation rule, not every table.
+`pluralize(snake(aggregate))`. That a table name is derived by one rule declared once is `persistence`
+rule 13; this is the hexagonal family's rule. Singular and plural table names are both long-standing
+house styles with no winner, so the catalogue picks one, and a project that prefers singular changes
+this one derivation rule, not every table.
 
 **Class names** carry only the identifier plus a derived suffix. Protocol identifiers already include
 their `I`-prefix / `Repository` suffix.

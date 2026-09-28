@@ -1,15 +1,14 @@
 # hex-persistence — the revision
 
-Topic file of `hex-persistence`. The mechanism-free obligations are rules 12 and 14 in `SKILL.md`; what follows
-is the **Alembic** binding that satisfies it.
+Topic file of `hex-persistence`. The mechanism-free obligations are rule 4 in `SKILL.md` and
+`persistence` rules 19 and 20; what follows is the **Alembic** binding that satisfies them.
 
 The migration tool owns the revision chain: `alembic revision` assigns the id and `down_revision` from
 the current head — the two placeholders below are what it fills in, never values to type. A schema
-change is a coordinated pair — the `Table` (`TABLE.md`) and a new revision — landing in the same commit.
-A later field change is reconciled by authoring a **new** revision, never by rewriting a prior one.
-`--autogenerate` produces only a draft: it misses naming-convention nuance, partial indexes and seed
-data, so hand-edit it against the rules in `TABLE.md`. The one-time bootstrap that lets the chain exist
-at all is `hex-project-setup`.
+change is a coordinated pair — the `Table` (`TABLE.md`) and a new revision — landing in the same commit
+(rule 4). `--autogenerate` produces only a draft (`persistence` rule 20): it misses naming-convention
+nuance, partial indexes and seed data, so hand-edit it against the rules in `TABLE.md`. The one-time
+bootstrap that lets the chain exist at all is `hex-project-setup`.
 
 **A change that touched both the `Table` and a revision runs `uv run alembic check` itself**, against a
 migrated database — it answers `No new upgrade operations detected` when the two sides agree on what
@@ -70,11 +69,7 @@ def downgrade() -> None:
 A check constraint's `name` is the suffix, as in the `Table`: the convention prepends `ck_foos_`, so a
 full name there comes out doubled.
 
-`downgrade()` is mandatory and reverses the operations in the opposite order, because the migration
-round-trip test — upgrade, downgrade, upgrade again against a real database (`hex-test-repository-contract`)
-— runs it; a `downgrade()` nothing runs is a reverse path nobody has proven.
-
-The revision runs as a deploy step, **before** the new code starts, so it must be compatible with the code
-still running (rule 14 in `SKILL.md`): this revision only adds, and a later revision that drops or tightens
-what old code reads ships in a release after the one that stopped reading it.
+`downgrade()` reverses the operations in the opposite order (`persistence` rule 20); the round trip
+that proves it is `hex-test-repository-contract`'s. This revision only adds, so it is the expand half
+`persistence` rule 19 lets ship alone.
 

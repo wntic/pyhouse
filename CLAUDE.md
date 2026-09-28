@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
-maintainer script. The "code" is 47 `SKILL.md` files — 45 that tell an agent how to write Python
+maintainer script. The "code" is 48 `SKILL.md` files — 46 that tell an agent how to write Python
 services, and two that tell it how to commit and branch. The Python in them is template content,
 not executed as part of anything here.
 
@@ -163,7 +163,7 @@ tools/check_template_imports.py          resolves every import in every template
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
 .claude/backlog.md                       catalogue edits agreed or proposed, not yet made
-plugins/pyhouse-universal/               14 skills (13 universal + meta-skill-author),
+plugins/pyhouse-universal/               15 skills (14 universal + meta-skill-author),
                                          /choose-architecture, /code-review, agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     23 hex-* skills
 plugins/pyhouse-flat/                    8 flat-* skills
@@ -211,7 +211,7 @@ library ("translate the driver's integrity error at the repository boundary"), n
 second full template; if one is really needed, it is a sibling skill.
 
 **A rule lives in exactly one skill.** The ownership table in `meta-skill-author` assigns naming,
-typing/logging, packaging, the error catalogue, boundaries, testing and the architecture choice to
+typing/logging, packaging, the error catalogue, data access, boundaries, testing and the architecture choice to
 specific owners. Everything else points at the owner. Before replacing a restatement with a pointer,
 open the owner and confirm the rule is actually there — a pointer to a rule that was never written is
 invisible.
