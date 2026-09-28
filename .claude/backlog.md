@@ -30,14 +30,6 @@ types, the response mapped to a domain type, an upstream status mapped to the ca
 naming the old shape: `hex-domain-ports`, `hex-test-capability-adapter`,
 `hex-test-application-handler/FAKES.md`.
 
-### 11. Webhook redelivery and ordering get a word, not a template
-- No new test. `flat-test-run-function` rule 3 already pins the second run of "any run a trigger may
-  retry", and rule 5 keeps the body out of a wrapper test. Rule 3 names a delivery the sender may repeat
-  among its examples.
-- `flat-persistence` rule 12 gains one sentence: where an older write can arrive after a newer one, the
-  update is guarded by the row's ordering stamp, so the older never overwrites the newer. `HTTP.md`'s
-  pointer then names that rule. No template: most services do not have the case.
-
 ### 14. A universal `persistence` skill owns every store-generic obligation
 A new universal skill (working name `persistence`; reference shape, no template) owns what holds in any
 Python project with a store, whatever its family:
@@ -48,7 +40,8 @@ Python project with a store, whatever its family:
   reversing downgrade, a repository that never logs;
 - from `hex-persistence` alone: column types chosen by meaning, timestamps stored with their offset, a
   closed value set as a constraint over text, indexing what is filtered, joined and sorted on;
-- from `flat-persistence` alone: conflicts resolved explicitly with the matched key never updated,
+- from `flat-persistence` alone: conflicts resolved explicitly with the matched key never updated, an older write never
+  overwriting a newer one (rule 12's ordering stamp, rule 18's collapse and merge-time clauses),
   deduplication by the store's own write-time or merge-time mechanism, a cursor read over a total order;
 - from `hex-conventions` (item 21): that a table name is derived by one rule declared once.
 

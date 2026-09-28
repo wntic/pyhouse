@@ -85,9 +85,11 @@ is for a caller the network already trusts.
 
 ## The work the route calls
 
-`src/myapp/foo_record.py` — framework-free, named for its work. `FooDelivery`, in `schemas/`, is
-`FooPayload` plus the `sent_at: AwareDatetime` the sender stamped; the work writes that instant, never
-the clock, so an exact redelivery writes what the row already holds (rule 9):
+`src/myapp/foo_record.py` — framework-free, named for its work, writing through the repository's
+single-row `record` (`flat-persistence`, `REPOSITORY.md`). `FooDelivery`, in `schemas/`, is
+`FooPayload` plus the `changed_at: AwareDatetime` the sender assigned to the change, the same on every
+redelivery of it; the work writes that instant, never the clock, so a redelivery writes what the row
+already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
@@ -97,13 +99,13 @@ __all__ = ["record_foo"]
 
 
 async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
-    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.sent_at)
-    await repository.record_batch([foo])
+    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.changed_at)
+    await repository.record(foo)
     return RunResult(recorded=1)
 ```
 
 Where an older delivery can arrive after a newer one for the same reference, keeping the newer is the
-conflict clause's job (`flat-persistence`).
+data-access package's job (`flat-persistence` rules 12 and 18).
 
 ## The process definition — uvicorn
 
@@ -143,5 +145,5 @@ if __name__ == "__main__":
 ```
 
 The server runs on the process's own loop, inside the block that owns the engine, so the engine is
-opened and closed on the loop the requests run on (`flat-layered` rule 12); `log_config=None` keeps the
-server from configuring logging a second time (`python-logging` rule 3).
+opened and closed on the loop the requests run on; `log_config=None` keeps the server from configuring
+logging a second time (`python-logging` rule 3).
