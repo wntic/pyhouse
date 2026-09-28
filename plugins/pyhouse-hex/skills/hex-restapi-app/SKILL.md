@@ -271,19 +271,19 @@ ASGI middleware follows `naming` and `python-packaging` under `restapi/middlewar
 cross-cutting request/response concern that belongs to no single route — a correlation id, a body-size
 cap, rate limiting, timing. That list is open, not a fixed catalog.
 
-The template below is the shape that rejects a request. A pass-through middleware — a request id bound
-into the logging context, a timer — is the same class without the reject branch: it always awaits the
-wrapped app, and clears any per-request context it set in a `finally`.
+A middleware that rejects returns its error before awaiting the wrapped app; a pass-through one — a
+request id bound into the logging context, a timer — always awaits it, and clears any per-request
+context it set in a `finally`. A request-size cap, where the app declares one, is
+`MaxRequestSizeMiddleware(app, max_bytes)` — the class name and keyword `hex-test-app-invariants` finds
+it by — rejecting on the declared `Content-Length` with `PAYLOAD_TOO_LARGE`; a chunked body or a client
+that misstates its length passes it, so the absolute ceiling belongs to the edge (*Other bindings*).
 
 ### How this binding spells the middleware obligations — raw ASGI, Starlette
 
 Each line below is one obligation from `## Rules` in this stack's spelling; none of them is an
 obligation of its own.
 
-- **Raw ASGI callable, never a `starlette.middleware.base.BaseHTTPMiddleware` subclass** — that class
-  buffers the whole body, which breaks streaming and the size cap. Reaching for
-  `BaseHTTPMiddleware` → stop, write the raw ASGI class.
-- **Exact shape** (rule 7). `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on
+- **A raw ASGI class, the catch-all's form** (rule 7). `__init__(self, app: ASGIApp, <config…>)` stores `app` plus the config on
   `self`; `async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None`. Configuration
   arrives as constructor keyword arguments passed at `app.add_middleware(Cls, **config)`, and the
   constructor validates them there.
@@ -293,56 +293,16 @@ obligation of its own.
 - **Reject before the wrapped app** (rule 9) — `return` **before** `await self._app(...)`, with the body
   built from `ErrorResponse`.
 - **Starlette wraps the last-added outermost** (rule 10). Each `app.add_middleware(...)` call wraps the
-  app as a new **outermost** layer, so the **last** one added is the first to see a request and the last
-  to touch a response. A size cap is therefore added **last**.
-
-### Middleware — short-circuit with an error (rejects before the route runs)
-
-```python
-from starlette.types import ASGIApp, Receive, Scope, Send
-
-from ..schemas.errors import ErrorResponse
-
-__all__ = ["MaxRequestSizeMiddleware"]
-
-_PAYLOAD_TOO_LARGE = 413
-
-
-class MaxRequestSizeMiddleware:
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
-        self._app = app
-        self._max_bytes = max_bytes
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self._app(scope, receive, send)
-            return
-        declared = dict(scope["headers"]).get(b"content-length")
-        if declared and int(declared) > self._max_bytes:
-            await _send_error(send, _PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", "Request body too large")
-            return
-        await self._app(scope, receive, send)
-
-
-async def _send_error(send: Send, status: int, code: str, message: str) -> None:
-    body = ErrorResponse(code=code, message=message).model_dump_json().encode()
-    await send({"type": "http.response.start", "status": status, "headers": [(b"content-type", b"application/json")]})
-    await send({"type": "http.response.body", "body": body})
-```
-
-The cap reads the **declared** `Content-Length` and rejects before the body is read, so nothing is
-buffered. It does not catch a chunked upload that omits the header, or a client that lies about its
-length; that absolute byte ceiling is an **edge** concern — a reverse proxy's `client_max_body_size` —
-and this middleware is the app-layer defence in depth on top of it.
+  app as a new **outermost** layer, so of the middleware `create_app` declares, the **last** one added is
+  the first to see a request and the last to touch a response — and `setup_dishka`, called after all of
+  them, adds dishka's scope middleware outside every one.
 
 ### Registering a middleware's status
 
-A status a middleware emits is registered before any route advertises it (`hex-restapi-endpoint`):
-
-1. Confirm the status has no `MyappError` behind it — the body comes from middleware, before the
-   exception handler runs. Otherwise the answer is `exception-catalog`, not this path.
-2. Add `"CODE_STRING": <status>` to `MIDDLEWARE_ERRORS` in `restapi/schemas/errors.py`.
-3. The middleware emits an `ErrorResponse` body carrying the same `code` string (rule 9).
+A status a middleware emits with no `MyappError` behind it — otherwise it is a class under
+`exception-catalog` and an entry in `STATUS_BY_ERROR` — is added to `MIDDLEWARE_ERRORS` under its code
+string before any route advertises it (`hex-restapi-endpoint`), and the middleware's `ErrorResponse`
+carries that same code (rule 9).
 
 ## Other bindings
 
@@ -351,8 +311,7 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 - **A framework with its own middleware abstraction** — Litestar, Django, or a decorator-based hook.
   Unchanged: transport-only scope, configuration fixed and validated at wiring time, the shared error
   body with a registered code, and a deliberate order. What changes: the class shape and how
-  non-matching traffic is passed through, and whether the framework's own base class buffers the body —
-  the reason the primary binding refuses one here.
+  non-matching traffic is passed through.
 - **A reverse proxy or gateway in front of the app.** A concern that is purely about bytes on the wire —
   a size ceiling, a request id — may live there instead of in the app, and then no middleware is written
   at all. Unchanged: the status it returns still needs a registered code if a client can see it
