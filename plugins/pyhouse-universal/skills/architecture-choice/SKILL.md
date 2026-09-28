@@ -102,7 +102,7 @@ and the budget it turns into.
 **Who calls it?** — the weakest signal, and never decisive on its own. A synchronous caller expecting
 a response and an error contract correlates with hexagonal; a schedule, a queue or a stream correlates
 with flat. Both correlations break easily: a flat service may expose a small HTTP surface — a thin
-wrapper around its run functions, which is `flat-entrypoint`'s HTTP trigger shape in `pyhouse-flat` —
+wrapper around the functions that do its work, which is `flat-entrypoint`'s HTTP trigger shape in `pyhouse-flat` —
 and a hexagonal service may run entirely on a worker entrypoint. Nothing about a trigger implies durable
 execution either — for flat services the default for scheduled work is a plain loop, a cron entry or a
 timer, and a workflow engine is earned separately (`flat-entrypoint`, in `pyhouse-flat`).
@@ -194,7 +194,7 @@ chooses hexagonal uses a skill that already exists.
 ### Flat now, invariants later
 
 The likeliest real trajectory, and not a failure of the original choice. The migration signal is
-specific: **the first domain rule that two entrypoints, or two run functions, both need.** One caller
+specific: **the first domain rule that two entrypoints, or two jobs, both need.** One caller
 needing a rule is a function; two needing the same rule is a domain with nowhere to live.
 
 Move incrementally rather than rewriting: extract the rule, then the protocol it needs, then the

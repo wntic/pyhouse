@@ -9,7 +9,7 @@ Found by the reviews of items 6–10, outside what those items changed.
 
 ### 11. The webhook's redelivery obligation has no test, and ordering has no word
 - `flat-entrypoint` rule 9 now says a redelivery "changes nothing", but no test template pins it for
-  the HTTP run function; `flat-test-run-function` rule 3 covers it only in general. At most one test in
+  the work the HTTP route calls; `flat-test-run-function` rule 3 covers it only in general. At most one test in
   the HTTP wrapper tests, if the reviewers of that skill agree most webhook services need it.
 - `HTTP.md` says keeping the newer row under out-of-order delivery is the conflict clause's job, and
   `flat-persistence` shows no such clause. Decide whether that is one sentence in `REPOSITORY.md`
@@ -19,29 +19,6 @@ Found by the reviews of items 6–10, outside what those items changed.
 
 Raised by the maintainer reading the skills; evidence gathered, nothing changed yet. Each is a
 candidate for `/review-skills`, not a decision.
-
-#### 12. `flat-entrypoint` still speaks the vocabulary of the durable engine it was unwound from
-- "Run function" is no industry term. It is the body of the engine's unit of work (an activity) from
-  the original `flat-temporal-workflow` era (`ffc8559`), kept when the engine left. The obligation
-  (a framework-free, dependency-injected function every trigger wraps) is sound; decide whether to keep
-  the name, and if so define it once in `flat-layered`, where the roles are named.
-- `guarded` has the same root: it was the loop's `try/except`, and "guarded helper" is still used for
-  the unrelated progress-report helper of durable obligation 8 (`SKILL.md:194`, `DECISIONS.md:169`).
-  Rule 8 (containment in one named function) stands; the two meanings sharing one word do not.
-- The heading `## The run function — shared by every shape (structlog)` and the `structlog` imports in
-  the run function and `containment.py` bind the logger in a skill that owns triggers. `python-logging`
-  owns the logger; the templates could log through it without naming the library, or not log at all
-  (the guard is the only line that must). Same question in `hex-application` (7 mentions),
-  `hex-application/COMPENSATION.md` (3), `hex-persistence/UNIT_OF_WORK.md` (2), `hex-restapi-app` (2),
-  `flat-entrypoint/HTTP.md` (2).
-- 27 rules (16 + 11 durable) and, since the hard-stop sweep (D127), 2 hard stops: still the largest
-  skill in the flat family.
-
-#### 13. `flat-entrypoint/HTTP.md` is one module of FastAPI doing four jobs
-`build_app` holds the error rendering, the unexpected-failure middleware, the validation handler and
-the route in one 70-line function. The hex family already splits these (`hex-restapi-app`,
-`hex-restapi-endpoint`, `hex-restapi-schema`). Decide whether a flat HTTP trigger points at a shared
-split, or reduces to rule 9 plus the smallest wrapper. Either way the file is a lens-1 and lens-3 case.
 
 #### 14. The persistence rules are written twice
 `flat-persistence` and `hex-persistence` both state one transaction owner per callable, translating the

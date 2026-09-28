@@ -23,7 +23,7 @@ boundary — not an abstraction invented to make the code mockable.
   there is no container for it, against the SDK's own test double if it ships one.
 - The filter/normalize function the client's output feeds → a plain unit test with no fixtures; it is
   pure and needs nothing from this skill.
-- The run function calling this client → `flat-test-run-function`, which stubs the same transport under
+- The work a trigger calls reaching this client → `flat-test-run-function`, which stubs the same transport under
   the whole run against a real datastore, and so lives under `tests/integration/`.
 - The catalog exception this client translates *to*, and where it is declared → `exception-catalog`;
   asserting the catalog's own shape is a separate unit test, not this skill.
@@ -38,7 +38,7 @@ boundary — not an abstraction invented to make the code mockable.
 ## Template — pytest, `respx` over `httpx`
 
 `tests/conftest.py` — the upstream stub and the client over it, in the one conftest above both `unit/`
-and `integration/`, because the run-function and wrapper tests use the same pair (`test-principles`,
+and `integration/`, because the tests of the work and of its wrapper use the same pair (`test-principles`,
 fixture versus builder):
 
 ```python

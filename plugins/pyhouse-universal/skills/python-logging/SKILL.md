@@ -20,7 +20,7 @@ project's errors propagate to decides which scope that is. Everything else is un
 - The exception classes, what goes into their `context`, translation with `from exc`, best-effort
   compensation itself → `exception-catalog`.
 - Which layer of a hexagonal service may log at all → `hex-architecture`, in the `pyhouse-hex` plugin;
-  in a flat service, where the guard that stops a run's failure sits → `flat-layered` and
+  in a flat service, where the scope that stops a run's failure sits → `flat-layered` and
   `flat-entrypoint`, in `pyhouse-flat`.
 - Whether a test may assert on what was logged → `test-principles`.
 - An event name as a frozen external contract among the others → `naming`.
@@ -94,7 +94,7 @@ to log rides in the exception instead, the fields in `context` and the cause thr
 
 To apply it, trace the exception outward to the first scope that handles it rather than re-raising.
 A project that funnels every failure into one handler makes that handler the scope; a process that
-contains each run's failure and carries on makes its guard the scope; where the exception
+contains each run's failure and carries on makes the code around each run the scope; where the exception
 leaves the codebase entirely — a distributed package handing it to its caller — no scope inside
 qualifies and nothing inside logs. Each architecture family fixes where that scope is, in its own
 architecture skill — e.g. `hex-architecture`, in the `pyhouse-hex` plugin, or `flat-layered`, in

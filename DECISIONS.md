@@ -1805,3 +1805,29 @@ rule 23 with `_row_to_entity(self, …)` inside the class (and then reconciling 
 which would lose); restoring block B's generated-as-is revision template, the unguarded dispose and the
 env.py with no offline check or logging call, and deleting `hex-project-setup` rule 6; putting the
 removed comments back in the templates; deleting Fakes rule 10; deleting the `hex-conventions` row.
+
+### D129 — No "run function", no `guarded`, and a minimal HTTP trigger
+Taken by the maintainer (backlog items 12 and 13). **12:** "run function" was the body of a durable
+engine's unit of work, kept after the engine left (D50), and is no industry term; no skill names it as a
+concept any more. The obligation stays in `flat-entrypoint` rules 2 and 3 without the term — the work a
+trigger performs is a plain framework-free function in a module named for its work, taking every
+dependency as a parameter and named by `naming` for what it does, and every trigger calls it. The skill
+`flat-test-run-function` keeps its name for now. `guarded` shared the root: the `containment.py`
+template, the loop's `guarded(...)` call and the requirement that containment be one named function,
+defined once and returning a value a test asserts on, are gone. Rule 8 keeps the behaviour — a process
+that outlives one run keeps running when one fails, the failure logged once; a process that does one
+run and exits contains nothing; a broker-delivered unit whose run failed is returned (rule 15) — and
+the reason stays with it: the catch wraps one run in a function of the process definition that takes
+what it needs as parameters (`sync_foos` in the template, named by `naming`, in no shared module and
+returning nothing), so a test reaches one run without driving the loop. `flat-test-run-function` rule 8
+calls that function with the transport failing, then again, and asserts the second run's effect —
+never the log line, never an escape built into the loop. Durable obligation 8's helper is "the progress
+helper", so one word no longer names two things. `flat-entrypoint`'s own templates no longer import a
+logging library; `HTTP.md`'s app module, which must run as copied, binds its logger in the one form
+`python-logging`'s example shows, and its heading names that library. **13:** `HTTP.md` keeps only rule 9's wrapper — the factory, one rendering place,
+one route, the server's process definition; the delivery record is a sentence, and `hex-restapi-app`
+is named only as an example of a fuller shell.
+**Reverse by:** restoring `containment.py`, the `guarded` loop fragment and the named-function wording
+of `flat-entrypoint` rule 8, the containment template and the old rule 8 of `flat-test-run-function`,
+and the "run function" definition in `flat-layered`, from the parent of the commits that added this
+entry; restoring `HTTP.md` and the structlog lines from the same parent.

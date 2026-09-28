@@ -252,7 +252,7 @@ parameter.
 
 ### Intercepting HTTP
 
-Rung 2 for any code that calls an HTTP service — a client class, a gateway adapter, a run function
+Rung 2 for any code that calls an HTTP service — a client class, a gateway adapter, a function
 calling either:
 
 1. **The interception is active before any request is made, never opened around one block mid-test.** The decorator form (`@respx.mock`) covers the whole test body — construction and the act; it does not cover fixtures, which run before the decorated function is entered, so a fixture that itself issues requests enters `respx.mock` itself. A context manager opened mid-test leaves any request made outside it going to the real network, which fails opaquely or — worse — reaches the real upstream.

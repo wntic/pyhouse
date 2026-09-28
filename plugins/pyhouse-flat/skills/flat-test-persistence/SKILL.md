@@ -1,6 +1,6 @@
 ---
 name: flat-test-persistence
-description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the declared update set from both sides, the generated constraint name where the translator branches on it, an empty update set resolving to a no-op where a write declares one, a crossed chunk boundary where a write chunks, the catalogue exception a driver error is translated into on a write and, where the class has one, on a read, a cursor page edge splitting rows that share one timestamp where a run pages, two inputs with one key where a method takes a batch, and, where one write spans statements, its atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the run function that calls this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
+description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the declared update set from both sides, the generated constraint name where the translator branches on it, an empty update set resolving to a no-op where a write declares one, a crossed chunk boundary where a write chunks, the catalogue exception a driver error is translated into on a write and, where the class has one, on a read, a cursor page edge splitting rows that share one timestamp where a run pages, two inputs with one key where a method takes a batch, and, where one write spans statements, its atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat Test — Data-Access Contract
@@ -34,7 +34,7 @@ rule 3), never from a guess:
 - The container, migration and isolation fixtures themselves → `flat-test-integration-setup`; this skill
   consumes `conn`, `engine` and `truncate_all` and lays none of its own.
 - Writing the tables, repository class and migrations under test → `flat-persistence`.
-- A run function calling this write path as part of a run → `flat-test-run-function`; this skill tests
+- The work a trigger calls reaching this write path as part of a run → `flat-test-run-function`; this skill tests
   the write path, that one tests the wiring above it.
 - The client feeding these rows → `flat-test-service-client`.
 - A static "no package outside the data-access package constructs a statement" rule →
