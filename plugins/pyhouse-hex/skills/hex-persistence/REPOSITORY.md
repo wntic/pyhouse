@@ -1,8 +1,8 @@
 # hex-persistence — the repository adapter
 
-Topic file of `hex-persistence`. The mechanism-free obligations are rules 6–11 and 13 in `SKILL.md`, and
-`python-settings` for the settings class at the end; what follows is the **SQLAlchemy Core + asyncpg**
-binding that satisfies them.
+Topic file of `hex-persistence`. The mechanism-free obligations are rules 1–3 and 5 in `SKILL.md`,
+`persistence` rules 1, 3, 4, 5 and 6, and `python-settings` for the settings class at the end; what
+follows is the **SQLAlchemy Core + asyncpg** binding that satisfies them.
 
 One class adapting a domain repository protocol to SQLAlchemy Core. The adapter does not inherit from the
 protocol — structural subtyping at the injection site is the contract.
@@ -15,7 +15,10 @@ protocol — structural subtyping at the injection site is the contract.
   Receives a live session and **never commits** (`UNIT_OF_WORK.md`).
 
 The two forms are mutually exclusive for one class. If both call styles are genuinely needed, write two
-adapters.
+adapters. The constructor follows the transaction's owner: `FooRepository` takes the session factory
+because it owns its transaction and opens one per call, and `FooSessionRepository` takes a live session
+because the unit of work owns the transaction and every member must run inside that one — handed a
+factory, it would open a second (`persistence` rule 1).
 
 ## Template — standalone form
 
@@ -180,8 +183,8 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
    `await session.commit()`, a read does not.
 5. **Unit-of-work-managed:** the session arrives in `__init__` and is used directly; **never** call
    `commit()` or `rollback()`.
-6. **No instance state holding a session.** Do not pass one across methods — a multi-statement read shares
-   a single `async with` block instead.
+6. **A multi-statement read shares a single `async with` block** — never a session passed across methods
+   or held on the instance (`persistence` rule 1).
 
 ## Rules — reads
 
@@ -215,19 +218,18 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
     end of `_map_integrity_error` is it.
 18. **The most specific class wins** — `exception-catalog` rule 9. Where another table references this
     one, the FK integrity error on delete → the catalogue's in-use class.
-19. **Populate `context` with the offending field and the constraint name.** Always include
-    `"constraint": constraint` — the full conventional name — so the entrypoint and the tests can assert
-    on it.
-20. **The full constraint names are load-bearing** and must match what the `Table` declared. A rename is a
-    breaking change touching this file and `TABLE.md` together.
+19. **`context` carries `"field"` and `"constraint": constraint`**, the name the driver reports, which is
+    the full conventional one (`persistence` rule 4).
+20. **A branch compares `constraint` with the full name the `Table`'s convention generates — `==`, never
+    `in`** (`persistence` rule 5).
 21. **Driver assumption:** the mapper reads `exc.orig.__cause__.constraint_name` and `exc.orig.pgcode`.
     The project is locked to one async driver plus Postgres; changing driver means changing this access
     path.
 
 ## Rules — row-to-entity mapper
 
-22. Pure functions: no IO, no logging. Convert a naive database datetime to UTC-aware —
-    `dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt`.
+22. **A naive database datetime becomes UTC-aware in the mapper** —
+    `dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt` — this binding's half of `persistence` rule 6.
 23. **A private module function after the class, never a private method** — it reads no instance
     state (`python-packaging`). A simple aggregate (one row → one entity) has one `_row_to_entity(row)`;
     a composite aggregate (several rows → one entity) has an assembler,
@@ -237,7 +239,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 When a third repository repeats the same SQLSTATE branches, one shared mapper takes the SQLSTATE
 defaults and the mandatory fallback, each repository passes only its own constraint-name overrides, and
-every existing repository moves to it in that commit (rule 13 in `SKILL.md`).
+every existing repository moves to it in that commit (rule 5 in `SKILL.md`).
 
 ## The store's settings, engine and binding — pydantic-settings, SQLAlchemy, dishka
 

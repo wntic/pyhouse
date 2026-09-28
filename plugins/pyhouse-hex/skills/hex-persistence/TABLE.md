@@ -1,11 +1,10 @@
 # hex-persistence — the `Table`
 
-Topic file of `hex-persistence`. The mechanism-free obligations are rules 1–5 in `SKILL.md`; what
-follows is the **SQLAlchemy Core + Postgres** binding that satisfies them.
+Topic file of `hex-persistence`. The mechanism-free obligations are `persistence` rules 5 and 7–11;
+what follows is the **SQLAlchemy Core + Postgres** binding that satisfies them.
 
-Column types are a **design decision** — a JSON column, an array column, a check constraint, a foreign
-key — not a mechanical transcription of the entity's fields. That is why the column-type rules come
-first.
+Column types are a design decision (`persistence` rule 8) — a JSON column, an array column, a check
+constraint, a foreign key — which is why the column-type rules come first.
 
 ## Naming convention (load-bearing — do not deviate)
 
@@ -79,9 +78,8 @@ returns.
   migration to change.
 - **Integers:** `Integer`; `SmallInteger` only when the domain is genuinely bounded.
 - **Booleans:** `Boolean`.
-- **Enums:** `Text` plus a `CheckConstraint` listing the valid values — **not** a database `ENUM` type.
-  This matches the domain `StrEnum`, and changing the value set is then an ordinary check-constraint
-  migration rather than a type alteration.
+- **Enums:** `Text` plus a `CheckConstraint` listing the valid values, never a database `ENUM` type
+  (`persistence` rule 9).
 
 ## Rules — FK `ondelete`
 
@@ -94,8 +92,8 @@ Pick once, and document the consequence in the repository's `delete`.
 
 ## Rules — indexes
 
-- Index every FK column you filter or join on. The library does **not** create FK indexes automatically.
-- Index columns used in a list endpoint's `ORDER BY` and in a filter record's `WHERE`.
+- What to index is `persistence` rule 10; an FK column's index is declared, because the library creates
+  none for it.
 - Single-column index name: `ix_<table>_<col>`. A composite index is named explicitly with the same
   prefix.
 - **A bare string argument to `Index` is a COLUMN NAME, not an expression.**
@@ -118,7 +116,6 @@ Pick once, and document the consequence in the repository's `delete`.
 - **The same rules hold inside a revision's `op.create_table`.** `env.py` hands the shared metadata to
   the migration tool as `target_metadata`, so `op.create_table` builds on the convention exactly as the
   `Table` does.
-- Renaming one is a breaking change: the repository's map changes in the same commit.
 
 ## Rules — junction and owned-children tables
 
@@ -132,8 +129,8 @@ Pick once, and document the consequence in the repository's `delete`.
 
 - `created_at` / `updated_at` use `server_default=func.now()`, so existing rows behave correctly during a
   migration.
-- Application-managed `updated_at` on update: the repository sets it explicitly with `func.now()` in the
-  `UPDATE`. A server default fires only on `INSERT`.
+- Application-managed `updated_at` on update: the repository sets it with `func.now()` in the `UPDATE`
+  (`persistence` rule 7).
 - A domain-meaningful default uses `server_default="…"`, and the value stays **identical** between the
   table definition and the revision.
 

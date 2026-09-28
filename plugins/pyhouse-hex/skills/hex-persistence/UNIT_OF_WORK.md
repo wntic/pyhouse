@@ -2,9 +2,9 @@
 
 Topic file of `hex-persistence`, read only when one command writes **two or more repositories that must
 commit together** — two aggregates changed at once, an aggregate plus an outbox row. The
-mechanism-free obligations are rules 7 and 15–17 in `SKILL.md`; what follows is the **SQLAlchemy async
-session + dishka** binding that satisfies them: the domain protocol, its implementation, its binding,
-and the handler form that opens it.
+mechanism-free obligations are rules 2 and 6–8 in `SKILL.md`, and `persistence` rule 1; what follows is
+the **SQLAlchemy async session + dishka** binding that satisfies them: the domain protocol, its
+implementation, its binding, and the handler form that opens it.
 
 Not a unit of work: one repository per command (the standalone form in `REPOSITORY.md` owns its own
 transaction); keeping rows readable after the commit (the session factory's post-commit refresh policy
