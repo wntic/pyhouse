@@ -132,7 +132,7 @@ rules the layer split imposes on top of `python-packaging`; `hex-architecture` a
 
 | Skill | Owns |
 |---|---|
-| `hex-restapi-app` | FastAPI lifecycle, central error translation, the shared error schemas, and middleware — none presumed, CORS included — with the registration of a status a middleware emits |
+| `hex-restapi-app` | FastAPI lifecycle, central error translation, the shared error schemas, and declared middleware — none presumed, CORS included — with the registration of a status a middleware emits |
 | `hex-restapi-endpoint` | Resource routers, JSON operations with read-back, route ordering, multipart uploads and streaming downloads, handler resolution, and the error responses a route advertises |
 | `hex-restapi-schema` | Resource request/response models, partial updates, pagination, and schema exports |
 | `hex-restapi-auth` | Caller identity as the issuer's opaque subject, with a rank only where a route gates on one; the token-verifier port and adapter, route dependencies, and the auth codes a route advertises |
