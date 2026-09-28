@@ -57,7 +57,6 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("name"),
-        # A check constraint's `name` is the SUFFIX: the convention prepends `ck_foos_`; a full name doubles.
         sa.CheckConstraint("char_length(name) > 0", name="name_non_empty"),
     )
     op.create_index("ix_foos_created_at", "foos", ["created_at"])
@@ -67,6 +66,9 @@ def downgrade() -> None:
     op.drop_index("ix_foos_created_at", table_name="foos")
     op.drop_table("foos")
 ```
+
+A check constraint's `name` is the suffix, as in the `Table`: the convention prepends `ck_foos_`, so a
+full name there comes out doubled.
 
 `downgrade()` is mandatory and reverses the operations in the opposite order, because the migration
 round-trip test — upgrade, downgrade, upgrade again against a real database (`hex-test-repository-contract`)

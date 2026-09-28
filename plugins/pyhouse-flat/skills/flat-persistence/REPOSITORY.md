@@ -27,7 +27,7 @@ from .foo_table import foo_table
 __all__ = ["FooRepository"]
 
 _DRIVER_ERRORS = (DBAPIError, OSError)
-_REFUSED_DATA_CLASSES = frozenset({"22", "23"})  # SQLSTATE classes: data exception, integrity violation
+_REFUSED_DATA_CLASSES = frozenset({"22", "23"})
 _BIND_PARAMETER_CAP = 32767
 _CHUNK_SIZE = _BIND_PARAMETER_CAP // len(foo_table.columns)
 

@@ -125,7 +125,7 @@ async def get_foo(
     "",
     response_model=FooResponse,
     status_code=201,
-    responses=error_responses(409, 422),  # 409 only because Foo's name is unique
+    responses=error_responses(409, 422),
 )
 async def create_foo(
     body: FooCreateRequest,
@@ -148,7 +148,7 @@ constraint — a resource with none drops it.
 @router.patch(
     "/{id}",
     response_model=FooResponse,
-    responses=error_responses(404, 409, 422),  # 409 only because Foo's name is unique
+    responses=error_responses(404, 409, 422),
 )
 async def update_foo(
     id: UUID,
@@ -163,13 +163,15 @@ async def update_foo(
     return FooResponse(id=foo.id, name=foo.name, note=foo.note)
 ```
 
+`409` is here for the same uniqueness constraint, and goes with it.
+
 ### `delete` (204)
 
 ```python
 @router.delete(
     "/{id}",
     status_code=204,
-    responses=error_responses(404, 422),  # + 409 where another aggregate can reference a Foo
+    responses=error_responses(404, 422),
 )
 async def delete_foo(
     id: UUID,
@@ -178,6 +180,9 @@ async def delete_foo(
     await handler.execute(DeleteFooCommand(id=id))
     return Response(status_code=204)
 ```
+
+`409` joins the set only where another aggregate can reference a `Foo`, so a delete can find it still in
+use.
 
 ### Route ordering — FastAPI declaration order
 

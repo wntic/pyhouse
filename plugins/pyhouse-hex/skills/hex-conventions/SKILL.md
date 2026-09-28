@@ -63,6 +63,7 @@ every derived path and class name here, multiplying one careless choice across t
 | filter sort enum | `FooSort` in `foos` | `FooSort` | `domain/foos/foo_sort.py` — its own module, not folded into the filter's (one class per module); the filter imports it |
 | repository protocol | `IFooRepository` in `foos` | `IFooRepository` | `domain/foos/i_foo_repository.py` |
 | capability protocol | `ICanSendNotification` in `foos` | `ICanSendNotification` | `domain/foos/i_can_send_notification.py` |
+| unit-of-work protocol | `IUnitOfWork`; a second scope `I<Scope>UnitOfWork` | `IUnitOfWork` / `I<Scope>UnitOfWork` | `domain/uow/i_unit_of_work.py` / `domain/uow/i_<scope>_unit_of_work.py` — the cross-cutting subdomain `uow`, never an aggregate's (`hex-persistence`) |
 | domain exception | `NotFoundError` | `NotFoundError` | appended to `domain/exceptions.py` (single catalog) |
 | application command | `CreateBar` (subdomain derived, see below) | `CreateBarCommand` + `CreateBarHandler` | `application/bars/create_bar_command.py` + `application/bars/create_bar_handler.py` |
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |

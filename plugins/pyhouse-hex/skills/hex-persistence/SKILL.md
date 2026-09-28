@@ -126,8 +126,8 @@ loaded automatically:
 10. **The context carries the offending field and the full constraint name.** The constraint name is the
     one the convention generated, because the entrypoint and the tests both assert on it.
 11. **Row-to-entity mapping is a pure function** — no IO, no logging — and it normalizes what the driver
-    hands back, including giving a naive timestamp its offset. A helper lives at module level when more
-    than one method or helper uses it, and as a private method when exactly one does.
+    hands back, including giving a naive timestamp its offset. Needing no instance state, it is a
+    private module function after the class, never a private method (`python-packaging`).
 12. **A schema change is a coordinated pair in one commit** — the table definition and one new migration.
     A later change is authored as a *new* migration, never by rewriting a shipped one, and generated
     migration output is a draft to hand-edit, not a result. The reverse operation is mandatory and

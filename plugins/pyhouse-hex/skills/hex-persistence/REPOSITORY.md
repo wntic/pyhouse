@@ -53,27 +53,24 @@ class FooRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._sf = session_factory
 
-    def _row_to_entity(self, row: RowMapping) -> Foo:
-        return Foo(id=row["id"], name=row["name"], note=row["note"])
-
     async def get_by_id(self, id: UUID) -> Foo:
         async with self._sf() as session:
             row = (await session.execute(select(foos_table).where(foos_table.c.id == id))).mappings().one_or_none()
         if row is None:
             raise NotFoundError("Foo not found", {"id": str(id)})
-        return self._row_to_entity(row)
+        return _row_to_entity(row)
 
     async def get_by_name(self, name: str) -> Foo | None:
         async with self._sf() as session:
             row = (await session.execute(select(foos_table).where(foos_table.c.name == name))).mappings().one_or_none()
-        return self._row_to_entity(row) if row is not None else None
+        return _row_to_entity(row) if row is not None else None
 
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
         stmt = _apply_filter(select(foos_table), filter).order_by(_SORT_COLUMNS[filter.sort])
         stmt = stmt.limit(filter.limit).offset(filter.offset)
         async with self._sf() as session:
             rows = (await session.execute(stmt)).mappings().all()
-        return [self._row_to_entity(r) for r in rows]
+        return [_row_to_entity(r) for r in rows]
 
     async def count(self, *, filter: FooListFilter) -> int:
         stmt = _apply_filter(select(func.count()).select_from(foos_table), filter)
@@ -117,6 +114,10 @@ class FooRepository:
             await session.commit()
 
 
+def _row_to_entity(row: RowMapping) -> Foo:
+    return Foo(id=row["id"], name=row["name"], note=row["note"])
+
+
 def _map_integrity_error(exc: IntegrityError) -> Exception:
     cause = exc.orig.__cause__ if exc.orig else None
     constraint = getattr(cause, "constraint_name", None) if cause else None
@@ -144,9 +145,9 @@ def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:
 A class of its own, `FooSessionRepository` in `foo_session_repository.py`, when the aggregate needs the
 standalone form too. Only the constructor and the method bodies differ: methods use
 `self._session.execute(...)` directly and **never call `commit()`** — the unit of work owns the
-transaction. The module-level helpers (`_SORT_COLUMNS`, `_map_integrity_error`, `_apply_filter`) are
-shared, not copied: once both forms exist they move to one module both adapters import, so the
-constraint-name map stays single.
+transaction. The module-level helpers (`_SORT_COLUMNS`, `_row_to_entity`, `_map_integrity_error`,
+`_apply_filter`) are shared, not copied: once both forms exist they move to one module both adapters
+import, so the constraint-name map stays single.
 
 ```python
 class FooSessionRepository:
@@ -224,11 +225,10 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 22. Pure functions: no IO, no logging. Convert a naive database datetime to UTC-aware —
     `dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt`.
-23. **Module level when more than one method or helper uses it; a private method when exactly one
-    does.** A simple aggregate (one row → one entity) is read by `get_by_id`, `get_by_<other>` and
-    `list`, but through one `_row_to_entity` private method. A composite aggregate (several rows → one
-    entity) needs per-child helpers as well as the assembler, so `_rows_to_entity(row, child_rows_a,
-    child_rows_b)` and each helper go to module level.
+23. **A private module function after the class, never a private method** — it reads no instance
+    state (`python-packaging`). A simple aggregate (one row → one entity) has one `_row_to_entity(row)`;
+    a composite aggregate (several rows → one entity) has an assembler,
+    `_rows_to_entity(row, child_rows_a, child_rows_b)`, plus one helper per child.
 
 ## Evolution — when to extract a shared integrity-error mapper
 

@@ -77,28 +77,9 @@ The maintainer suspects much is buried there. Run `/review-skills` on `hex-resta
 #### 26. Audit the test skills the same way
 Test skills follow their production skills, so every item above has a test-side echo: the unit-of-work
 and session fakes (item 14), the token adapter's test in `hex-test-capability-adapter` (item 19), the
-restapi tests (item 24), the template comments (D123, item 30). `hex-test-restapi-auth` and
+restapi tests (item 24), the template comments (D123, D128). `hex-test-restapi-auth` and
 `hex-test-application-handler/FAKES.md` are the densest in domain nouns. Run `/review-skills` over the
 test skills after the production skill each one follows has settled.
-
-#### 28. A single-use helper is a private method in `hex-persistence`, a module function in `python-packaging`
-`hex-persistence` rule 11 and its `REPOSITORY.md` rule 23 say a helper used by exactly one method is a
-private method, which contradicts `python-packaging`'s "a helper that does not need `self` is a module
-function, not a private method". Decide which holds and align the other. The standalone template's
-`_row_to_entity(self, …)` never reads `self`, so as copied it already breaks `python-packaging` rule 2.
-
-#### 29. `hex-project-setup`'s migration bootstrap trails what `flat-project-setup` now states
-Block B takes `script.py.mako` as `alembic init` writes it, which renders `typing.Union` forms and an
-import order the linter rejects, contradicting `python-style` and `hex-persistence/REVISION.md`. Its
-`env.py` disposes the engine only on a clean run, does not refuse offline mode and configures no logging, so
-the tool's records reach no configured handler (`python-logging` rule 3). Align it with what `flat-project-setup` now states.
-
-#### 30. Comments left in production templates after D123
-Most likely to break `python-style`: `hex-persistence/REVISION.md` (the check-constraint suffix note) and
-`hex-restapi-auth/ROUTES.md` (`# read — …`, `# mutation — …`). Also review `hex-persistence/REPOSITORY.md`
-(the `cast` reason), `hex-restapi-endpoint/SKILL.md` (the `409 only because …` notes),
-`hex-restapi-schema/SKILL.md` (`# mirrors …`) and `flat-persistence/REPOSITORY.md` (the SQLSTATE note).
-Test skills were not swept.
 
 #### 31. Command sequences the "a template earns its place by being copied" bullet flags
 `flat-persistence/SETUP.md` (the alembic commands) and `python-versioning/SKILL.md` (tag and push) are
@@ -106,13 +87,6 @@ sequences a project runs, not files it copies. Also `meta-skill-author` says the
 remove nothing" (~line 378) while a reference skill omits `Template(s)`; reword it.
 `git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
 rest.
-
-#### 32. No test skill shows a fake unit of work
-`hex-test-application-handler` has no guidance for a handler that takes an `IUnitOfWork`, so an agent
-invents one. Decide whether one rule (not a template) in that skill covers it.
-
-#### 33. `hex-conventions` does not know `domain/uow/`
-`hex-conventions` does not know the `domain/uow/` path `hex-persistence/UNIT_OF_WORK.md` introduces.
 
 ## Agreed
 
