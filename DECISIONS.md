@@ -1831,3 +1831,29 @@ is named only as an example of a fuller shell.
 of `flat-entrypoint` rule 8, the containment template and the old rule 8 of `flat-test-run-function`,
 and the "run function" definition in `flat-layered`, from the parent of the commits that added this
 entry; restoring `HTTP.md` and the structlog lines from the same parent.
+
+### D131 — An older write never overwrites a newer one; a redelivery is rule 3's case; a delivery is one row
+Taken by the maintainer (backlog item 11, and a review finding that reverses D117's last sentence). No
+new test: `flat-test-run-function` rule 3 already pins the second run of any run that can repeat. It now
+names a delivery the sender may repeat — a webhook redelivery, an at-least-once broker delivery — says
+the work's own test file pins it, never the wrapper's (rule 5), and that with no store the second run
+sent what the first sent (rule 4); its idempotence template compares the values the input determines
+rather than a count. `flat-persistence` rule 12 gains one conditional sentence: where an older write can
+arrive after a newer one for the same key, the update is guarded by the row's ordering stamp — a version
+or an instant fixed when the change was made or observed, the same on every delivery of it, never the
+time of a delivery attempt or of the write — so an input stamped older never replaces a newer one, in the
+row or in a batch collapsed by key. The stamp is defined by being fixed with the change, not by who
+assigns it: a sender that restamps each attempt defeats a guard on its stamp, and a crawler whose runs
+overlap has only the instant it fetched. An equal stamp may replace, so the copied update-set test still
+passes. Rule 18 keeps the newest by that stamp in the in-batch collapse wherever the stamp guards the
+write, and in a merge-time engine chosen once in the schema, so the guard does not lapse with rule 12 on
+a store that deduplicates at merge time. `HTTP.md`'s delivery field is `changed_at` (was `sent_at`), its
+pointer says keeping the newer is the data-access package's job (rules 12 and 18), and **the work calls
+`repository.record(foo)`, the single-row form `REPOSITORY.md` describes — reversing D117's
+"`record_batch([foo])` stays"**, so a webhook receiver no longer copies the batch machinery.
+`flat-entrypoint` rule 10 and Shape 3 point at the same rules instead of naming a store mechanism. No
+template gains a line for the guard; a test pinning it is left to item 26.
+**Reverse by:** from the parent of the commits that added this entry, restoring `flat-persistence` rules
+12 and 18, its precondition row and other-engine bullet; `flat-test-run-function` rule 3, its idempotence
+template and paragraph and its wrapper test body; `flat-entrypoint` rule 10 and Shape 3; and `HTTP.md`'s
+work paragraph, template (`sent_at`, `record_batch([foo])`) and pointer.
