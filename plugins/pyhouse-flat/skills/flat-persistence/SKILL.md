@@ -1,7 +1,7 @@
 ---
 name: flat-persistence
 description: Use when a flat-layered service reads or writes a datastore — its table definitions, its component-owned settings class, the repository class that owns each write's transaction and builds its statements, and where its migration history lives. Owns one data-access package per store named for its technology, the SQLAlchemy Core binding of `persistence`'s store-generic rules, multi-row writes chunked from the driver's bind-parameter cap, application-minted time-ordered keys, the settings class and engine factory the process definition builds, and one migration directory per store at the distribution root, only where the service owns the schema. Transaction ownership, driver-error translation, constraint names, conflicts and ordering, cursor reads and safe migrations are `persistence`'s. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a data-access library several distributions share is `python-workspace`.
-when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a repository class in a flat service, a second store beside the first, a constraint naming convention, a migration for a flat service or where its files go, paging through a table by cursor, deduplicating writes, or where a service's SQL is allowed to live.
+when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a repository class in a flat service, a second store beside the first, a constraint naming convention, a migration for a flat service or where its files go, deduplicating writes, or where a service's SQL is allowed to live.
 ---
 
 # Flat Persistence — one package per store owns the data access

@@ -17,7 +17,7 @@ this class's declared half of `persistence` rule 1, and it builds the statements
 from collections.abc import Sequence
 
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from myapp.exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
@@ -27,7 +27,7 @@ from .foo_table import foo_table
 
 __all__ = ["FooRepository"]
 
-_DRIVER_ERRORS = (DBAPIError, OSError)
+_DRIVER_ERRORS = (DBAPIError, OSError, PoolTimeoutError)
 _REFUSED_DATA_CLASSES = frozenset({"22", "23"})
 _BIND_PARAMETER_CAP = 32767
 _CHUNK_SIZE = _BIND_PARAMETER_CAP // len(foo_table.columns)
@@ -58,7 +58,7 @@ class FooRepository:
             raise _translate(exc) from exc
 
 
-def _translate(exc: DBAPIError | OSError) -> MyappError:
+def _translate(exc: DBAPIError | OSError | PoolTimeoutError) -> MyappError:
     orig = exc.orig if isinstance(exc, DBAPIError) else None
     driver_error = orig.__cause__ if orig is not None else None
     sqlstate = getattr(driver_error, "sqlstate", None)
@@ -76,7 +76,9 @@ def _translate(exc: DBAPIError | OSError) -> MyappError:
 **The batch is optional.** A method that takes one `Foo` — a webhook's `record(foo)` — runs one
 `insert(foo_table).values(...).on_conflict_do_update(...)` inside its `engine.begin()`: no cap, no chunk
 constant, no `chunk_size` argument, no collapse and no loop — those exist only where a method takes a
-batch — while the ordering guard stays wherever the stamp guards the write (`persistence` rule 16).
+batch. Where deliveries for one reference can arrive out of order, the conflict clause is guarded on the
+stamp — `where=foo_table.c.observed_at < statement.excluded.observed_at` — for one row as for a batch
+(`persistence` rule 16).
 
 The class takes its engine as a **constructor argument**, never reaching for the factory itself, so a
 test can point it at a container without touching the environment. The chunk size defaults to the named
@@ -89,17 +91,17 @@ table's: with one class the cap sits beside the statement, and with a second it 
 (below). Each chunk is one multi-row statement (rule 2), and its conflict clause is derived from that
 same statement's `excluded` row, so the update set names the incoming values of the row that conflicted
 (`persistence` rule 15). The set is declared here, per write, and never holds the key matched on; a
-write with nothing to update on conflict says `on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET`
-is a syntax error.
+write with nothing to update on conflict says `on_conflict_do_nothing()` instead, because a `DO UPDATE`
+with an empty `SET` is a syntax error.
 
 `record_batch` is `persistence` rule 17's worked case: a foo already recorded is resolved by the
 statement's own conflict clause, never by asking which references exist before writing. **Two foos in
-one batch sharing a reference are collapsed before the statement** — the newest by the ordering stamp
-winning where that stamp guards the write, the later one otherwise or among equals (`persistence`
-rules 16 and 17) — because Postgres refuses an `ON CONFLICT DO UPDATE` that touches one row twice
-(SQLSTATE `21000`), and would fail the whole batch as `StorageUnavailableError` over data that was never
-unavailable. It is keyed on the reference exactly as the
-table stores it, because that is the key the constraint sees. An empty batch runs no statement.
+one batch sharing a reference are collapsed before the statement** — the newest `observed_at` winning
+wherever the guard above is present, the later one otherwise or among equals (`persistence` rules 16
+and 17) — because Postgres refuses an `ON CONFLICT DO UPDATE` that touches one row twice (SQLSTATE
+`21000`), and would fail the whole batch as `StorageUnavailableError` over data that was never
+unavailable. It is keyed on the reference exactly as the table stores it, because that is the key the
+constraint sees. An empty batch runs no statement.
 
 **Where one write spans statements** — a parent and its children, a later statement that needs keys an
 earlier one resolved — every statement sits inside this one `engine.begin()`, and the keys come back
@@ -108,9 +110,10 @@ and rule 4 in `SKILL.md`). Under an empty update set `DO NOTHING` returns no row
 skipped, so a write whose keys are read back declares a non-empty one.
 
 **The whole engine block sits inside the `try`, in every public method, a read as much as a write**
-(`persistence` rule 4). Two types reach the `except`: SQLAlchemy wraps
-what the driver raises in its own `DBAPIError`, except a refused connection, which asyncpg reports as the
-socket's `OSError` and SQLAlchemy lets through unwrapped — which is why `_DRIVER_ERRORS` names both.
+(`persistence` rule 4). Three types reach the `except`: SQLAlchemy wraps what the driver raises in its
+own `DBAPIError`, except a refused connection, which asyncpg reports as the socket's `OSError` and
+SQLAlchemy lets through unwrapped, and a pool with no connection free within its timeout raises
+SQLAlchemy's own `TimeoutError`, which is neither — which is why `_DRIVER_ERRORS` names all three.
 
 `_translate` **ends by returning a catalogue exception**: the last statement is the fallback, not a
 re-raise of the driver's type. Without it every caller's `except` clause ends up written against a
