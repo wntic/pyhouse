@@ -40,7 +40,8 @@ same rule under its own name (a process exit code, a gRPC status), or far more o
 - Where a database driver's error is translated, and the field and constraint name its context
   carries → `persistence`; the translator itself is the family's data-access skill's —
   `hex-persistence`, in the `pyhouse-hex` plugin, or `flat-persistence`, in the `pyhouse-flat`
-  plugin — which references this skill for the target class name.
+  plugin — which references this skill for the target class name, or, with no family installed, the
+  project's own data-access code, under this skill's rules 8–11.
 - Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
   plugin, same relationship.
 - Advertising an error's `code` on a REST route → `hex-restapi-endpoint`, in the
@@ -251,7 +252,8 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
     class for the ones it does not — never the raw exception returned or re-raised, never a `pass`. A
     partial translation is an untranslated leak with extra steps.
 11. **`context` carries the operation's stable identifying inputs**, plus the upstream code or status
-    where there is one. The raise site and its test agree on that key set and it does not churn, because
+    where there is one — never the library exception's class name, which names the dependency rather
+    than the failure and changes when it does. The raise site and its test agree on that key set and it does not churn, because
     the test asserts on it and the layer that logs the error renders it as fields.
 12. **No secret in `context`.** A token, key, password or connection string placed there reaches the log
     line, and the response body where the project renders one, by construction — both render `context`
@@ -287,8 +289,9 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
 
 - Translating a database driver's error at a repository boundary → stop, use `persistence` for where
   it binds and what its context carries, and the family's data-access skill for the translator
-  (`hex-persistence`, in `pyhouse-hex`, or `flat-persistence`, in `pyhouse-flat`); they name the
-  target class from here.
+  (`hex-persistence`, in `pyhouse-hex`, or `flat-persistence`, in `pyhouse-flat`), or, with no family
+  installed, the project's own data-access code, under this skill's rules 8–11; they name the target
+  class from here.
 - Rendering a caught error as a response, or writing the central handler that does it → stop, use
   `hex-restapi-app` (in `pyhouse-hex`) or `flat-entrypoint`'s HTTP shape (in `pyhouse-flat`).
 - Deciding where an error is logged and by whom → stop, use `python-logging`.
