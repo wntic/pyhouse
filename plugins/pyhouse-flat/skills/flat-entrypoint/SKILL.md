@@ -210,9 +210,9 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, calls the work with it, and
 acknowledges the message once the run succeeds or returns it when the run fails (rules 11, 15), the run
-writing values taken from the message's content, never the clock or a timestamp the broker sets on each
-delivery attempt (`flat-persistence` rule 12). A broker the service publishes to is an external system
-with a package of its own (`flat-layered` rule 14).
+writing values taken from the message, never the clock, and ordering them by the stamp `flat-persistence`
+rule 12 names. A broker the service publishes to is an external system with a package of its own
+(`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 
