@@ -59,7 +59,7 @@ otherwise.
 ```python
 import httpx
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from myapp.foo_api import FooClient
@@ -91,7 +91,9 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
     await run_once(foo_client, FooRepository(engine))
 
-    assert (await conn.execute(select(func.count()).select_from(foo_table))).scalar_one() == 2
+    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    rows = (await conn.execute(query)).all()
+    assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
 async def test_a_run_reports_what_it_recorded(
@@ -106,7 +108,9 @@ async def test_a_run_reports_what_it_recorded(
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
 mostly repeats has "the second run over the same batch adds no row" as its central behaviour, and it
-is the one a wrong conflict-column list breaks.
+is the one a wrong conflict-column list breaks. It compares the values the input determines, not a
+count, so a second run that rewrites one fails too. A run's own observation instant is not among them —
+each run stamps a new one — but a stamp the input carries, a delivery's `changed_at`, is.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
@@ -152,7 +156,7 @@ async def http(engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
 
 
 async def test_a_posted_foo_is_recorded(http: httpx.AsyncClient) -> None:
-    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "sent_at": "2024-01-01T00:00:00Z"})
+    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "changed_at": "2024-01-01T00:00:00Z"})
 
     assert response.json() == {"recorded": 1}
 
@@ -199,11 +203,13 @@ in-process one alone.
    semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
    client's own request building and error translation out of the test, and substituting the datastore
    removes the only thing this level can prove.
-3. **Where a run can repeat over the same input, its test file pins what the second run does.** A
-   scheduled pass over a feed that mostly repeats, and any run a trigger may retry after a partial
-   failure, both meet that condition — run twice, assert the second run added no row and changed nothing its
-   input determines. A run whose input is consumed once, or that is by construction never repeated, has
-   nothing to pin and the test would assert a coincidence.
+3. **Where a run can repeat over the same input, the work's own test file pins what the second run
+   does — never the wrapper's (rule 5).** A scheduled pass over a feed that mostly repeats, a delivery
+   the sender may repeat (a webhook redelivery, an at-least-once broker delivery), and any run a trigger
+   may retry after a partial failure all meet that condition — run twice, assert the second run added no
+   row and changed nothing its input determines, and with no store that it sent what the first run sent
+   (rule 4), which is all a run that keeps no state can promise. A run whose input is consumed once, or
+   that is by construction never repeated, has nothing to pin and the test would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
    logged `"ok"` and wrote nothing must fail, and a process's containment is asserted on what the run
    after a failed one did. A service with no store asserts on the requests the stubbed transport recorded and on the

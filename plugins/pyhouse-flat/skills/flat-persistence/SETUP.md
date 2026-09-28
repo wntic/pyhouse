@@ -102,28 +102,21 @@ No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the 
 ## Migrations — Alembic
 
 The migration environment and the revision template are laid once, with the project, under
-`migrations/postgres/` at the distribution root (`flat-project-setup`); `alembic.ini` beside
-`pyproject.toml` points its `script_location` there. What recurs is one revision per schema change,
-authored from the metadata above and reviewed before it is committed:
-
-```bash
-alembic revision --autogenerate -m "create foos"
-alembic upgrade head
-```
+`migrations/postgres/` at the distribution root (`flat-project-setup`). What recurs is one revision per
+schema change, authored from the metadata above by `alembic revision --autogenerate -m "<change>"`,
+reviewed against rule 16 before it is committed, and applied by `alembic upgrade head`. Autogenerate
+diffs the metadata against a live database at head, so the draft is made against one only its author
+uses — a container of the suite's image, upgraded first — and `alembic upgrade head` reaches a shared
+database only as the deploy step.
 
 Both run from the directory holding `alembic.ini` — the distribution's own root, or the owning library's
-where several distributions share the store (rule 15) — so whatever runs the upgrade at deploy carries
-`alembic.ini` and `migrations/` with it: a built wheel holds only the package, so an image copies both
-beside it, or the migration job runs from the source tree (rule 20). Alembic takes no lock of its own,
-so the upgrade runs as one job per deploy, never from each replica as it starts. The revision lands in
-`migrations/postgres/versions/`. On a greenfield schema the first of them, the one that creates the first
-table, is the root of the chain; there is no empty revision ahead of it. Autogenerate compares tables,
-columns, types, nullability, indexes, unique and foreign-key constraints; it does not compare a
-`CheckConstraint`, so a change to one is written into the revision by hand. Every revision carries a
-`downgrade()` that reverses its `upgrade()`, and the migration round trip the integration suite replays
-once per session is what proves it (`flat-test-integration-setup`). Rule 16 in `SKILL.md` states what a
-deploy obliges.
+where several distributions share the store (rule 15) — so whatever applies the history carries
+`alembic.ini` beside `migrations/` (rule 20). Alembic takes no lock of its own, so rule 20's one job per
+deploy is the exclusion. The revision lands in `migrations/postgres/versions/`. Autogenerate compares
+tables, columns, types, nullability, indexes, unique and foreign-key constraints; it does not compare a
+`CheckConstraint`, so a change to one is written into the revision by hand.
 
-A second store's history sits beside this one in `migrations/<store>/`, in whatever format that store's
-migration tool reads, and is applied by that tool as its own deploy step (rule 20). It never goes into
+Where a second store's schema is versioned too, its history sits beside this one in
+`migrations/<store>/`, in whatever format that store's migration tool reads, and is applied by that tool
+as its own deploy step (rule 20). It never goes into
 `migrations/postgres/`, and never into the package under `src/`.

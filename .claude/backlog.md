@@ -5,81 +5,73 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-Found by the reviews of items 6–10, outside what those items changed.
-
-### 11. The webhook's redelivery obligation has no test, and ordering has no word
-- `flat-entrypoint` rule 9 now says a redelivery "changes nothing", but no test template pins it for
-  the work the HTTP route calls; `flat-test-run-function` rule 3 covers it only in general. At most one test in
-  the HTTP wrapper tests, if the reviewers of that skill agree most webhook services need it.
-- `HTTP.md` says keeping the newer row under out-of-order delivery is the conflict clause's job, and
-  `flat-persistence` shows no such clause. Decide whether that is one sentence in `REPOSITORY.md`
-  (an update guarded by the stamp) or stays out as optional.
-
-### Maintainer's read-through of 2026-09-27
-
-Raised by the maintainer reading the skills; evidence gathered, nothing changed yet. Each is a
-candidate for `/review-skills`, not a decision.
-
-#### 14. The persistence rules are written twice
-`flat-persistence` and `hex-persistence` both state one transaction owner per callable, translating the
-driver error at the package edge, the offending field plus the full constraint name in the context, and
-constraint names as one contract from one convention. Those obligations hold in any Python project with
-a store. Proposal: move them to a universal persistence skill; each family keeps only its shape (flat:
-Core writes in bounded batches, no protocol; hex: port-satisfying adapters, entity mapping, revision,
-unit of work). This is why hex reads "richer": it adds aggregates, ports and a second transaction
-owner, not a different way to store data.
-- On `AsyncSession` vs `async_sessionmaker[AsyncSession]` in hex: that is correct and deliberate.
-  `FooRepository` takes the factory because it owns its transaction; `FooSessionRepository` takes a
-  session because the unit of work owns it (`hex-persistence/REPOSITORY.md:68,152`). The skill should
-  say so in one sentence at the constructor, since a reader asked.
-
-#### 19. `hex-capability-adapter`'s template is one application's token client
-`HttpBarGateway.fetch_token(subject)` and `BarToken` are a specific upstream's shape. A generic adapter
-shows one capability call with the house pattern (injected client, status mapped to the catalogue at
-the boundary) and nothing a particular vendor supplies. Lens 1, question 2.
-
-#### 21. A conventions skill for the flat family
-`hex-conventions` holds path and name derivation, store profiles and multi-context apps. Check what of
-that `flat-layered` already covers before adding anything; a new skill is proposed only if the
-derivation rules have no owner in the flat family today.
-
-#### 24. Audit the four `hex-restapi-*` skills and their tests
-The maintainer suspects much is buried there. Run `/review-skills` on `hex-restapi-app`,
-`hex-restapi-auth`, `hex-restapi-endpoint`, `hex-restapi-schema`, `hex-test-restapi-auth` and
-`hex-test-restapi-endpoint`, generality first.
-- `TRANSFER.md` (item 5's leftover) is code taken from one application: an import/export CSV pair, a
-  10 MiB ceiling, a mixed multipart + JSON route. Most REST services have no file transfer; lens 1
-  decides whether it is reduced to rules or deleted.
-
-#### 26. Audit the test skills the same way
-Test skills follow their production skills, so every item above has a test-side echo: the unit-of-work
-and session fakes (item 14), the token adapter's test in `hex-test-capability-adapter` (item 19), the
-restapi tests (item 24), the template comments (D123, D128). `hex-test-restapi-auth` and
-`hex-test-application-handler/FAKES.md` are the densest in domain nouns. Run `/review-skills` over the
-test skills after the production skill each one follows has settled.
-
-#### 31. Command sequences the "a template earns its place by being copied" bullet flags
-`flat-persistence/SETUP.md` (the alembic commands) and `python-versioning/SKILL.md` (tag and push) are
-sequences a project runs, not files it copies. Also `meta-skill-author` says the skill shapes "add and
-remove nothing" (~line 378) while a reference skill omits `Template(s)`; reword it.
-`git-branching`'s one-time `gh api` block is a command too; D121 kept it deliberately — decide with the
-rest.
-
-#### 34. Hex templates still name the structured logger
-D129 took structlog out of `flat-entrypoint`, which now logs through the service's logger per
-`python-logging`. The hex templates still name it: `hex-application`, `hex-application/COMPENSATION.md`,
-`hex-persistence/UNIT_OF_WORK.md` and `hex-restapi-app`. Decide the same way: drop the name where the
-log line can go, keep one binding line where a template must run as copied (as `flat-entrypoint/HTTP.md`
-does).
+### 35. A side effect after the store write has no rule
+Found by item 19's review (lens 3). `hex-application` Compensation rule 1 puts a notification after
+`repo.create` with nothing after it, and command handler rule 5 forbids a `try/except`, so a partner
+timeout answers 502 for a stored foo (the client's retry then conflicts), a queue redelivery conflicts
+forever, or an agent spawns an unobserved task. Proposed rule, mechanism left open: a side effect after
+the store write never reports a committed command as failed and is never dropped unrecorded — the
+handler stops its failure and logs it once, after the success event, or hands it to something that
+retries it.
 
 ## Agreed
 
-### 4. Re-run the short-prompt scenario on the current skills
-The maintainer's GLM run with a short `dns_scanner` prompt was made on the skills before the generality
-rework. Run it again on current `main` and review the output the same way (layout, module size, which
-skills loaded, defects → rules).
+Decided by the maintainer on 2026-09-28, every open item at once. Order of work: 34, 19, 11 and 31
+first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, which touch
+`flat-persistence`) and 24 (after 34, which touches `hex-restapi-app`); then 26; 4 last. Review
+findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
+file or skill deleted, a rule reversed — goes to the maintainer.
 
-### 5. Small leftovers from the generality rework
-- `hex-restapi-endpoint/TRANSFER.md` names `ImportFoosHandler`/`ExportFoosHandler`, which no
-  `hex-application` template shows — acceptable as "written like any other handler", revisit if a
-  review flags it.
+### 34. Hex templates keep the structured logger, and name it where they do not yet
+Unlike `flat-entrypoint` before D129, every hex log line carries an obligation: `hex-application`
+command handler rule 6 (the handler logs the command's success), the warning a failed undo earns under
+compensation, and the central error handler logging a failure once. Nothing is removed. The binding is
+already named in `hex-application`'s template heading; name it in `hex-restapi-app`'s template heading
+and at `hex-persistence/UNIT_OF_WORK.md`'s handler template, which uses it without saying so.
+
+### 14. A universal `persistence` skill owns every store-generic obligation
+A new universal skill (working name `persistence`; reference shape, no template) owns what holds in any
+Python project with a store, whatever its family:
+- from both families: one declared transaction owner per callable, a multi-statement write as one
+  transaction, driver-error translation at the data-access edge with the offending field and the full
+  constraint name in the context, constraint names generated from one convention, the pure row mapping
+  that gives a naive timestamp its offset, migrations as an expand/contract deploy step with a
+  reversing downgrade, a repository that never logs;
+- from `hex-persistence` alone: column types chosen by meaning, timestamps stored with their offset, a
+  closed value set as a constraint over text, indexing what is filtered, joined and sorted on;
+- from `flat-persistence` alone: conflicts resolved explicitly with the matched key never updated, an older write never
+  overwriting a newer one (rule 12's ordering stamp, rule 18's collapse and merge-time clauses),
+  deduplication by the store's own write-time or merge-time mechanism, a cursor read over a total order;
+- from `hex-conventions` (item 21): that a table name is derived by one rule declared once.
+
+The id policy stays in the families (hex mints `uuid4` with no dependency, flat a time-ordered id).
+Each family skill keeps only its own shape — flat: one package per store, batched Core writes, no
+protocol; hex: port-satisfying adapters, entity mapping, the paired revision, the unit of work — and
+points at the owner. The ownership table in `meta-skill-author`, both indexes and every count move with
+it. `hex-persistence/REPOSITORY.md` says in one sentence at the constructor why `FooRepository` takes
+the session factory and `FooSessionRepository` a session (`:68`, `:152`). The test-side echo is item 26.
+
+### 21. No conventions skill for the flat family
+`hex-conventions`' registry exists because hex has fixed layers and many artifacts per aggregate; flat
+has no fixed tree by design, and its package-naming decisions are `flat-layered`'s "The package names".
+The one derivation with no flat owner, the table name, is store-generic and moves to item 14's skill.
+Closed by the change that does 14.
+
+### 24. Audit the four `hex-restapi-*` skills and their tests
+Run `/review-skills` on `hex-restapi-app`, `hex-restapi-auth`, `hex-restapi-endpoint`,
+`hex-restapi-schema`, `hex-test-restapi-auth` and `hex-test-restapi-endpoint`, generality first, and
+apply the findings. `TRANSFER.md` is code taken from one application — an import/export CSV pair, a
+10 MiB ceiling, a mixed multipart + JSON route; lens 1 decides whether it is reduced to rules or
+deleted. Absorbs item 5: `TRANSFER.md`'s `ImportFoosHandler`/`ExportFoosHandler` go with it.
+
+### 26. Audit the test skills the same way
+After 14, 19 and 24 have landed, run `/review-skills` over every `hex-test-*` and `flat-test-*` skill,
+in two batches, and apply the findings. Known echoes: the unit-of-work and session fakes (14), the
+repository-contract and persistence tests against the new universal owner (14), the restapi tests (24),
+the template comments (D123, D128). `hex-test-restapi-auth` and `hex-test-application-handler/FAKES.md`
+are the densest in domain nouns.
+
+### 4. Re-run the short-prompt scenario on the current skills
+Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
+against the pushed `main`, as before the generality rework; the output is then reviewed the same way
+(layout, module size, which skills loaded, defects → rules).

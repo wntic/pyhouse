@@ -20,7 +20,7 @@ reading the rules, because a rule whose property is absent has nothing to be tru
 |---|---|
 | multi-statement transactions | rules 3, 4 — nothing spans statements, so nothing declares an owner |
 | named unique constraints | rule 8 — there is no name for three artifacts to agree on |
-| a conflict clause on write | rule 12, unless the store has a `MERGE` — otherwise resolution is the store's merge-time mechanism (rule 18) |
+| a conflict clause on write | rule 12, unless the store has a `MERGE` — otherwise resolution, rule 12's ordering guard included, is the store's merge-time mechanism (rule 18) |
 | a write readable immediately after it returns | rule 11 — a read-back can only be a separate, later read |
 
 **Rules 1, 2, 5, 6, 7, 9, 14, 15, 17, 18, 19 and 21 hold for any store at all**, SQL or not, and are what
@@ -118,9 +118,9 @@ layout. Only this file is loaded automatically, so open the one you need:
   resolution is the one that is not mechanical. A backend with no conflict clause carries rule 12 as a
   `MERGE` where it has one — never as a lock-and-check, which is the read-before-write rule 18 forbids —
   and where it has none, resolution is not the writer's to do: a columnar store that deduplicates at
-  merge time takes the write as it comes and settles it later, so rule 12 lapses and rule 18 is met by
-  a table-engine choice made once in the schema, not a clause chosen per call. "Nothing to update" must
-  still be a no-op wherever rule 12 applies at all.
+  merge time takes the write as it comes and settles it later, so rule 12 lapses and rule 18 is met,
+  rule 12's ordering guard included, by a table-engine choice made once in the schema, not a clause
+  chosen per call. "Nothing to update" must still be a no-op wherever rule 12 applies at all.
 - **Another store's migration tool.** A store whose schema is versioned keeps its history in
   `migrations/<store>/` and applies it with a tool that already speaks that store — a multi-database
   runner such as `golang-migrate` or Flyway, or the store's own — as a deploy step beside
@@ -186,7 +186,11 @@ layout. Only this file is loaded automatically, so open the one you need:
     and an empty update set resolves to *do nothing*.** The write names its conflict columns and its
     update columns; writing back the key you matched on is a no-op at best and a statement failure on a
     partial index. "Nothing to update" is a real case and must not become an update with an empty
-    assignment list, which is a syntax error.
+    assignment list, which is a syntax error. Where an older write can arrive after a newer one for the
+    same key, the update is guarded by the row's ordering stamp — a version or an instant fixed when the
+    change was made or observed, the same on every delivery of it, never the time of a delivery attempt
+    or of the write — so an input stamped older than what it would replace never replaces it, in the row
+    or in a batch collapsed by key (rule 18).
 13. **Every surrogate key this service mints is a time-ordered identifier minted application-side by one
     function every table shares.** A random identifier scatters rows inserted together across the index for no benefit, and a
     database-side default means the writer cannot know the id it just created without reading it back.
@@ -221,15 +225,17 @@ layout. Only this file is loaded automatically, so open the one you need:
 18. **Deduplication and conflict resolution belong to the store's own write-time or merge-time
     mechanism, never to an application read-before-write per row.** Where the write can resolve a
     conflict, rule 12 says how; where the store deduplicates at merge time, the table's engine is chosen
-    for it once, in the schema, and a read that must see one row per key before the merge asks the store
-    for its deduplicated view. Looking up which rows already exist before inserting each chunk costs a
-    round trip the store never needed, and it still admits the duplicates two concurrent runs write
+    for it once, in the schema — keeping the newest by rule 12's ordering stamp wherever an older write
+    can arrive after a newer one — and a read that must see one row per key before the merge asks the
+    store for its deduplicated view. Looking up which rows already exist before inserting each chunk costs
+    a round trip the store never needed, and it still admits the duplicates two concurrent runs write
     between one run's read and its write. **A column aggregated across writes is resolved the same way, in
     the write or the merge, never by reading it first.** **Inputs sharing one key are collapsed by that
-    key before the statement is built** — the last one winning, or aggregated as the conflict clause
-    would — because a store resolving conflicts per statement may refuse to touch one row twice within
-    it. Collapsing a batch already in memory reads nothing from the store and is bounded by the batch, so
-    it is not the read-before-write this rule forbids.
+    key before the statement is built** — the newest by rule 12's ordering stamp winning wherever that
+    stamp guards the write, the last otherwise, or aggregated as the conflict clause would — because a
+    store resolving conflicts per statement may refuse to touch one row twice within it. Collapsing a
+    batch already in memory reads nothing from the store and is bounded by the batch, so it is not the
+    read-before-write this rule forbids.
 19. **A read resumed from a cursor orders by a total order, and the cursor carries every column of it.**
     A limited read resumed from the last row's value of a column that is not unique skips every row
     sharing that value beyond the page's edge — rows written in one batch share one timestamp, so a single

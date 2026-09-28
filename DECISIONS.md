@@ -1831,3 +1831,83 @@ is named only as an example of a fuller shell.
 of `flat-entrypoint` rule 8, the containment template and the old rule 8 of `flat-test-run-function`,
 and the "run function" definition in `flat-layered`, from the parent of the commits that added this
 entry; restoring `HTTP.md` and the structlog lines from the same parent.
+
+### D130 — A command block run once stays; a routine is a sentence; `git-branching` binds no forge
+Taken by the maintainer (backlog item 31), with a later decision on `git-branching`. `meta-skill-author`'s
+"earns its place by being copied" bullet now states the criterion D121 left implicit: a command block is
+a template only when a project runs it once, as written — a bootstrap such as `flat-project-setup`'s
+`alembic init`; commands repeated per change or per release become a sentence beside the rule, given
+inline and whole, with any flag that keeps them from prompting. By it, `flat-persistence/SETUP.md`'s
+`alembic revision --autogenerate` / `alembic upgrade head` block and `python-versioning`'s tag block
+became sentences — the tag keeps its `-m`, since `git tag -a` without one opens an editor — and the
+pre-release ladder went inline. The shapes paragraph no longer says shapes "add and remove nothing": a
+shape adds no canonical section, and `CONVENTIONS.md` points at the table instead of restating it.
+**D121's keep of the `gh api` block is reversed.** The team works on GitLab as well as GitHub, most
+members have no `gh` CLI, and the skill says it assumes no forge. The block is gone, the heading drops
+"on GitHub", the recorded block says "request" and the lead-in tells the repository to write its own
+default branch and its forge's word for it, and one sentence names the three settings the forge enforces
+once (rule 2): merge commits only, the branch deleted when it lands (rule 6), and `main` protected — no
+push straight to it and no request merged until its checks pass, which on GitLab is a separate setting.
+The fold command became `git -c sequence.editor=:`, which runs in any shell, and the recorded merge line
+says each commit is cleaned up before it lands. The review also changed: `install-commit-hook` warns
+that the shared install silences hooks a manager such as pre-commit wrote into the clone;
+`python-versioning`'s template shows `0.1.0` with no `requires-python` (the floor is `python-style`'s),
+its `version.py` exists only where a program reports its version, and rule 5 keeps an existing tag
+series' spelling; `SETUP.md` drops what `flat-project-setup` and its own rules 16 and 20 already state,
+says a revision is reviewed against rule 16 and drafted against a database only its author uses; and
+`flat-project-setup` no longer pins `--rev-id 0001`.
+**Reverse by:** from the parent of the commits that added this entry, restoring the `alembic revision` /
+`alembic upgrade` block in `SETUP.md`, the tag block, ladder, `requires-python` and `1.4.0` in
+`python-versioning`, the "sequence of commands" bullet and the shapes sentence in `meta-skill-author` and
+`CONVENTIONS.md`, and `git-branching`'s `gh api` block, "on GitHub" heading and "pull request" wording.
+
+### D131 — An older write never overwrites a newer one; a redelivery is rule 3's case; a delivery is one row
+Taken by the maintainer (backlog item 11, and a review finding that reverses D117's last sentence). No
+new test: `flat-test-run-function` rule 3 already pins the second run of any run that can repeat. It now
+names a delivery the sender may repeat — a webhook redelivery, an at-least-once broker delivery — says
+the work's own test file pins it, never the wrapper's (rule 5), and that with no store the second run
+sent what the first sent (rule 4); its idempotence template compares the values the input determines
+rather than a count. `flat-persistence` rule 12 gains one conditional sentence: where an older write can
+arrive after a newer one for the same key, the update is guarded by the row's ordering stamp — a version
+or an instant fixed when the change was made or observed, the same on every delivery of it, never the
+time of a delivery attempt or of the write — so an input stamped older never replaces a newer one, in the
+row or in a batch collapsed by key. The stamp is defined by being fixed with the change, not by who
+assigns it: a sender that restamps each attempt defeats a guard on its stamp, and a crawler whose runs
+overlap has only the instant it fetched. An equal stamp may replace, so the copied update-set test still
+passes. Rule 18 keeps the newest by that stamp in the in-batch collapse wherever the stamp guards the
+write, and in a merge-time engine chosen once in the schema, so the guard does not lapse with rule 12 on
+a store that deduplicates at merge time. `HTTP.md`'s delivery field is `changed_at` (was `sent_at`), its
+pointer says keeping the newer is the data-access package's job (rules 12 and 18), and **the work calls
+`repository.record(foo)`, the single-row form `REPOSITORY.md` describes — reversing D117's
+"`record_batch([foo])` stays"**, so a webhook receiver no longer copies the batch machinery.
+`flat-entrypoint` rule 10 and Shape 3 point at the same rules instead of naming a store mechanism. No
+template gains a line for the guard; a test pinning it is left to item 26.
+**Reverse by:** from the parent of the commits that added this entry, restoring `flat-persistence` rules
+12 and 18, its precondition row and other-engine bullet; `flat-test-run-function` rule 3, its idempotence
+template and paragraph and its wrapper test body; `flat-entrypoint` rule 10 and Shape 3; and `HTTP.md`'s
+work paragraph, template (`sent_at`, `record_batch([foo])`) and pointer.
+
+### D132 — The capability adapter templates one neutral call, with one client per integration
+Taken by the maintainer (backlog item 19). `hex-capability-adapter`'s HTTP gateway was one application's
+token client — `HttpBarGateway.fetch_token(subject) -> BarToken` behind `ICanFetchBarToken` — so every
+service that copied it carried a subject, an expiry and a token type it did not have. The template is now
+`HttpFooClassifier.classify(foo) -> FooKind` behind `ICanClassifyFoos`: an injected client and settings,
+a request built from `Foo`, the body mapped into the existing `FooKind` inside its own translated scope,
+and the status mapped as `exception-catalog`'s fallback example does. What only some services have is
+shown as marked lines rather than removed — the credential (the secret field, its one unwrap in the
+constructor, the header, the test's assertion of it) and the `400` row that becomes `ValidationError` —
+each marker on its own line above a block, so honouring every marker leaves code that parses, type-checks
+and passes the house lint. The review added obligations: each integration's factory builds its own
+client, so a second upstream never inherits the first one's timeout (rule 5, `hex-wiring`'s
+`CONTAINER.md`); settings sit one class per configured component, owned by `hex-conventions` block A; a
+secret never rides in a URL the client library logs (rule 7); the upstream's labels are mapped onto the
+domain's values, and whatever the conversion raises is the upstream's fault (rules 8–9). It reduced
+others: rule 8 and most of rule 10 restated `exception-catalog` and are a pointer (rules renumbered
+9–14 → 8–13); the error arms no longer put the exception's class name in `context` (`exception-catalog`
+rule 11); the undo rule narrowed to a capability whose write a handler compensates. The test skill tests
+the same arms plus the fallback row, with settings as a module constant and file names mirroring the
+adapter's module. `hex-conventions` no longer uses a token manager as its adapter example.
+**Reverse by:** restoring `hex-capability-adapter`, `hex-test-capability-adapter`, `hex-domain-ports`,
+`hex-wiring` (`SKILL.md`, `CONTAINER.md`), `hex-conventions` and `hex-test-application-handler/FAKES.md`
+from the parent of the first commit that added this entry; the shared-client binding then returns with
+its single-timeout defect.

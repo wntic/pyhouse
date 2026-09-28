@@ -15,7 +15,7 @@ nothing else; infrastructure satisfies them **structurally**, without importing 
 - A single action that does IO or talks to an external system — file rendering, token verification, blob storage, a third-party gateway call → **capability protocol** (`ICan<Verb>`), in this skill.
 - A pure-CPU operation a third-party library performs — JWT signature verification, rendering bytes through a document library → **capability protocol**, with a sync method instead of async; the domain cannot import the library, and the port is how it uses one.
 - Pure-CPU logic the standard library can do — trimming, case-folding, a stdlib URL normalization → no port; a value object's construction (`hex-domain-model`) or a module-level domain function (`hex-domain-service`).
-- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`. `BarToken`, which the gateway port below returns, is a value object of its standard form in `domain/bars/bar_token.py` — `value: str` and `expires_at: datetime`.
+- The entity, value object, enum or filter record the signatures mention → `hex-domain-model`. `FooKind`, which the capability port below returns, is an enum of that skill's `StrEnum` form, in `domain/foos/foo_kind.py`.
 - A rule needing cross-aggregate state, which *consumes* these protocols → `hex-domain-service`.
 - A concrete repository implementation → `hex-persistence` (a relational store) or `hex-store-repository` (a client-style store). The protocol itself is store-agnostic; the choice is made by store profile (`hex-conventions` block B).
 - A concrete capability implementation → `hex-capability-adapter`.
@@ -82,13 +82,14 @@ are what that index answers.
 ```python
 from typing import Protocol
 
-from .bar_token import BarToken
+from .foo import Foo
+from .foo_kind import FooKind
 
-__all__ = ["ICanFetchBarToken"]
+__all__ = ["ICanClassifyFoos"]
 
 
-class ICanFetchBarToken(Protocol):
-    async def fetch_token(self, subject: str) -> BarToken: ...
+class ICanClassifyFoos(Protocol):
+    async def classify(self, foo: Foo) -> FooKind: ...
 ```
 
 ### Capability protocol — a reversible action (the forward operation and its undo)

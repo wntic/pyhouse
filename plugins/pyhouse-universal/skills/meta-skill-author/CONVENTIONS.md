@@ -130,7 +130,7 @@ reach, as the interpreter floor was moved to `python-style`.
 ## Skill shapes
 
 The four shapes `meta-skill-author` names, what each emphasises, and the skills already in each. Pick
-the shape with the table there; the section format is the same for all four.
+the shape with the table there.
 
 ### Producer — the default
 

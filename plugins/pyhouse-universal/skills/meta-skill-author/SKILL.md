@@ -378,8 +378,8 @@ and only when those bullets are load-bearing for the artifact at hand.
 
 ## Skill shapes (a navigational aid, not a requirement)
 
-Every skill falls into one of four shapes. The section format is universal — shapes add and remove
-nothing; they signal which sections will be load-bearing rather than ceremonial. Identify the shape
+Every skill falls into one of four shapes. The section format is universal — a shape adds no canonical
+section; shapes signal which sections will be load-bearing rather than ceremonial. Identify the shape
 before writing, so the content matches skills already in the same shape. What each shape emphasises,
 with the skills already in it, is under `## Skill shapes` in the sibling `CONVENTIONS.md`.
 
@@ -404,10 +404,12 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
   all four required sections, under the allowances of rule 1, except that a skill with nothing to copy
   omits `Template(s)` (below).
 - **A template earns its place by being copied.** It shows a file, or a block of text, that most
-  projects using the skill would take as written. A sequence of commands, a walkthrough or a
-  demonstration of the mechanism behind a rule is not a template: it becomes a sentence of prose beside
-  the rule, or nothing. A skill left with nothing to copy omits `## Template(s)`, as a reference or
-  process skill does.
+  projects using the skill would take as written — a command block only when a project runs it once,
+  as written, such as a bootstrap. Commands repeated per change or per release, a walkthrough or a
+  demonstration of the mechanism behind a rule are not a template: they become a sentence of prose
+  beside the rule, the commands inline and whole, with any flag that keeps them from prompting, or
+  nothing. A skill left with nothing to copy omits `## Template(s)`, as a reference or process skill
+  does.
 - A universal (unprefixed) skill may name a `hex-*` or `flat-*` skill as an example, but may not
   *require* one — the `pyhouse-universal` plugin must be installable alone. See the packaging table in
   the sibling `CONVENTIONS.md`.
