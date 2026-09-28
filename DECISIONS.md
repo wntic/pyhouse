@@ -1817,10 +1817,14 @@ template, the loop's `guarded(...)` call and the requirement that containment be
 defined once and returning a value a test asserts on, are gone. Rule 8 keeps the behaviour — a process
 that outlives one run keeps running when one fails, the failure logged once; a process that does one
 run and exits contains nothing; a broker-delivered unit whose run failed is returned (rule 15) — and
-`flat-test-run-function` rule 8 asserts it by what the run after a failed one did, never by driving the
-loop to an escape. Durable obligation 8's helper is "the progress helper", so one word no longer names
-two things. `flat-entrypoint` names no logging library: its templates log through the module's logger
-(`python-logging`). **13:** `HTTP.md` keeps only rule 9's wrapper — the factory, one rendering place,
+the reason stays with it: the catch wraps one run in a function of the process definition that takes
+what it needs as parameters (`sync_foos` in the template, named by `naming`, in no shared module and
+returning nothing), so a test reaches one run without driving the loop. `flat-test-run-function` rule 8
+calls that function with the transport failing, then again, and asserts the second run's effect —
+never the log line, never an escape built into the loop. Durable obligation 8's helper is "the progress
+helper", so one word no longer names two things. `flat-entrypoint`'s own templates no longer import a
+logging library; `HTTP.md`'s app module, which must run as copied, binds its logger in the one form
+`python-logging`'s example shows, and its heading names that library. **13:** `HTTP.md` keeps only rule 9's wrapper — the factory, one rendering place,
 one route, the server's process definition; the delivery record is a sentence, and `hex-restapi-app`
 is named only as an example of a fuller shell.
 **Reverse by:** restoring `containment.py`, the `guarded` loop fragment and the named-function wording

@@ -6,15 +6,16 @@ function that does the work. A fuller HTTP shell, with CORS, middleware and a ro
 shown by `hex-restapi-app`, in the `pyhouse-hex` plugin, as an example only; a flat service adds such a
 piece when it has the need, not because a shell showed it.
 
-## The app factory — FastAPI
+## The app factory — FastAPI (structlog)
 
 `src/myapp/web/app.py` — the framework-wrapper package for this shape, re-exported by
 `web/__init__.py`. `build_app` takes the dependencies the process definition built and closes the route
-over them; `log` is the module's logger, obtained at module level as `python-logging` shows:
+over them, and it logs through the module's logger, bound as `python-logging` shows:
 
 ```python
 from collections.abc import Awaitable, Callable
 
+import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -25,6 +26,8 @@ from myapp.postgres import FooRepository
 from myapp.schemas import FooDelivery, RunResult
 
 __all__ = ["build_app"]
+
+log = structlog.get_logger()
 
 
 def _render(exc: MyappError) -> JSONResponse:

@@ -339,7 +339,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     genuinely used across packages, and admission to it runs `coupling`'s test — a blanket category
     package pulls single-owner types away from their owner and stops naming anything.
 11. **Which scope logs a failure is `python-logging`'s rule, and it applies here unchanged.** In a flat
-    service the scope that stops a failure is usually the loop's guard or the framework wrapper's error
+    service the scope that stops a failure is usually the code around each run in a loop or the framework wrapper's error
     handler; a client translating an SDK error re-raises and so stays silent, with the detail riding in
     the translated exception's `context` (`exception-catalog`).
 12. **A client holds one pooled transport for the process's life and never opens one per call.** The
@@ -360,7 +360,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     interface is. A directory the service writes to for another reader is an external system too — a
     package with its own settings and one writer class.
 15. **A process definition wires and runs; it holds no business logic.** Building settings and
-    dependencies, configuring logging, the loop, guard and wait around a run, and starting the process
+    dependencies, configuring logging, the loop, the containment and the wait around a run, and starting the process
     stay in it (`flat-entrypoint`); a decision about the data a run handles belongs in a work unit, where
     a test can call it directly — taken in the process definition, it runs only when the process does.
 

@@ -152,18 +152,28 @@ things takes them from one builder rather than a copy (rule 14).
 
 ### A process that outlives one run
 
-A loop or a consumer catches each run's failure around that run, logs it once and goes on to the next
-(rule 8); a loop sleeps between runs on an interval read from the process's settings — a required field
-with no default (rule 16). The fragment sits inside `_run`, after `settings = Settings()`, the process's
-`Settings` declaring `poll_interval_seconds: float` with no default, `log` being the module's logger
+A loop or a consumer catches each run's failure around that one run, logs it once and goes on to the
+next (rule 8). The catch sits in a function of the process definition that performs one run and takes
+what it needs as parameters, so a test calls it without driving the loop; `log` is the module's logger
 (`python-logging`):
 
 ```python
-while True:
+async def sync_foos(client: FooClient, repository: FooRepository) -> None:
     try:
         await run_once(client, repository)
     except Exception:
         log.exception("foo_sync_failed")
+```
+
+A loop sleeps between runs on an interval read from the process's settings — a required field with no
+default (rule 16). These lines replace the `await run_once(...)` line in `_run`, after
+`settings = Settings()`, the process's `Settings` declaring `poll_interval_seconds: float` with no
+default:
+
+```python
+client, repository = FooClient(http), FooRepository(engine)
+while True:
+    await sync_foos(client, repository)
     await asyncio.sleep(settings.poll_interval_seconds)
 ```
 
@@ -275,7 +285,10 @@ for rule 9.
    work — its retries restart a stream that was meant to resume.
 8. **A process that outlives one run keeps running when one run fails.** Each run's failure is caught
    around that run and logged once, and the process goes on to the next; a failure that escapes ends
-   every run after it. A process that does one run and exits contains nothing: its failure is its exit
+   every run after it. The catch wraps one run in something a test can call on its own — "one failed
+   run does not stop the next" is such a process's only testable contract, and a `try/except` written
+   inline inside the loop can be reached only by driving the loop, which needs an artificial escape
+   that changes the thing under test. A process that does one run and exits contains nothing: its failure is its exit
    status, which is how whatever started it sees it. A unit a broker delivered whose run failed is
    returned, never acknowledged (rule 15).
 9. **An HTTP route validates its input, calls one function, and holds no logic.** The app is built

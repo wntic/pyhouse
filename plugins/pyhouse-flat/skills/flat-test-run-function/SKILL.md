@@ -218,13 +218,13 @@ in-process one alone.
 7. **A run that fans out over independent units is tested with one unit failing inside its write**,
    asserting that the other units' rows landed and that the run's failure names the failed unit
    (`flat-entrypoint` rules 11 and 13).
-8. **A process that outlives one run is tested for its behaviour: after a run that fails, the next run
-   still happens.** Make one run fail at its transport and assert on what the following run did — its
-   rows, or the request its stubbed transport recorded — however the process's shape lets a test reach
-   that: a function the loop calls once per run, or the process started as a task with a zero interval
-   and cancelled from outside once the effect is seen. Never by an escape built into the loop — a patched
-   `asyncio.sleep` that raises, a counter that breaks out — which asserts the mechanism instead of the
-   behaviour, and never on a log line.
+8. **A process that outlives one run is tested through the function that performs one contained run,
+   never by driving the loop** (`flat-entrypoint` rule 8). Call it with the transport failing — it
+   returns without raising — then call it again with the transport answering and assert on that run's
+   effect: its rows, or the request its stubbed transport recorded. The logged failure is not asserted
+   (`test-principles`). An escape built into the loop — a patched `asyncio.sleep` that raises, a
+   counter that breaks out — asserts the mechanism instead of the behaviour; the loop around that
+   function is one sleep and needs no coverage of its own.
 
 ### Once a durable-execution engine is earned
 
