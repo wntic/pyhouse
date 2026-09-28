@@ -47,7 +47,7 @@ subdomain package (`hex-architecture` rule 5), never at the domain root. A secon
 a genuinely different scope, is named for that scope's role, never for its backend or an aggregate
 (`ICacheUnitOfWork`, never `IRedisUnitOfWork` or `IFooUnitOfWork`), in `domain/uow/i_<scope>_unit_of_work.py`.
 
-## Template — the implementation (SQLAlchemy async session)
+## Template — the implementation and its binding (SQLAlchemy async session, dishka)
 
 In `src/myapp/infrastructure/postgres/sqlalchemy_unit_of_work.py`:
 
@@ -134,9 +134,9 @@ class FoosProvider(Provider):
 
 ## Template — the handler that opens it (structlog)
 
-`hex-application`'s `CreateFooHandler`, in that skill's own binding, with the factory in place of the
-repository — the one handler form that opens a transaction itself, the earned exception to
-`hex-application` command handler rule 7:
+`hex-application`'s `CreateFooHandler`, with the factory in place of the repository — the one handler
+form that opens a transaction itself, the earned exception to `hex-application` Command handler rule 7.
+Another logging facade changes it as that skill's `## Other bindings` says:
 
 ```python
 import uuid
