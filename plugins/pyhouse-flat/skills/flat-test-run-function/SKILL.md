@@ -199,12 +199,13 @@ in-process one alone.
    semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
    client's own request building and error translation out of the test, and substituting the datastore
    removes the only thing this level can prove.
-3. **Where a run can repeat over the same input, its test file pins what the second run does.** A
-   scheduled pass over a feed that mostly repeats, a delivery the sender may repeat (a webhook
-   redelivery, an at-least-once broker delivery), and any run a trigger may retry after a partial
-   failure all meet that condition — run twice, assert the second run added no row and changed nothing its
-   input determines. A run whose input is consumed once, or that is by construction never repeated, has
-   nothing to pin and the test would assert a coincidence.
+3. **Where a run can repeat over the same input, the work's own test file pins what the second run
+   does — never the wrapper's (rule 5).** A scheduled pass over a feed that mostly repeats, a delivery
+   the sender may repeat (a webhook redelivery, an at-least-once broker delivery), and any run a trigger
+   may retry after a partial failure all meet that condition — run twice, assert the second run added no
+   row and changed nothing its input determines, and with no store that it sent what the first run sent
+   (rule 4), which is all a run that keeps no state can promise. A run whose input is consumed once, or
+   that is by construction never repeated, has nothing to pin and the test would assert a coincidence.
 4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
    logged `"ok"` and wrote nothing must fail, and a process's containment is asserted on what the run
    after a failed one did. A service with no store asserts on the requests the stubbed transport recorded and on the
