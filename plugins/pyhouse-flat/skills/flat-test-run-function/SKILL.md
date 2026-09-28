@@ -9,8 +9,7 @@ when_to_use: Also when asked to test a job's or a consumer's body, a polling loo
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 The function a trigger calls is where a flat-layered service composes everything, so its test is the one that catches
-wiring: the client's payload actually fits what the repository class stores, and the aggregate counts
-what happened. **This skill covers the levels of wrapping around that one
+wiring: what the run reads actually fits what it writes, and the aggregate counts what happened. **This skill covers the levels of wrapping around that one
 call, tested at each.** They are one subject because they are layers of the same invocation.
 
 The work — the body every trigger calls — is tested end to end against whatever it really reads and
@@ -107,7 +106,7 @@ asserted.
 
 **A framework wrapper's two tests (rule 4)** run through the harness the framework ships for invoking
 one unit in-process — no worker, no broker, no scheduler — and take the fixtures the work's own tests
-take. Under an HTTP trigger, drive the app `build_app` returns through
+take. Under an HTTP trigger, drive the app `build_app` returns (`flat-entrypoint`, `HTTP.md`) through
 `httpx.AsyncClient(transport=httpx.ASGITransport(app=...))` on the test's loop, never FastAPI's
 synchronous `TestClient`, which runs the app on a loop of its own and hands the session engine's
 connections to it.
@@ -133,11 +132,9 @@ connections to it.
 
 ## Rules
 
-1. **The upstream is substituted at its transport; the datastore is not substituted at all.** That
-   asymmetry is what makes this level catch wiring: real columns, real constraints, real conflict
-   semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
-   client's own request building and error translation out of the test, and substituting the datastore
-   removes the only thing this level can prove.
+1. **The upstream is substituted at its transport; the datastore is not substituted at all** —
+   `test-principles`, the substitution ladder, rungs 1 and 2. That asymmetry is what lets this level
+   catch wiring.
 2. **Where a run can repeat over the same input, the work's own test file pins what the second run
    does — never the wrapper's (rule 4).** A scheduled pass over a feed that mostly repeats, a delivery
    the sender may repeat (a webhook redelivery, an at-least-once broker delivery), and any run a trigger
@@ -149,7 +146,10 @@ connections to it.
 3. **Assert on the run's effect and on the returned aggregate**, never on log lines (`test-principles`).
    The effect is what the run leaves behind: the rows it wrote; the file it produced, read back from a
    per-test directory handed to the run as a parameter (`tmp_path` here); or, with neither, the requests
-   its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail.
+   its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail. Rows the run
+   reads, or a record it must meet already stored, are arranged committed before it runs
+   (`flat-test-integration-setup`, `conn`). Rows arranged on `conn` are invisible to a run that opens
+   its own connection, and a write by the run to the same key waits on their lock until teardown.
 4. **A wrapper test proves the wrapper, not the body — two tests.** One drives the trigger and asserts
    the work's effect (rule 3), which proves the wrapper reaches the work; the other forces a failure of
    the work and asserts it arrives at the trigger's error surface as its catalogue code, carrying the
@@ -170,9 +170,10 @@ connections to it.
    counter that breaks out — asserts the mechanism instead of the behaviour; the loop needs no coverage
    of its own.
 7. **Where the route verifies a signature, the fixture hands the app a test secret and the tests sign
-   with it.** One test sends a body whose signature does not match, and asserts the rejection and that
-   no row was written (`test-principles` recipe 4). A switch that disables verification for the suite
-   is never added.
+   with it** (`flat-entrypoint` rule 9), signing the exact bytes they send. One test sends a body whose
+   signature does not match and one sends none, each asserting the rejection and that nothing was
+   written (`test-principles`, *Assert strength* recipe 4). A switch that disables verification for the
+   suite is never added.
 
 ### Once a durable-execution engine is earned
 
