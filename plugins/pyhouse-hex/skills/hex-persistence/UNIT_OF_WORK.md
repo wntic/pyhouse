@@ -132,10 +132,11 @@ class FoosProvider(Provider):
         return partial(SqlAlchemyUnitOfWork, session_factory=session_factory)
 ```
 
-## Template — the handler that opens it
+## Template — the handler that opens it (structlog)
 
-`hex-application`'s `CreateFooHandler`, with the factory in place of the repository — the one handler
-form that opens a transaction itself, the earned exception to `hex-application` command handler rule 7:
+`hex-application`'s `CreateFooHandler`, in that skill's own binding, with the factory in place of the
+repository — the one handler form that opens a transaction itself, the earned exception to
+`hex-application` command handler rule 7:
 
 ```python
 import uuid
