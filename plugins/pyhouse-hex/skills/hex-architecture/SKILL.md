@@ -139,8 +139,9 @@ defect. Siblings are `cli/` and `worker/`.
   error handler; the dependency wiring.
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
 - Opens one per-operation scope per request, message or call, and closes it when the operation ends.
-- Has one scope that catches what propagates, logs it once and renders it as a transport outcome off the
-  exception's own attributes (`exception-catalog` rule 13).
+- Has one scope that catches what propagates, logs it once and renders it as a transport outcome — the
+  body off the exception's own attributes, the status mapped from its class here, never stored on it in
+  `domain/` (`exception-catalog` rules 6 and 13).
 - Acknowledges a message only after its handler returns. Where delivery is at-least-once, a create is
   safe to repeat — its identity comes from the message, not a mint per delivery.
 

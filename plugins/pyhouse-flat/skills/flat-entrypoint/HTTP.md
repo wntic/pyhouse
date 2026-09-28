@@ -30,13 +30,20 @@ __all__ = ["build_app"]
 log = structlog.get_logger()
 
 
+_STATUS_BY_ERROR: dict[type[MyappError], int] = {InvalidPayloadError: 422}
+
+
+def _status_for(exc: MyappError) -> int:
+    return next((_STATUS_BY_ERROR[cls] for cls in type(exc).__mro__ if cls in _STATUS_BY_ERROR), 500)
+
+
 def _render(exc: MyappError) -> JSONResponse:
     content = {"code": exc.code, "message": str(exc), "context": exc.context}
-    return JSONResponse(status_code=exc.http_status, content=content)
+    return JSONResponse(status_code=_status_for(exc), content=content)
 
 
 def _log_and_render(exc: MyappError) -> JSONResponse:
-    if exc.http_status >= 500:
+    if _status_for(exc) >= 500:
         log.error("request_failed", code=exc.code, context=exc.context)
     else:
         log.warning("request_failed", code=exc.code, context=exc.context)
@@ -70,11 +77,11 @@ def build_app(repository: FooRepository) -> FastAPI:
     return app
 ```
 
-**Every failure leaves in one shape, from this module, logged once.** The catalogue root carries the
-optional `http_status` field once the service answers HTTP (`exception-catalog`), and this module is its
-only reader: a catalogue error renders as itself, the framework's validation failure as
-`InvalidPayloadError` (`http_status = 422`), anything else as the catalogue root. The level follows the
-kind (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
+**Every failure leaves in one shape, from this module, logged once.** The catalogue carries no status
+(`exception-catalog`); this module maps a class to one, through the class's ancestry, so a refinement
+answers as its nearest mapped parent and an unmapped class as `500`. A catalogue error renders as
+itself, the framework's validation failure as `InvalidPayloadError` (`422`), anything else as the
+catalogue root. The level follows the status (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
 bare `Exception` re-raises to the server, which logs it a second time.
 
 **The app is built by a factory the process definition calls**, never as a module-level `app`, which

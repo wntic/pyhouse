@@ -12,31 +12,18 @@ Auth codes are the one part of a route's set that follows from something other t
 follow from the attached auth dependency, which is `hex-restapi-auth`'s. Everything below is the
 auth-less baseline, complete on its own.
 
-## The two symbols
+## The helper
 
-The error catalogue and boundary translation follow `exception-catalog`; `hex-restapi-app` creates
-`register_error_handlers` in `restapi/error_handler.py`. Routes only **advertise** which codes they can
-raise, so OpenAPI documents the contract.
-
-Domain exception classes register themselves: `error_responses(...)` derives its allowed-code list from
-`domain.exceptions.__all__` at import time. Adding a subclass (`exception-catalog`) is enough — there is
-no registry to append to.
-
-Two symbols come from `errors.py` — created once by `hex-restapi-app`, which is their single source of
-truth — and a route only reads them:
-
-- **`error_responses(*codes: int) -> dict[int | str, dict[str, Any]]`** — the helper that goes on a route
-  decorator. It validates each code against the known set —
-  `{cls.http_status for cls in domain.exceptions.__all__} ∪ set(MIDDLEWARE_ERRORS.values())` — and raises
-  `ValueError` on an unknown one, so OpenAPI can never advertise a status nothing produces.
-- **`MIDDLEWARE_ERRORS: dict[str, int]`** — the **only** manually-maintained registry in `errors.py`.
-  A middleware status is registered by `hex-restapi-app` before a route advertises it; a route never
-  writes to it.
+A route decorates with `error_responses(*codes)` from `restapi/schemas/errors.py` and never writes to
+that file; the helper, its status map and middleware registry, and registering a middleware's status are
+`hex-restapi-app`'s.
 
 ## Standard code sets per operation
 
 The sets below are for a route with **no auth dependency**; `hex-restapi-auth`'s `ROUTES.md` adds the
 auth codes. The `422` never drops: it is an input-validation code, not an auth code (rule 13).
+
+A route puts its row's set into `responses=error_responses(...)`.
 
 | Operation | `error_responses(...)` |
 |---|---|
@@ -69,28 +56,21 @@ probe — omits it. The trap is reading `422` as "body validation"; it is *any-i
 cannot reject, no `413` on a route with no size cap in front of it, and no auth code on a route with no
 auth dependency. The converse holds too: a code the write path can raise is listed.
 
-## Procedure — routine route
-
-1. Choose the code set from the table.
-2. Add `responses=error_responses(<codes>)` to the route decorator.
-
-The catalog is dynamic; nothing further is registered. A status a middleware introduces is registered
-by `hex-restapi-app` (its `## Middleware`) before any route advertises it.
-
 ## Other bindings
 
 - **Another framework that builds its API document from route declarations** — Litestar, Flask with
   apispec, or a hand-maintained OpenAPI file. Changed: where the declaration is attached, and whether
   the framework injects an input-validation response the decorator cannot see. Unchanged:
-  advertise-exactly-what-you-produce, the allowed-code set derived from the exception catalogue, and the
-  one hand-maintained registry for middleware-introduced statuses.
+  advertise-exactly-what-you-produce, and the allowed-code set taken from the boundary's status map and
+  its registry of middleware-introduced statuses.
 - **A framework that injects nothing of its own.** Then rule 13 is the only thing putting the
   input-validation status in the document, and the exemption noted above disappears with it — the
   invariant test can check that code like any other.
 
 ## Hard stops
 
-- A route lists a status no `MyappError` subclass produces and that is not in `MIDDLEWARE_ERRORS` → stop,
-  define the exception first (`exception-catalog`) or register the middleware's status (`hex-restapi-app`).
-- Asked to add branching logic to `restapi/error_handler.py` → stop, the translator stays minimal;
-  new behaviour is encoded by subclassing, or by `http_status` / `code` on the new class.
+- A route lists a status neither `STATUS_BY_ERROR` nor `MIDDLEWARE_ERRORS` holds → stop; if nothing on
+  the route's path can raise it, drop the code (rule 9); a status something does raise earns a class
+  first (`exception-catalog`) and its entry in the map, or a registered middleware status
+  (`hex-restapi-app`).
+- Asked to add branching logic to `restapi/error_handler.py` → stop, use `hex-restapi-app` (rule 3).

@@ -314,8 +314,11 @@ from myapp.domain.exceptions import MyappError, UnauthorizedError, ValidationErr
         headers: dict[str, str] = {}
         if isinstance(exc, UnauthorizedError):
             headers["WWW-Authenticate"] = "Bearer"
-        return JSONResponse(status_code=exc.http_status, content=body, headers=headers or None)
+        return JSONResponse(status_code=status, content=body, headers=headers or None)
 ```
+
+`restapi/schemas/errors.py` maps `UnauthorizedError` to `401` in `STATUS_BY_ERROR`, and `ForbiddenError`
+to `403` once something raises it (`hex-restapi-app`).
 
 The challenge carries the `Bearer` scheme alone, which is the load-bearing part (RFC 7235) and what
 `hex-test-restapi-auth` asserts. A realm is optional and app-specific: an app that wants one reads it
@@ -460,8 +463,8 @@ in `hex-architecture`. `restapi/dependencies.py` sits in the entrypoint package 
   auth-free by construction.
 - `domain/exceptions.py` has no `UnauthorizedError` / `ForbiddenError` → stop, use `exception-catalog`
   first; both classes are its to define.
-- The translator is asked to branch on more than the unauthorized class → stop, encode new behaviour
-  via subclass `code` / `http_status` (`hex-restapi-app` rule 3 caps it at one branch).
+- The translator is asked to branch on more than the unauthorized class → stop, use `hex-restapi-app`
+  (rule 3).
 - The verifier is asked to log, retry or cache → stop, use `hex-capability-adapter`; an adapter is thin.
 - Asked for authorization finer than a single role rank — per-row ownership, a policy matrix, a third
   kind of auth dependency → stop, use `hex-application`; the handler raises `ForbiddenError`.

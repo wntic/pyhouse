@@ -9,7 +9,7 @@ paths: ["**/restapi/**", "**/api/**"]
 Produces one HTTP endpoint for one resource. Routers grow incrementally — this skill adds one route at a time. A "router file" exists once per resource; subsequent endpoint additions extend it.
 
 **Read the sibling `CONTRACTS.md` in this skill's own directory before choosing what a route advertises
-in `responses=error_responses(...)`.** It carries the per-operation code sets and the two symbols the
+in `responses=error_responses(...)`.** It carries the per-operation code sets and the helper the
 decorator draws on; only `SKILL.md` is loaded automatically.
 
 ## When to use vs. neighbours
@@ -246,7 +246,7 @@ The per-operation code sets and the helper are in the sibling `CONTRACTS.md`; re
 8. **Routes only advertise.** A route never builds an error response itself: one translator owns the error body's shape, and a hand-built body is the copy that drifts from it. The error catalogue and boundary translation are `exception-catalog`'s; logging is `python-logging`'s.
 9. **Advertise exactly what the route can produce.** The set follows from the operation — which domain exceptions its handler can raise, which middleware sits in front of it, and whether it takes any validated input. A code that cannot occur is removed — an auth code follows the attached auth dependency (`hex-restapi-auth`), so a route with none advertises no `401` or `403`; a code that can occur and is missing makes the published document wrong in the direction clients notice last.
 10. **Never hand-write the advertisement mapping** — `responses={404: {...}}` typed out at the decorator. Always go through the helper, because the helper is what checks the code against the set of codes something can actually produce; a hand-written entry is the one path by which a status nothing raises reaches the document.
-11. **One hand-maintained registry, and only one.** A status a middleware introduces, with no domain exception behind it, is the only kind registered by hand; everything domain-side derives from the error catalogue's own exported set.
+11. **One hand-maintained registry, and only one.** A status a middleware introduces, with no domain exception behind it, is the only kind registered by hand; everything domain-side is the boundary's status map (`hex-restapi-app`).
 12. **A middleware-introduced status is registered before it is advertised.** The helper validates against the known set, so an unregistered status fails loudly at import rather than reaching the document.
 13. **A route taking any validated input advertises the input-validation status.** Path parameter, query parameter, filter, pagination or body — any of them can be rejected before the handler runs, so the document must say so. It is *any-input* validation, not body validation: a lone `{id}` produces it, and only a parameterless, body-less route omits it. Where the framework publishes a response of its own for that status, the decorator still names it: the framework's entry describes the framework's error body, not the one the app sends.
 

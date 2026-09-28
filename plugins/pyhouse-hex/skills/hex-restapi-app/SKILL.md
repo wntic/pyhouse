@@ -13,7 +13,7 @@ The shell every route lands inside, and the middleware layers that wrap it. The 
 - Laying the FastAPI entrypoint for the first time, or adding a middleware that wraps every route → this skill.
 - A new router added afterwards, or logic for one route → `hex-restapi-endpoint`, a thin route over an application handler that also `app.include_router(...)`s itself.
 - A resource's request/response models added into the `schemas/` package this skill creates → `hex-restapi-schema`.
-- A new domain exception is plumbed → `exception-catalog` (creates/extends `domain/exceptions.py`); the catalog used by `error_responses(...)` derives from `domain.exceptions.__all__` automatically.
+- A new domain exception is plumbed → `exception-catalog` (creates/extends `domain/exceptions.py`); the HTTP status it answers with is this skill's `STATUS_BY_ERROR`, where a refinement needs no entry of its own.
 - A middleware introducing a new HTTP status → this skill, *Registering a middleware's status* under `## Middleware`.
 - Authenticating a caller or gating a route on a role → `hex-restapi-auth`; route auth is a FastAPI dependency, not a middleware, and it is optional — this shell is complete without it.
 - Which error codes a route advertises → `hex-restapi-endpoint`.
@@ -97,7 +97,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from myapp.domain.exceptions import MyappError, ValidationError
 
-from .schemas.errors import ErrorResponse
+from .schemas.errors import ErrorResponse, status_for
 
 __all__ = ["UnexpectedErrorMiddleware", "register_error_handlers"]
 
@@ -140,17 +140,18 @@ class UnexpectedErrorMiddleware:
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MyappError)
     async def _handle_domain_error(request: Request, exc: MyappError) -> JSONResponse:
+        status = status_for(exc)
         body = ErrorResponse(code=exc.code, message=str(exc), context=exc.context).model_dump(mode="json")
-        level = log.warning if exc.http_status < 500 else log.error
+        level = log.warning if status < 500 else log.error
         level(
             "request_failed",
             code=exc.code,
-            http_status=exc.http_status,
+            status=status,
             path=request.url.path,
             method=request.method,
             context=body["context"],
         )
-        return JSONResponse(status_code=exc.http_status, content=body)
+        return JSONResponse(status_code=status, content=body)
 
     @app.exception_handler(RequestValidationError)
     async def _handle_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -160,7 +161,8 @@ def register_error_handlers(app: FastAPI) -> None:
 ```
 
 The translator stays minimal forever. New domain exceptions plug in without touching this file — the
-handler dispatches on the attributes defined by `exception-catalog`. The block above is the primary
+handler renders the body off the attributes `exception-catalog` defines and takes the status from
+`status_for`. The block above is the primary
 form and has **no** `isinstance` branch at all, because an app with no auth has no `UnauthorizedError`
 in its catalog to branch on.
 
@@ -170,7 +172,7 @@ answers with its own `{"detail": [...]}` body — a second error shape beside th
 route advertises for the input-validation status (`hex-restapi-endpoint`). The request-validation
 handler turns that rejection into the catalogue's `ValidationError` and hands it to the domain handler,
 so it is rendered in the one place everything else is (`exception-catalog` rule 13) and logged there
-once (`python-logging`), with the catalogue's code and status. `context` names the rejected fields by
+once (`python-logging`), with the catalogue's code and the status it maps to. `context` names the rejected fields by
 location (`body.name`, `path.id`) and never echoes the input values, which may carry a secret. It is a
 translation of the framework's exception into the catalogue, not a branch in the translator, so rule 3's
 cap is untouched.
@@ -188,12 +190,10 @@ re-raises unlogged, and the server, which then drops the connection, logs it onc
 definition no catalogue class was raised. It is a constant of this template, not a new catalogue entry.
 
 **The catalogue classes the shell and the routes need.** The root is the project's own (`MyappError`,
-`exception-catalog`) and carries the optional `http_status` field, because this service has an HTTP
-entrypoint. Each class below is added under `exception-catalog` with its status, and only when
-something raises it: `ValidationError` (422) for the handler above, and `NotFoundError` (404) for
-`hex-restapi-endpoint`'s routes; `ConflictError` (409) only where a template translates a constraint,
-with a per-aggregate conflict refining it; `InUseError` only where another aggregate references this
-one.
+`exception-catalog`) and carries no status. `ValidationError` serves the handler above and
+`NotFoundError` `hex-restapi-endpoint`'s routes; each class is added under `exception-catalog` only
+when something raises it, and its status joins `STATUS_BY_ERROR` below in the same change —
+`hex-restapi-auth` adds 401 and 403, a translated constraint 409.
 
 #### `error_handler.py` — authenticated variant (the app declares auth)
 
@@ -205,15 +205,13 @@ with it → `hex-restapi-auth`.
 ### `restapi/schemas/errors.py`
 
 ```python
-from http import HTTPStatus
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-from myapp.domain import exceptions as _domain_exceptions
-from myapp.domain.exceptions import MyappError
+from myapp.domain.exceptions import MyappError, NotFoundError, ValidationError
 
-__all__ = ["ErrorResponse", "MIDDLEWARE_ERRORS", "error_responses"]
+__all__ = ["ErrorResponse", "MIDDLEWARE_ERRORS", "STATUS_BY_ERROR", "error_responses", "status_for"]
 
 
 class ErrorResponse(BaseModel):
@@ -222,43 +220,32 @@ class ErrorResponse(BaseModel):
     context: dict[str, object] = Field(default_factory=dict)
 
 
+STATUS_BY_ERROR: dict[type[MyappError], int] = {NotFoundError: 404, ValidationError: 422}
+
 MIDDLEWARE_ERRORS: dict[str, int] = {"INTERNAL_ERROR": 500}
 
 
-def _describe(code: int) -> str:
-    try:
-        return HTTPStatus(code).phrase
-    except ValueError:
-        # A vendor-specific status the stdlib does not know: the number, not invented wording.
-        return str(code)
-
-
-def _all_known_statuses() -> set[int]:
-    domain_statuses: set[int] = set()
-    for name in _domain_exceptions.__all__:
-        cls = getattr(_domain_exceptions, name)
-        if isinstance(cls, type) and issubclass(cls, MyappError):
-            domain_statuses.add(cls.http_status)
-    return domain_statuses | set(MIDDLEWARE_ERRORS.values())
+def status_for(exc: MyappError) -> int:
+    return next((STATUS_BY_ERROR[cls] for cls in type(exc).__mro__ if cls in STATUS_BY_ERROR), 500)
 
 
 def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
-    known = _all_known_statuses()
+    known = set(STATUS_BY_ERROR.values()) | set(MIDDLEWARE_ERRORS.values())
     unknown = [c for c in codes if c not in known]
     if unknown:
-        raise ValueError(f"HTTP statuses not produced by any MyappError or middleware: {unknown}")
+        raise ValueError(f"HTTP statuses no mapped error class or middleware produces: {unknown}")
     # Exactly FastAPI's `responses=` type; a narrower value type fails strict mypy at the decorator.
-    out: dict[int | str, dict[str, Any]] = {c: {"model": ErrorResponse, "description": _describe(c)} for c in codes}
+    out: dict[int | str, dict[str, Any]] = {c: {"model": ErrorResponse} for c in codes}
     return out
 ```
 
-The domain-side registry is **derived dynamically** from `domain.exceptions.__all__`. Adding a new `MyappError` subclass automatically widens the allowed `error_responses(...)` codes — no manual append.
+`STATUS_BY_ERROR` is the one place a catalogue class meets an HTTP status. `status_for` resolves a raised error through its class's ancestry, so a refinement (`FooNotFoundError`) answers as its nearest mapped parent with no entry of its own, and a class nothing maps answers `500`, as the root. The statuses a route may advertise are that map's values and `MIDDLEWARE_ERRORS`' — nothing else reaches a client.
 
-Status descriptions are **looked up, not listed** — `HTTPStatus(code).phrase`, with the bare number for a status the stdlib does not know. An app that must reword a status adds a mapping consulted first.
+A response entry carries no description: the framework fills in the status's standard phrase.
 
-`MIDDLEWARE_ERRORS` registers the codes emitted outside the domain catalogue, where no `MyappError` class produces them. `INTERNAL_ERROR` is always present: the catch-all returns it when no catalogue class was raised at all. Its status is already derivable (`MyappError` defaults to 500); its **code string** is not, and a code is a stable wire contract clients key on (`exception-catalog`), so it is registered here rather than invented at the call site. An entry is added when a declared middleware introduces a code (*Registering a middleware's status*, below) — a size-cap middleware's `PAYLOAD_TOO_LARGE` → 413.
+`MIDDLEWARE_ERRORS` registers the codes emitted with no catalogue class behind them. `INTERNAL_ERROR` is always present: the catch-all answers with it when no catalogue class was raised at all, and since no class is mapped to `500`, its entry is also what lets a route advertise that status. An entry is added when a declared middleware introduces a code (*Registering a middleware's status*, below) — a size cap's `PAYLOAD_TOO_LARGE` → 413.
 
-This file is the **single source of truth** for the error wire-shape, the `error_responses(...)` helper, the description lookup, and `MIDDLEWARE_ERRORS`. `hex-restapi-endpoint` only *references* it — it never writes to it or restates this template.
+This file is the **single source of truth** for the error wire-shape, the status map, the `error_responses(...)` helper and `MIDDLEWARE_ERRORS`. `hex-restapi-endpoint` only *references* it — it never writes to it or restates this template.
 
 ### `restapi/schemas/__init__.py`
 
@@ -355,8 +342,7 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 1. Confirm the status has no `MyappError` behind it — the body comes from middleware, before the
    exception handler runs. Otherwise the answer is `exception-catalog`, not this path.
 2. Add `"CODE_STRING": <status>` to `MIDDLEWARE_ERRORS` in `restapi/schemas/errors.py`.
-3. The description needs nothing: `_describe` looks the standard phrase up.
-4. The middleware emits an `ErrorResponse` body carrying the same `code` string (rule 9).
+3. The middleware emits an `ErrorResponse` body carrying the same `code` string (rule 9).
 
 ## Other bindings
 
@@ -380,8 +366,8 @@ A status a middleware emits is registered before any route advertises it (`hex-r
 ## Rules
 
 1. **One-shot.** This skill runs once per project. After bootstrap, this file set is stable; updates to `main.py` go through whichever skill needs them (typically `hex-restapi-endpoint` appending an `include_router(...)` line).
-2. **The catalog is dynamic.** The registry derives from `domain.exceptions.__all__` at import time.
-3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behavior comes from the `MyappError` subclass's `code` / `http_status`, so new behaviour is a new subclass, never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class and rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
+2. **A status is the HTTP boundary's, mapped from the class.** The catalogue carries no transport's vocabulary (`exception-catalog`); this boundary maps a class to its status once, resolved through the class's ancestry so a refinement answers as its parent, and a route may advertise only a status that map or the middleware registry holds.
+3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behaviour comes from the `MyappError` subclass and its mapped status, so new behaviour is a new subclass — and, where its status differs from its parent's, one map entry — never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class and rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
 4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened. `lifespan` holds that teardown and nothing else — no business logic.
 5. **Routes receive their dependencies by type** (`hex-restapi-endpoint`); `main.py` neither resolves anything nor exposes the composition root for others to resolve from. Never module-level resolution.
 
