@@ -1,6 +1,6 @@
 ---
 name: hex-test-restapi-auth
-description: Use when testing a token verifier, or any other part of a REST service that authenticates its callers — the token-verifier adapter's unit test, the signing-key and token-minting fixtures, the `authed_client` factory, the DI override that makes minted tokens verify, the discovered unauthenticated-route probe, and the role and cross-tenant assertions on an endpoint. Not an endpoint's non-auth half — happy path and schema validation (`hex-test-restapi-endpoint`) — and not another capability adapter's test (`hex-test-capability-adapter`).
+description: Use when testing a token verifier, or any other part of a REST service that authenticates its callers — the token-verifier adapter's unit test, the signing-key and token-minting fixtures, the `authed_client` factory, the DI override that makes minted tokens verify, the discovered probe that every operation not declared public refuses an anonymous or untrusted caller, and — where the app has them — the role and cross-tenant assertions on an endpoint. Not an endpoint's non-auth half — its success body and advertised error codes (`hex-test-restapi-endpoint`) — and not another capability adapter's test (`hex-test-capability-adapter`).
 when_to_use: Adding the auth fixtures to an integration suite, writing a 401 or 403 endpoint test, minting a JWT inside a test, or asserting that a protected route rejects an anonymous caller.
 ---
 
@@ -12,9 +12,8 @@ the constitution wins.
 Every test the auth machinery needs — the verifier's own unit test and the auth half of the integration
 suite — and all of it exists **only for an app that declares auth**
 (`hex-restapi-auth`). An auth-less app produces none of these files: no verifier to test, no
-`tests/helpers/jwt.py`, no `tests/integration/api/conftest.py`, no `test_unauth_returns_401.py`, and
-every endpoint test drives a plain ASGI client. Whether an app has auth follows from its routes, not
-from a flag.
+`tests/helpers/jwt.py`, no auth fixtures in `tests/integration/api/conftest.py`, no
+`test_unauth_returns_401.py`, and every endpoint test drives a plain ASGI client.
 
 ## When to use vs. neighbours
 
@@ -22,7 +21,7 @@ from a flag.
 - The containers, the engine, the rollback `sf`, `container` and `real_app` itself →
   `hex-test-integration-setup` (one-shot; both are defined there and every integration file here consumes
   `real_app`).
-- A per-endpoint test's non-auth half — happy path, schema validation, per-resource fixtures →
+- A per-endpoint test's non-auth half — success body, advertised error codes, per-resource fixtures →
   `hex-test-restapi-endpoint`.
 - The other discovered invariants — OpenAPI error codes, CORS, request-size limit, the construct smoke →
   `hex-test-app-invariants`.
@@ -31,7 +30,7 @@ from a flag.
 - The `Role` enum's own unit test → `hex-test-domain`.
 - The testing constitution these rules defer to — fixture placement, the mocking prohibition, speed targets → `test-principles`.
 
-## Template(s) — PyJWT, httpx over ASGI, pytest
+## Template(s) — PyJWT, cryptography, httpx over ASGI, FastAPI, pytest
 
 ```
 tests/
@@ -53,150 +52,113 @@ pytest** — on either side of the unit/integration seam. **Read the one for the
 before writing it** — only this file is loaded automatically:
 
 - **`UNIT.md`** — the verifier adapter's own test: module-scope keypair, real signatures, one case per
-  translation arm.
+  check the verifier makes.
 - **`INTEGRATION.md`** — the signer helper, the api conftest and its authenticated client, the DI
-  substitution that makes a minted token verify against the real app, the discovered unauthenticated
-  probe, and the authenticated endpoint forms.
-
-### Binding traps — bearer JWS
-
-The signing algorithm the suite and production must agree on, the `Authorization` header a request
-carries and the RFC-7235 challenge a rejection returns are **this scheme's own** — an opaque token, a
-session cookie and a gateway header have none of the three — so these stops sit with the template that
-names the stack, and they stop wherever this binding is in use.
-
-- The suite signs with `HS256` while production uses `RS256` (or vice versa) → stop, the algorithm matches
-  production.
-- A test writes the bearer header by hand inside a test → stop, use `authed_client(...)` so role, tenant
-  and claim shape are uniform.
-- A test hardcodes `Authorization: Bearer <literal-jwt>` for "expired token" or "invalid claim" tests →
-  stop, mint the test-specific token via `sign_token(...)` from the helper.
-- A test freezes the `WWW-Authenticate` challenge to a specific realm (`Bearer realm="myapp"`) → stop, only
-  the scheme is load-bearing; the realm is app-specific.
+  substitution that makes a minted token verify against the real app, the discovered probe, and the
+  authenticated endpoint forms.
 
 ## Other bindings
 
-- **Opaque token plus an introspection endpoint** (`hex-restapi-auth`'s first alternative). Rules 1–23
-  hold unchanged. What changes: there is no keypair and no signer, so the session-scoped fixture becomes
-  a stub introspection server and the "mint a fresh token per call" rule becomes "register a fresh
-  token with the stub per call". Rule 12's no-mocking line moves down a level — the verifier still runs
-  for real; the *upstream* is the seam the test controls.
+- **Opaque token plus an introspection endpoint** (`hex-restapi-auth`, *Other bindings*). What changes:
+  the verifier does IO, so its unit test takes `hex-test-capability-adapter`'s HTTP-gateway flavour
+  instead of rule 1's; there is no keypair and no signer, so the session-scoped fixture becomes a stub
+  introspection server and the "mint a fresh token per call" rule becomes "register a fresh token with
+  the stub per call". Rule 10's no-mocking line moves down a level — the verifier still runs for real;
+  the *upstream* is the seam the test controls.
 - **Gateway- or mTLS-authenticated** (no verifier in the app). The verifier unit test and `UNIT.md`
   disappear entirely; the authenticated client sets the trusted header instead of a bearer credential,
-  and the probe asserts that a request arriving *without* it is rejected — which is the test that the
-  app is unreachable except through the gateway.
+  and the probe asserts that a request arriving *without* it is rejected. That proves the header is
+  required, not that only the gateway can send it; unreachability except through the gateway is the
+  deployment's (`hex-restapi-auth`).
 - **`dependency-injector` as the wiring mechanism.** Only the substitution in the api conftest changes,
   the way `hex-test-integration-setup`'s bullet describes; the fixtures, the probe and every assertion
   are untouched.
 
 ## Rules
 
-Consult `test-principles` for the testing constitution, and `hex-test-capability-adapter` for the three
-capability-adapter test flavors — the verifier takes its pure-CPU one.
+Consult `test-principles` for the testing constitution.
 
 ### The verifier's unit test
 
-1. **Real keys, real signatures, no mocking of the library.** Generate a keypair at module scope and
-   sign with the real library. A hand-written token string the library never produced proves nothing
-   about the library's behaviour, which is the whole subject.
-2. **One test per `raise` site in the verifier** — every arm of the library's failure family the adapter
-   catches, plus any guard it raises itself — and each asserts the `context` key that arm sets. Skipping
-   arms is how "the translator handles expiry but not audience" ships, and the count is checkable: a
-   verifier with five raise sites has five cases.
+1. **The verifier's unit test is `hex-test-capability-adapter`'s pure-CPU flavour** (its rules 2–3 and
+   20–22) — real keys and real signatures, settings and keys at module scope, no fixtures, and the file
+   under `tests/unit/infrastructure/<adapter>/`.
+2. **One test per check the verifier makes** — the signature, each claim it validates or requires, and
+   any guard it raises itself — each asserting the `context` value that case sets. Counting `raise`
+   statements undercounts: a catch-all branch covering issuer, audience and signature is one raise site
+   and three cases.
 3. **One signer for the whole suite.** The unit test and the integration fixtures mint tokens through
    the same helper, so a change to the claim shape cannot leave them disagreeing.
-4. **Module-level settings and keys, never fixtures, and the file under `tests/unit/`.** A pure-CPU
-   adapter has no lifecycle; it is constructed inline in each test, and its test lives at
-   `tests/unit/infrastructure/<adapter>/` with no container — the pure-CPU flavor's path
-   (`hex-test-capability-adapter`).
 
 ### The authenticated client
 
-5. **One sanctioned authenticated client, and every test goes through it.** Building a client against
+4. **One sanctioned authenticated client, and every test goes through it.** Building a client against
    the real app and attaching a credential header by hand is forbidden in any test file — a hand-rolled
-   header is how the claim shape drifts between tests. A client with no credential is allowed in exactly
-   two places: the unauthenticated probe, and an app with no auth at all
-   (`hex-test-restapi-endpoint`'s public template). The client factory lives in
-   `tests/integration/api/conftest.py`, never the root `tests/conftest.py`: a root-level app fixture
+   header is how the claim shape drifts between tests. A client without the fixture's credential is
+   allowed only in the probe file — anonymous, or carrying the untrusted credential of rule 15 — and on a
+   route with no auth dependency (`hex-test-restapi-endpoint`'s plain client). The client factory lives
+   in `tests/integration/api/conftest.py`, never the root `tests/conftest.py`: a root-level app fixture
    makes every unit test pay the infrastructure import chain (`hex-test-integration-setup`).
-6. **The client factory is entered as a context manager, never assigned.** Bare assignment leaks the
-   transport and surfaces later as a consumed-client error or resource-warning noise in a run that has
-   nothing to do with the test that leaked it. The scoped form is non-negotiable.
-7. **Each call mints a fresh token.** Tokens are not reused across tests, calls, or roles. A test that
-   needs two roles in one body calls `authed_client(...)` twice.
-8. **Mint only what the identity type declares; pass everything else via `extra_claims`.** The factory
+5. **The client factory is entered as a context manager, never assigned** (`hex-test-restapi-endpoint`
+   rule 6).
+6. **Each call mints a fresh token — never cached: a reused token is how a test passes on the previous
+   test's credential.** Tokens are not reused across tests, calls, or roles; a test that needs two roles
+   in one body calls `authed_client(...)` twice.
+7. **Mint only what the identity type declares; pass everything else via `extra_claims`.** The factory
    bakes in the subject, and the rank where the app has one, and nothing more (`hex-restapi-auth`).
    Anything further this app's identity carries (a tenant id, a display name, …) is the caller's to
    pass via `extra_claims`, pinned only when a test must share it with a fixture row (don't reuse such
    a value across unrelated tests). Never hardcode one app's identity
    model into the factory, and never name a claim key outside the binding files.
-9. **The keypair and the verifier settings are session-scoped.** Generating an RSA key is the one
-   expensive step here, and generating it per test would dominate suite wall time. The client factory stays
-   function-scoped — each test's transport must be closed at teardown.
-10. **The credential the fixture mints is produced the way production's is verified**, off the same
-    settings object the fixture built — same algorithm, same issuer, same audience. Substituting a
-    cheaper algorithm "for speed" tests a path production does not run, and it is the substitution that
-    hides an algorithm-confusion bug rather than catching it.
-11. **The client's base URL is a sentinel host, not a loopback address.** The in-process transport never
-    reaches the network either way, but a loopback URL makes test traffic indistinguishable from real
-    traffic in a CI log — and indistinguishable from a test that accidentally does reach the network.
-12. **No mocking of verification.** The verifier in `real_app` validates the token end-to-end against the
+8. **The keypair and the verifier settings are session-scoped, the client factory function-scoped**
+   (`test-principles`, *Fixture scope rules*): generating an RSA key is the one expensive step here.
+9. **The credential the fixture mints is produced the way production's is verified**, off the same
+   settings object the fixture built — same algorithm, same issuer, same audience. Substituting a
+   cheaper algorithm "for speed" tests a path production does not run, and it is the substitution that
+   hides an algorithm-confusion bug rather than catching it.
+10. **No mocking of verification.** The verifier in `real_app` validates the token end-to-end against the
     public key these fixtures provided — that *is* the integration contract under test.
-13. **No global token cache.** Signing with a key already generated is cheap, and a per-test mint
-    avoids "this test passed because the previous test's token was still cached" failures.
-14. **Helpers live in `tests/helpers/`, not in `conftest.py`.** A test that needs `sign_token(...)` for
-    an edge case (expired token, invalid issuer) imports the helper directly. The helper is a plain
-    function — no fixtures wrap it.
+11. **`sign_token(...)` is a plain function under `tests/helpers/`** (`test-principles`, *Fixture vs.
+    builder*): a test that needs an edge-case token — expired, wrong issuer — imports it directly, and no
+    fixture wraps it.
 
 ### The discovered probe
 
-15. **Protected-route detection is structural, not by name.** Enumerate the operations the framework
-    itself resolved — never a hand-maintained list, and never a path assembled by hand from a router
-    prefix and a decorator argument — and probe each one under the path a client must actually request.
-    Identify the auth dependency by **callable identity**, importing it, rather than by matching its
-    function name as a string or reading an attribute off it: a renamed dependency then breaks the
-    import, which is loud, where a name match would silently stop finding it. Search the **whole**
-    dependency tree, not its first level — a role gate reaches the identity dependency through its own
-    dependency, and a first-level check misses every route gated that way. Every input the probe uses
-    comes off the app, so the cost of adding a new endpoint here is zero. *FastAPI binding:* the resolved operations are
-    `fastapi.routing.iter_route_contexts(app.routes)` filtered to contexts whose original route is an
-    `APIRoute` (FastAPI 0.137.2 and later) — `include_router` keeps each included router as one entry in
-    `app.routes`, and the context resolves its prefix and router-level dependencies onto each operation
-    — and the requestable path is each context's `path_format`.
-16. **The probe substitutes path placeholders with valid-shaped dummies, by pattern and never by a
+12. **Protected is the default; public is declared.** Probe every operation the app serves — walked as
+    `hex-test-app-invariants` rule 2 walks them, and requested under the path a client must use — except
+    those the app declares public: a named set of operations in the probe file, or a marker the public
+    route itself carries. Never classify by whether the auth dependency is present: a route that forgot
+    it looks exactly like a public one, and that classification drops it from the probe instead of
+    failing it (`hex-restapi-auth` rule 9). Every input comes off the app and the declaration, so a new
+    protected endpoint joins the probe with nothing to edit.
+13. **The probe substitutes path placeholders with valid-shaped dummies, by pattern and never by a
     name list.** A test for `GET /foos/{id}` with literal `{id}` in the URL hits the router as 404
     instead of triggering auth. UUID-shaped placeholders (`00000000-...`) route correctly and the
     request reaches the auth dependency. Substitute **every** `{...}` segment with one regex: an
     enumerated tuple of parameter names silently stops covering the route that introduces a new one,
     and the probe then passes by not reaching the dependency at all — the exact failure this test
     exists to catch.
-17. **An empty discovery is a failure, not a skip.** The companion net test asserts the walk found
-    operations *and* found protected ones, because an empty parametrization reports "got empty parameter
-    set" and leaves the run green — silence indistinguishable from an app with no protected routes.
-18. **Assert the code constant and the challenge scheme, never their literals.** The rejection body is
+14. **An empty discovery is a failure, not a skip** (`hex-test-app-invariants` rule 3). The companion
+    net test asserts the walk found operations, and that every operation declared public is still one
+    the app serves, so the declaration cannot drift from the routes.
+15. **Every probed operation also refuses a credential the app does not trust.** The anonymous probe
+    never reaches verification — the dependency refuses a missing credential first — and the verifier's
+    unit test never reaches a route, so without this case a dependency that checks presence and never
+    verifies passes the whole suite. Mint one with `sign_token(...)` under a key the app did not issue,
+    send it to each probed operation from the probe file, and assert the 401 and its code. Per-check
+    cases stay in the verifier's unit test; this is the one end-to-end case.
+16. **Assert the code constant and the challenge scheme, never their literals.** The rejection body is
     asserted against the domain exception's own code attribute, so renaming the code moves both sides
     together; the challenge is asserted on its scheme only. The realm is app-specific and is never
     frozen in an assertion.
-19. **This whole file is auth-gated**, the way an info-endpoint test is endpoint-gated. Its module-level
-    imports of the route dependency and the domain exception exist only in an app that declares auth; in
-    an all-anonymous app the file would fail to import at collection time and take the whole
-    `tests/integration/api/` package down with it.
 
 ### Endpoint-level assertions
 
-20. **A role-gated route is tested from below the bar as well as above it.** A happy path at the
+17. **A role-gated route is tested from below the bar as well as above it.** A happy path at the
     required rank, and a rejection at a lower one; a route whose gate is never exercised from below is
     a gate nothing proves.
-21. **Cross-tenant reads return 404, not 403.** When a resource is tenant-scoped — the endpoint reads
-    rows owned by a tenant other than the caller's — answering 403 leaks existence ("this resource
-    exists but you can't see it"), so the route must return 404. Tenancy is derived from the auth claim
-    plus the repository's owner filter, not from a declared field; test the 404 path explicitly whenever
-    the resource is tenant-scoped.
-22. **Error responses are asserted by `code`, not by message** (`hex-test-restapi-endpoint`). The HTTP
-    status is asserted separately.
-23. **A role ladder in a test is the app's own.** `INTEGRATION.md` uses the catalogue's placeholder
-    pair `Role.LOWER` / `Role.HIGHER` (`hex-restapi-auth`); substitute the app's own members, and
-    however many of them it has.
+18. **Where a resource is tenant-scoped, a test reads another tenant's row and asserts 404** —
+    `hex-application` caller-derived rule 1; 403 would leak existence.
 
 ## Inlined typing / import rules
 
@@ -206,8 +168,8 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 - The api conftest adds `httpx`, `jwt` (PyJWT), `cryptography.hazmat.*`, `myapp.domain.auth` and
   `myapp.infrastructure.jwt.settings`; full annotations on the factory and its `_factory` closure.
 - The probe adds `pytest`, `fastapi`, `fastapi.routing`, `httpx`, `myapp.restapi.main`,
-  `myapp.restapi.dependencies`, and `myapp.domain.exceptions` for the `UnauthorizedError.code`
-  constant it asserts against. It never imports `myapp.containers`: `create_app()` builds the real
+  `myapp.domain.exceptions` for the `UnauthorizedError.code` constant it asserts against, and
+  `myapp.infrastructure.jwt` with `tests.helpers.jwt` for the untrusted credential. It never imports `myapp.containers`: `create_app()` builds the real
   composition root itself, and no factory runs at collection time.
 - Full annotations on every fixture, helper and test — `-> None` on every test. `python-style` owns
   annotation policy and admits no test carve-out.
@@ -215,12 +177,13 @@ capability-adapter test flavors — the verifier takes its pure-CPU one.
 
 ## Hard stops
 
-- The app has no auth (every endpoint anonymous) → stop, produce none of these files; the `container`
-  of an auth-less app substitutes no verifier settings (`hex-test-integration-setup`).
+- The app has no auth (every endpoint anonymous) → stop, produce none of these files: the probe's
+  module-level imports would fail collection and take `tests/integration/api/` down with it, and the
+  `container` of an auth-less app substitutes no verifier settings (`hex-test-integration-setup`).
 - Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this
   catalogue's binding) → stop, use `hex-test-integration-setup`; the suite cannot collect without it.
-- Asked to fold a new per-endpoint unauthenticated test into the probe (e.g. "test that POST /foos
-  returns 401 unauth") → stop, write nothing; the parametrized probe already covers it via discovery,
-  so add the endpoint and it joins the suite automatically.
+- Asked for a per-endpoint anonymous-caller test (e.g. "test that POST /foos returns 401 unauth") →
+  stop, write nothing; every operation not declared public is already probed. Making a route public
+  adds it to the declaration.
 - A per-resource row factory is added inside the api conftest → stop, use `hex-test-restapi-endpoint`;
   those live in `tests/integration/api/<resource>/conftest.py`.

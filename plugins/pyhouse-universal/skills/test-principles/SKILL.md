@@ -106,7 +106,7 @@ entrypoint, the layer is leaking and the speed budget is gone.
 | | Builder (module-level `def`) | Fixture (`@pytest.fixture`) |
 |--|------------------------------|------------------------------|
 | Use for | Constructing one value with sensible defaults — a record, an entity, a payload | Anything with a lifecycle — a container, an engine, a connection, a stubbed transport and the client over it, a factory that writes real rows |
-| Lives in | The test module that uses it | A conftest at the level *Where tests and fixtures sit* rule 2 picks |
+| Lives in | The test module that uses it; one several files share is a plain function under `tests/helpers/`, imported directly | A conftest at the level *Where tests and fixtures sit* rule 2 picks |
 | Examples | `_foo(*, name: str = "alpha") -> Foo` | a rollback-scoped connection, a per-test namespace, `make_foo` writing one real row per call |
 | Why | Builders are pure Python; wrapping one in a fixture adds ceremony without value. | Fixtures own setup and teardown — sessions, transactions, transports — which is what they are for. |
 

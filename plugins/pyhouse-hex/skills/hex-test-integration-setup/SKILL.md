@@ -144,17 +144,9 @@ by `container`, so an entrypoint never reaches a store the environment names.
 
 ### In an auth app, `container` is usable only from `tests/integration/api/`
 
-In an app that declares auth, `container` consumes a settings fixture defined **down-tree**, in
-`tests/integration/api/conftest.py`. Pytest resolves fixture names by walking the conftest hierarchy from
-the running test outward, so that only works for tests under `tests/integration/api/`. Repository
-contract tests use `sf` directly and never need it; where another entrypoint's tests outside `api/` do,
-the verifier fixtures move up-tree beside `container`. The mechanism, and the override that depends on
-it, are `hex-test-restapi-auth`'s.
-
-An app without auth binds no verifier settings, so its `container` takes no settings fixture and its
-test provider substitutes none — a factory claiming to override a binding the graph never declared
-fails when the graph is assembled. Whether an app has auth follows from its routes (`hex-restapi-auth`);
-it is not a universal.
+In an app that declares auth, `container` consumes the verifier settings fixture defined down-tree in
+`tests/integration/api/conftest.py`, and an app without auth substitutes none; the override, its cost and
+when those fixtures move up-tree are `hex-test-restapi-auth`'s.
 
 ### The obligations
 
