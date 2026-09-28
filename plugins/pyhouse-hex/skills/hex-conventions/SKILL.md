@@ -73,7 +73,7 @@ every derived path and class name here, multiplying one careless choice across t
 | capability adapter | implements `ICanClassifyFoos`, adapter `http`, role `FooClassifier` | `HttpFooClassifier` | `infrastructure/http/http_foo_classifier.py` |
 | wire schema | `FooCreateRequest` for resource `foos` | `FooCreateRequest` | grouped into `restapi/schemas/foos.py` |
 | endpoint | method + path, resource `foos` | endpoint function (name from method + path) | grouped into `restapi/routers/foos.py` |
-| middleware | `RequestId` | `RequestIdMiddleware` | `restapi/middleware/request_id.py` |
+| middleware | `RequestId` | `RequestIdMiddleware` | `restapi/middleware/request_id.py` — except the catch-all, which completes the error handlers in `restapi/error_handler.py` (`hex-restapi-app` rule 6) |
 
 **An application handler's subdomain is derived, not chosen.** It is the subdomain of the first
 repository protocol the handler depends on (a repository protocol carries its own subdomain); with no
