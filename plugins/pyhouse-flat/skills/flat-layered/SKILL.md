@@ -51,7 +51,7 @@ what Fowler calls **transaction scripts** above it.
   internal layout unchanged; the repository root, the member split and the tooling settled once are
   `python-workspace`. One distribution on its own needs none of that.
 - What triggers a run — a loop, a cron entry, a stream, an HTTP request, or durable execution once it
-  is earned → `flat-entrypoint`, which owns the run function's own obligations.
+  is earned → `flat-entrypoint`, which owns the obligations of the work every trigger calls.
 - The dependencies each role brings and the migration environment, laid once when the service is
   created → `flat-project-setup`; the src layout and the lint and type-check configuration →
   `python-toolchain`.
@@ -82,15 +82,15 @@ this skill. Everything else in a flat service is a supporting package the four r
 and results, one package per external system, the exception catalog, the cross-cutting setup modules at the
 package root — and none of them imports any of the four.
 
-**"Run function"** is the term used throughout this family for a work unit. The kind is deliberately
-*not* called a "unit of work" — that name belongs to the transactional pattern of that name in the other
-family (`hex-persistence`, in `pyhouse-hex`), and one word for two unrelated things is how names stop
-identifying anything. What one is called is `naming`'s decision and it names the work done; `run_once` in
-the templates names *one* run function whose work genuinely is one pass, not a convention to copy.
+The kind is deliberately *not* called a "unit of work" — that name belongs to the transactional pattern
+of that name in the other family (`hex-persistence`, in `pyhouse-hex`), and one word for two unrelated
+things is how names stop identifying anything. What a work unit is called is `naming`'s decision and it
+names the work done; `run_once` in the templates names one whose work genuinely is one pass, not a
+convention to copy.
 
 **Rule 8 is enforced by a firewall of `test-architecture-rule`'s standard form** — the framework's
 import is forbidden outside the declared wrapper package, whatever the framework. Only once a
-durable-execution engine is earned does its allow-list gain one entry, the framework-guarded helper
+durable-execution engine is earned does its allow-list gain one entry, the progress helper
 (`flat-entrypoint` durable obligation 8). The other invariants worth a firewall in a flat service: no
 statement or table constructed outside a data-access package (rule 4), no module-level engine
 (`python-packaging` rule 8), no engine in a unit test and no mock or sleep in any test
@@ -110,7 +110,7 @@ is the decision:
   `*_settings.py` sibling in a package it shares;
 - each external system gets one such package, holding its one client class;
 - each store gets one data-access package, named for the store's technology (rule 4);
-- a run function is a module named for its work, and several that share a concern share a package named
+- a work unit is a module named for its work, and several that share a concern share a package named
   for it — never the module that defines the process running them;
 - a framework wrapper is isolated in its own package so the work it wraps stays framework-free;
 - the one process is defined in `__main__.py`; several each get a module in `entrypoints/` and a console
@@ -131,8 +131,7 @@ src/myapp/
 ├── schemas/           # the records more than one package reads, one declared type per module
 ├── foo_api/           # only with an external system: its client and its settings.py
 ├── postgres/          # only with a store: one package per store, named for its technology — `flat-persistence`
-├── foo_sync.py        # a run function, named for its work
-├── containment.py     # only in a process that outlives one run: the guard around each run
+├── foo_sync.py        # a work unit, named for its work
 └── entrypoints/       # only with more than one process: one module per process, replacing __main__.py
 ```
 
@@ -140,7 +139,7 @@ The tree sits under `src/`, beside the distribution's `pyproject.toml` and `test
 rule 1). A record one package alone reads lives in that package; a record that crosses packages — the
 service's own record, a wire record one package parses and another consumes, what a run returns — sits
 in `schemas/`. A service with a framework adds one wrapper package — the HTTP shape's, or a
-durable-execution engine's together with its guarded helper module (`flat-entrypoint`). A second store is
+durable-execution engine's together with its progress helper module (`flat-entrypoint`). A second store is
 a sibling of `postgres/` named for its own technology (rule 4).
 
 ### Template — the declared records, on dataclasses and pydantic
@@ -149,7 +148,7 @@ The three records every other flat template and test builds, reads or asserts on
 module: they change for three different reasons — the service's model, the upstream's wire format, what
 a run reports — so they are not one set (`python-packaging`).
 
-`src/myapp/schemas/foo.py` — the service's own record, built by the run function and by the
+`src/myapp/schemas/foo.py` — the service's own record, built by the work unit and by the
 repository's row mapper, identified by its `reference` — an identifier the source issued, so a distinct
 type over `str` (`python-style`), wrapped where a value is mapped into the record:
 
@@ -328,7 +327,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    package inside this distribution or a library shared with siblings (`flat-persistence` states that
    package's half).
 8. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
-   durable-execution engine is earned, the one framework-guarded helper module the firewall's allow-list
+   durable-execution engine is earned, the one progress helper module the firewall's allow-list
    names by path, so the exemption stays one entry a reviewer can read. For one distribution that is a
    single named module at the root of its own package, and where several share a repository it is
    promoted to a library they both depend on. That one rule is what keeps the work units callable from a

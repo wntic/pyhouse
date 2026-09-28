@@ -41,7 +41,7 @@ rule 15 says what that changes.
 ## When to use vs. neighbours
 
 - The service's own modules and role packages around this one — the settings and logging modules at the
-  package root, the clients, the run functions → `flat-layered`, which owns the import contract this
+  package root, the clients, the work units → `flat-layered`, which owns the import contract this
   package sits inside, the rule that each configured component declares its own settings class, and the
   no-`Protocol` rule this skill applies to the datastore.
 - Several distributions sharing one repository, and where a shared data-access library sits inside it →
@@ -213,7 +213,7 @@ layout. Only this file is loaded automatically, so open the one you need:
     store's technology, with its own settings class and prefix, its own connection factory and its own
     migration directory.** Two stores never share a package, a settings class or a history: they differ
     in which rules above bind, in their drivers' failure types and in how their schema changes, and one
-    package holding both turns every one of those differences into a branch inside it. A run function
+    package holding both turns every one of those differences into a branch inside it. Work
     that writes to both is handed both packages' objects by the process definition, like any other
     dependency. No transaction spans two stores. A unit writing to both writes first the store the other
     refers to, and each write is idempotent by its key, so retrying after a failure between them

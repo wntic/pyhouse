@@ -121,7 +121,7 @@ Related convention: when collecting heterogeneous values, use `dict[str, object]
 — as in `context: dict[str, object]` on an exception — because `object` forces explicit narrowing at the
 point of consumption.
 
-Past the boundary — in business logic, a handler body, a run function — `Any` is forbidden. If a type is
+Past the boundary — in business logic, a handler body, the body of a job — `Any` is forbidden. If a type is
 hard to express, introduce a `type` alias or a small dataclass.
 
 ### A `type` alias for repeated complex types
@@ -166,7 +166,7 @@ but anything crossing into a frozen type is converted first.
 
 ### A record that crosses a boundary is a declared type
 
-A value that leaves the scope that built it — returned from a client, handed to a run function, passed
+A value that leaves the scope that built it — returned from a client, handed to the function a job runs, passed
 between packages, stored on another object — arrives somewhere that has to know its shape. A bare
 `dict`, a bare tuple or a forwarded `**kwargs` does not carry that shape: the receiving side learns the
 keys by reading the sender, the checker verifies nothing, and a renamed key fails at the line that

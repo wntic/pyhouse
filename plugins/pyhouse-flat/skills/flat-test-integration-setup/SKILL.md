@@ -19,7 +19,7 @@ one for the whole of its work (`flat-persistence` rule 3). That declaration deci
 - **`conn`** — a rollback-scoped connection, for anything that *accepts* one: a function in the
   data-access package that takes one, and every assertion query. Fast, nothing reaches disk.
 - **`truncate_all`** — wipes every table after each test, for anything that *opens and owns* its
-  transaction: repository classes, run functions, and the wrappers above them. A test's outer transaction
+  transaction: repository classes, the work a trigger calls, and the wrappers above them. A test's outer transaction
   can neither see nor roll back a connection the code under test opened for itself.
 
 Both are always present, and neither is a workaround. A hexagonal service whose adapter owns its
@@ -32,7 +32,7 @@ The split is about ownership, not about which family the service is in.
   skill.
 - A test of a table or the repository class → `flat-test-persistence`, which consumes both
   `conn` and `truncate_all` and lays none of its own.
-- A run function, a trigger wrapper or the orchestration above them → `flat-test-run-function`; its code
+- The work a trigger calls, its wrapper or the orchestration above them → `flat-test-run-function`; its code
   owns its transactions, so it takes the wipe.
 - An external-system client's own test → `flat-test-service-client`; it needs no datastore and must not
   live under `tests/integration/`.
