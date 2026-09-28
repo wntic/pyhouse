@@ -22,13 +22,6 @@ first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, w
 findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
 file or skill deleted, a rule reversed — goes to the maintainer.
 
-### 34. Hex templates keep the structured logger, and name it where they do not yet
-Unlike `flat-entrypoint` before D129, every hex log line carries an obligation: `hex-application`
-command handler rule 6 (the handler logs the command's success), the warning a failed undo earns under
-compensation, and the central error handler logging a failure once. Nothing is removed. The binding is
-already named in `hex-application`'s template heading; name it in `hex-restapi-app`'s template heading
-and at `hex-persistence/UNIT_OF_WORK.md`'s handler template, which uses it without saying so.
-
 ### 14. A universal `persistence` skill owns every store-generic obligation
 A new universal skill (working name `persistence`; reference shape, no template) owns what holds in any
 Python project with a store, whatever its family:
