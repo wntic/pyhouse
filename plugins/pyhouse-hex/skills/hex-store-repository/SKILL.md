@@ -225,8 +225,8 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ### Records ↔ entities
 
-6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`; pure by `persistence` rule 6). IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore is `python-style`'s last resort, for code the checker is wrong about that cannot be restated (its type suppressions); an adapter is the one place the vendor type is allowed, so the code can always be restated and there is nothing to silence.
-7. **The record shape is a design decision, not a transcription.** What becomes the key, what goes into the payload, what the store indexes — the client-store analogue of `persistence` rule 8, that column types are a design decision. The aggregate's access patterns and the store's semantics guide it.
+6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`; pure by `persistence` rule 8). IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore is `python-style`'s last resort, for code the checker is wrong about that cannot be restated (its type suppressions); an adapter is the one place the vendor type is allowed, so the code can always be restated and there is nothing to silence.
+7. **The record shape is `persistence` rule 10's**; the aggregate's access patterns and the store's semantics guide it.
 8. **An entity is reconstructed from its own stored data.** Never substitute query-side values for stored ones (e.g. an entity rebuilt from a record is built from the record's fields, never patched with the key or the arguments the caller looked it up by); when the read path doesn't consume a stored field, omit it explicitly rather than faking it.
 
 ### Exception translation
@@ -238,9 +238,9 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 ### Vendor & semantics
 
 12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching, consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` serves every vendor with one skill).
-13. **No provisioning.** The repository never creates collections, indexes, buckets, or schemas — provisioning is a deployment/bootstrap concern.
-14. **Ordering is explicit.** A read that promises an order must produce it deliberately (an explicit sort key, the store's documented result order) — never rely on insertion accident.
-15. **No retries, no caching, no domain reasoning, no logging.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules); a repository never logs by `persistence` rule 17, and which layer does is `hex-architecture`'s.
+13. **No provisioning** (`persistence` rule 14) — a bucket included.
+14. **Ordering is explicit** (`persistence` rule 18) — an explicit sort key, or the store's documented result order.
+15. **No retries, no caching, no domain reasoning, no logging.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules); a repository never logs by `persistence` rule 21, and which layer does is `hex-architecture`'s.
 
 ## Inlined typing / import rules
 
