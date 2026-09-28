@@ -379,10 +379,9 @@ and only when those bullets are load-bearing for the artifact at hand.
 ## Skill shapes (a navigational aid, not a requirement)
 
 Every skill falls into one of four shapes. The section format is universal — a shape adds no canonical
-section, and the one required section a skill may omit is `Template(s)`, when it has nothing to copy;
-shapes signal which sections will be load-bearing rather than ceremonial. Identify the shape before writing,
-so the content matches skills already in the same shape. What each shape emphasises, with the skills
-already in it, is under `## Skill shapes` in the sibling `CONVENTIONS.md`.
+section; shapes signal which sections will be load-bearing rather than ceremonial. Identify the shape
+before writing, so the content matches skills already in the same shape. What each shape emphasises,
+with the skills already in it, is under `## Skill shapes` in the sibling `CONVENTIONS.md`.
 
 ### Picking a shape
 
