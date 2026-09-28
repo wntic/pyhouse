@@ -17,6 +17,7 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -38,7 +39,7 @@ def _status_for(exc: MyappError) -> int:
 
 
 def _render(exc: MyappError) -> JSONResponse:
-    content = {"code": exc.code, "message": str(exc), "context": exc.context}
+    content = jsonable_encoder({"code": exc.code, "message": str(exc), "context": exc.context})
     return JSONResponse(status_code=_status_for(exc), content=content)
 
 
@@ -77,11 +78,11 @@ def build_app(repository: FooRepository) -> FastAPI:
     return app
 ```
 
-**Every failure leaves in one shape, from this module, logged once.** The catalogue carries no status
-(`exception-catalog`); this module maps a class to one, through the class's ancestry, so a refinement
-answers as its nearest mapped parent and an unmapped class as `500`. A catalogue error renders as
-itself, the framework's validation failure as `InvalidPayloadError` (`422`), anything else as the
-catalogue root. The level follows the status (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
+**Every failure a route raises leaves in one shape, from this module, logged once.** The catalogue
+carries no status; this module maps one from the class (`exception-catalog` rules 6 and 13). A catalogue
+error renders as itself, the framework's validation failure as `InvalidPayloadError` (`422`), anything
+else as the catalogue root, and `context` is encoded for JSON first, so an identifier in it cannot turn
+the answer into a crash. The level follows the status (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
 bare `Exception` re-raises to the server, which logs it a second time.
 
 **The app is built by a factory the process definition calls**, never as a module-level `app`, which
