@@ -14,6 +14,14 @@ the store write never reports a committed command as failed and is never dropped
 handler stops its failure and logs it once, after the success event, or hands it to something that
 retries it.
 
+### 36. Settings a component needs fail before the app reports ready
+Found by item 24's verification (lens 3). Under dishka's lazily built composition root, `JwtSettings()`
+is first built on the first authenticated request: with the verifier's environment missing, a public
+health route answers 200 while every protected route answers 500, so a readiness check passes on a
+broken service (`python-settings` rule 4 asks for settings built "at startup, before any work"). The
+obligation would be `hex-wiring`'s, and it collides with `hex-restapi-app` rules 4 (lifespan does
+teardown only) and 5 (`main.py` resolves nothing), which the fix has to reconcile.
+
 ## Agreed
 
 Decided by the maintainer on 2026-09-28, every open item at once. Order of work: 34, 19, 11 and 31
@@ -21,13 +29,6 @@ first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, w
 `flat-persistence`) and 24 (after 34, which touches `hex-restapi-app`); then 26; 4 last. Review
 findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
 file or skill deleted, a rule reversed — goes to the maintainer.
-
-### 24. Audit the four `hex-restapi-*` skills and their tests
-Run `/review-skills` on `hex-restapi-app`, `hex-restapi-auth`, `hex-restapi-endpoint`,
-`hex-restapi-schema`, `hex-test-restapi-auth` and `hex-test-restapi-endpoint`, generality first, and
-apply the findings. `TRANSFER.md` is code taken from one application — an import/export CSV pair, a
-10 MiB ceiling, a mixed multipart + JSON route; lens 1 decides whether it is reduced to rules or
-deleted. Absorbs item 5: `TRANSFER.md`'s `ImportFoosHandler`/`ExportFoosHandler` go with it.
 
 ### 26. Audit the test skills the same way
 After 14, 19 and 24 have landed, run `/review-skills` over every `hex-test-*` and `flat-test-*` skill,

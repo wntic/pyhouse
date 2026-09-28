@@ -1978,3 +1978,36 @@ precondition table, `hex-persistence` rules 1–18, its Evolution section and to
 in `flat-entrypoint`, `HTTP.md`, `flat-layered`, `flat-test-integration-setup`, `flat-test-persistence`,
 `hex-project-setup` and `hex-conventions`; and restoring the index entries, counts, ownership row,
 `plugin.json` description and `pyhouse-reviewer` pointer.
+
+### D135 — The hex REST skills keep what most HTTP services share; a status is the boundary's; the auth probe assumes protection
+Taken by the maintainer (backlog item 24, absorbing item 5) after a four-lens audit, a four-lens
+verification and a re-verification. Four contested calls, each decided by the maintainer:
+**`http_status` leaves the catalogue** — `exception-catalog` carries `code` and `context` and no
+transport's outcome (rule 6); each transport maps a class to its outcome at its own boundary through the
+class's ancestry (rule 13), as `hex-restapi-app`'s `STATUS_BY_ERROR`/`status_for` and
+`flat-entrypoint/HTTP.md`'s own map do, and `hex-architecture` names the outcome in general (a status, an
+exit code, a retry or a dead-letter), so a second transport adds a map rather than a field on every
+class. **`TRANSFER.md` is deleted** — it was one application's CSV import/export pair with a reasonless
+10 MiB ceiling and a bounded read that bounded nothing; its obligations are `hex-restapi-endpoint` rules
+19–22, and no `ImportFoosHandler`/`ExportFoosHandler` exists anywhere. **The size-cap middleware template
+is deleted**; one sentence keeps `MaxRequestSizeMiddleware(app, max_bytes)`, the name
+`hex-test-app-invariants` finds it by. **The auth probe treats every operation as protected and public
+ones as declared**, reversing former rule 15 (now rule 12) of `hex-test-restapi-auth`; the probe file's
+public set is the one sanctioned table, and every probed operation must also refuse a token signed under
+a key the app never issued (rule 15). Also taken: the shell translates an unknown path into the
+catalogue's `NotFoundError`, a 405 stays in the framework's shape and 500 is never advertised; CORS is
+added last of the declared middleware; the verifier requires `exp`, a 401's `reason` is a stable value
+and never a library class name, and the `pyjwt>=2.10` floor is stated with the verifier, not in the
+substrate; the conditional 409 is marked in-line; a PATCH field a client may clear passes its presence;
+endpoint tests assert the body by value with one test per advertised code (endpoint-test rule 2
+reversed); an adapter test counts checks, not raise sites (`hex-test-capability-adapter` rule 21); the
+auth suite is authenticate-only with the rank form in sentences; flat `_render` JSON-encodes `context`;
+`paths` is off the four REST skills; restatements across the family are deleted and the rules
+renumbered. Declined here and proposed in the backlog (item 36): an obligation that the settings a
+verifier needs fail before the app reports ready.
+**Reverse by:** from the parent of these commits, restoring `exception-catalog` rules 6 and 13, its
+*Optional* block and intro; `exc.http_status` in the handlers and `HTTP.md`, and `_describe`;
+`TRANSFER.md`, the size-cap template, `_handle_unrouted`'s absence, old rule 15 of
+`hex-test-restapi-auth` and old rule 21 of `hex-test-capability-adapter`; the numbering of
+`hex-restapi-auth`, `hex-restapi-endpoint`, `hex-restapi-schema`, `hex-test-restapi-auth` and
+`hex-test-restapi-endpoint`; and the index lines.
