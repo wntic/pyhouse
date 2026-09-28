@@ -28,7 +28,7 @@ it is constructed and bound — at a composition root and nowhere else (`python-
 ## Settings in the composition root
 
 A settings class follows `python-settings`, and each one is shown beside the adapter that reads it: the
-relational store's `DbSettings` in `hex-persistence`, `BarGatewaySettings` in `hex-capability-adapter`,
+relational store's `DbSettings` in `hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`,
 `RedisSettings` in `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. What is this skill's is where they are built. The composition roots of
 `python-settings` rule 13 are, in this catalogue's layout, `src/myapp/containers.py` (the process's
 container), `migrations/env.py` (the migration environment, `hex-project-setup`) and

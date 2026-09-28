@@ -40,92 +40,68 @@ src/myapp/infrastructure/<adapter>/    # <adapter> = the external tech the adapt
 
 ### Template — async HTTP gateway (httpx)
 
-In `infrastructure/http/http_bar_gateway.py`: the directory names the technology the adapter speaks —
-HTTP — not the `Bar` concern it serves (rule 4), and its settings class sits beside it.
+In `infrastructure/http/http_foo_classifier.py`: the directory names the technology the adapter speaks —
+HTTP — not the `Foo` concern it serves (rule 4), and its settings class sits beside it.
 
 ```python
-from datetime import datetime
-
 import httpx
 
-from myapp.domain.bars import BarToken
-from myapp.domain.exceptions import NotFoundError, UpstreamError, ValidationError
+from myapp.domain.exceptions import UpstreamError, ValidationError
+from myapp.domain.foos import Foo, FooKind
 
-from .settings import BarGatewaySettings
+from .settings import FooClassifierSettings
 
-__all__ = ["HttpBarGateway"]
+__all__ = ["HttpFooClassifier"]
 
 
-class HttpBarGateway:
-    def __init__(self, client: httpx.AsyncClient, settings: BarGatewaySettings) -> None:
+class HttpFooClassifier:
+    def __init__(self, client: httpx.AsyncClient, settings: FooClassifierSettings) -> None:
         self._client = client
-        self._base_url = str(settings.base_url)
-        self._api_key = settings.api_key.get_secret_value()
+        self._base_url = settings.base_url
 
-    async def fetch_token(self, subject: str) -> BarToken:
+    async def classify(self, foo: Foo) -> FooKind:
+        foo_id = str(foo.id)
         try:
-            response = await self._client.post(
-                f"{self._base_url}/tokens",
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json={"subject": subject},
-            )
+            response = await self._client.post(f"{self._base_url}/classifications", json={"name": foo.name})
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            raise _map_status(exc, subject=subject) from exc
+            status = exc.response.status_code
+            if status == 400:
+                raise ValidationError("foo classifier rejected foo", {"foo_id": foo_id, "status": status}) from exc
+            raise UpstreamError("foo classifier failed", {"foo_id": foo_id, "status": status}) from exc
         except httpx.HTTPError as exc:
             raise UpstreamError(
-                "bar gateway unreachable",
-                {"subject": subject, "reason": exc.__class__.__name__},
+                "foo classifier unreachable", {"foo_id": foo_id, "reason": exc.__class__.__name__}
             ) from exc
         try:
-            payload = response.json()
-            return BarToken(
-                value=payload["token"],
-                expires_at=datetime.fromisoformat(payload["expires_at"]),
-            )
+            return FooKind(response.json()["kind"])
         except (KeyError, TypeError, ValueError) as exc:
             raise UpstreamError(
-                "bar gateway returned a malformed body",
-                {"subject": subject, "reason": exc.__class__.__name__},
+                "foo classifier returned a malformed body", {"foo_id": foo_id, "reason": exc.__class__.__name__}
             ) from exc
-
-
-def _map_status(exc: httpx.HTTPStatusError, *, subject: str) -> Exception:
-    status = exc.response.status_code
-    if status == 404:
-        return NotFoundError("bar subject not found", {"subject": subject, "status": status})
-    if status == 400:
-        return ValidationError("bar gateway rejected request", {"subject": subject, "status": status})
-    return UpstreamError(
-        "bar gateway error",
-        {"subject": subject, "status": status},
-    )
 ```
 
-A `200` is not a result until its body has been read: a body that is not JSON, or that lacks a field
-the domain type needs, raises from the parse, and the parse sits inside a translated scope of its own so
-that failure arrives as `UpstreamError` like any other upstream fault (rule 9).
+A `200` is not a result until its body has been read: a body that is not JSON, lacks the field, or
+carries a value the domain type rejects raises from the parse, and the parse sits inside a translated
+scope of its own so that failure arrives as `UpstreamError` like any other upstream fault (rule 9).
 
-Its settings class, in `infrastructure/http/settings.py` beside it. The adapter reads the base URL and
-the key; the composition root reads the timeout when it builds the shared `httpx.AsyncClient`
-(`hex-wiring`).
+Its settings class, in `infrastructure/http/settings.py` beside it. The adapter reads the base URL; the
+composition root reads the timeout when it builds the shared `httpx.AsyncClient` (`hex-wiring`).
 
 ```python
-from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["BarGatewaySettings"]
+__all__ = ["FooClassifierSettings"]
 
 
-class BarGatewaySettings(BaseSettings):
+class FooClassifierSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="MYAPP_BAR_",
+        env_prefix="MYAPP_FOO_CLASSIFIER_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
 
     base_url: str
-    api_key: SecretStr
     timeout_seconds: float
 ```
 
@@ -157,27 +133,27 @@ from collections.abc import AsyncIterator
 import httpx
 from dishka import Provider, Scope, provide
 
-from myapp.domain.bars import ICanFetchBarToken
-from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
+from myapp.domain.foos import ICanClassifyFoos
+from myapp.infrastructure.http import FooClassifierSettings, HttpFooClassifier
 
 
 class SettingsProvider(Provider):
     scope = Scope.APP
 
     @provide
-    def bar_gateway_settings(self) -> BarGatewaySettings:
-        return BarGatewaySettings()
+    def foo_classifier_settings(self) -> FooClassifierSettings:
+        return FooClassifierSettings()
 
 
 class InfrastructureProvider(Provider):
     scope = Scope.APP
 
     @provide
-    async def http_client(self, settings: BarGatewaySettings) -> AsyncIterator[httpx.AsyncClient]:
+    async def http_client(self, settings: FooClassifierSettings) -> AsyncIterator[httpx.AsyncClient]:
         async with httpx.AsyncClient(timeout=settings.timeout_seconds) as client:
             yield client
 
-    bar_gateway = provide(HttpBarGateway, provides=ICanFetchBarToken)
+    foo_classifier = provide(HttpFooClassifier, provides=ICanClassifyFoos)
 ```
 
 ## Other bindings
@@ -199,8 +175,8 @@ class InfrastructureProvider(Provider):
 
 ### Form
 
-1. **One adapter class per module**, named for the concrete technology it wraps (`HttpBarGateway`, not
-   `BarGateway`), so two implementations of one port can coexist. Module structure is
+1. **One adapter class per module**, named for the concrete technology it wraps (`HttpFooClassifier`, not
+   `FooClassifier`), so two implementations of one port can coexist. Module structure is
    `python-packaging`'s; the names are `naming`'s.
 2. **The adapter does not inherit the protocol it satisfies, and does not import it.** Satisfaction is
    structural and is checked where the adapter is injected; an import of the protocol leaves a dead
@@ -221,7 +197,7 @@ class InfrastructureProvider(Provider):
 6. **Stash the fields the methods use, not the settings object** — unless several methods read several
    fields. The constructor signature is then an honest statement of what the adapter actually depends
    on, and a test can build it without assembling a settings object.
-7. **A secret is unwrapped once, in the constructor of the adapter that sends it**
+7. **Where the adapter sends a secret, it is unwrapped once, in the adapter's constructor**
    (`settings.api_key.get_secret_value()` under a settings library with a secret type), held on a
    private attribute and never unwrapped again per call — the point of use `python-settings` rule 9
    names. A secret never reaches a log line (`python-logging`) and never reaches an exception's `context`
@@ -266,7 +242,7 @@ class InfrastructureProvider(Provider):
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.bars import BarToken` — the entities/VOs the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanFetchBarToken`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .settings import BarGatewaySettings`).
+- Domain imports absolute (`from myapp.domain.foos import Foo, FooKind` — the domain types the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanClassifyFoos`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .settings import FooClassifierSettings`).
 - No `from __future__ import annotations`. Full annotations on every method.
 - `X | None` over `Optional`. `Mapping[K, V]` / `Sequence[T]` (from `collections.abc`) for read-only views.
 - **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (an untyped client method, a body read the SDK does not type) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way a route dependency casts a container-resolved value (`hex-restapi-auth`). An adapter can always restate the vendor type, so an inline ignore never meets `python-style`'s last-resort test here.

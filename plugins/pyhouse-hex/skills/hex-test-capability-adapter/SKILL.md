@@ -51,29 +51,28 @@ answers success for it, rather than a not-found it can never raise.
 
 ```
 tests/unit/infrastructure/<adapter>/
-└── test_http_<vendor>_gateway.py
+└── test_http_foo_classifier.py
 ```
 
 ```python
 import json
+import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
 
 import httpx
 import pytest
 import respx
-from pydantic import SecretStr
 
-from myapp.domain.bars import BarToken
-from myapp.domain.exceptions import NotFoundError, UpstreamError
-from myapp.infrastructure.http import BarGatewaySettings, HttpBarGateway
+from myapp.domain.exceptions import UpstreamError, ValidationError
+from myapp.domain.foos import Foo, FooKind
+from myapp.infrastructure.http import FooClassifierSettings, HttpFooClassifier
 
-_BASE_URL = "https://api.bar.example"
+_BASE_URL = "https://classifier.example"
 
 
 @pytest.fixture
-def settings() -> BarGatewaySettings:
-    return BarGatewaySettings(base_url=_BASE_URL, api_key=SecretStr("test-key"), timeout_seconds=5.0)
+def settings() -> FooClassifierSettings:
+    return FooClassifierSettings(base_url=_BASE_URL, timeout_seconds=5.0)
 
 
 @pytest.fixture
@@ -83,84 +82,82 @@ async def client() -> AsyncIterator[httpx.AsyncClient]:
 
 
 @respx.mock
-async def test_fetch_token_happy_path(
+async def test_classify_happy_path(
     client: httpx.AsyncClient,
-    settings: BarGatewaySettings,
+    settings: FooClassifierSettings,
 ) -> None:
-    route = respx.post(f"{_BASE_URL}/tokens").mock(
-        return_value=httpx.Response(200, json={"token": "tok-1", "expires_at": "2030-01-01T00:00:00Z"}),
-    )
-    adapter = HttpBarGateway(client=client, settings=settings)
+    route = respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(200, json={"kind": "A"}))
+    adapter = HttpFooClassifier(client=client, settings=settings)
 
-    token = await adapter.fetch_token(subject="alice")
+    kind = await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
 
-    assert token == BarToken(value="tok-1", expires_at=datetime(2030, 1, 1, tzinfo=UTC))
+    assert kind == FooKind.A
     assert route.called
-    request = route.calls.last.request
-    assert request.headers["Authorization"] == "Bearer test-key"
-    assert json.loads(request.content) == {"subject": "alice"}
+    assert json.loads(route.calls.last.request.content) == {"name": "alpha"}
 
 
 @respx.mock
-async def test_fetch_token_malformed_body_raises_upstream(
+async def test_classify_unknown_kind_raises_upstream(
     client: httpx.AsyncClient,
-    settings: BarGatewaySettings,
+    settings: FooClassifierSettings,
 ) -> None:
-    respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(200, json={"token": "tok-1"}))
-    adapter = HttpBarGateway(client=client, settings=settings)
+    respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(200, json={"kind": "UNKNOWN"}))
+    adapter = HttpFooClassifier(client=client, settings=settings)
+    foo = Foo(id=uuid.uuid4(), name="alpha")
 
     with pytest.raises(UpstreamError) as exc:
-        await adapter.fetch_token(subject="alice")
+        await adapter.classify(foo)
 
-    assert exc.value.context == {"subject": "alice", "reason": "KeyError"}
-
-
-@respx.mock
-async def test_fetch_token_404_raises_not_found(
-    client: httpx.AsyncClient,
-    settings: BarGatewaySettings,
-) -> None:
-    respx.post(f"{_BASE_URL}/tokens").mock(return_value=httpx.Response(404))
-    adapter = HttpBarGateway(client=client, settings=settings)
-
-    with pytest.raises(NotFoundError) as exc:
-        await adapter.fetch_token(subject="missing")
-
-    assert exc.value.context == {"subject": "missing", "status": 404}
+    assert exc.value.context == {"foo_id": str(foo.id), "reason": "ValueError"}
 
 
 @respx.mock
-async def test_fetch_token_network_error_raises_upstream(
+async def test_classify_400_raises_validation(
     client: httpx.AsyncClient,
-    settings: BarGatewaySettings,
+    settings: FooClassifierSettings,
 ) -> None:
-    respx.post(f"{_BASE_URL}/tokens").mock(side_effect=httpx.ConnectError("boom"))
-    adapter = HttpBarGateway(client=client, settings=settings)
+    respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(400))
+    adapter = HttpFooClassifier(client=client, settings=settings)
+    foo = Foo(id=uuid.uuid4(), name="alpha")
+
+    with pytest.raises(ValidationError) as exc:
+        await adapter.classify(foo)
+
+    assert exc.value.context == {"foo_id": str(foo.id), "status": 400}
+
+
+@respx.mock
+async def test_classify_network_error_raises_upstream(
+    client: httpx.AsyncClient,
+    settings: FooClassifierSettings,
+) -> None:
+    respx.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx.ConnectError("boom"))
+    adapter = HttpFooClassifier(client=client, settings=settings)
 
     with pytest.raises(UpstreamError) as exc:
-        await adapter.fetch_token(subject="alice")
+        await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
 
     assert exc.value.context["reason"] == "ConnectError"
 
 
 @respx.mock
-async def test_fetch_token_read_timeout_raises_upstream(
+async def test_classify_read_timeout_raises_upstream(
     client: httpx.AsyncClient,
-    settings: BarGatewaySettings,
+    settings: FooClassifierSettings,
 ) -> None:
-    respx.post(f"{_BASE_URL}/tokens").mock(side_effect=httpx.ReadTimeout("slow"))
-    adapter = HttpBarGateway(client=client, settings=settings)
+    respx.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx.ReadTimeout("slow"))
+    adapter = HttpFooClassifier(client=client, settings=settings)
 
     with pytest.raises(UpstreamError) as exc:
-        await adapter.fetch_token(subject="alice")
+        await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
 
     assert exc.value.context["reason"] == "ReadTimeout"
 ```
 
-A `200` whose body lacks a field the domain type needs is the parse arm's case: without the adapter's
-translation around the parse, the `KeyError` escapes and the test reds. Every other status row the
-adapter maps — a `400` to the validation error, the fallback to the upstream error — is the `404` test
-again with its own code, exception and `context` (rule 5).
+A `200` whose body carries a value the domain type rejects is the parse arm's case: without the
+adapter's translation around the parse, the `ValueError` escapes and the test reds. The fallback — any
+other status to the upstream error — is the `400` test again with its own code, exception and `context`
+(rule 5).
 
 The outgoing body is compared as parsed JSON, never as bytes: separators and key order are the
 client library's serialisation choice, not the upstream's contract, and a byte comparison breaks on a
@@ -197,11 +194,11 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ### Coverage
 
 4. **Every public method gets a happy-path test.** Drive the adapter; assert the observable side effect (the object exists in the backend, the request matches the upstream's contract, the return value equals a literal).
-5. **Every row of the adapter's error mapping (`_map_status` in the template) gets a dedicated test.** The bug class "translator handles error code X but not Y" only surfaces when each row is exercised. A row the backend never actually reports on a given call — an object store's delete of an absent key answers success — is exercised on a call where it does, and the call that cannot raise it pins its success instead.
+5. **Every row of the adapter's error mapping gets a dedicated test.** The bug class "translator handles error code X but not Y" only surfaces when each row is exercised. A row the backend never actually reports on a given call — an object store's delete of an absent key answers success — is exercised on a call where it does, and the call that cannot raise it pins its success instead.
 6. **An adapter call's failure is asserted on the translated catalogue exception, and `assert exc.value.context["<key>"] == <value>` on every one.** Never the SDK's own class — translation at the boundary is `exception-catalog`'s, and asserting the SDK class passes an adapter that never translated. The context map is the load-bearing contract this test exists to pin. This is the capability-adapter analogue of the `context["constraint"]` rule in `hex-test-repository-contract`. The fake-based handler test cannot verify this — only this test can.
 7. **A verification probe that reads the backend directly names the SDK's own error class**, as the narrowest class the probe can raise (`test-principles` *Assert strength* recipe 6), and asserts the error code that distinguishes "absent" from "unreachable" or "unauthorized". This is the one place an SDK exception is legitimate in a test — the probe is not going through the adapter, so there is nothing translated to assert on. Asserting on an adapter call still follows rule 6: the translated `MyappError` subclass, never the SDK's class.
-8. **For HTTP gateways, also assert the request shape** at least once: URL, method, headers (especially `Authorization`), and body. This pins the wire contract against the upstream, not just the error translation.
-9. **A failure that never reaches the upstream is covered too, and lands on the upstream error.** The HTTP-gateway flavor needs a connect-refused and a read-timeout case (`ConnectError` / `ReadTimeout` here) asserting `UpstreamError`; the containerized flavor needs a wrong-container or wrong-credential case asserting the fallback translation. Every row of the adapter's error mapping (`_map_status` in the template) can pass while the transport arm is unexercised, which is the arm that fires in a real outage.
+8. **For HTTP gateways, also assert the request shape** at least once: URL, method, the headers the upstream requires (its credential, where it takes one), and body. This pins the wire contract against the upstream, not just the error translation.
+9. **A failure that never reaches the upstream is covered too, and lands on the upstream error.** The HTTP-gateway flavor needs a connect-refused and a read-timeout case (`ConnectError` / `ReadTimeout` here) asserting `UpstreamError`; the containerized flavor needs a wrong-container or wrong-credential case asserting the fallback translation. Every row of the adapter's error mapping can pass while the transport arm is unexercised, which is the arm that fires in a real outage.
 
 ### Real, not mocked
 

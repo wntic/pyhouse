@@ -78,7 +78,7 @@ class FakeFooRepository:
 
 ## Capability that returns a value
 
-A capability whose one method returns something (`ICanFetchBarToken`, say) is faked by a class that
+A capability whose one method returns something (`ICanClassifyFoos`, say) is faked by a class that
 returns a constructor-supplied value and appends each call's arguments to a public list. Prefer asserting
 the resulting domain state; reach for the call record only when the call's shape is the thing under test.
 
