@@ -168,7 +168,9 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
    the entry point configures logging, and that one configuration picks the rendering for the sink —
    machine-readable wherever a collector reads it; on an interactive terminal it may be human-readable —
    and routes the standard library's loggers (a framework's, a driver's) through it, so no library's
-   records bypass it with a handler or format of their own.
+   records bypass it with a handler or format of their own. Running the setup again leaves the same
+   configuration — one handler of its own, not a second, and none it did not install removed — because a
+   test that builds the app, or a second entrypoint in the same process, calls it again.
 4. **A distributed package logs through the stdlib `logging.getLogger(__name__)` and configures
    nothing** — no handler, no level, no format; the application importing it owns all three.
 5. **Log an error once, in the scope that can add context and will not re-raise it** — traced outward
