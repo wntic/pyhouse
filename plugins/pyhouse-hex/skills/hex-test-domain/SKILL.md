@@ -248,3 +248,5 @@ Identical for all four kinds:
 
 - A test here needs a database, an HTTP endpoint or blob storage → stop, use
   `hex-test-repository-contract`, `hex-test-restapi-endpoint` or `hex-test-capability-adapter`.
+- The value object declares no invariant of its own and no custom equality → stop, produce no file
+  (rule 10).

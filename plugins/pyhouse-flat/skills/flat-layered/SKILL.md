@@ -360,10 +360,10 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     stubbed from the same invention and fails on the first real run. Rules 5 and 12 hold whatever the
     interface is. A directory the service writes to for another reader is an external system too — a
     package with its own settings and one writer class.
-15. **A process definition wires and runs; it holds no work.** Everything it does beyond building
-    settings and dependencies, handing them down and starting one process belongs in a work unit, where
-    a test can call it directly — a decision taken in the process definition runs only when the process
-    does.
+15. **A process definition wires and runs; it holds no business logic.** Building settings and
+    dependencies, configuring logging, the loop, guard and wait around a run, and starting the process
+    stay in it (`flat-entrypoint`); a decision about the data a run handles belongs in a work unit, where
+    a test can call it directly — taken in the process definition, it runs only when the process does.
 
 ## Hard stops
 

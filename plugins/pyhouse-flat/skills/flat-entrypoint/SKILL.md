@@ -353,9 +353,9 @@ for rule 9.
     redelivery — a second delivery of a unit already applied changes nothing. A contained failure that
     acknowledges the unit loses it silently; one that retries forever blocks everything behind it. A
     polling run needs neither: its next tick is the retry.
-16. **A process that repeats a run waits between runs for an interval its settings declare, required
-    and with no default** (`python-settings` rule 5) — never a constant in the code, which only a
-    redeploy can change.
+16. **A process that waits between runs waits for an interval its settings declare, required and with
+    no default** (`python-settings` rule 5) — never a constant in the code, which only a redeploy can
+    change. A consumer that never waits, taking its next unit as soon as one arrives, declares none.
 
 ### Once a durable-execution engine is earned
 

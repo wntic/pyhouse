@@ -15,16 +15,20 @@ reads the number, not from how the project is built:
 
 | Does anything… | If no, these do not apply |
 |---|---|
-| depend on this by a version range, or install it from an index | rules 6, 7, 8, 9, 15 — no one can be broken by a bump nobody reads |
+| depend on this by a version range, or install it from an index | rules 6, 7, 8, 9 — no one can be broken by a bump nobody reads |
 | have a declared public surface | rules 6, 7, 8 — there is no promise for a change to break |
 | publish to an index that refuses re-uploads | rule 11 — a mistake is corrected in place, not outlived |
 | ship its members as separate artifacts | rule 13 — one artifact, one number |
 
-**Rules 1, 2, 3, 4, 5, 10, 12 and 14 hold for any distribution at all**, including one deployed from a
-commit and installed by nothing. A service that is built from `main` and run in a container has no
-consumer choosing a version, so its number is a **label** rather than a promise — it still has to be
+**Rules 1, 2, 3, 4, 5, 10, 12, 14 and 15 hold for any distribution at all**, including one deployed
+from a commit and installed by nothing. A service that is built from `main` and run in a container has
+no consumer choosing a version, so its number is a **label** rather than a promise — it still has to be
 single-sourced, canonical and tagged, so a running artifact can be traced back to a tree, and that is
-all.
+all. Wherever a number moves at all, three limits hold with it, whichever rows above lift rules 6
+and 8: it never moves because time passed or because the release was a lot of work; a break never
+takes a smaller segment because the right one looks alarming, which only moves the breakage to a
+consumer who had no reason to test for it; and a fix never ships as a post-release, which sorts after
+the release it names and exists to correct that release's notes.
 
 **A version nobody depends on is a label, not a promise.** Leaving it at `0.1.0` while nothing
 installs it by range is accurate, not neglect. What is not accurate is `0.y.z` after something started
@@ -139,13 +143,11 @@ That call takes the **distribution** name, which need not equal the import packa
    it is a character that survives review and not the build.
 
 6. **A change that can break a consumer who used only the declared surface is a major** — from
-   `1.0.0` on; below it, rule 9 says what it bumps. The segment follows what changed to the declared
-   surface, never elapsed time or how much work the release was, and a major that looks alarming is
-   still the signal: shipping a break as a minor moves the breakage to a consumer who had no reason to
-   test for it. That includes removing or renaming a name in it,
+   `1.0.0` on; below it, rule 9 says what it bumps. That includes removing or renaming a name in it,
    changing what a call returns, reordering or retyping its parameters, changing a default that a call
    omitting it depends on, and changing which exception a documented failure raises. Whether the
-   consumer *deserved* to depend on it is not the test; whether the surface declared it is.
+   consumer *deserved* to depend on it is not the test; whether the surface declared it is. The segment
+   follows what changed to the declared surface, within the limits stated under the precondition.
 
 7. **Adding to the surface without changing what is there is a minor, and so is deprecating.** A
    deprecation is a release event of its own: it ships in a minor, at least one release before the
@@ -153,9 +155,7 @@ That call takes the **distribution** name, which need not equal the import packa
 
 8. **A fix that changes no declared behaviour is a patch.** A fix that changes declared behaviour is
    not a patch however small the diff, and a security fix that must break the surface is the deliberate
-   exception — take it, and say so in the note rather than pretending the bump was compatible. A fix
-   ships as a patch, never a post-release, which sorts after the release it names and exists to correct
-   that release's notes.
+   exception — take it, and say so in the note rather than pretending the bump was compatible.
 
 9. **`0.y.z` withholds the promise, deliberately, so below `1.0.0` a break bumps the minor.** Anything
    may change at any time there, and that is a legitimate state to ship in while nothing depends on

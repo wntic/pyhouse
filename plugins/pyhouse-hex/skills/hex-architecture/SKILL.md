@@ -222,7 +222,7 @@ subsections beneath give the reasoning and the judgement calls.
 3. **Check no import cycle exists** between modules, subpackages or layers. A cycle always signals a
    layering violation: fix the structure, never paper over it with a type-checking-only or in-function
    import.
-4. **Check each new module against the placement table** — pure logic in `domain/`, a rule needing a port
+4. **Check each new module sits in the layer its work belongs to** — pure logic in `domain/`, a rule needing a port
    in `domain/` as a domain service, orchestration, id generation and business-event logging in
    `application/`, anything touching a datastore, filesystem, HTTP API or SDK in `infrastructure/`,
    anything that knows a transport in an entrypoint.
@@ -244,9 +244,7 @@ subsections beneath give the reasoning and the judgement calls.
     `application/` logs successes only, apart from a failed undo under compensation. Every other error
     propagates to the entrypoint's central handler.
 
-### Where new code goes
-
-If you are tempted to import `infrastructure` from `application`, you are wiring a concrete adapter
+If you are tempted to import `infrastructure` from `application` (rule 2), you are wiring a concrete adapter
 where a protocol belongs — define the protocol in `domain/` instead. If you are tempted to import
 `application` from `infrastructure`, you have an adapter that knows a use case — move the orchestration
 up to a handler.

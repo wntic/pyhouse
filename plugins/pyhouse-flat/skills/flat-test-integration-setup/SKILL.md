@@ -214,7 +214,7 @@ pure-unit collection pays nothing for it.
    bypassed by whatever reaches for the connection details directly, and a heuristic waves through a
    developer's database — which the suite then truncates, since it TRUNCATEs every table it can see.
 3. **Using a datastore the suite did not start is opt-in and explicit** — `test-principles` reliability
-   rules 1 and 7 — behind a dedicated flag, never keyed on `CI` or any other ambient variable. Raise a
+   rules 1 and 6 — behind a dedicated flag, never keyed on `CI` or any other ambient variable. Raise a
    named error listing every missing variable rather than letting a `KeyError` escape.
 4. **One pool per run, one transaction per test** — the scopes `test-principles` *Fixture scope rules*
    set. A session-scoped connection would serialize the suite onto one connection.
@@ -239,7 +239,7 @@ pure-unit collection pays nothing for it.
    fixture.** It opens its own connection (`flat-persistence` rule 3), so a savepoint isolates a
    connection nothing under test uses, and the test passes while asserting nothing.
 10. **Warnings are errors for the whole suite.** A noisy dependency gets the narrow exception
-    `test-principles` reliability rule 9 states, never the setting dropped.
+    `test-principles` reliability rule 8 states, never the setting dropped.
 
 ## Hard stops
 

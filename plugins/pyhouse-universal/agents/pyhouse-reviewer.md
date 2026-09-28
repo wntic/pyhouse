@@ -81,8 +81,9 @@ catches a wrong turn taken before any rule applies — the request itself, the c
 the code should exist at all — so a stop that matches decides whether the rules are the right ones to
 hold this code to. Its finding is the redirect or the refusal it names; quote its reason. A hard stop
 restates no rule and adds none: the obligations the code is held to are the numbered `## Rules`, and
-a finding about how code was written cites the rule, with the reason and any exception the rule
-carries.
+a finding about how code was written cites the rule and its reason. Where a rule carries an
+exception, the exception holds wherever that rule is applied — through a stop that names the rule as
+its remedy as much as through the rule itself — and code inside it is no finding.
 
 **Do not review against `## Template(s)`.** A template is one binding of an obligation to one stack,
 named in its heading. A difference from it is a difference of library, and a reader cannot act on
