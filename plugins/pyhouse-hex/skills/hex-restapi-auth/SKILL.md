@@ -314,15 +314,7 @@ from myapp.domain.exceptions import MyappError, UnauthorizedError, ValidationErr
         headers: dict[str, str] = {}
         if isinstance(exc, UnauthorizedError):
             headers["WWW-Authenticate"] = "Bearer"
-        return JSONResponse(
-            status_code=exc.http_status,
-            content=ErrorResponse(
-                code=exc.code,
-                message=str(exc),
-                context=exc.context,
-            ).model_dump(),
-            headers=headers or None,
-        )
+        return JSONResponse(status_code=exc.http_status, content=body, headers=headers or None)
 ```
 
 The challenge carries the `Bearer` scheme alone, which is the load-bearing part (RFC 7235) and what

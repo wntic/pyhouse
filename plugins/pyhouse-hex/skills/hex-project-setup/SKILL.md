@@ -35,6 +35,9 @@ each added with `uv add` or `uv add --dev`.
 - **Core substrate** (always present, whatever the program is): the settings library, the
   dependency-injection library, and the structured logger. Every hexagonal program reads configuration,
   composes its adapters at one root, and logs — a worker, a batch job and a single-command CLI included.
+  `myapp.logging.configure_logging` is the service's one logging setup (`python-logging` rule 3): where
+  the service has none yet, it is written there once, safe to run again, and every entrypoint calls it
+  before anything logs.
 - **Entrypoint substrate** (whatever the entrypoint packages the project actually has require, and
   nothing else): an HTTP entrypoint brings its web framework, that framework's server, and the
   validation library its wire schemas are written in; a queue or scheduled entrypoint brings its broker
@@ -141,10 +144,9 @@ configure_logging()
 asyncio.run(_run_online())
 ```
 
-The engine is disposed however the run ends. `myapp.logging.configure_logging` is the service's one
-logging setup (`python-logging` rule 3); where the service has none yet, it is written there once and
-every entrypoint calls it. The migration run is a process like the others, and left unconfigured the
-tool's records reach no configured handler.
+The engine is disposed however the run ends. The migration run is a process like the others, so the
+environment calls the service's one logging setup (block A); left unconfigured, the tool's records reach
+no configured handler.
 
 `migrations/script.py.mako` is the template `alembic init -t async migrations` writes — run once from
 the tree root, with the `alembic.ini` and `env.py` it also writes replaced by the two above and its
@@ -199,7 +201,9 @@ wide table is not a function to split; every other bound stays on for revisions.
 
 1. Select dependencies by block A's core substrate plus its entrypoint, store and feature triggers;
    include an SDK only with its adapter. A feature's package or an entrypoint's framework is added only
-   to an app that has that feature or entrypoint: a dependency nothing imports is a stray package.
+   to an app that has that feature or entrypoint: a dependency nothing imports is a stray package. Every
+   entrypoint calls the service's one logging setup, `myapp.logging.configure_logging`, written once
+   where the service has none, before anything logs.
 2. Write a floor — an SDK's or a substrate library's — only at the documented breaking boundary the
    project's code relies on, under `python-toolchain` rule 9; block A's two are this family's.
 3. Take everything else in the project file from `python-toolchain` — the src layout, the development
@@ -212,10 +216,9 @@ wide table is not a function to split; every other bound stays on for revisions.
    database that already holds objects, as frozen hand-written DDL of those objects (block B) — never
    generated from the project's metadata, or the chain stops being replayable. Every
    table the project adds is its own revision under `hex-persistence`.
-6. The migration environment disposes its engine however the run ends, refuses offline mode, and
-   configures logging through the service's one logging setup, `myapp.logging.configure_logging`,
-   written once where the service has none and called by every entrypoint; the revision template renders
-   `python-style`'s annotation forms in the linter's import order.
+6. The migration environment disposes its engine however the run ends, refuses offline mode, and calls
+   the service's one logging setup (rule 1); the revision template renders `python-style`'s annotation
+   forms in the linter's import order.
 
 ## Hard stops
 
