@@ -140,6 +140,7 @@ class UnexpectedErrorMiddleware:
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MyappError)
     async def _handle_domain_error(request: Request, exc: MyappError) -> JSONResponse:
+        body = ErrorResponse(code=exc.code, message=str(exc), context=exc.context).model_dump(mode="json")
         level = log.warning if exc.http_status < 500 else log.error
         level(
             "request_failed",
@@ -147,16 +148,9 @@ def register_error_handlers(app: FastAPI) -> None:
             http_status=exc.http_status,
             path=request.url.path,
             method=request.method,
-            context=exc.context,
+            context=body["context"],
         )
-        return JSONResponse(
-            status_code=exc.http_status,
-            content=ErrorResponse(
-                code=exc.code,
-                message=str(exc),
-                context=exc.context,
-            ).model_dump(mode="json"),
-        )
+        return JSONResponse(status_code=exc.http_status, content=body)
 
     @app.exception_handler(RequestValidationError)
     async def _handle_invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
