@@ -141,12 +141,14 @@ configure_logging()
 asyncio.run(_run_online())
 ```
 
-The engine is disposed however the run ends. `configure_logging` is whatever the service's other
-entrypoints call before their first event — the migration run is a process like them, and left
-unconfigured the tool's records reach no configured handler (`python-logging` rule 3).
+The engine is disposed however the run ends. `myapp.logging.configure_logging` is the service's one
+logging setup (`python-logging` rule 3); where the service has none yet, it is written there once and
+every entrypoint calls it. The migration run is a process like the others, and left unconfigured the
+tool's records reach no configured handler.
 
-`migrations/script.py.mako` is `alembic init`'s template with three edits, so that every revision
-`alembic revision` renders passes the linter and `python-style`: its revision identifiers are annotated
+`migrations/script.py.mako` is the template `alembic init -t async migrations` writes — run once from
+the tree root, with the `alembic.ini` and `env.py` it also writes replaced by the two above and its
+`README` deleted — with three edits, so that every revision `alembic revision` renders passes the linter and `python-style`: its revision identifiers are annotated
 `str | Sequence[str] | None` with `Sequence` from `collections.abc`, never `typing.Union` or
 `typing.Sequence`; `import sqlalchemy as sa` moves ahead of `from alembic import op`, the order the
 linter's import sort requires; and the tool's explanatory comments go (`python-style`, Comments).
@@ -211,7 +213,8 @@ wide table is not a function to split; every other bound stays on for revisions.
    generated from the project's metadata, or the chain stops being replayable. Every
    table the project adds is its own revision under `hex-persistence`.
 6. The migration environment disposes its engine however the run ends, refuses offline mode, and
-   configures logging as the service's other entrypoints do; the revision template renders
+   configures logging through the service's one logging setup, `myapp.logging.configure_logging`,
+   written once where the service has none and called by every entrypoint; the revision template renders
    `python-style`'s annotation forms in the linter's import order.
 
 ## Hard stops

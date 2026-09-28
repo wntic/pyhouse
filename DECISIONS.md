@@ -1787,7 +1787,8 @@ method, and `_row_to_entity` is a module function after `FooRepository`, shared 
 **29:** `hex-project-setup` block B now states what `flat-project-setup` does: `script.py.mako` takes
 the house annotation forms, `import sqlalchemy as sa` ahead of `from alembic import op`, and loses the
 tool's comments; `env.py` disposes the engine in a `finally`, refuses offline mode and configures
-logging as the service's other entrypoints do (`python-logging` rule 3); rule 6 states the three.
+logging through `myapp.logging.configure_logging`, the service's one logging setup, written once where
+the service has none and called by every entrypoint (`python-logging` rule 3); rule 6 states the three.
 **30:** the template comments `python-style` does not sanction are gone — the check-constraint suffix
 note in `hex-persistence/REVISION.md`, the read/mutation labels in `hex-restapi-auth/ROUTES.md`, the
 `409` notes in `hex-restapi-endpoint`, the SQLSTATE gloss in `flat-persistence/REPOSITORY.md` and the
@@ -1795,7 +1796,7 @@ explanation after `hex-project-setup`'s `noqa` (no suppression requires a reason
 moved into prose; the `cast` reason in `hex-persistence/REPOSITORY.md` and the invariant note in
 `hex-restapi-schema` are a single short *why* each and stay. **32:** `hex-test-application-handler`
 Fakes rule 10 obliges a fake unit of work that hands out the fake repositories, records its commit and
-exposes writes only on commit, with the test pinning that and that an exception commits nothing — a
+exposes writes outside it only on commit, while reads inside it see its own writes, with the test pinning that and that an exception commits nothing — a
 rule, not a template, since most handlers take no unit of work. **33:** `hex-conventions`' derivation
 table gains the unit-of-work protocol's row, `domain/uow/i_unit_of_work.py`, as `UNIT_OF_WORK.md`
 places it.
