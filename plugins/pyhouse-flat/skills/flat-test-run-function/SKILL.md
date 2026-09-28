@@ -1,6 +1,6 @@
 ---
 name: flat-test-run-function
-description: Use when testing what a flat-layered service's trigger actually runs — the function it calls end to end against the real datastore with the upstream transport stubbed and an idempotence test wherever a run can repeat, the containment contract of a process that outlives one run, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the body and translates its failures. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the data-access package's write path, which is `flat-test-persistence`.
+description: Use when testing what a flat-layered service's trigger actually runs — the function it calls end to end against the store or files it really writes, with only the upstream transport stubbed and an idempotence test wherever a run can repeat, the containment contract of a process that outlives one run, and the framework wrapper through its own in-process harness, proving only that the wrapper reaches the work and that the work's failure arrives as its catalogue code. Where a durable-execution engine was earned, it adds the orchestration level above those, every step stubbed by its registered wire name. Not the client's own transport, which is `flat-test-service-client`, and not the data-access package's write path, which is `flat-test-persistence`.
 when_to_use: Also when asked to test a job's or a consumer's body, a polling loop's error handling, a wrapper class, an HTTP route in front of the work it calls, a workflow's retry policy, a batch loop's termination, or what a continuation carries across runs.
 ---
 
@@ -13,25 +13,12 @@ wiring: the client's payload actually fits what the repository class stores, and
 what happened. **This skill covers the levels of wrapping around that one
 call, tested at each.** They are one subject because they are layers of the same invocation.
 
-One form is always in scope:
-
-- **The work** — the body, tested end to end against the real datastore with the upstream
-  transport stubbed. Every service has one of these, whatever triggers it. A service with no store
-  asserts instead on the requests its stubbed transports recorded and on the aggregate the run returns.
-
-**A process that outlives one run — a loop or a consumer — adds the containment test**: that one failed
-run does not stop the process from running the next one (rule 8). A process that does one run and exits
-contains nothing and has no such test (`flat-entrypoint` rule 8).
-
-**A service with a framework wrapper adds the wrapper test**: the same body under the framework's own
-decorator or route, run through whatever in-process harness that framework ships, proving reach and
-translation only.
-
-**A service that earned a durable-execution engine adds the orchestration level** — the orchestration
-above the wrapper, every step stubbed by its registered wire name, no datastore at all — plus the
-obligations that come with it. Those are under `## Rules`, in the subsection that applies only once an
-engine has been earned (`flat-entrypoint` rule 1 decides whether it is earned); skip it entirely
-otherwise.
+The work — the body every trigger calls — is tested end to end against whatever it really reads and
+writes, only a remote transport stubbed; with no store and no local output nothing is running, and it
+is a unit test under `tests/unit/`. A process that outlives one run adds the containment test (rule 6),
+a framework wrapper adds the wrapper test (rule 4), and an earned durable-execution engine adds the
+orchestration level under `## Rules`' last subsection (`flat-entrypoint` rule 1 decides whether it is
+earned).
 
 ## When to use vs. neighbours
 
@@ -42,19 +29,18 @@ otherwise.
   transactions, so it takes the whole-schema wipe.
 - Writing the work, its containment or the trigger, rather than testing it →
   `flat-entrypoint`.
-- Testing the orchestration level, the batch loop's continuation, or a declared retry policy → still
-  this skill, under `## Rules`, and only once an engine has been earned.
 - The pure mapping step the body calls (`to_foo`) → a unit test with no fixtures; it does not belong
   here.
 - The static check that a schedule's routing name matches one a process actually serves →
-  `flat-entrypoint` rule 6.
+  `test-architecture-rule`, pinning `flat-entrypoint` rule 6.
 - The shared groundwork — the substitution ladder, reliability rules, never waiting out real time →
   `test-principles`.
 
 ## Template — the work end to end (pytest, `respx` over `httpx`, real Postgres)
 
 `tests/integration/test_foo_sync.py` — the upstream stub `foo_api` and the client over it,
-`foo_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`):
+`foo_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
+its trigger's input — a delivery, a message — is called with a built input and takes neither fixture:
 
 ```python
 import httpx
@@ -74,12 +60,13 @@ _TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b
 async def test_a_run_records_what_it_fetched(
     foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
     await run_once(foo_client, FooRepository(engine))
 
     query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
     rows = (await conn.execute(query)).all()
+    assert route.called
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
@@ -99,10 +86,11 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 async def test_a_run_reports_what_it_recorded(
     foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine
 ) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
     result = await run_once(foo_client, FooRepository(engine))
 
+    assert route.called
     assert result == RunResult(recorded=2)
 ```
 
@@ -114,81 +102,30 @@ each run stamps a new one — but a stamp the input carries, a delivery's `chang
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts
-fails silently everywhere a human is looking.
+fails silently everywhere a human is looking. An aggregate that is constant for its input is not
+asserted.
 
-## Template — the framework wrapper (the framework's own in-process harness)
-
-A wrapper adapts the work to a trigger and holds no logic, so its test is **two tests**: that it
-reaches the body, and that a service failure arrives at the framework as a typed failure carrying the
-original's identity rather than an opaque one. Run it through whatever harness the framework ships for
-invoking one unit in-process — no worker, no broker, no scheduler.
-
-Both tests take the same fixtures the work's own test file takes, because the wrapper reaches the same
-datastore; what they must not do is re-run the body's coverage. The translation test is the one that
-earns its place: an untranslated exception reaches the trigger's error surface with the context
-stripped, and nothing else in the suite notices.
-
-Under a durable-execution engine that harness is the one the engine ships for running a single unit of
-work in-process, and the typed-failure assertion is what its history makes necessary.
-
-### The HTTP shape — FastAPI, driven in-process through `httpx.ASGITransport`
-
-`tests/integration/test_foo_http.py` — the app built by the same factory the process definition calls,
-over the suite's own engine, driven on the test's event loop:
-
-```python
-from collections.abc import AsyncIterator
-
-import httpx
-import pytest
-from sqlalchemy.ext.asyncio import AsyncEngine
-
-from myapp.exceptions import InvalidPayloadError
-from myapp.postgres import FooRepository
-from myapp.web import build_app
-
-
-@pytest.fixture
-async def http(engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
-    app = build_app(FooRepository(engine))
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app") as client:
-        yield client
-
-
-async def test_a_posted_foo_is_recorded(http: httpx.AsyncClient) -> None:
-    response = await http.post("/foos", json={"ref": "alpha", "name": "a", "changed_at": "2024-01-01T00:00:00Z"})
-
-    assert response.json() == {"recorded": 1}
-
-
-async def test_a_malformed_body_arrives_as_an_invalid_request(http: httpx.AsyncClient) -> None:
-    response = await http.post("/foos", json={"name": "a"})
-
-    assert response.status_code == 422
-    assert response.json()["code"] == InvalidPayloadError.code
-```
-
-The in-process transport runs the app on the test's own event loop, which is the loop the
-session-scoped engine was opened on (`flat-test-integration-setup`); a harness that runs the app on a
-loop of its own, as FastAPI's synchronous `TestClient` does, would hand that engine's connections to a
-second loop. Where the work a route calls also calls an upstream, the fixture takes `foo_client` and
-hands it to `build_app` as well; `respx` intercepts that client's outbound transport and leaves the
-in-process one alone.
+**A framework wrapper's two tests (rule 4)** run through the harness the framework ships for invoking
+one unit in-process — no worker, no broker, no scheduler — and take the fixtures the work's own tests
+take. Under an HTTP trigger, drive the app `build_app` returns through
+`httpx.AsyncClient(transport=httpx.ASGITransport(app=...))` on the test's loop, never FastAPI's
+synchronous `TestClient`, which runs the app on a loop of its own and hands the session engine's
+connections to it.
 
 ## Other bindings
 
 - **A different upstream-stub mechanism** — a transport handed to the client, a local stub server, a
   recorded cassette (`flat-test-service-client` names the trade-offs). Only how the upstream is pinned
-  changes; rule 2's asymmetry — upstream substituted, datastore not — is the thing that must survive,
+  changes; rule 1's asymmetry — upstream substituted, datastore not — is the thing that must survive,
   because it is what makes this level catch wiring at all.
-- **Another web framework's harness for the HTTP shape** — Starlette's, Litestar's or aiohttp's own
-  in-process client. The two wrapper tests and what they assert are unchanged; the harness must drive the
-  app on the loop the suite's engine lives on.
+- **Another web framework's harness under an HTTP trigger** — Starlette's, Litestar's or aiohttp's own
+  in-process client. The two wrapper tests and what they assert are unchanged; the harness drives the
+  app on the loop the suite's engine lives on (`test-principles`, *Fixture scope rules*).
 - **No framework wrapper at all.** A service triggered by a loop, a cron entry or a timer writes the
   work's tests, and the containment test where the process outlives one run, and stops; nothing is missing, because there is no wrapper to prove.
-- **An engine whose harness cannot skip time.** The retry test then asserts the *declared* policy on the
-  orchestration's own declaration rather than observing the attempts — a weaker test, and the honest one.
-  Waiting out a real backoff is still forbidden, and every obligation below is unchanged.
+- **An engine whose harness cannot skip time.** The retry test pins the *declared* policy on the
+  orchestration's own declaration, as `test-principles` reliability rule 3 states; every obligation
+  below is unchanged.
 - **A replay harness over recorded histories**, where the engine ships one. It pins determinism across a
   code change, which none of the tests here do, and it cannot pin a *new* orchestration's behaviour
   because there is no history yet. It is an addition to the orchestration test file, never a
@@ -196,41 +133,46 @@ in-process one alone.
 
 ## Rules
 
-1. **The work takes what it needs as parameters** — `flat-entrypoint` rule 3, which is what lets
-   this level point it at the test container.
-2. **The upstream is substituted at its transport; the datastore is not substituted at all.** That
+1. **The upstream is substituted at its transport; the datastore is not substituted at all.** That
    asymmetry is what makes this level catch wiring: real columns, real constraints, real conflict
    semantics, with only the vendor's uptime removed. Substituting the client object instead moves the
    client's own request building and error translation out of the test, and substituting the datastore
    removes the only thing this level can prove.
-3. **Where a run can repeat over the same input, the work's own test file pins what the second run
-   does — never the wrapper's (rule 5).** A scheduled pass over a feed that mostly repeats, a delivery
+2. **Where a run can repeat over the same input, the work's own test file pins what the second run
+   does — never the wrapper's (rule 4).** A scheduled pass over a feed that mostly repeats, a delivery
    the sender may repeat (a webhook redelivery, an at-least-once broker delivery), and any run a trigger
-   may retry after a partial failure all meet that condition — run twice, assert the second run added no
-   row and changed nothing its input determines, and with no store that it sent what the first run sent
-   (rule 4), which is all a run that keeps no state can promise. A run whose input is consumed once, or
-   that is by construction never repeated, has nothing to pin and the test would assert a coincidence.
-4. **Assert on rows, and on the returned aggregate** — never on log lines (`test-principles`). A run that
-   logged `"ok"` and wrote nothing must fail, and a process's containment is asserted on what the run
-   after a failed one did. A service with no store asserts on the requests the stubbed transport recorded and on the
-   aggregate.
-5. **A wrapper test proves the wrapper, not the body.** One happy path and one exception translation:
-   that the trigger reaches the body, and that a service failure arrives at the framework as a typed
-   failure carrying the original's identity rather than an opaque one. A wrapper test that re-asserts the
-   work's own test file makes the two files change together for one reason.
-6. **The wrapper body never diverges from the work it calls** — it calls it and holds no logic of its own.
-   A divergence means two triggers of the same work are drifting apart, and the tests must not paper
-   over it.
-7. **A run that fans out over independent units is tested with one unit failing inside its write**,
-   asserting that the other units' rows landed and that the run's failure names the failed unit
-   (`flat-entrypoint` rules 11 and 13).
-8. **A process that outlives one run is tested through the function that performs one contained run,
+   may retry after a partial failure all meet that condition — run twice, and assert the second run left
+   the same effect (rule 3): no row added and nothing its input determines changed, the same file, or,
+   with neither, the same requests the first run sent, which is all a run that keeps no state can
+   promise. A run whose input is consumed once, or that is by construction never repeated, has nothing
+   to pin and the test would assert a coincidence.
+3. **Assert on the run's effect and on the returned aggregate**, never on log lines (`test-principles`).
+   The effect is what the run leaves behind: the rows it wrote; the file it produced, read back from a
+   per-test directory handed to the run as a parameter (`tmp_path` here); or, with neither, the requests
+   its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail.
+4. **A wrapper test proves the wrapper, not the body — two tests.** One drives the trigger and asserts
+   the work's effect (rule 3), which proves the wrapper reaches the work; the other forces a failure of
+   the work and asserts it arrives at the trigger's error surface as its catalogue code, carrying the
+   original's identity rather than an opaque failure. A value the store refuses to hold forces that
+   failure with nothing substituted. The translation test is the one that earns its place: an
+   untranslated exception reaches the trigger's error surface with the context stripped, and nothing
+   else in the suite notices. A wrapper test that re-asserts the work's own test file makes the two
+   files change together for one reason.
+5. **A run that fans out over independent units is tested with one unit failing inside its write**,
+   asserting that the other units' effect (rule 3) — and markers, where units write them — landed and
+   that the run's failure names the failed unit (`flat-entrypoint` rules 11 and 13).
+6. **A process that outlives one run is tested through the function that performs one contained run,
    never by driving the loop** (`flat-entrypoint` rule 8). Call it with the transport failing — it
    returns without raising — then call it again with the transport answering and assert on that run's
-   effect: its rows, or the request its stubbed transport recorded. The logged failure is not asserted
+   effect (rule 3). For a broker's consumer, the failed run's unit is asserted returned for redelivery,
+   never acknowledged (`flat-entrypoint` rule 15). The logged failure is not asserted
    (`test-principles`). An escape built into the loop — a patched `asyncio.sleep` that raises, a
-   counter that breaks out — asserts the mechanism instead of the behaviour; the loop around that
-   function is one sleep and needs no coverage of its own.
+   counter that breaks out — asserts the mechanism instead of the behaviour; the loop needs no coverage
+   of its own.
+7. **Where the route verifies a signature, the fixture hands the app a test secret and the tests sign
+   with it.** One test sends a body whose signature does not match, and asserts the rejection and that
+   no row was written (`test-principles` recipe 4). A switch that disables verification for the suite
+   is never added.
 
 ### Once a durable-execution engine is earned
 
@@ -239,10 +181,8 @@ orchestration level that only an engine has; the rules above hold unchanged bene
 on a loop, a cron entry or a timer can neither satisfy nor violate them. The work's own tests do not
 change under any engine, because the body never imports one.
 
-1. **Time is never slept and never waited out.** Anything involving a timer, a backoff or a schedule
-   runs against the engine's time-skipping clock; a policy with a one-minute initial interval must still
-   assert in milliseconds. The general rule is `test-principles`'; what the engine adds is the clock that
-   makes obeying it possible.
+1. **Time is never slept and never waited out** — timers, backoffs and schedules run on the engine's
+   time-skipping clock, the clock `test-principles` reliability rule 3 requires.
 2. **An orchestration test asserts orchestration only** — that the step ran, that the retry policy is
    what it claims, that the loop terminates and aggregates. No datastore, no transport stub, no
    assertions about stored rows. That is what keeps this form from re-running the work's own
@@ -263,7 +203,7 @@ change under any engine, because the body never imports one.
 6. **Schedule creation is not tested here.** It is a one-off deploy-time definition, not application
    code, and a test of it would assert only that the engine's SDK works. What *is* worth pinning
    statically is that every schedule's routing name matches one some process actually serves —
-   `flat-entrypoint` rule 6.
+   `test-architecture-rule`, pinning `flat-entrypoint` rule 6.
 
 ## Hard stops
 
