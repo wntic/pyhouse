@@ -60,8 +60,8 @@ before writing it** — only this file is loaded automatically:
 ## Other bindings
 
 - **Opaque token plus an introspection endpoint** (`hex-restapi-auth`, *Other bindings*). What changes:
-  the verifier does IO, so its unit test takes `hex-test-capability-adapter`'s HTTP-gateway flavour
-  instead of rule 1's; there is no keypair and no signer, so the session-scoped fixture becomes a stub
+  the verifier does IO, so rule 1 names the HTTP-gateway flavour of `hex-test-capability-adapter` in
+  place of the pure-CPU one; there is no keypair and no signer, so the session-scoped fixture becomes a stub
   introspection server and the "mint a fresh token per call" rule becomes "register a fresh token with
   the stub per call". Rule 10's no-mocking line moves down a level — the verifier still runs for real;
   the *upstream* is the seam the test controls.

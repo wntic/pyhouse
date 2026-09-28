@@ -36,7 +36,7 @@ Where `Foo` references another aggregate by id, create advertises `404` for an i
 (update already carries it).
 
 FastAPI publishes its own `422`, describing an `HTTPValidationError` body the shell never sends
-(`hex-restapi-app`); the decorator's entry replaces it (rule 11), and `hex-test-app-invariants` rule 4
+(`hex-restapi-app`). The decorator's entry replaces it (rule 11), and `hex-test-app-invariants` rule 4
 fails a published `422` in any other shape.
 
 **List a code only if the route can actually produce it.** No `409` on a read or on a write the store
