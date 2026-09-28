@@ -26,24 +26,24 @@ Produces one test file per capability adapter. Catches what unit-level coverage 
 
 ## Template(s) — pytest, respx over httpx
 
-Filename examples (`naming` owns the rule): `test_<tech>_<aggregate_or_area>.py` (containerized / respx) or `test_<tech>_<verb>.py` (CPU).
+The test file mirrors the adapter's module (`test-principles`, *Test naming*).
 
 ### Pick the flavor
 
 - **Containerized backend.** Adapter speaks to a service that runs in a Testcontainer (an object store, a broker, a cache). Drives the real client against the real container; consumes the resource fixtures from the integration conftest. **Lives under `tests/integration/<adapter>/`.**
-- **HTTP gateway with `respx`.** Adapter speaks `httpx` to a third-party HTTP API. Wraps the real `httpx.AsyncClient` with `respx.mock` and asserts the request shape (URL, headers, body) on the way out and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
+- **HTTP gateway with `respx`.** Adapter speaks `httpx` to a third-party HTTP API. Wraps the real `httpx.AsyncClient` with `respx.mock` and asserts the request shape on the way out (rule 8) and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
 - **Pure-CPU.** Adapter does no IO — a parser, a renderer over in-memory bytes, a verifier. Stdlib + the real parsing / crypto library. No fixtures, no containers. **Lives under `tests/unit/infrastructure/<adapter>/`.**
 
 The flavor mirrors the adapter's form in `hex-capability-adapter` — an SDK client, an HTTP gateway (the one it templates) or sync pure CPU. If two flavors are asked for in one file, split — one file per adapter, but `integration/` for a test that needs a running backend and `unit/` for everything else means a containerized adapter and a gateway or CPU adapter live in different roots regardless.
 
 ### Containerized backend
 
-`tests/integration/<adapter>/test_<tech>_<aggregate>_<adapter>.py`, driving the real SDK client against
+`tests/integration/<adapter>/`, in the file mirroring the adapter's module, driving the real SDK client against
 a container the integration conftest starts (`hex-test-integration-setup`, obligation 9; its key-value
 add-on is the worked instance of a per-test namespace). One happy-path test per public method, observed by reading the
 backend directly; one test per error code the adapter translates, each triggered where the backend
-really reports it and asserting the catalogue class and its `context`; and the fallback — a client with
-credentials the backend refuses — landing on the upstream error (rule 9). A reversing method the
+really reports it and asserting the catalogue class and its `context`; and the fallback — a client the
+backend refuses, or one pointed at no backend — landing on the upstream error (rule 9). A reversing method the
 compensation path calls (a delete) pins success on a key that was never written, where the backend
 answers success for it, rather than a not-found it can never raise.
 
@@ -62,17 +62,18 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 import respx
+from pydantic import SecretStr  # only where the upstream takes a credential
 
 from myapp.domain.exceptions import UpstreamError, ValidationError
 from myapp.domain.foos import Foo, FooKind
 from myapp.infrastructure.http import FooClassifierSettings, HttpFooClassifier
 
 _BASE_URL = "https://classifier.example"
-
-
-@pytest.fixture
-def settings() -> FooClassifierSettings:
-    return FooClassifierSettings(base_url=_BASE_URL, timeout_seconds=5.0)
+_SETTINGS = FooClassifierSettings(
+    base_url=_BASE_URL,
+    api_key=SecretStr("test-key"),  # only where the upstream takes a credential
+    timeout_seconds=5.0,
+)
 
 
 @pytest.fixture
@@ -82,42 +83,36 @@ async def client() -> AsyncIterator[httpx.AsyncClient]:
 
 
 @respx.mock
-async def test_classify_happy_path(
-    client: httpx.AsyncClient,
-    settings: FooClassifierSettings,
-) -> None:
-    route = respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(200, json={"kind": "A"}))
-    adapter = HttpFooClassifier(client=client, settings=settings)
+async def test_classify_happy_path(client: httpx.AsyncClient) -> None:
+    route = respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(200, json={"kind": "B"}))
+    adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
 
     kind = await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
 
-    assert kind == FooKind.A
+    assert kind == FooKind.B
     assert route.called
-    assert json.loads(route.calls.last.request.content) == {"name": "alpha"}
+    request = route.calls.last.request
+    assert json.loads(request.content) == {"name": "alpha"}
+    assert request.headers["Authorization"] == "Bearer test-key"  # only where the upstream takes a credential
 
 
 @respx.mock
-async def test_classify_unknown_kind_raises_upstream(
-    client: httpx.AsyncClient,
-    settings: FooClassifierSettings,
-) -> None:
+async def test_classify_unknown_kind_raises_upstream(client: httpx.AsyncClient) -> None:
     respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(200, json={"kind": "UNKNOWN"}))
-    adapter = HttpFooClassifier(client=client, settings=settings)
+    adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(UpstreamError) as exc:
+    with pytest.raises(UpstreamError, match="malformed body") as exc:
         await adapter.classify(foo)
 
-    assert exc.value.context == {"foo_id": str(foo.id), "reason": "ValueError"}
+    assert exc.value.context == {"foo_id": str(foo.id)}
 
 
+# only where the upstream judges input the caller can correct
 @respx.mock
-async def test_classify_400_raises_validation(
-    client: httpx.AsyncClient,
-    settings: FooClassifierSettings,
-) -> None:
+async def test_classify_400_raises_validation(client: httpx.AsyncClient) -> None:
     respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(400))
-    adapter = HttpFooClassifier(client=client, settings=settings)
+    adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
     with pytest.raises(ValidationError) as exc:
@@ -127,37 +122,47 @@ async def test_classify_400_raises_validation(
 
 
 @respx.mock
-async def test_classify_network_error_raises_upstream(
-    client: httpx.AsyncClient,
-    settings: FooClassifierSettings,
-) -> None:
-    respx.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx.ConnectError("boom"))
-    adapter = HttpFooClassifier(client=client, settings=settings)
+async def test_classify_503_raises_upstream(client: httpx.AsyncClient) -> None:
+    respx.post(f"{_BASE_URL}/classifications").mock(return_value=httpx.Response(503))
+    adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
+    foo = Foo(id=uuid.uuid4(), name="alpha")
 
     with pytest.raises(UpstreamError) as exc:
-        await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
+        await adapter.classify(foo)
 
-    assert exc.value.context["reason"] == "ConnectError"
+    assert exc.value.context == {"foo_id": str(foo.id), "status": 503}
 
 
 @respx.mock
-async def test_classify_read_timeout_raises_upstream(
-    client: httpx.AsyncClient,
-    settings: FooClassifierSettings,
-) -> None:
+async def test_classify_network_error_raises_upstream(client: httpx.AsyncClient) -> None:
+    respx.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx.ConnectError("boom"))
+    adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
+    foo = Foo(id=uuid.uuid4(), name="alpha")
+
+    with pytest.raises(UpstreamError, match="unreachable") as exc:
+        await adapter.classify(foo)
+
+    assert exc.value.context == {"foo_id": str(foo.id)}
+
+
+@respx.mock
+async def test_classify_read_timeout_raises_upstream(client: httpx.AsyncClient) -> None:
     respx.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx.ReadTimeout("slow"))
-    adapter = HttpFooClassifier(client=client, settings=settings)
+    adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
+    foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(UpstreamError) as exc:
-        await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
+    with pytest.raises(UpstreamError, match="unreachable") as exc:
+        await adapter.classify(foo)
 
-    assert exc.value.context["reason"] == "ReadTimeout"
+    assert exc.value.context == {"foo_id": str(foo.id)}
 ```
 
-A `200` whose body carries a value the domain type rejects is the parse arm's case: without the
-adapter's translation around the parse, the `ValueError` escapes and the test reds. The fallback — any
-other status to the upstream error — is the `400` test again with its own code, exception and `context`
-(rule 5).
+A `200` whose body carries a value the domain type refuses is the parse arm's case: without the
+adapter's translation around the parse, the `ValueError` escapes and the test reds. Where the adapter
+sends a credential, the happy-path test also asserts the header carrying it against the literal test
+value (rule 8) — the one assertion that reds on a secret sent masked or not at all. Where one class and
+one `context` cover several arms, the test tells them apart by the part of the message each sets
+(`test-principles`, *Assert strength* recipe 6).
 
 The outgoing body is compared as parsed JSON, never as bytes: separators and key order are the
 client library's serialisation choice, not the upstream's contract, and a byte comparison breaks on a
@@ -165,7 +170,7 @@ library upgrade that changed nothing on the wire that matters.
 
 ### Pure-CPU
 
-`tests/unit/infrastructure/<adapter>/test_<tech>_<verb>.py`. The worked instance is the token verifier's
+`tests/unit/infrastructure/<adapter>/`, in the file mirroring the adapter's module. The worked instance is the token verifier's
 test in `hex-test-restapi-auth`'s `UNIT.md`: module-level settings and inputs, the adapter built inline
 in each test, real library calls, and one test per `raise` site asserting its `context` key (rule 21).
 
@@ -187,9 +192,9 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ### Form
 
-1. **One test file per adapter.** Consult `naming` for naming; the template paths show the adapter-specific forms.
+1. **One test file per adapter**, mirroring its module (`test-principles`, *Test naming*).
 2. **Path follows the flavor, and the flavor follows whether the test needs something running.** A test that needs a live backend is an integration test (`tests/integration/<adapter>/`). A test whose socket is intercepted, and a pure-CPU adapter that touches nothing, need nothing running and are unit tests (`tests/unit/infrastructure/<adapter>/`) — the intercepted one is `test-principles`' boundary unit. Putting either under `integration/` makes it inherit that tree's container and migration fixtures and pay for infrastructure it never uses. A pure-CPU adapter's test takes neither interception nor a container; an adapter whose test seems to need one has IO and is not the CPU flavor.
-3. **Module-level helpers, not fixtures, for settings / keypairs / fixed inputs** in CPU tests. Construct once at module scope.
+3. **Module-level constants, not fixtures, for settings, keypairs and fixed inputs** in the HTTP-gateway and CPU flavors — anything with no setup or teardown (`test-principles`, *Fixture vs. builder*). Construct once at module scope.
 
 ### Coverage
 
@@ -208,7 +213,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ### Containerized flavor specifics
 
-13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client and settings naming the test's own namespace (the key-value add-on's `redis_client`, for one). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is the rejected-credential case (rule 9), which builds a client with credentials the backend refuses.
+13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client and settings naming the test's own namespace (the key-value add-on's `redis_client`, for one). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is rule 9's refused or unreachable client, which the test builds itself.
 14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** An object store, a cache or a queue has no nested transaction to discard. Which fixture owns the per-test namespace and which the session-scoped container and client → `hex-test-integration-setup` (obligation 9 and its scope split).
 15. **Don't bypass the adapter to drive setup.** For success assertions, you may inspect the backend directly — that is the observation. But for setup that exists to drive the test, go through the adapter (`adapter.upload(...)` then `adapter.delete(...)`).
 
