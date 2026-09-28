@@ -306,6 +306,6 @@ app.include_router(foos_router)
 
 ## Hard stops
 
-- A route is asked to catch a domain exception and translate it → stop, let it propagate; the class is `exception-catalog`'s and its status `hex-restapi-app`'s `STATUS_BY_ERROR`.
+- A route is asked to catch a domain exception and translate it → stop, use `hex-restapi-app`: a different status is an entry in `STATUS_BY_ERROR`, a new failure a class under `exception-catalog`.
 - A third auth dependency type, or any other auth machinery, is proposed → stop, use `hex-restapi-auth`; this skill declares the codes a route advertises, not the auth layer behind them.
 - Asked for the request or response models a route maps → stop, use `hex-restapi-schema`.
