@@ -29,7 +29,7 @@ One depends on the answer:
 - Refusing a malformed message at commit time → `/install-commit-hook`. It checks a message's shape,
   not which branch it lands on.
 
-## Template — short-lived branches off one mainline, every commit kept, on GitHub
+## Template — short-lived branches off one mainline, every commit kept
 
 What the repository records, where contributors read — a `CONTRIBUTING` file, an agent instructions
 file:
@@ -38,18 +38,14 @@ file:
 ## Branching
 
 - `main` is the mainline. It always builds and passes; releases are tags on it.
-- Every change reaches `main` through a pull request whose checks pass.
-- A pull request lands with a merge commit, keeping every commit. Squash and rebase merging are off.
+- Every change reaches `main` through a request whose checks pass.
+- A request lands with a merge commit, keeping every commit. Squash and rebase merging are off.
 - A branch carries one change, starts from current `main`, and is deleted once it lands.
 ```
 
-The forge enforcing it, once:
-
-```bash
-gh api -X PATCH repos/{owner}/{repo} \
-  -F allow_merge_commit=true -F allow_squash_merge=false -F allow_rebase_merge=false \
-  -F delete_branch_on_merge=true
-```
+Rule 2's enforcement is three repository settings, made once in the forge: merge commits only, with
+squash and rebase merging off; the branch deleted when it lands; and `main` protected, so nothing
+reaches it but a request whose checks pass.
 
 A fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before the request lands
 by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<mainline>` after `git fetch` (rule 4), so
