@@ -39,7 +39,7 @@ full name yields `ck_foos_ck_foos_name_non_empty`.
 ## The settings module — pydantic-settings
 
 This package is a component with configuration of its own, so it declares that configuration here rather
-than borrowing a field from the service's class (`flat-layered` rule 8).
+than borrowing a field from the service's class (`flat-layered` rule 7).
 
 `src/myapp/postgres/settings.py`:
 
@@ -74,7 +74,7 @@ is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the pr
 prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
 changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
 adds its fields to this one (rule 17). The process definition constructs `PostgresSettings()`, unwraps
-`dsn` and hands the value to the engine factory (`flat-layered` rule 7, and rule 14 in `SKILL.md`); the
+`dsn` and hands the value to the engine factory (`flat-layered` rule 6, and rule 14 in `SKILL.md`); the
 migration environment is the migration run's process definition and does the same
 (`flat-project-setup`).
 

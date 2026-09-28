@@ -255,8 +255,8 @@ choice. If yes, but the shape changes, write the version that survives the swap.
 **The one instance is fully unwound.** Two skills in the flat family existed only because the
 originating source used a particular durable-execution engine. They are gone, and so is the engine:
 their obligations are stack-independent rules in `flat-entrypoint` and `flat-test-run-function`, each
-in a subsection of `## Rules` that applies only once an engine has been earned, with a matching
-subsection of `## Hard stops`. The vendor's spelling of them survived for a while as a sibling binding
+in a subsection of `## Rules` that applies only once an engine has been earned; no hard stop repeats
+them, since a rule governs each. The vendor's spelling of them survived for a while as a sibling binding
 file and no longer does — it was a vendor manual the model already knows, standing where the rules only
 this catalogue can supply have to be, and at 648 lines it was 22% of the plugin. That is what unwinding
 a technology-shaped skill looks like at the end — the rules stay and the vendor leaves entirely. Do not

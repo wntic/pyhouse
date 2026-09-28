@@ -148,17 +148,17 @@ sees it. `python -m myapp` runs the one process; a service with several defines 
 
 **The process definition builds every settings object and hands concrete values down** — it is
 this family's composition root, so the rule is `python-settings` rule 13 and its flat spelling
-`flat-layered` rule 7.
+`flat-layered` rule 6.
 
 **The transport and the engine are built once and wrap the whole run.** One pooled `httpx.AsyncClient`
 and one engine exist before the run starts and are closed when it ends, the engine disposed even when
-the run leaves by an exception (`flat-layered` rule 14). A second process definition building the same
+the run leaves by an exception (`flat-layered` rule 12). A second process definition building the same
 things takes them from one builder rather than a copy (rule 14).
 
 ### A process that outlives one run
 
 A loop or a consumer wraps each run in one guard and, for a loop, sleeps between runs on an interval
-read from the process's settings — a required field with no default (`python-settings` rule 5). The
+read from the process's settings — a required field with no default (rule 16). The
 fragment sits inside `_run`, after `settings = Settings()`, the process's `Settings` declaring
 `poll_interval_seconds: float` with no default:
 
@@ -199,7 +199,7 @@ obligation 8, which run functions call.
 Reach here only once one of the three conditions above has earned it. The shape is **three modules**:
 an orchestration module that invokes units of work and computes nothing, a wrapper class adapting the
 run function into the engine's unit of work, and a process definition that builds the dependencies once
-and serves the engine's work — the only modules importing the engine's SDK (`flat-layered` rule 9). The
+and serves the engine's work — the only modules importing the engine's SDK (`flat-layered` rule 8). The
 run function does not move, and none of the rules below changes.
 
 Under a managed cloud orchestrator the orchestration definition leaves the repository and the wrapper
@@ -228,7 +228,7 @@ A consumer's broker is its trigger: the SDK that receives messages is imported o
 framework-wrapper package, which parses the message, runs the run function under `guarded`, and
 acknowledges on `True` or returns the message on `False` (rules 11, 15), the run writing values taken
 from the message, never the clock. A broker the service publishes to is an external system with a
-package of its own (`flat-layered` rule 16).
+package of its own (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 
@@ -265,7 +265,9 @@ for rule 9.
    default for scheduled work. Adopt a durable-execution engine only when a half-finished run must
    resume rather than restart, retries must outlive the process that made them, or a sequence runs
    long enough that the sequence itself has to survive. Absent one of those, the engine is the heaviest
-   thing in the deployment and buys nothing.
+   thing in the deployment and buys nothing. Present, it is adopted rather than reimplemented inside a
+   loop: a state table, a lease, an attempt counter and an at-most-once guard, hand-rolled and untested,
+   are a workflow engine rebuilt badly.
 2. **Every trigger wraps the same framework-free run function.** The loop body, the scheduled process
    and any framework wrapper all call one run function from its own module. The wrapper holds the
    trigger and no logic of its own; that is what keeps the shape choice reversible and keeps two
@@ -282,12 +284,12 @@ for rule 9.
    the outer one no longer bounds it.
 5. **Return aggregates, not lists of items.** Run functions return frozen dataclasses of counters or
    timestamps, so what a trigger reports, logs or stores stays bounded; the items themselves live in the
-   datastore. A read served over HTTP is the one exception by construction — it returns the single record
-   it was asked for, never the items a run processed.
+   datastore; a trigger's report is not a data bus. A read served over HTTP is the one exception by
+   construction — it returns the single record it was asked for, never the items a run processed.
 6. **The routing name a run is addressed to has exactly one source, and every participant reads it from
    that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is
    normally a per-deployment value and then belongs with the rest of the process's settings
-   (`flat-layered` rule 8); where the platform makes the schedule itself code in the same repository, the
+   (`flat-layered` rule 7); where the platform makes the schedule itself code in the same repository, the
    name is a module constant both the schedule and the process serving it import, and a firewall rule
    pins that both read the one source. What is never
    acceptable is two sources — a schedule resolving the name from one environment and the process
@@ -306,12 +308,13 @@ for rule 9.
    and a test pins only one of them. A process that does one run and exits is not guarded: its failure
    is its exit status.
 9. **An HTTP route validates its input, calls one run function, and holds no logic.** The app is built
-   by a factory from dependencies the process definition hands it, and every failure — a catalogue
-   error, the framework's validation failure, an unexpected exception — is rendered in one shape, in
-   one place, never per route, and logged once there. A route that branches on the data, reaches the
-   repository class, or catches a catalogue error itself has become a second place the work lives. A
-   request from a third party is verified against the raw body it signed before the body is parsed, and
-   a redelivery of one already recorded is answered as a success and changes nothing.
+   by a factory from dependencies the process definition hands it, never at module scope, and every
+   failure — a catalogue error, the framework's validation failure, an unexpected exception — is
+   rendered in one shape, in one place, never per route, and logged once there. A route that branches on
+   the data, reaches the repository class or the client, or catches a catalogue error or maps it to a
+   status of its own, has become a second place the work lives. A request from a third party is verified
+   against the raw body it signed before the body is parsed, and a redelivery of one already recorded is
+   answered as a success and changes nothing.
 10. **An input whose size the service does not control is processed in bounded memory.** An upstream
     file, an export or a feed is streamed — read, transformed and written in bounded batches — and
     nothing in the process accumulates a whole source: no list of every record, no in-process set of
@@ -341,7 +344,7 @@ for rule 9.
     engine lives in one builder there that every process definition imports, never copied into each; a
     copy per process is one wiring per copy, and they drift. The builder owns the thing's end as well as
     its start — the pool closed, the engine disposed — when the process leaves it, by any exit
-    (`flat-layered` rule 14).
+    (`flat-layered` rule 12).
 15. **A unit a broker delivered and the guard contained is neither acknowledged as done nor retried
     without bound.** It returns for redelivery up to a declared limit, then goes to a dead-letter
     destination the operator can read. The limit and the dead-letter destination are the broker's own
@@ -350,6 +353,9 @@ for rule 9.
     redelivery — a second delivery of a unit already applied changes nothing. A contained failure that
     acknowledges the unit loses it silently; one that retries forever blocks everything behind it. A
     polling run needs neither: its next tick is the retry.
+16. **A process that repeats a run waits between runs for an interval its settings declare, required
+    and with no default** (`python-settings` rule 5) — never a constant in the code, which only a
+    redeploy can change.
 
 ### Once a durable-execution engine is earned
 
@@ -390,7 +396,7 @@ separately from the rules and cited elsewhere as *durable obligation N*.
    no framework context — the guard is what lets the body keep one shape under every trigger. **The
    helper is one named module at the root of the distribution's own package**, and it is the one module
    outside the framework-wrapper package allowed to import the framework, which is why the architecture
-   firewall's allow-list names it (the firewall is `flat-layered` rule 9's). Where several
+   firewall's allow-list names it (the firewall is `flat-layered` rule 8's). Where several
    distributions share one repository it is promoted to a library they both depend on, and the
    exemption is the same one.
 9. **A healthcheck declares no retries.** Its whole job is to turn red the moment the thing it watches
@@ -405,78 +411,13 @@ separately from the rules and cited elsewhere as *durable obligation N*.
     one made.
 11. **The engine's connection settings are required, with no default.** Its address, and whatever
     namespace or tenant it routes by, come from the process's settings like any other tunable
-    (`flat-layered` rule 10); a default lets a deployment that forgot one start and reach the wrong
+    (`flat-layered` rule 9); a default lets a deployment that forgot one start and reach the wrong
     engine instead of failing at startup.
 
 ## Hard stops
 
-- A workflow engine is being added for work that is merely *scheduled* — no run has to survive a
-  restart, no retry has to outlive the process, no sequence runs for hours → stop, use shape 1; one run
-  per process, scheduled or looped, is the default and the engine is not yet earned.
-- Durability, cross-restart retries or multi-step orchestration is being hand-rolled inside a loop — a
-  state table, a lease, an attempt counter, an at-most-once guard → stop, that is a workflow engine
-  being reimplemented; adopt one, and read the durable obligations for what it then obliges.
-- A run function imports a framework → stop, the framework belongs in the framework-wrapper package
-  (`flat-layered` rule 9); the body must stay callable from a loop and a test.
-- Retry logic is being hand-written inside a run function with sleeps and counters → stop, declare the
-  retry where the work is invoked.
-- A run function returns a list of ids or records → stop, return an aggregate dataclass; a trigger's
-  report is not a data bus.
-- A continuous stream is being modelled as a long-running unit of work, or one trigger per item → stop,
-  keep the stream as a separate process and watch it with a liveness check.
-- A schedule and the process serving it resolve the routing name from two different places → stop, give
-  it one source both of them read.
-- Business logic is being written into the wrapper instead of the run function → stop, the wrapper holds
-  the trigger; the work stays where a test can call it directly.
-- An HTTP route reaches the repository class or the client itself, or maps a catalogue error to a status of
-  its own → stop, route through a run function and let the one handler render it.
-- A third party's request body is parsed before its signature is verified against the raw bytes, or a
-  redelivery of a request already recorded is answered as a failure or changes what was recorded → stop
-  (rule 9).
-- The web app is built at module scope → stop, build it in a factory the process definition calls with
-  the dependencies it built.
-- A run reads a whole unbounded source into memory, or deduplicates one with an in-process set → stop,
-  stream it in bounded batches and let the store's key and conflict clause deduplicate.
-- A cursor, watermark or checkpoint is written while the rows it confirms are still buffered, or one
-  buffer is shared by units whose markers are written separately → stop, write each unit's rows, then
-  its marker.
-- A file written for another reader is written in place, or unreadable local state is caught inside a
-  guard → stop, write under a temporary name and replace atomically, and stop at startup (rule 12).
-- A contained failure acknowledges a unit a broker delivered, or returns it for redelivery with no
-  broker-declared limit and no dead-letter destination, or the unit's effect is not idempotent under
-  redelivery → stop (rule 15).
-- A fan-out over independent units lets the first failure cancel or orphan the rest, or swallows the
-  failures → stop, await every unit, collect the failures, and fail the run on a non-empty list.
-- `guarded` is copied into a second process definition → stop, import the one module every process
-  definition shares. A run-once process wraps its run in it → stop, the failure is its exit status.
-- A process sleeps on a hard-coded interval → stop, the interval is a required settings field.
-- A process definition copies construction another process definition also performs, or builds a
-  client, a pool or an engine it never closes → stop, write the construction once in the
-  process-definition package, closing what it built, and import it (rule 14).
-
-### Under a durable-execution engine
-
-These fire only once rule 1 has earned an engine; under every other trigger there is nothing to break.
-
-- An orchestration body is about to call an HTTP client, a write helper, or any I/O directly → stop,
-  move that call into a unit of work and invoke it from the orchestration.
-- The wall clock, randomness or a random identifier is read inside replayed code → stop, take the value
-  from the engine's clock or pass it in; replay diverges from history and corrupts the run.
-- A continuation is taken without a value the next run needs, or a continuing batch loop ends on an
-  iteration bound rather than an empty batch → stop, carry every value and end on the empty batch
-  (durable obligation 6).
-- A unit of work that runs for minutes declares a close timeout and no progress reporting → stop, add
-  both; otherwise a dead serving process goes unnoticed for the whole timeout and the unit can never be
-  cancelled.
-- A run-function body calls the framework's progress function directly → stop, use the guarded helper;
-  the unguarded call raises the moment the body runs from a loop or a test.
-- A schedule is created by hand in a console, from inside the process serving the work, or without an
-  explicit catch-up window, overlap policy and time zone → stop; it belongs in the versioned definition,
-  and an inherited default is a decision nobody made.
-- An orchestration module imports something with import-time state or side effects → stop, import only
-  the engine and the unit declarations it invokes.
-- A healthcheck run declares retries → stop, the retry hides the staleness it exists to report.
-- A service exception escapes the framework boundary untranslated → stop, wrap it so the context and the
-  error type survive.
-- An engine connection setting is being given a default → stop, it is required; a deployment that
-  forgets one must fail at startup rather than reach the wrong engine.
+- The service answering HTTP has business invariants, or several entrypoints share its rules → stop, this
+  family is the wrong one; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
+  `pyhouse-hex` plugin.
+- A statement, a table definition or a transaction is being written into a run function or a wrapper →
+  stop, use `flat-persistence`; the run function calls the data-access package's repository class.
