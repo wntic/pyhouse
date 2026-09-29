@@ -40,7 +40,7 @@ ported or generated, because that is where names arrive by inertia.
 Two consequences of naming land here, in the packaging mechanics, and are enforced below:
 
 - A module filename must describe its contents and **match its single class in snake_case**
-  (`foo_client.py` → `FooClient`), or name the set when a closed set of declarations shares it
+  (`qux_client.py` → `QuxClient`), or name the set when a closed set of declarations shares it
   (`foo_schemas.py`). `utils.py` holding `class FooHelper` is wrong twice — the file
   names a category rather than a responsibility, and so does the class.
 - A rename is a **separate commit** from any behaviour change, and names that have escaped into
@@ -50,7 +50,7 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 ## Modules
 
 - **A module that defines a class defines exactly one**, and the module name matches it in snake_case
-  (`foo_client.py` → `FooClient`, `entity_registry.py` → `EntityRegistry`). The rule caps classes per
+  (`qux_client.py` → `QuxClient`, `entity_registry.py` → `EntityRegistry`). The rule caps classes per
   module; it does not require one. A module of related functions is a first-class shape — see below.
   The one way past the cap is a closed set of declarations, named for the set — see **When several
   classes may share a module**.
@@ -60,10 +60,10 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 ```python
 import httpx
 
-__all__ = ["FooClient"]
+__all__ = ["QuxClient"]
 
 
-class FooClient:
+class QuxClient:
     def __init__(self, http: httpx.AsyncClient) -> None:
         self._http = http
 ```
@@ -203,21 +203,21 @@ explicit import is what makes the contract check.
 A single module:
 
 ```python
-from . import foo_client
-from .foo_client import *
+from . import qux_client
+from .qux_client import *
 
-__all__ = foo_client.__all__
+__all__ = qux_client.__all__
 ```
 
 Several modules — name them all in the `from . import …` line, repeat the wildcard per module, and
 concatenate:
 
 ```python
-from . import foo_client, foo_settings
-from .foo_client import *
-from .foo_settings import *
+from . import qux_client, qux_settings
+from .qux_client import *
+from .qux_settings import *
 
-__all__ = foo_client.__all__ + foo_settings.__all__
+__all__ = qux_client.__all__ + qux_settings.__all__
 ```
 
 **A package re-exports its immediate children — direct modules *and* child subpackages** — except the

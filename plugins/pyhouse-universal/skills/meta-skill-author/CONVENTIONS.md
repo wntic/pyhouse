@@ -176,6 +176,7 @@ One vocabulary for the whole catalogue.
 | `Foo` | the primary aggregate |
 | `Bar` | the secondary aggregate |
 | `Baz` | a third aggregate, used where an example needs one held by a different kind of store than `Foo` and `Bar` — module `baz.py`, package `domain/bazs/`, port `IBazRepository` |
+| `Qux` | an **external system** the service calls — another team's service, a vendor's API, a local executable — never an aggregate; its names derive from it by `naming`, and where its code sits is the family's layout |
 | `myapp` | a distribution's **own root package** |
 | `myschema` | a **shared library several distributions depend on** — imported by them, owned by none of them |
 | `myframework` | a **third-party framework** a rule is about *wrapping*, where naming a real one would make the rule that framework's |
@@ -212,11 +213,8 @@ Names carried over from a real system are banned outright, in templates, rules a
 travels in — snake_case, kebab-case, and the SCREAMING env-var prefix derived from it. A skill that
 teaches through one system's vocabulary is unreadable to everyone else on it.
 
-Use the placeholder vocabulary above instead: `Foo`/`Bar` for aggregates (`Baz` where a third is needed), `myapp` for a service's own
-package, `myschema` for a library several distributions share, `myrepo` for the repo root,
-`myframework` where a rule is about wrapping a framework rather than about that framework. A real
-name with no placeholder to map onto gets a row added to the
-table above — never an exception here. No tool catches a real name; it is caught by reading the
+Use the placeholder vocabulary above instead. A real name with no placeholder to map onto gets a row
+added to the table above — never an exception here. No tool catches a real name; it is caught by reading the
 diff before a commit, so this file states the category and does not list the names already found and
 removed.
 

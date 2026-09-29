@@ -37,8 +37,8 @@ earned).
 
 ## Template — the work end to end (pytest, `respx` over `httpx`, real Postgres)
 
-`tests/integration/test_foo_sync.py` — the upstream stub `foo_api` and the client over it,
-`foo_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
+`tests/integration/test_foo_sync.py` — the upstream stub `qux_stub` and the client over it,
+`qux_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
 its trigger's input — a delivery, a message — is called with a built input and takes neither fixture:
 
 ```python
@@ -47,21 +47,21 @@ import respx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.foo_api import FooClient
 from myapp.foo_sync import run_once
 from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
+from myapp.qux import QuxClient
 from myapp.schemas import RunResult
 
 _TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b"}]}
 
 
 async def test_a_run_records_what_it_fetched(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    await run_once(foo_client, FooRepository(engine))
+    await run_once(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
     rows = (await conn.execute(query)).all()
@@ -70,12 +70,12 @@ async def test_a_run_records_what_it_fetched(
 
 
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
-    await run_once(foo_client, FooRepository(engine))
+    qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    await run_once(qux_client, FooRepository(engine))
 
-    await run_once(foo_client, FooRepository(engine))
+    await run_once(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
     rows = (await conn.execute(query)).all()
@@ -83,11 +83,11 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
 
 async def test_a_run_reports_what_it_recorded(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine
 ) -> None:
-    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    result = await run_once(foo_client, FooRepository(engine))
+    result = await run_once(qux_client, FooRepository(engine))
 
     assert route.called
     assert result == RunResult(recorded=2)

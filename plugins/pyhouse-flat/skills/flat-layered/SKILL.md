@@ -106,7 +106,7 @@ is the decision:
 - cross-cutting setup — logging, the exception catalogue, the process's own settings — sits in modules
   at the package root, never in a package named after the category;
 - **a component with configuration of its own is a package** at the package root, and its settings
-  module sits inside it beside the class it configures (`foo_api/settings.py`, rule 7) — never as a
+  module sits inside it beside the class it configures (`qux/settings.py`, rule 7) — never as a
   `*_settings.py` sibling in a package it shares;
 - each external system gets one such package, holding its one client class;
 - each store gets one data-access package, named for the store's technology (rule 4);
@@ -129,7 +129,7 @@ src/myapp/
 ├── logging.py         # configures logging once, called by the process definition
 ├── settings.py        # only with settings of the process's own
 ├── schemas/           # the records more than one package reads, one declared type per module
-├── foo_api/           # only with an external system: its client and its settings.py
+├── qux/               # only with an external system: one package per system, named for it — its client and settings.py
 ├── postgres/          # only with a store: one package per store, named for its technology — `flat-persistence`
 ├── foo_sync.py        # a work unit, named for its work
 └── entrypoints/       # only with more than one process: one module per process, replacing __main__.py
@@ -201,23 +201,23 @@ class RunResult:
 
 ### Template — an external-system client, on httpx
 
-`src/myapp/foo_api/foo_client.py` — one concrete class, no Protocol:
+`src/myapp/qux/qux_client.py` — one concrete class, no Protocol:
 
 ```python
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from myapp.exceptions import FooClientError
+from myapp.exceptions import QuxRequestFailedError
 from myapp.schemas import FooPayload
 
-__all__ = ["FooClient"]
+__all__ = ["QuxClient"]
 
 
 class _FooList(BaseModel):
     items: tuple[FooPayload, ...]
 
 
-class FooClient:
+class QuxClient:
     def __init__(self, http: httpx.AsyncClient) -> None:
         self._http = http
 
@@ -227,34 +227,34 @@ class FooClient:
             response.raise_for_status()
             return _FooList.model_validate_json(response.content).items
         except (httpx.HTTPError, ValidationError) as exc:
-            raise FooClientError("failed to fetch foos") from exc
+            raise QuxRequestFailedError("failed to fetch foos") from exc
 ```
 
-`FooClientError` is the one class this client raises, a refinement of the catalogue's `UpstreamError`
+`QuxRequestFailedError` is the one class this client raises, a refinement of the catalogue's `UpstreamError`
 (`exception-catalog`); what its
 `context` carries when a method takes an input is `exception-catalog`'s.
 
-`src/myapp/foo_api/settings.py` is `python-settings`' template — `FooApiSettings` under
-`MYAPP_FOO_API_`, declaring the client's `url` and `timeout_seconds`. The process's own
+`src/myapp/qux/settings.py` is `python-settings`' template — `QuxSettings` under
+`MYAPP_QUX_`, declaring the client's `url` and `timeout_seconds`. The process's own
 `src/myapp/settings.py`, at the package root beside the rest of the cross-cutting setup, has the same
 shape — `Settings` under `MYAPP_` — holding only the fields that configure the process itself; a process
 with none has no such module, and a thin HTTP wrapper adds two server fields to it (`flat-entrypoint`).
 The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
 re-exports the settings and client modules (`python-packaging`), so a caller writes
-`from myapp.foo_api import FooApiSettings, FooClient`. The data-access package declares its settings
+`from myapp.qux import QuxClient, QuxSettings`. The data-access package declares its settings
 class the same way (`flat-persistence`).
 
 **The client is handed its transport; it never builds one** (rule 12). The process-definition package
 builds the pooled HTTP client once from the system's settings — `httpx.AsyncClient(base_url=settings.url,
 timeout=settings.timeout_seconds)`, entered with `async with` for the life of the process so it closes
-when the process ends (`flat-entrypoint`) — and passes it to `FooClient`. A test
+when the process ends (`flat-entrypoint`) — and passes it to `QuxClient`. A test
 builds the same client against a stub base URL and hands that in, without touching the environment.
 
 **An upstream that issues an expiring token keeps the refresh on the transport** (rule 13). Under httpx
 that is an `httpx.Auth` subclass overriding `auth_flow`, passed as `auth=` where the process definition
 builds the transport: its flow logs in when it holds no token, and on a 401 logs in once and resends.
 The client's methods stay as above, and a second 401 leaves through `raise_for_status` as a
-`FooClientError` like any other refusal.
+`QuxRequestFailedError` like any other refusal.
 
 **Parsing sits inside the translated scope.** A 200 whose body is not JSON, or is JSON of the wrong
 shape, is as much an upstream failure as a 503, so decode and validation run inside the request's `try`

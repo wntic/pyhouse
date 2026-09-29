@@ -73,8 +73,8 @@ fetched: no framework import, every dependency a parameter, the module named for
 ```python
 from datetime import UTC, datetime
 
-from myapp.foo_api import FooClient
 from myapp.postgres import FooRepository
+from myapp.qux import QuxClient
 from myapp.schemas import Foo, FooPayload, FooReference, RunResult
 
 __all__ = ["run_once", "to_foo"]
@@ -84,7 +84,7 @@ def to_foo(payload: FooPayload, observed_at: datetime) -> Foo:
     return Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=observed_at)
 
 
-async def run_once(client: FooClient, repository: FooRepository) -> RunResult:
+async def run_once(client: QuxClient, repository: FooRepository) -> RunResult:
     payloads = await client.fetch_foos()
     observed_at = datetime.now(UTC)
     for payload in payloads:
@@ -113,18 +113,19 @@ import asyncio
 
 import httpx  # only with an upstream
 
-from myapp.foo_api import FooApiSettings, FooClient  # only with an upstream
 from myapp.foo_sync import run_once
 from myapp.logging import configure_logging
 from myapp.postgres import FooRepository, PostgresSettings, get_engine  # only with a store
+from myapp.qux import QuxClient, QuxSettings  # only with an upstream
 
 
 async def _run() -> None:
-    api = FooApiSettings()  # only with an upstream, as is the block below; without one the run moves out of it
+    qux_settings = QuxSettings()  # only with an upstream, as is the block below; without one the run moves out of it
     engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store (so are try/finally, repository)
     try:
-        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:  # only with an upstream
-            await run_once(FooClient(http), FooRepository(engine))
+        # only with an upstream
+        async with httpx.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:
+            await run_once(QuxClient(http), FooRepository(engine))
     finally:
         await engine.dispose()
 
@@ -161,7 +162,7 @@ what it needs as parameters, so a test calls it without driving the loop; `log` 
 (`python-logging`):
 
 ```python
-async def sync_foos(client: FooClient, repository: FooRepository) -> None:
+async def sync_foos(client: QuxClient, repository: FooRepository) -> None:
     try:
         await run_once(client, repository)
     except Exception:
@@ -174,7 +175,7 @@ default (rule 16). These lines replace the `await run_once(...)` line in `_run`,
 default:
 
 ```python
-client, repository = FooClient(http), FooRepository(engine)
+client, repository = QuxClient(http), FooRepository(engine)
 while True:
     await sync_foos(client, repository)
     await asyncio.sleep(settings.poll_interval_seconds)
