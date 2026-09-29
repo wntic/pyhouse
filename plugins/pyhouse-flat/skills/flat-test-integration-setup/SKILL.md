@@ -198,7 +198,8 @@ pure-unit collection pays nothing for it.
 ## Rules
 
 1. **The migration runs from wherever the schema is defined** — this distribution, or the owning
-   library when several share one — with the round trip of `persistence` rule 20; a store another
+   library when several share one — with the round trip of `persistence` rule 20; it is the project's
+   own schema path `test-principles`, *Datastore contract* rule 8, requires, and a store another
    project owns is created from the metadata instead.
 2. **Where the suite can reach a database it did not start, the guard of `test-principles` reliability
    rule 1 lives inside the fixture producing the connection details**, comparing the database name by

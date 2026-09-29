@@ -145,6 +145,12 @@ entrypoint, the layer is leaking and the speed budget is gone.
 - The test is **input-domain coverage**: a single behavior verified against many inputs (10 invalid emails, 20 valid date formats). The behavior is one thing; the inputs vary.
 - Adding a new parameter would extend, not duplicate, an existing test set.
 
+**A discovered set yields one reported case per item, never a loop inside one test** — a loop stops at
+the first failure and hides the rest. A test over a discovered set also asserts the set is non-empty;
+an empty parameter set reports as skipped, and the run goes green having checked nothing. Under this
+binding the set is read in the collection hook (`pytest_generate_tests`): a fixture cannot feed
+parametrization.
+
 **Do not parametrize** when:
 
 - Each case is a distinct rule whose **name forms part of the spec**. `test_assigns_uuid_and_stores` and `test_duplicate_name_raises_conflict` are different behaviors; collapsing them into `@pytest.mark.parametrize("scenario, expected", [...])` hides the spec lines in tuples.
@@ -302,6 +308,9 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
 7. **Where a write takes a batch, one call carries two inputs sharing a key**, and one record holding
    the input the collapse keeps is asserted (`persistence` rule 17); under an ordering guard the newer
    stamp goes first, so a collapse that keeps the last input fails.
+8. **The schema the suite runs against is established once per session by the project's own schema
+   path** — its migrations, or the schema creation production runs — never by tables the suite writes
+   by hand, so a schema change that was never migrated reds here rather than in production.
 
 ### Reliability rules (local-vs-CI parity)
 
@@ -322,7 +331,9 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    Where the subject has a datastore that means an empty store at the start of every test — a store
    created per test where that is cheap (a file-backed or in-process one, in the test's temporary
    directory), otherwise the outer-transaction rollback, a whole-schema truncation, or a per-test
-   namespace where the store has no transactions. The rollback covers only code handed the test's
+   namespace where the store has no transactions. Where the code fixes its namespace, the namespace a
+   test owns is a whole store the suite started, emptied after each test, and a test asserts only
+   inside it. The rollback covers only code handed the test's
    connection (`persistence` rule 1): an outer transaction can neither see nor roll back a connection it
    did not open, so code that opens its own takes the wipe. Where it has none, the same rule binds whatever
    state there is: a temporary directory created per test, a fresh in-process object rather than a
@@ -341,7 +352,9 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    equality.** Read the clock before and after the act and assert the value falls between them
    (`>=`, `<=`). A store's clock is not the test's — Postgres `now()`, for one, returns the
    transaction's start time for every row written in it — so equality with a value the test computed
-   passes or flakes by coincidence.
+   passes or flakes by coincidence. Where the store stamps a modification instant with a clock fixed
+   per transaction and the test runs inside one outer transaction, the arrange and the act share that
+   instant; plant a value far in the past before the act and assert the act replaced it.
 5. **A UUID a test asserts on is constructed inside that test**, never drawn from `uuid.uuid4()` at
    module scope and shared with its neighbours.
 6. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The fixture that provisions the store handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`. A test that needs a settings object constructs it with explicit values and passes it in; one that needs the store takes the suite's fixture and never builds a connection, client or pool of its own nor calls the program's own factory for one, which would sit outside the isolation and the session's teardown — the one exception is a client pointed at an address nothing listens on, built and disposed inside the test that forces a failed connection. A test never mutates or reassigns a factory's cached value. Only a test of the settings parsing itself lets it read an environment, one the test sets, and it disables the loader's file sources, since a dotenv or config path resolved against the working directory makes the test pass or fail by where the runner was started.
