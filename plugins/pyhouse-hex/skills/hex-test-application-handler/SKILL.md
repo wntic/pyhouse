@@ -160,7 +160,7 @@ rule 5).
 ### `compensating-tx` handler
 
 Where a handler undoes an external write when a later step fails (`hex-application`, Compensation), its tests live in
-that handler's file and drive it over the storage fake's call record. The template — two tests, the
+that handler's file and drive it over the external write's call record. The template — two tests, the
 undo and a failed undo — sits beside the storage fake in `FAKES.md`.
 
 ## Fake repository and capability templates
@@ -252,8 +252,8 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 #### `compensating-tx` handler
 
-- `test_db_failure_after_upload_deletes_blob` — fake repo's mutation step raises; assert `storage.deletes` contains the keys `storage.uploads` recorded immediately before the failure.
-- `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted.
+- `test_store_failure_undoes_the_<external_write>` — the store write raises the catalogue exception its real adapter raises; assert the external write's call record shows each write that landed before the failure undone, and the caller receives that same failure.
+- `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted. Both injected failures are catalogue classes (Fakes rules 6 and 8), so the test tells them apart by which call raised, never by class alone.
 
 #### handler with a side effect after the store write
 
