@@ -84,8 +84,8 @@ class CreateFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
 
-    async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(id=uuid.uuid4(), name=cmd.name, note=cmd.note)
+    async def execute(self, command: CreateFooCommand) -> uuid.UUID:
+        foo = Foo(id=uuid.uuid4(), name=command.name, note=command.note)
         await self._repo.create(foo)
         logger.info("foo_created", foo_id=str(foo.id))
         return foo.id
@@ -136,15 +136,15 @@ class UpdateFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
 
-    async def execute(self, cmd: UpdateFooCommand) -> None:
-        foo = await self._repo.get_by_id(cmd.id)
+    async def execute(self, command: UpdateFooCommand) -> None:
+        foo = await self._repo.get_by_id(command.id)
         changed = replace(
             foo,
-            name=foo.name if cmd.name is None else cmd.name,
-            note=cmd.note if cmd.sets_note else foo.note,
+            name=foo.name if command.name is None else command.name,
+            note=command.note if command.sets_note else foo.note,
         )
         await self._repo.update(changed)
-        logger.info("foo_updated", foo_id=str(cmd.id))
+        logger.info("foo_updated", foo_id=str(command.id))
 ```
 
 `replace` builds a new entity through the constructor, so the entity's invariants run on the changed
@@ -180,9 +180,9 @@ class DeleteFooHandler:
     def __init__(self, repo: IFooRepository) -> None:
         self._repo = repo
 
-    async def execute(self, cmd: DeleteFooCommand) -> None:
-        await self._repo.delete(cmd.id)
-        logger.info("foo_deleted", foo_id=str(cmd.id))
+    async def execute(self, command: DeleteFooCommand) -> None:
+        await self._repo.delete(command.id)
+        logger.info("foo_deleted", foo_id=str(command.id))
 ```
 
 ### Query DTO
@@ -362,7 +362,7 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 ### Command handler
 
 1. **One public method.**
-   `async def execute(self, cmd: <CommandClass>) -> <ReturnType>`. Nothing else public — a second public
+   `async def execute(self, command: <CommandClass>) -> <ReturnType>`. Nothing else public — a second public
    method is a second use case, reachable in a half-finished state.
 2. **Constructor takes only ports, domain services, a unit-of-work factory, or tunable value objects.** A
    concrete infrastructure handle in the signature — a database session, an HTTP client — means the
@@ -380,7 +380,7 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 4. **No business logic in the handler.** Build and mutate domain entities; let `__post_init__` and domain
    services enforce the rules. The handler orchestrates: load, mutate, call the repository.
    **Normalization — strip, lowercase, reformat — is a domain concern** living in the entity's
-   `__post_init__` or a value object. Pass `cmd.name`, not `cmd.name.strip()`.
+   `__post_init__` or a value object. Pass `command.name`, not `command.name.strip()`.
 5. **No `try/except`, with three sanctioned exceptions.** (a) Compensation, below — its `try/except
    Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
    to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
