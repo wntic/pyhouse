@@ -14,7 +14,7 @@ Produces one integration-test file per endpoint. Self-contained: every test in t
 - A new or modified endpoint added by `hex-restapi-endpoint` → this skill.
 - A new resource introduces several endpoints (create + list + get + update + delete) → invoke this skill once per endpoint file; sibling files share a per-resource `conftest.py`.
 - The `tests/integration/conftest.py` itself (rollback, container fixtures, `container`, `real_app`) → `hex-test-integration-setup` (one-shot).
-- The auth half — the `authed_client` factory and its signing-key fixtures, a route driven as an authenticated caller, a role rejection or a cross-tenant 404, the token verifier's own unit test → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
+- The auth half — the `authenticated_client` factory and its signing-key fixtures, a route driven as an authenticated caller, a role rejection or a cross-tenant 404, the token verifier's own unit test → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
 - The route-side auth dependency, the role gate and the 401/403 codes a route advertises because of them → `hex-restapi-auth`.
 - Cross-cutting "every advertised error code carries the catalogue's shape" / CORS / request-size → `hex-test-app-invariants` (one-shot; discovers by walking the app's published document).
 - Repository contract (real DB, no HTTP) → `hex-test-repository-contract`.

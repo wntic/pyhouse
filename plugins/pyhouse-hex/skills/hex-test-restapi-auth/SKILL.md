@@ -1,6 +1,6 @@
 ---
 name: hex-test-restapi-auth
-description: Use when testing a token verifier, or any other part of a REST service that authenticates its callers — the token-verifier adapter's unit test, the signing-key and token-minting fixtures, the `authed_client` factory, the DI override that makes minted tokens verify, the discovered probe that every operation not declared public refuses an anonymous or untrusted caller, and — where the app has them — the role and cross-tenant assertions on an endpoint. Not an endpoint's non-auth half — its success body and advertised error codes (`hex-test-restapi-endpoint`) — and not another capability adapter's test (`hex-test-capability-adapter`).
+description: Use when testing a token verifier, or any other part of a REST service that authenticates its callers — the token-verifier adapter's unit test, the signing-key and token-minting fixtures, the `authenticated_client` factory, the DI override that makes minted tokens verify, the discovered probe that every operation not declared public refuses an anonymous or untrusted caller, and — where the app has them — the role and cross-tenant assertions on an endpoint. Not an endpoint's non-auth half — its success body and advertised error codes (`hex-test-restapi-endpoint`) — and not another capability adapter's test (`hex-test-capability-adapter`).
 when_to_use: Adding the auth fixtures to an integration suite, writing a 401 or 403 endpoint test, minting a JWT inside a test, or asserting that a protected route rejects an anonymous caller.
 ---
 
@@ -13,7 +13,7 @@ Every test the auth machinery needs — the verifier's own unit test and the aut
 suite — and all of it exists **only for an app that declares auth**
 (`hex-restapi-auth`). An auth-less app produces none of these files: no verifier to test, no
 `tests/helpers/jwt.py`, no `tests/integration/api/conftest.py` — this skill creates it — no
-`test_unauth_returns_401.py`, and every endpoint test drives a plain ASGI client.
+`test_unauthenticated_returns_401.py`, and every endpoint test drives a plain ASGI client.
 
 ## When to use vs. neighbours
 
@@ -41,8 +41,8 @@ tests/
 │       └── test_pyjwt_token_verifier.py         # the verifier adapter, no IO, no fixtures
 └── integration/
     └── api/
-        ├── conftest.py                          # rsa_keypair, jwt_settings, authed_client
-        ├── test_unauth_returns_401.py           # the discovered probe
+        ├── conftest.py                          # rsa_keypair, jwt_settings, authenticated_client
+        ├── test_unauthenticated_returns_401.py  # the discovered probe
         └── <resource>/
             └── test_<verb>_<noun>.py            # the authenticated endpoint form
 ```
@@ -101,7 +101,7 @@ Consult `test-principles` for the testing constitution.
    rule 6).
 6. **Each call mints a fresh token — never cached: a reused token is how a test passes on the previous
    test's credential.** Tokens are not reused across tests, calls, or roles; a test that needs two roles
-   in one body calls `authed_client(...)` twice.
+   in one body calls `authenticated_client(...)` twice.
 7. **Mint only what the identity type declares; pass everything else via `extra_claims`.** The factory
    bakes in the subject, and the rank where the app has one, and nothing more (`hex-restapi-auth`).
    Anything further this app's identity carries (a tenant id, a display name, …) is the caller's to
@@ -179,7 +179,7 @@ Consult `test-principles` for the testing constitution.
   `container` of an auth-less app substitutes no verifier settings (`hex-test-integration-setup`).
 - Nothing up-tree builds the app on the test's own infrastructure bindings (`real_app` under this
   catalogue's binding) → stop, use `hex-test-integration-setup`; the suite cannot collect without it.
-- Asked for a per-endpoint anonymous-caller test (e.g. "test that POST /foos returns 401 unauth") →
+- Asked for a per-endpoint anonymous-caller test (e.g. "test that POST /foos returns 401 unauthenticated") →
   stop, write nothing; every operation not declared public is already probed. Making a route public
   adds it to the declaration.
 - A per-resource row factory is added inside the api conftest → stop, use `hex-test-restapi-endpoint`;

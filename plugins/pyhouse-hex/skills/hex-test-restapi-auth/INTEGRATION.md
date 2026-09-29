@@ -88,7 +88,7 @@ def jwt_settings(rsa_keypair: RsaKeypair) -> JwtSettings:
 
 
 @pytest.fixture
-def authed_client(
+def authenticated_client(
     real_app: FastAPI,
     rsa_keypair: RsaKeypair,
     jwt_settings: JwtSettings,
@@ -139,7 +139,7 @@ from myapp.infrastructure.jwt import JwtSettings
         return self._jwt_settings
 ```
 
-That factory is what makes `authed_client`-minted tokens verify against the running app. Strip all three
+That factory is what makes `authenticated_client`-minted tokens verify against the running app. Strip all three
 on an auth-less app: nothing binds `JwtSettings`, so a factory claiming to override one fails when the
 graph is assembled.
 
@@ -147,7 +147,7 @@ graph is assembled.
 
 `container`, up-tree in `tests/integration/conftest.py`, takes `jwt_settings` by name, and a fixture
 defined down-tree is visible only to tests under it (`test-principles`, *Where tests and fixtures sit*
-rule 2). Without the substitution, every `authed_client`-minted token would be verified against the
+rule 2). Without the substitution, every `authenticated_client`-minted token would be verified against the
 production public key and answer 401.
 
 The coupling has a cost: `container`, and `real_app` over it, cannot be used from tests outside
@@ -155,7 +155,7 @@ The coupling has a cost: `container`, and `real_app` over it, cannot be used fro
 there. Repository contract tests take their store's own fixture and never need it; where another
 entrypoint's tests outside `api/` do, `rsa_keypair` and `jwt_settings` move up-tree beside `container`.
 
-## `test_unauth_returns_401.py` — the discovered probe
+## `test_unauthenticated_returns_401.py` — the discovered probe
 
 One file, emitted for an auth app only. It walks every operation off the running app and asserts that
 each one not declared public refuses an anonymous caller and a caller holding a token the app did not
@@ -263,8 +263,8 @@ from collections.abc import Callable
 from httpx import AsyncClient
 
 
-async def test_create_foo_returns_the_created_foo(authed_client: Callable[..., AsyncClient]) -> None:
-    async with authed_client() as client:
+async def test_create_foo_returns_the_created_foo(authenticated_client: Callable[..., AsyncClient]) -> None:
+    async with authenticated_client() as client:
         response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 201
@@ -273,6 +273,6 @@ async def test_create_foo_returns_the_created_foo(authed_client: Callable[..., A
 
 A rank app passes `role=` and adds the below-the-bar case (rule 17), asserting `ForbiddenError.code`;
 on a mutation that rejection also shows nothing was written — read it back as an allowed caller
-(`authed_client(...)` twice, rule 6). Its `Role.LOWER` / `Role.HIGHER` are the catalogue's
+(`authenticated_client(...)` twice, rule 6). Its `Role.LOWER` / `Role.HIGHER` are the catalogue's
 **placeholder** pair (`hex-restapi-auth`) — substitute the app's own members, however many it has.
 
