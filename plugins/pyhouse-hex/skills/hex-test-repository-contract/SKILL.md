@@ -121,6 +121,17 @@ async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSessio
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
+# only where the port declares update
+async def test_update_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
+    repo = FooRepository(session_factory=sf)
+    foo = _foo()
+
+    with pytest.raises(NotFoundError) as exc:
+        await repo.update(foo)
+
+    assert exc.value.context["id"] == str(foo.id)
+
+
 # only where the port declares delete
 async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
@@ -133,6 +144,17 @@ async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> N
         await repo.get_by_id(foo.id)
 
     assert exc.value.context["id"] == str(foo.id)
+
+
+# only where the port declares delete
+async def test_delete_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
+    repo = FooRepository(session_factory=sf)
+    missing = uuid.uuid4()
+
+    with pytest.raises(NotFoundError) as exc:
+        await repo.delete(missing)
+
+    assert exc.value.context["id"] == str(missing)
 
 
 async def test_read_and_write_against_unreachable_store_raise_upstream_error() -> None:
@@ -233,8 +255,6 @@ async def test_count_applies_the_filter(sf: async_sessionmaker[AsyncSession]) ->
 
     assert await repo.count(filter=FooListFilter(name="a")) == 1
 ```
-
-`update` and `delete` of an id never created each get the same test as `get_by_id`'s absent row (rule 1).
 
 **Compare every field, never the entity.** An entity's equality is by id (`hex-domain-model`), so
 `loaded == foo` passes a repository that maps the id and drops or swaps every other column;
