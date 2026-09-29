@@ -2069,3 +2069,18 @@ outage, and no `InUseError` exists. Declined: moving the fakes rules into `FAKES
 the `test-principles` additions, the pytest block in each family's setup skill and in
 `python-workspace`, and the workspace-wide test run; restoring the declared-versus-published OpenAPI
 comparison brings back its framework exemption and a second user of the route-context walk.
+
+### D138 — The maintainer's review of the orchestrator's own decisions (2026-09-29)
+The orchestrator logged the calls it made alone while items 11–34 ran (D130–D137) and put seven to the
+maintainer. Kept as made: each workspace member's suite runs from its own directory (D137), matching how
+the maintainer runs a monorepo's services; the declared-versus-published OpenAPI comparison stays deleted
+(D137); log events stay `snake_case` names with the detail in fields (`python-logging`); the
+`pytest-asyncio>=0.26` floor stays — a floor, not a pin, at the release that introduced the key the
+template writes (`python-toolchain` rule 9); a hex REST service configures logging as the first
+statement of `create_app` (D133). Changed, as backlog items: identifiers carried over from the reference
+application are renamed (item 42), which also settles the ordering guard's template line; batch writes
+leave the templates, keeping one conditional obligation in `persistence` (item 43) — the orchestrator had
+kept batching in the flat family on a reading of the item-14 decision that decision never stated; and
+review fixes are folded into the commits they correct before a branch lands (item 44).
+**Reverse by:** removing items 42–44 from the backlog before they land; each kept call is reversed as its
+own entry says.
