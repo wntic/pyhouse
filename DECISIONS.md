@@ -2098,3 +2098,24 @@ fixes another, so `/release` reads no patch for a defect no release carried and 
 **Reverse by:** removing the bullet from `CLAUDE.md` *Branching*, the paragraph from
 `.claude/commands/commit.md` step 5 and the clause from `/kickoff`; fixes then land as `fix` commits of
 their own and count toward the next patch.
+
+### D140 — Every settings class is built before the process serves or takes work
+Taken under backlog item 36 and one item-41 leftover, after a four-lens review. Under a composition root
+that resolves lazily a settings class was first built by the first operation that needed it, so a
+missing variable passed the readiness check and failed that operation. `python-settings` rule 13 now
+obliges the root to build every settings class before the program serves or takes work — a lazily
+resolving root forces each once at start — and rule 4 points at it; its template sets
+`hide_input_in_errors`, since a failed build otherwise echoes a sibling secret. `hex-wiring` rule 2
+applies it to each hex entrypoint as a step of its own, not part of building the root (a test builds the
+root with no environment): `CONTAINER.md`'s `resolve_settings` walks `SettingsProvider`'s declarations,
+so there is no second list to keep in step, and every process sharing one root is deployed with all its
+settings — accepted as the cost. `hex-restapi-app` rules 4 and 5 widen (the lifespan runs the check;
+`main.py` resolves nothing itself); `hex-architecture`'s entrypoint bullet names the check, so a worker
+author meets it; `real_app` never runs the lifespan, and a manual composition root is its own check.
+`hex-wiring`'s rules are numbered, its settings section folds into the opening, and its restatement of
+the dependency-injection override trap becomes a pointer at `hex-test-integration-setup`.
+**Reverse by:** from the parent of the commits that added this entry, restoring `python-settings` rules
+4 and 13 and its template's `model_config`; `hex-wiring`'s unnumbered rules, its settings section and the
+override-trap text; `resolve_settings` in `CONTAINER.md`; `hex-restapi-app` rules 4–5, its lifespan and
+hard stop; the `hex-architecture`, `CONFTEST.md` and `hex-test-app-invariants` sentences; and both index
+lines.
