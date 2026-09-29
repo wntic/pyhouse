@@ -133,8 +133,9 @@ adding a transport moves one directory. The catalogue spells the HTTP one `resta
 `http/` are equally good words and nothing depends on which, but two transports sharing a package is a
 defect. Siblings are `cli/` and `worker/`.
 
-- Allowed: everything. An entrypoint builds the composition root, `src/myapp/containers.py`, at startup
-  and closes it at shutdown; the root itself is that one module, not the entrypoint package.
+- Allowed: everything. An entrypoint builds the composition root, `src/myapp/containers.py`, at
+  startup, runs its settings check (`hex-wiring`) before it serves or takes work, and closes it at
+  shutdown; the root itself is that one module, not the entrypoint package.
 - Defines: HTTP routes, CLI commands or queue consumers; request and response wire schemas; the central
   error handler; the dependency wiring.
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
