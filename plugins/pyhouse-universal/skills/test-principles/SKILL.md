@@ -321,6 +321,11 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    never migrated reds here rather than in production. Where another project owns it, the suite creates
    only what the code reads, from the layout the code declares where it declares one (rule 5). A store
    with no schema has nothing here.
+9. **Each read the code has is tested on what it returns** — a read-only data-access class's as much as
+   one that also writes: rows arranged by rule 5, the result compared whole with the declared values
+   they map to, and a filtering read arranged as *Assert strength* recipes 1 and 2 state. A write test
+   does not cover a read it happens to call: a read that ignores its filter or drops a field passes
+   every test that looks only at the row just written.
 
 ### Reliability rules (local-vs-CI parity)
 
