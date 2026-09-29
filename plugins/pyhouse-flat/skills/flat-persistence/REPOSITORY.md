@@ -41,6 +41,8 @@ class FooRepository:
                     statement.on_conflict_do_update(
                         index_elements=[foo_table.c.external_id],
                         set_={"name": statement.excluded.name, "as_of": statement.excluded.as_of},
+                        # only where writes for one key can arrive out of order
+                        where=foo_table.c.as_of < statement.excluded.as_of,
                     )
                 )
         except _DRIVER_ERRORS as exc:
@@ -68,9 +70,8 @@ test can point it at a container without touching the environment.
 The conflict clause is derived from the statement's own `excluded` row, so the update set names the
 incoming values of the row that conflicted (`persistence` rule 15). The set is declared here, per
 write, and never holds the key matched on; a write with nothing to update on conflict says
-`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. Where
-writes for one external id can arrive out of order, the conflict clause is guarded on the stamp —
-`where=foo_table.c.as_of < statement.excluded.as_of` (`persistence` rule 16).
+`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. The
+marked `where=` is `persistence` rule 16's guard on the stamp.
 
 `upsert` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
 own conflict clause, never by asking whether its external id exists before writing.

@@ -112,7 +112,8 @@ async def record_foo(repository: FooRepository, delivery: FooChangePayload) -> N
 ```
 
 Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the
-data-access package's job (`persistence` rules 16 and 17).
+data-access package's job — the marked `where=` in `flat-persistence`'s `REPOSITORY.md` (`persistence`
+rules 16 and 17).
 
 ## The process definition — uvicorn
 

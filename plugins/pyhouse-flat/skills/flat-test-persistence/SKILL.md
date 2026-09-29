@@ -78,6 +78,17 @@ async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_r
     assert [tuple(row) for row in rows] == [(first_id, "second", _LATER)]
 
 
+# only where writes for one key can arrive out of order
+async def test_an_older_write_after_a_newer_leaves_the_newer(engine: AsyncEngine, conn: AsyncConnection) -> None:
+    repository = FooRepository(engine)
+    await repository.upsert(_a_foo(name="newer", as_of=_LATER))
+
+    await repository.upsert(_a_foo(name="older", as_of=_EARLIER))
+
+    rows = (await conn.execute(select(foo_table.c.name, foo_table.c.as_of))).all()
+    assert [tuple(row) for row in rows] == [("newer", _LATER)]
+
+
 async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: AsyncEngine) -> None:
     with pytest.raises(StorageWriteRejectedError) as exc_info:
         await FooRepository(engine).upsert(_a_foo(name="nul\x00"))
@@ -97,8 +108,7 @@ itself — a NUL character, which a Postgres text value cannot hold, is SQLSTATE
 data-exception class — so no constraint had to be invented for the test.
 
 Where a write resolves a conflict by doing nothing, the file gains the no-op test of rule 5; where it
-is guarded on an ordering stamp, the out-of-order test of rule 13; where it spans statements, the
-atomicity test of rule 10; where a method takes a batch, the two tests of rule 6; and a test of what
+spans statements, the atomicity test of rule 10; where a method takes a batch, the two tests of rule 6; and a test of what
 each read returns, rule 14, wherever the class reads.
 
 ## Other bindings
