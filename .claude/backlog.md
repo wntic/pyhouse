@@ -5,6 +5,17 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
+Nothing open.
+
+## Agreed
+
+Items 35–44 were decided on 2026-09-29 (35–41 as the orchestrator recommended: 35 a rule for a side
+effect after the store write; 36 settings checked before the app reports ready; 37 drop the promised
+blocklist; 38 name the component that unwraps a secret; 39 align the hook header; 40 a clearable field
+carries its presence; 41 all leftovers but the commit-folding one, which 44 settles, keeping `Foo.note`
+as the partial update's second field and saying why), item 4 on 2026-09-28; every other item agreed on 2026-09-28 has
+landed (D130–D137).
+
 ### 35. A side effect after the store write has no rule
 Found by item 19's review (lens 3). `hex-application` Compensation rule 1 puts a notification after
 `repo.create` with nothing after it, and command handler rule 5 forbids a `try/except`, so a partner
@@ -69,11 +80,6 @@ test have no way to carry it. Decide the command's shape for a clearable field.
 - The absent-row tests for `update` and `delete` are required in prose (`hex-test-repository-contract`)
   but are not template lines, so the template alone passes a repository that drops its zero-rowcount
   branch.
-
-## Agreed
-
-Items 42–44 were decided on 2026-09-29, item 4 on 2026-09-28; every other item agreed on 2026-09-28 has
-landed (D130–D137).
 
 ### 42. Rename the identifiers carried over from the reference application
 Decided by the maintainer on 2026-09-29. The skills still spell names taken from the application they
