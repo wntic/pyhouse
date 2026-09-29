@@ -45,6 +45,7 @@ opens its own — asserting through a fresh connection only where its own rollba
 
 ```python
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
@@ -70,7 +71,7 @@ async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_r
 ) -> None:
     repository = FooRepository(engine)
     await repository.upsert(_a_foo(name="first"))
-    first_id = (await conn.execute(select(foo_table.c.id))).scalar_one()
+    first_id: UUID = (await conn.execute(select(foo_table.c.id))).scalar_one()
 
     await repository.upsert(_a_foo(name="second", as_of=_LATER))
 
