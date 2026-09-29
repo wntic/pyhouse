@@ -148,9 +148,10 @@ entrypoint, the layer is leaking and the speed budget is gone.
 - Adding a new parameter would extend, not duplicate, an existing test set.
 
 **Every parameter set yields one reported case per item, never a loop inside one test** — a loop stops
-at the first failure and hides the rest. A test over a discovered set also asserts the set is non-empty;
-an empty parameter set reports as skipped, and the run goes green having checked nothing. Under this
-binding the set is read in the collection hook (`pytest_generate_tests`): a fixture cannot feed
+at the first failure and hides the rest. A discovered set is also asserted non-empty, by a separate test
+that does not take the parameters — an empty parameter set reports as skipped, so a check inside the
+parametrized body never runs, and the run goes green having checked nothing. Under this binding a
+discovered set is read in the collection hook (`pytest_generate_tests`): a fixture cannot feed
 parametrization.
 
 **Do not parametrize** when:
@@ -310,9 +311,12 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
 7. **Where a write takes a batch, one call carries two inputs sharing a key**, and one record holding
    the input the collapse keeps is asserted (`persistence` rule 17); under an ordering guard the newer
    stamp goes first, so a collapse that keeps the last input fails.
-8. **The schema the suite runs against is established once per session by the project's own schema
-   path** — its migrations, or the schema creation production runs — never by tables the suite writes
-   by hand, so a schema change that was never migrated reds here rather than in production.
+8. **Where the program owns the schema, the suite establishes it by the project's own schema path** —
+   its migrations, or the schema creation production runs — once per session, or per store where the
+   store is created per test, never by tables the suite writes by hand, so a schema change that was
+   never migrated reds here rather than in production. Where another project owns it, the suite creates
+   only what the code reads, from the layout the code declares where it declares one (rule 5). A store
+   with no schema has nothing here.
 
 ### Reliability rules (local-vs-CI parity)
 
