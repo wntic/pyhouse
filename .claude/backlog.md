@@ -5,7 +5,16 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-Nothing open.
+### 48. The flat store's settings class and the hex one are two words for one concept
+The flat family calls its store's settings class `PostgresSettings` (`postgres/postgres_settings.py`),
+the hex family `DbSettings` (`infrastructure/postgres/db_settings.py`). `naming` asks for one concept,
+one word; since item 45 put each in a module named for it, the difference is visible in every tree.
+Decide which name both families use.
+
+### 49. The flat loop's prose names a settings object its template never builds
+`flat-entrypoint` (~:179) says the loop starts "after `settings = MyappSettings()`", but the `_run`
+template neither builds that object nor imports the class; only the HTTP template shows the import. An
+agent copying the loop either invents the construction or drops the settings.
 
 ## Agreed
 
