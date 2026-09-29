@@ -62,10 +62,10 @@ async def resolve_settings(container: AsyncContainer) -> None:
         await container.get(factory.provides.type_hint)
 ```
 
-`resolve_settings` is the startup check `SKILL.md` requires, and each entrypoint calls it once before
-it serves or takes work; `create_container` never does. It resolves each type `SettingsProvider`
-declares, read off the provider itself so there is no second list, and the process lifetime keeps what
-it built for every later operation.
+`resolve_settings` is the startup check `SKILL.md` rule 2 requires, and each entrypoint calls it once
+before it serves or takes work; `create_container` never does. It resolves each type
+`SettingsProvider` declares, read off the provider itself so there is no second list, and the process
+lifetime keeps what it built for every later operation.
 
 Every add-on binding has the same parts, each in the place the declaration order gives it: a settings
 factory in `SettingsProvider`; in `InfrastructureProvider`, the client it needs — built by a factory that

@@ -134,7 +134,7 @@ adding a transport moves one directory. The catalogue spells the HTTP one `resta
 defect. Siblings are `cli/` and `worker/`.
 
 - Allowed: everything. An entrypoint builds the composition root, `src/myapp/containers.py`, at
-  startup, runs its settings check (`hex-wiring`) before it serves or takes work, and closes it at
+  startup, runs its settings check (`hex-wiring` rule 2) before it serves or takes work, and closes it at
   shutdown; the root itself is that one module, not the entrypoint package.
 - Defines: HTTP routes, CLI commands or queue consumers; request and response wire schemas; the central
   error handler; the dependency wiring.
