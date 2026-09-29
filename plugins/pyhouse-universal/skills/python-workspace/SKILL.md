@@ -168,7 +168,7 @@ typecheck:
 	uv run mypy packages/ services/ tests/
 
 test:  ## each member's suite from its own directory, then the root's own
-	for m in packages/* services/*; do (cd $$m && uv run pytest --rootdir .) || exit 1; done
+	for m in packages/* services/*; do [ -d $$m/tests ] || continue; (cd $$m && uv run pytest --rootdir .; rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 5 ]) || exit 1; done
 	uv run pytest
 
 verify: lint typecheck test  ## run before pushing
@@ -181,7 +181,8 @@ Two details in there are load-bearing. `uv sync --all-packages` is needed becaus
 syncs only the root project and leaves every member's dependencies uninstalled. And `run-*` targets
 `cd` into the member directory first: where a member's settings, and a shared library's that reads its
 own stem, resolve their dotenv files relative to the process working directory, a member launched from
-the repo root reads none of them.
+the repo root reads none of them. The `test` loop skips a member with no `tests/` directory and accepts pytest's
+exit status 5 — nothing collected — from one whose `tests/` holds none yet, and stops on any other failure.
 
 **Where members share a store, add what serves it — and nothing above changes.** The compose file gains
 the datastore as a service whose `profiles` name every runnable member that uses it, on a named volume.
