@@ -80,10 +80,10 @@ Consult `test-principles` for the testing constitution.
 
 ### The verifier's unit test
 
-1. **The verifier's unit test is `hex-test-capability-adapter`'s pure-CPU flavour** (its rules 2–3 and
-   20–22) — real keys and real signatures, settings and keys at module scope, no fixtures, and the file
+1. **The verifier's unit test is `hex-test-capability-adapter`'s pure-CPU flavour** (its rules 2, 3, 14
+   and 15) — real keys and real signatures, settings and keys at module scope, no fixtures, and the file
    under `tests/unit/infrastructure/<adapter>/`.
-2. **One test per check the verifier makes** (`hex-test-capability-adapter` rule 21) — the signature and
+2. **One test per check the verifier makes** (`hex-test-capability-adapter` rule 15) — the signature and
    each claim it validates or requires.
 3. **One signer for the whole suite.** The unit test and the integration fixtures mint tokens through
    the same helper, so a change to the claim shape cannot leave them disagreeing.
