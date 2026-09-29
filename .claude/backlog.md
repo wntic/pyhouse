@@ -5,6 +5,13 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
+Nothing open.
+
+## Agreed
+
+Items 45 and 46 were decided on 2026-09-30, item 4 on 2026-09-28. Every other agreed item has
+landed (D130–D145).
+
 ### 45. A settings module is named for its class, everywhere
 Decided by the maintainer on 2026-09-30. `python-packaging`'s rule — a module holding one class is named
 for it in snake_case — holds without a carve-out: `QuxSettings` lives in `qux_settings.py`,
