@@ -12,7 +12,7 @@ because they are about naming and Python's import system rather than about layer
 
 What they do *not* decide is which package a module belongs in. That is the architecture's job:
 `hex-architecture` (in the `pyhouse-hex` plugin) for a layered app, `flat-layered` (in
-`pyhouse-flat`) for a package-by-tech service.
+`pyhouse-flat`) for a package-by-technology service.
 
 ## When to use vs. neighbours
 

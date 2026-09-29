@@ -13,7 +13,7 @@ settings class is shown beside the adapter that reads it: the relational store's
 `hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`, `RedisSettings` in
 `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. The composition roots of that rule are,
 in this catalogue's layout, `src/myapp/containers.py` (the process's container), `migrations/env.py`
-(the migration environment, `hex-project-setup`) and `TestInfraProvider` with its fixtures in
+(the migration environment, `hex-project-setup`) and `TestInfrastructureProvider` with its fixtures in
 `tests/integration/conftest.py` (the test infrastructure, `hex-test-integration-setup`), which
 constructs settings with explicit values (`test-principles`).
 
@@ -181,13 +181,13 @@ adding a binding, find the right section and insert it after the latest declarat
   site.
 
 - **Import each class from the package that DIRECTLY re-exports it — one `from .module import *` hop —
-  never a grandparent** (`python-packaging`). This bites the nested infra layout: a repository class lives in
+  never a grandparent** (`python-packaging`). This bites the nested infrastructure layout: a repository class lives in
   `infrastructure/<store>/repositories/<x>.py`, so import it from the **`repositories` subpackage** —
   `from myapp.infrastructure.postgres.repositories import FooRepository` — **not** from the `<store>`
-  tech package. The tech-package form resolves at runtime but mypy reports `[attr-defined]`, because the
+  technology package. The technology-package form resolves at runtime but mypy reports `[attr-defined]`, because the
   intermediate `repositories/__init__.py` has a computed `__all__` mypy cannot evaluate across the
-  `from .repositories import *` hop. A class sitting directly under the tech package — the `engine` or
-  `settings` module, a capability adapter — is one hop away, so importing it from the tech package is
+  `from .repositories import *` hop. A class sitting directly under the technology package — the `engine` or
+  `settings` module, a capability adapter — is one hop away, so importing it from the technology package is
   correct.
 
 - No `from __future__ import annotations` (`python-style`).

@@ -69,7 +69,7 @@ every derived path and class name here, multiplying one careless choice across t
 | application command | `CreateBar` (subdomain derived, see below) | `CreateBarCommand` + `CreateBarHandler` | `application/bars/create_bar_command.py` + `application/bars/create_bar_handler.py` |
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |
 | datastore | named `<name>`, kind `<kind>` (e.g. `baz_store` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
-| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/redis_settings.py` — subpackage = the consuming tech; one settings class per configured component (`python-settings` rule 1) |
+| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/redis_settings.py` — subpackage = the consuming technology; one settings class per configured component (`python-settings` rule 1) |
 | repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repository-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
 | capability adapter | implements `ICanClassifyFoos`, adapter `http`, role `FooClassifier` | `HttpFooClassifier` | `infrastructure/http/http_foo_classifier.py` |
 | wire schema | `FooCreateRequest` for resource `foos` | `FooCreateRequest` | grouped into `restapi/schemas/foos.py` |
@@ -81,8 +81,8 @@ repository protocol the handler depends on (a repository protocol carries its ow
 repository dependency, fall back to the subdomain of the first domain entity it touches. So `CreateBar`
 depending on `IBarRepository` (subdomain `bars`) lands in `application/bars/`.
 
-**Infrastructure groups by external TECH, never by a domain subdomain and never under a catch-all
-`db/`.** The tech token is:
+**Infrastructure groups by external TECHNOLOGY, never by a domain subdomain and never under a catch-all
+`db/`.** The technology token is:
 
 - a repository's **store kind** — the kind of the datastore it sits on; with no datastore named, the
   project's single relational store under whatever kind it is named (block B: a project has at most one
@@ -94,7 +94,7 @@ depending on `IBarRepository` (subdomain `bars`) lands in `application/bars/`.
   is the vendor's own token, kept concrete: a cache, a document store and an index each get their
   own directory under their own name.
 - a capability adapter's **adapter** token — `infrastructure/jwt/`, `infrastructure/s3/`.
-- a settings class's **consuming tech** — the adapter of the capability that uses it, or the kind of the
+- a settings class's **consuming technology** — the adapter of the capability that uses it, or the kind of the
   datastore that uses it; a settings class with no consumer falls back to its own snake name.
 
 **Capability adapter class** = `<AdapterPascal><Suffix>`, where `Suffix` is the capability's agent-noun
@@ -188,7 +188,7 @@ subpackage, and the provider that injects it is wired in the one shared `contain
 
 **The shared substrate exists once, as the union of the contexts.** Per-context artifacts — everything
 under `domain/<subdomain>/` and `application/<subdomain>/`, a context's repositories and adapters under
-their tech subpackage, its entrypoint modules and per-resource schemas — are per context. These are
+their technology subpackage, its entrypoint modules and per-resource schemas — are per context. These are
 **one each for the whole app**, and writing them per context would clobber the other context's
 contributions. **Each entry below exists only where the app has the thing it names** — the rule is the
 union, not the list, so an app with no relational store carries no relational bootstrap row and a
@@ -221,7 +221,7 @@ same name, different shape — is never silently merged. Stop and surface it.
    first domain entity's when it has no repository dependency.
 3. Place an injected tunable value object by block A's row; how a settings class builds it is
    `hex-domain-model`'s.
-4. Select each infrastructure directory by the consuming technology, using block A's tech-token cases —
+4. Select each infrastructure directory by the consuming technology, using block A's technology-token cases —
    never by subdomain, never under a catch-all `db/`.
 5. Derive a repository's file stem from the aggregate for relational stores and the protocol for client
    stores, or an aggregate held on two stores lands two colliding files; select its implementation form

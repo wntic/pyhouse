@@ -176,7 +176,7 @@ src/myapp/
 ```
 
 `domain/` and `application/` mirror the same subdomain partition — `domain/foos/`, `application/foos/`.
-**`infrastructure/` groups by external tech, not by subdomain**: `infrastructure/postgres/`,
+**`infrastructure/` groups by external technology, not by subdomain**: `infrastructure/postgres/`,
 `infrastructure/redis/`, `infrastructure/s3/`, `infrastructure/jwt/` (the derivation is
 `hex-conventions`). A new subdomain adds a folder under `domain/` and `application/`; a new external
 technology adds one under `infrastructure/`.
@@ -267,7 +267,7 @@ layer-scoped test per forbidden import:
 1. Decide the entry path: an HTTP route → `restapi/…`, a scheduled job → `worker/…`.
 2. Sketch the use case as a CQRS handler in `application/<subdomain>/`.
 3. List what the handler needs from the outside world. Each is a protocol in `domain/<subdomain>/`.
-4. Implement each protocol as an adapter under `infrastructure/<tech>/`, grouped by the external
+4. Implement each protocol as an adapter under `infrastructure/<technology>/`, grouped by the external
    technology and never by subdomain (`hex-conventions`). Adapters import domain types, translate raw
    payloads, and raise domain exceptions (`exception-catalog`).
 5. Wire the adapters in `containers.py` and resolve the handler in the entrypoint.

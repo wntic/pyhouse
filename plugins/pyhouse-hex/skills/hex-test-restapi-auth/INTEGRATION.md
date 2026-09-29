@@ -117,24 +117,24 @@ A rank app adds `role: Role | None = None` before `**extra_claims`, importing `R
 
 ## The `container` substitution this skill adds
 
-`container`, `real_app` and `TestInfraProvider` live in `tests/integration/conftest.py` and are owned by
-`hex-test-integration-setup`. An app that declares auth adds one fixture parameter, one constructor
-field and one factory — and nothing else:
+`container`, `real_app` and `TestInfrastructureProvider` live in `tests/integration/conftest.py` and are
+owned by `hex-test-integration-setup`. An app that declares auth adds one fixture parameter, one
+constructor field and one factory — and nothing else:
 
 ```python
 from myapp.infrastructure.jwt import JwtSettings
 ```
 
 ```python
-    jwt_settings: JwtSettings,          # in container's signature; TestInfraProvider(..., jwt_settings=jwt_settings)
+    jwt_settings: JwtSettings,  # in container's signature; TestInfrastructureProvider(..., jwt_settings=jwt_settings)
 ```
 
 ```python
-        self._jwt_settings = jwt_settings   # in TestInfraProvider.__init__, which takes jwt_settings: JwtSettings
+        self._jwt_settings = jwt_settings  # in TestInfrastructureProvider.__init__(..., jwt_settings: JwtSettings)
 ```
 
 ```python
-    @provide(override=True)             # in TestInfraProvider
+    @provide(override=True)             # in TestInfrastructureProvider
     def jwt_settings(self) -> JwtSettings:
         return self._jwt_settings
 ```

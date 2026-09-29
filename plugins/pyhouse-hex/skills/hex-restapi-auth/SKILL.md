@@ -92,7 +92,7 @@ adapter's alone (rule 12).
 
 ### Template — PyJWT
 
-Placement (`infrastructure/jwt/`, the external tech), constructor injection, secret handling, the
+Placement (`infrastructure/jwt/`, the external technology), constructor injection, secret handling, the
 no-logging rule and not importing the port it satisfies (`ICanVerifyToken`) are
 `hex-capability-adapter`'s; this is the sync pure-CPU adapter that skill describes in prose, bound to
 PyJWT. Translation of the library's parse/verify errors follows `exception-catalog`.

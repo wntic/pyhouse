@@ -92,7 +92,7 @@ this set, because nothing ever fails to make you fix it.
 
 ## Pick a style first
 
-| | `hex-*` (ports and adapters) | `flat-*` (package by tech) |
+| | `hex-*` (ports and adapters) | `flat-*` (package by technology) |
 |---|---|---|
 | **Use when** | Business invariants must survive a change of database, queue or framework; two or more entrypoints drive the same rules | The service orchestrates external systems: workers, crawlers, pipelines, ETL, glue |
 | **Layers** | `domain/` → `application/` ← `infrastructure/`, entrypoints on top — canonical names | One package per technical role, named for the role; no fixed vocabulary |

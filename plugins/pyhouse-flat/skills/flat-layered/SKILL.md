@@ -4,7 +4,7 @@ description: Use when structuring a worker, crawler, pipeline, ETL job or integr
 when_to_use: Also when asked for a worker's or a pipeline's package layout, where a client class or a settings class belongs, whether a dependency deserves an interface, or how to lay out a single-distribution repository with no workspace around it.
 ---
 
-# Flat-Layered Architecture — package-by-tech, no ports
+# Flat-Layered Architecture — package-by-technology, no ports
 
 Covers project layout for services where the ports-and-adapters split (domain/application/
 infrastructure/entrypoints, `Protocol` ports, DIP) would add indirection with nothing to protect. The

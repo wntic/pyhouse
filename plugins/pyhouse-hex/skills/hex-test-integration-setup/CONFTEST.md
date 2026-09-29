@@ -116,7 +116,7 @@ def session_factory(_outer_connection: AsyncConnection) -> async_sessionmaker[As
     )
 
 
-class TestInfraProvider(Provider):
+class TestInfrastructureProvider(Provider):
     """Per-test infrastructure bindings, passed last to the real composition root so they
     supersede the production ones before anything resolves."""
 
@@ -149,7 +149,7 @@ async def container(
     from myapp.containers import create_container
 
     container = create_container(
-        TestInfraProvider(db_settings=db_settings, session_factory=session_factory),
+        TestInfrastructureProvider(db_settings=db_settings, session_factory=session_factory),
     )
     try:
         yield container
@@ -162,8 +162,8 @@ RPC service collects it as it stands and resolves its handlers from `container`.
 app carries adds its own fixtures to this file — each add-on's fixtures (the key-value store is the
 worked one) — and a REST entrypoint adds `real_app`. Each store add-on, and in an app that declares
 auth the verifier settings (`hex-test-restapi-auth`), adds one parameter, field and factory to
-`TestInfraProvider` and one parameter to `container`. With no relational store the base's Postgres
-fixtures go, and `TestInfraProvider` and `container` keep only the add-on parameters.
+`TestInfrastructureProvider` and one parameter to `container`. With no relational store the base's Postgres
+fixtures go, and `TestInfrastructureProvider` and `container` keep only the add-on parameters.
 
 ## Client-store fixtures — redis-py
 
@@ -204,21 +204,21 @@ a run split across workers gives each worker its own session container. A store 
 is emptied only behind the same disposability marker; with no relational store, the guard moves to this
 add-on. The same app's `container`
 binds that client, so an entrypoint reaching `Baz` reads and writes the test's own store, never
-whatever store the environment names: one fixture parameter passed on to `TestInfraProvider`, and there
-one constructor parameter, one field and one factory. The factory replaces the client binding itself, so
-the production factory's close never runs and the fixture's does.
+whatever store the environment names: one fixture parameter passed on to `TestInfrastructureProvider`,
+and there one constructor parameter, one field and one factory. The factory replaces the client binding
+itself, so the production factory's close never runs and the fixture's does.
 
 ```python
-    redis_client: Redis,                # in container's signature; TestInfraProvider(..., redis_client=redis_client)
+    redis_client: Redis,  # in container's signature; TestInfrastructureProvider(..., redis_client=redis_client)
 ```
 
 ```python
-        redis_client: Redis,            # in TestInfraProvider.__init__
+        redis_client: Redis,            # in TestInfrastructureProvider.__init__
     ) -> None:
         ...
         self._redis_client = redis_client
 
-    @provide(override=True)             # in TestInfraProvider
+    @provide(override=True)             # in TestInfrastructureProvider
     def redis_client(self) -> Redis:
         return self._redis_client
 ```

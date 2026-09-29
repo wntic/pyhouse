@@ -1,6 +1,6 @@
 ---
 name: hex-capability-adapter
-description: Use when implementing an `ICan<Verb>` capability against a real external system — the adapter under `infrastructure/<tech>/` wrapping an SDK client, an HTTP gateway or a pure-CPU library, translating the library's own errors into `exception-catalog` classes. Not aggregate CRUD — that is `hex-persistence` or `hex-store-repository`; the protocol is `hex-domain-ports`.
+description: Use when implementing an `ICan<Verb>` capability against a real external system — the adapter under `infrastructure/<technology>/` wrapping an SDK client, an HTTP gateway or a pure-CPU library, translating the library's own errors into `exception-catalog` classes. Not aggregate CRUD — that is `hex-persistence` or `hex-store-repository`; the protocol is `hex-domain-ports`.
 paths: ["**/infrastructure/**"]
 ---
 
@@ -23,7 +23,7 @@ here, into the classes `exception-catalog` owns.
 - An in-memory test stand-in for this capability (the `Fake<Capability>` flavor) → `hex-test-application-handler`.
 - Testing the real adapter — containerized backend, `respx`-intercepted HTTP, or pure CPU → `hex-test-capability-adapter`.
 - A token verifier — its port, its adapter and the dependency that resolves it → `hex-restapi-auth`; it is a pure-CPU adapter in this skill's sense, bound there.
-- The `infrastructure/<tech>/` folder, the module name and the class name → `hex-conventions` and `naming`.
+- The `infrastructure/<technology>/` folder, the module name and the class name → `hex-conventions` and `naming`.
 
 ## Template — httpx, pydantic-settings, dishka
 

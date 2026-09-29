@@ -203,7 +203,7 @@ second copy of this skill.
 ### File layout
 
 ```
-src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra groups by tech
+src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infrastructure groups by technology
 ├── __init__.py
 ├── connection.py             # create_<store>_client(settings) — shown in the template above
 ├── <store-kind>_settings.py  # the store's settings class, in the module named for that class (RedisSettings → redis_settings.py) — shown in the template above
