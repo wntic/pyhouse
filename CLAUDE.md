@@ -148,6 +148,10 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
   current `main`, or from the `integration/<name>` branch it will land in.
 - A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
   rebase-merge.
+- A fix to work not yet landed is committed as a fixup of the commit it corrects and folded into it
+  before the branch lands (`git-branching` rule 4; the commands are in `.claude/commands/commit.md`
+  step 5). The merge then keeps every commit and none of them fixes another, so `/release` never
+  counts a patch for a defect no release carried.
 - History on `main` is never rewritten, and a branch is deleted once it has landed.
 - `integration/<name>` is a short-lived branch that combines several fix branches so they are verified
   together before they reach `main`. It lands with a merge commit like any branch, and it and the

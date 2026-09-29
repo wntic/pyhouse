@@ -2084,3 +2084,17 @@ kept batching in the flat family on a reading of the item-14 decision that decis
 review fixes are folded into the commits they correct before a branch lands (item 44).
 **Reverse by:** removing items 42–44 from the backlog before they land; each kept call is reversed as its
 own entry says.
+
+### D139 — Review fixes to unlanded work are folded before a branch lands
+Taken by the maintainer (backlog item 44, D138). A correction to a commit a branch already carries is
+committed with `git commit --fixup=<sha>` and folded with `git -c sequence.editor=: rebase -i
+--autosquash main` — or onto the `integration/<name>` branch it lands in — before the merge; on an
+`integration/<name>` branch itself `--rebase-merges` is added so the merges it combined survive (without
+it git 2.39 silently drops them, verified), and folding there happens only while no branch has been
+started from it. Recorded in `CLAUDE.md` *Branching*, `/commit` step 5 and `/kickoff`, each pointing at
+`git-branching` rule 4 rather than restating it. The merge commit still keeps every commit, but none
+fixes another, so `/release` reads no patch for a defect no release carried and meets no unclassifiable
+`fixup!` subject. The existing history is left as it is.
+**Reverse by:** removing the bullet from `CLAUDE.md` *Branching*, the paragraph from
+`.claude/commands/commit.md` step 5 and the clause from `/kickoff`; fixes then land as `fix` commits of
+their own and count toward the next patch.

@@ -47,7 +47,8 @@ universal plugin holds what binds any Python project, including a library or a C
 
 Each change goes on its own branch and lands with a merge commit, as `CLAUDE.md` records. Every change
 to a skill is reviewed with `/review-skills` before it is committed; every agent that writes or reviews
-skills is given `QUESTIONS.md`. Commit after each verified step. Merging to `main`, pushing and cutting
+skills is given `QUESTIONS.md`. Commit after each verified step; a fix to a commit the branch already
+carries is a fixup, folded into it before the branch lands. Merging to `main`, pushing and cutting
 a release are the maintainer's call unless they said otherwise in this session.
 
 ## Keeping this command true
