@@ -44,7 +44,7 @@ first thing to get right.
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** — a unique key-prefix, collection or database name, or, where the adapter fixes its namespace in code, a store the suite itself started — created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** (rule 14), created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
 
 ### Relational
 
@@ -98,6 +98,17 @@ async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncS
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
+async def test_get_by_id_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
+    repo = FooRepository(session_factory=sf)
+    missing = uuid.uuid4()
+
+    with pytest.raises(NotFoundError) as exc:
+        await repo.get_by_id(missing)
+
+    assert exc.value.context["id"] == str(missing)
+
+
+# only where the port declares update
 async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo(name="alpha")
@@ -110,6 +121,7 @@ async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSessio
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
+# only where the port declares delete
 async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo()
@@ -150,7 +162,7 @@ async def test_duplicate_name_on_insert_raises_conflict(sf: async_sessionmaker[A
     assert exc.value.context["constraint"] == "uq_foos_name"
 
 
-# only where Foo has a natural key
+# only where Foo has a natural key and the port declares update
 async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
     await repo.create(_foo(name="alpha"))
@@ -164,6 +176,7 @@ async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[A
     assert exc.value.context["constraint"] == "uq_foos_name"
 
 
+# only where the port declares update
 async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo()
@@ -220,6 +233,8 @@ async def test_count_applies_the_filter(sf: async_sessionmaker[AsyncSession]) ->
 
     assert await repo.count(filter=FooListFilter(name="a")) == 1
 ```
+
+`update` and `delete` of an id never created each get the same test as `get_by_id`'s absent row (rule 1).
 
 **Compare every field, never the entity.** An entity's equality is by id (`hex-domain-model`), so
 `loaded == foo` passes a repository that maps the id and drops or swaps every other column;
