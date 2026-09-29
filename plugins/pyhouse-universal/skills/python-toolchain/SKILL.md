@@ -48,6 +48,7 @@ dependencies = []
 dev = [
     "mypy",
     "pytest",
+    "pytest-asyncio>=0.26",  # where the suite has async tests; 0.26: asyncio_default_test_loop_scope
     "ruff",
 ]
 
@@ -88,18 +89,21 @@ plugins = ["pydantic.mypy"]  # only with pydantic
 addopts = "--import-mode=importlib"
 pythonpath = ["."]
 asyncio_mode = "auto"                            # where the suite has async tests
-asyncio_default_fixture_loop_scope = "session"   # where the suite has async tests
-asyncio_default_test_loop_scope = "session"      # where the suite has async tests
+asyncio_default_fixture_loop_scope = "session"   # where a session-scoped async resource exists
+asyncio_default_test_loop_scope = "session"      # where a session-scoped async resource exists
 filterwarnings = ["error"]
 ```
 
 `--import-mode=importlib` lets two test modules with one basename live in different directories — a
 `test_foo.py` under both `tests/unit/` and `tests/integration/` — without an `__init__.py` in every
-test directory; because that mode puts nothing on `sys.path`, `pythonpath = ["."]` is what lets a test
-import shared test support by package (`tests.unit.fakes`, `tests.helpers`). `filterwarnings` is
-`test-principles` reliability rule 8. The three async lines are `test-principles`' async mode and its
-one session loop (*Fixture scope rules*): both loop scopes are required, and the async plugin they
-need is brought by the family's setup skill.
+test directory. `pythonpath = ["."]` puts the distribution's root on the runner's path, so a test
+imports shared test support by package (`tests.helpers`) — in a single distribution; in a workspace,
+`python-workspace`. `filterwarnings` is `test-principles` reliability rule 8. The async lines are
+`test-principles`' async mode and its one session loop (reliability rule 7, *Fixture scope rules*): the
+loop scopes are required where a session-scoped async resource exists. The async lines and
+`pytest-asyncio` go in together or not at all — pytest rejects a key no installed plugin declares, and
+`filterwarnings = ["error"]` turns that into a failed start — and the plugin is a development
+dependency (rule 10) floored at 0.26, where `asyncio_default_test_loop_scope` first ships (rule 9).
 
 At a workspace root the same tables are written once; mypy's `files` and `mypy_path` name the member
 directories instead of `src`. A library, and a service that runs a single process, remove the `main`
@@ -191,8 +195,8 @@ there. Either is compliant once written; the setting drives the formatter as wel
 11. **The test runner's configuration is one block in the same file.** It lets two test modules share
     a basename in different directories, puts the tree root on the runner's path so a test imports
     shared test support by package rather than by path, and holds what `test-principles` requires of
-    the run — a warning failing it, and where the suite has async tests, async-ness and one session
-    loop declared once.
+    the run — a warning failing it; where the suite has async tests, async-ness declared once; and where
+    it holds a session-scoped async resource, one session loop.
 
 ## Hard stops
 
