@@ -218,7 +218,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 - `test_partial_update_leaves_unspecified_fields_untouched` — set one field with a real value and another with `None`; assert the `None` field is **unchanged** and the real field is updated. This is the partial-update contract.
 - `test_update_unknown_id_raises_not_found`.
-- `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `FooConflictError`.
+- `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `FooConflictError` — only where Foo has a natural key.
 
 #### `delete` handler
 

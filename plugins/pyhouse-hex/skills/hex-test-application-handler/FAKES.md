@@ -7,7 +7,7 @@ satisfies them.
 ## CRUD repository fake
 
 ```python
-from collections.abc import Sequence
+from collections.abc import Sequence  # only where the port lists
 from dataclasses import replace
 from uuid import UUID
 
@@ -15,7 +15,11 @@ from myapp.domain.exceptions import (
     FooConflictError,  # only where Foo has a natural key
     NotFoundError,
 )
-from myapp.domain.foos import Foo, FooListFilter, FooSort
+from myapp.domain.foos import (
+    Foo,
+    FooListFilter,  # only where the port lists
+    FooSort,  # only where the port lists
+)
 
 __all__ = ["FakeFooRepository"]
 
@@ -26,6 +30,7 @@ class FakeFooRepository:
         self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
         self.updated: list[UUID] = []  # call record — ids passed to update(), in order
 
+    # only where the port lists
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
         # insertion order stands in for creation order
         matching = self._matching(filter)
@@ -38,9 +43,11 @@ class FakeFooRepository:
             ordered = matching
         return [replace(f) for f in ordered[filter.offset : filter.offset + filter.limit]]
 
+    # only where the port lists
     async def count(self, *, filter: FooListFilter) -> int:
         return len(self._matching(filter))
 
+    # only where the port lists
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
         # One condition per scoping field the filter declares.
         return [f for f in self._store.values() if filter.name is None or f.name == filter.name]
