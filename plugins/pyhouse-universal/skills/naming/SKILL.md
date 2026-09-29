@@ -271,9 +271,11 @@ seconds.
   (`conf`, `req`). Four kinds are allowed, and the examples given for the first two name the kind
   rather than enumerate its members: acronyms the domain already writes that way (`http`, `url`, `id`,
   `db`, `io`, `csv`, `xml`), technology names (`postgres`, `redis`, `s3`), the names Python's own style
-  gives — `self` and `cls` as a method's first parameter, and `exc` for an exception in hand
-  (`except … as exc`, a handler's parameter) — and the conventional throwaways `i`, `j` and `_`, which
-  carry no meaning to abbreviate and are bounded by the scope rule above rather than by this one.
+  gives — `self` and `cls` as a method's first parameter, `exc` for an exception in hand
+  (`except … as exc`, a handler's parameter), and the standard library's own `exc_type` and `exc_info`
+  (the data model's `__exit__` parameter, pytest's and logging's `exc_info`) — and the conventional
+  single letters, the throwaways `i`, `j` and `_` and a type parameter (`T`, `S`), which carry no
+  meaning to abbreviate and are bounded by the scope rule above rather than by this one.
   An acronym the domain genuinely writes that way qualifies whether or not it is printed here; a word
   you shortened yourself never does.
 - **Acronym casing is a project-wide choice made once** — `HttpClient` everywhere or `HTTPClient`
