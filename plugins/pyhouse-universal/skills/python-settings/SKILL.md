@@ -45,6 +45,7 @@ class FooSettings(BaseSettings):
         env_prefix="MYAPP_FOO_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     url: str
@@ -53,9 +54,10 @@ class FooSettings(BaseSettings):
 ```
 
 Each `model_config` key is one rule: `env_prefix` is the component's namespace (rule 2), `env_file` reads
-the local dotenv file where one exists and the real environment where it does not (rule 2), and
-`extra="ignore"` keeps the namespace non-strict (rule 2). `url` and `api_key` are required and have no
-default (rules 4 and 8); `timeout_seconds` is a tunable and has none either (rule 5). `SecretStr` is
+the local dotenv file where one exists and the real environment where it does not (rule 2),
+`extra="ignore"` keeps the namespace non-strict (rule 2), and `hide_input_in_errors` keeps a failed
+build from printing the values it was given, a secret among them (rule 7). `url` and `api_key` are
+required and have no default (rules 4 and 8); `timeout_seconds` is a tunable and has none either (rule 5). `SecretStr` is
 this binding's secret type and `.get_secret_value()` its unwrap (rules 7 and 9); a derived value is a
 `@property` on the class (rule 10), a validator a `@field_validator` (rule 12). The module builds
 nothing: the composition root calls the class — `settings = FooSettings()` inside `main()`, or in the
