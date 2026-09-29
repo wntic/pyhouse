@@ -1,6 +1,6 @@
 ---
 name: python-workspace
-description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
+description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, run each member's test suite from its own directory, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
 when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per runnable member.
 ---
 
@@ -77,16 +77,23 @@ members = ["packages/*", "services/*"]
 # [tool.ruff*] and [tool.mypy]: python-toolchain's tables, whole, written here once
 
 [tool.pytest.ini_options]
-# python-toolchain's keys, whole, and:
-testpaths = ["packages", "services", "tests"]
+# python-toolchain's keys, except `pythonpath`, which lists only what this root loads (below), and:
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = ["ruff", "mypy", "pytest"]
 ```
 
 The test configuration is whole here and nowhere else (rule 6): `python-toolchain`'s block, whose
-import mode is what lets two members each keep a `test_exceptions.py` without a collision, plus
-`testpaths` naming the member groups.
+import mode is what lets two members each keep a `test_exceptions.py` without a collision, with
+`testpaths` naming each run's own `tests/`. **Each member's suite runs from that member's directory, with
+the member as the runner's root** (rule 10), and the root's own `tests/` runs from the root — the `test`
+target below does both. A member's tests import their own support (`tests.unit.fakes`, `tests.helpers`)
+under a name that resolves to that member's tree, and one run over the whole repository cannot give them
+that: with the root as the runner's root, `pythonpath = ["."]` makes `tests` the repository's own
+directory and no member's, and listing every member's directory instead lets the first one listed
+shadow every other member's `tests`. Under the import mode above the runner's root decides what `tests`
+names, while a `pythonpath` entry resolves against this file, so the root block carries no `.`.
 
 The root project is a **workspace container plus shared tooling config, with no runtime code of its
 own**. Nothing importable lives at the root; every line of shipped code sits inside a member.
@@ -160,7 +167,8 @@ fmt:
 typecheck:
 	uv run mypy packages/ services/ tests/
 
-test:
+test:  ## each member's suite from its own directory, then the root's own
+	for m in packages/* services/*; do (cd $$m && uv run pytest --rootdir .) || exit 1; done
 	uv run pytest
 
 verify: lint typecheck test  ## run before pushing
@@ -180,9 +188,10 @@ the datastore as a service whose `profiles` name every runnable member that uses
 The Makefile gains a `migrate` target, the only sanctioned way schema changes reach a database, which
 `cd`s into the owning library before running the migration tool (rules 3 and 4). The store's test
 fixtures live in a pytest plugin module beside that library's own tests —
-`packages/myschema/tests/myschema_testing.py` — loaded repository-wide by `-p myschema_testing` in
-`addopts` and `packages/myschema/tests` added to `pythonpath`; a plugin is registered once per session, so
-every member shares one container. What goes inside that module, and the test dependencies and
+`packages/myschema/tests/myschema_testing.py` — loaded by `-p myschema_testing` in `addopts` and
+`packages/myschema/tests` in the root block's `pythonpath`, which resolves against the root file and so
+holds in every member's run. Every member loads that one module rather than a copy, and each member's
+run starts its container once. What goes inside that module, and the test dependencies and
 event-loop scopes it needs, are the member family's integration-setup skill's; this root owns only the
 two settings that load it. Infrastructure with its own schema owner — a workflow engine, a metrics store
 — gets its own datastore and its own named volume, never the members' database.
@@ -192,12 +201,13 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
 - **Another workspace tool in place of uv.** Poetry path dependencies, PDM local sources, Pants and
   Bazel all express the same two things: the member list declared once at the root, and each member
   pinning its in-repo dependencies through an edge the tool itself resolves. The member-glob syntax,
-  the lock file and the sync command change; rules 1–9 do not. Rule 5 is the one to carry over
+  the lock file and the sync command change; rules 1–10 do not. Rule 5 is the one to carry over
   literally — whatever the tool, the edge is *declared*, never faked with a path insert.
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
   `invoke` and `nox` give the same one-discoverable-command-set-at-the-root property; a dev Kubernetes
   cluster or Tilt gives the same per-member profile. What must survive either swap: one command syncs
-  *every* member and not only the root, each runnable member still starts from its own directory, one
+  *every* member and not only the root, each member's suite runs with that member as the runner's root,
+  each runnable member still starts from its own directory, one
   command applies migrations wherever members share a store, and a cleanup command names what it
   destroys instead of sweeping the project.
 
@@ -236,8 +246,8 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
    length, the interpreter floor (whose value is `python-style`'s), the lint target, the test-runner
    configuration: the *values* are the project's to choose, and what the workspace fixes is that they
    live in one file. A member overrides one only for a genuine per-package exception, and never the test-runner's own configuration block —
-   declaring it in a member moves the runner's rootdir down to that member, and every root-relative
-   path the test configuration carries then resolves against a directory nobody wrote it for.
+   declaring it in a member moves the configuration file down to that member, and every path the
+   test configuration carries then resolves against a directory nobody wrote it for.
 7. **Runnable members never import each other.** Two of them needing the same code means that code
    belongs in a library member. A deployable-to-deployable import is what turns a workspace of
    independent deployables into one program.
@@ -249,6 +259,11 @@ two settings that load it. Infrastructure with its own schema owner — a workfl
 9. **A cleanup command names what it destroys.** It removes the one volume or artifact it is for, never
    everything the project holds — `docker compose down -v` drops every volume, application data
    included.
+10. **Each member's test suite runs with that member as the runner's root**, from the member's own
+    directory, and the repository's own tests run from the root. A member's tests import their own
+    support under a name that resolves to that member's tree; a single run from the root resolves that
+    name to the repository's directory or to whichever member it finds first, and a member's suite then
+    imports another member's support or none.
 
 ## Hard stops
 

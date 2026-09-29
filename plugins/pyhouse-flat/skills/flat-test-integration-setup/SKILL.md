@@ -161,8 +161,9 @@ pure-unit collection pays nothing for it.
 
 - **One shared instance of these fixtures, where several distributions in one repository share a
   datastore.** The bodies move verbatim into a pytest plugin module beside the tests of the library that
-  owns the schema, registered once per session from the repository root, so every member shares one
-  container instead of starting one each (`python-workspace` carries the root configuration). Three things
+  owns the schema, registered from the repository root's configuration, so every member loads the one
+  module instead of a copy each (`python-workspace` carries the root configuration and runs each
+  member's suite). Three things
   change and nothing else does: every environment name follows the owning library rather than a
   dependant, the migration subprocess runs from that library's directory, and **nothing in the module is
   autouse** — a plugin is loaded for every collection in the repository, so `truncate_all` keeps its body

@@ -94,7 +94,8 @@ entrypoint, the layer is leaking and the speed budget is gone.
    from the consuming test outward, so a fixture defined down-tree is visible only to tests under it —
    and a fixture up-tree that consumes a down-tree one is usable only from there.
 3. **Fixtures several distributions share live in one module registered once per session** — a pytest
-   plugin, never a conftest copied into each member, which starts one container per member. It sits
+   plugin, never a conftest copied into each member, which is two copies of one setup waiting to
+   diverge. It sits
    beside the tests of the library that owns what it provisions, never in `src/`: test support does not
    ship in the wheel.
 4. **Nothing is autouse except the suite's safety guard, its schema setup and its per-test isolation

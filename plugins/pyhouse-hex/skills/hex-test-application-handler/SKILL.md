@@ -176,8 +176,9 @@ from tests.unit.fakes import FakeFooRepository
 ```
 
 Living under `tests/` is what keeps fakes out of production import graphs; the re-export only spares
-each test from knowing the file layout. `tests.unit.fakes` imports only with the repository root on the
-test runner's path — the `pythonpath` of `python-toolchain`'s `[tool.pytest.ini_options]` block.
+each test from knowing the file layout. `tests.unit.fakes` resolves against the
+distribution's own root — in a single distribution, through `python-toolchain`'s
+`[tool.pytest.ini_options]` block; in a workspace, `python-workspace`.
 
 **Read `FAKES.md`** in this skill's directory before writing or extending a fake under
 `tests/unit/fakes/` — the CRUD repository fake and the test that pins its copy contract; its storage and
