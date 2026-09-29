@@ -2195,3 +2195,31 @@ description, rule 15 and section; `hex-application` Compensation rules 1 and 8, 
 `hex-architecture`'s table row and check 11; `hex-persistence` rule 7; the endpoint, schema, domain-model
 and `hex-test-restapi-endpoint` text; `hex-test-application-handler`'s tests, checklists, description and
 `FAKES.md`; and the index lines.
+
+### D144 — Template identifiers are derived by `naming`; an external system is `Qux`; the ordering guard is a marked line
+Taken by the maintainer (backlog item 42, D138), after a four-lens review. The flat templates spelled the
+reference application's names on top of the placeholders; each is renamed to what `naming` derives. The
+external system, named after its aggregate (`foo_api`, `FooClient`, `FooApiSettings`, `FooClientError`,
+and python-settings' and exception-catalog's examples), becomes `Qux` — a new CONVENTIONS row: an external
+system the service calls, never an aggregate, its names derived by `naming` and its place the family's
+layout — with `QuxClient`, `QuxSettings` under `MYAPP_QUX_`, `QuxRequestFailedError` and `qux_stub`. The
+record's key `reference` over a wire `ref` becomes `external_id` over a wire `id`; the stamp `observed_at`
+becomes `as_of`, fed by the source's own stamp where it has one and the fetch instant only where it has
+none; `run_once` returning `RunResult(recorded)` becomes `sync_foos` returning `FooSyncResult(fetched_count)`,
+and the webhook's `record_foo` returns nothing behind a 204, since its count was a constant; the repository
+write `record` (the single-row sibling of the sample's `record_batch`) becomes `upsert`; `foo_record.py`
+and `FooDelivery` become `foo_recording.py` and `FooChangePayload`; `to_foo`, `_to_foo`, `get_engine` and
+`get_version` become `build_foo`, `_row_to_foo`, `create_engine` and `read_installed_version`.
+`fetch_foos` and `FooPayload` stay, since `naming` derives them as written. `Baz` and `Qux` join the
+placeholder lists in `CLAUDE.md`, skills/README.md and meta-skill-author rule 8, which rule 4 and the
+CONVENTIONS paragraph now point at. The flat upsert gains `persistence` rule 16's guard as one marked line
+(`# only where writes for one key can arrive out of order`) and `flat-test-persistence` the out-of-order
+test under the same marker, reversing the presentation D131, D134 and D136 chose; the obligation is
+unchanged (Postgres 17: 16 passed with the guard, the out-of-order test fails without it). Review fixes
+carried with it: python-settings' credential field marked optional, both repository templates' aliased
+import split for ruff's isort, and the update-set test's id annotated for mypy --strict.
+**Reverse by:** from the parent of the commits that added this entry, restoring the flat skills
+(flat-layered, flat-entrypoint and `HTTP.md`, flat-persistence's templates, the three flat test skills),
+`hex-persistence/REPOSITORY.md`'s import, python-packaging, python-settings, python-toolchain,
+exception-catalog, python-versioning, test-principles, meta-skill-author (rules 4 and 8, the CONVENTIONS
+row and paragraph), skills/README.md and `CLAUDE.md`'s placeholder sentence.
