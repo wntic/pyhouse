@@ -149,7 +149,7 @@ def _translate(exc: DBAPIError | OSError | PoolTimeoutError, context: dict[str, 
 def _map_integrity_error(exc: IntegrityError) -> Exception:
     cause = exc.orig.__cause__ if exc.orig else None
     constraint = getattr(cause, "constraint_name", None) if cause else None
-    pgcode = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
+    sqlstate = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
 
     if constraint == "uq_foos_name":
         return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
@@ -158,7 +158,7 @@ def _map_integrity_error(exc: IntegrityError) -> Exception:
 
     return ConflictError(
         "integrity violation",
-        {"constraint": constraint or "unknown", "pgcode": pgcode or "unknown"},
+        {"constraint": constraint or "unknown", "sqlstate": sqlstate or "unknown"},
     )
 
 
