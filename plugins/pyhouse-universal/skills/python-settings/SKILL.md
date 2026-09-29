@@ -31,7 +31,8 @@ handed it.
 
 ## Template — pydantic-settings
 
-The settings module of the component it configures — one component, one class:
+`qux_settings.py`, the settings module of the component it configures — one component, one class, and
+the module named for that class (`python-packaging`), never a bare `settings.py`:
 
 ```python
 # only where the system takes a credential

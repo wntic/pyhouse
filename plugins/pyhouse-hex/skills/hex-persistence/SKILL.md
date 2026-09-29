@@ -51,7 +51,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 
 ```
 src/myapp/infrastructure/postgres/
-├── settings.py                    # DbSettings
+├── db_settings.py                 # DbSettings
 ├── engine.py                      # engine and session factories — REPOSITORY.md
 ├── metadata.py                    # the shared MetaData with naming_convention
 ├── tables/

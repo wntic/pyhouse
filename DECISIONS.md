@@ -2247,3 +2247,20 @@ by reading); `resolve_settings` walking dishka's `Provider.factories` (a rename 
 restoring `UNIT_OF_WORK.md`'s header, the two routing lines in `hex-persistence/SKILL.md` and
 `hex-application`'s pointer; restoring `naming`'s three kinds; renumbering the declaration-order list;
 removing the `__all__` line.
+
+### D146 — A settings module is named for its class, with no carve-out
+Taken by the maintainer (backlog item 45, 2026-09-30), after a four-lens review. `python-packaging`'s rule
+that a module holding one class is named for it in snake_case now holds for settings classes too, and its
+examples show one (`qux_settings.py` → `QuxSettings`). `flat-layered` rule 7 used to require a bare
+`settings.py` inside each component's package, and `hex-conventions`' settings row allowed `settings.py`
+where a subpackage configured one component and `<component>_settings.py` where it configured several;
+both are reversed, so a second upstream no longer renames the first one's module. Templates move to
+`qux_settings.py`, `postgres_settings.py`, `db_settings.py`, `redis_settings.py`, `jwt_settings.py` and
+`foo_classifier_settings.py`, with their relative imports and re-exports; "never a bare `settings.py`" is
+stated once, in `python-settings`, which every service reads. `naming` now says a role suffix alone names
+nothing, `Settings` included, so the flat process's bare `Settings` becomes `MyappSettings` in
+`myapp_settings.py`, named for the distribution as its `MYAPP_` prefix is (chosen over
+`ProcessSettings`), and where `entrypoints/` holds several processes each class is named for its process.
+**Reverse by:** from the parent of the commits that added this entry, restoring `hex-conventions`'
+one/several split and `flat-layered` rule 7's `settings.py`, renaming the template paths, relative imports
+and re-exports back, and restoring `naming`'s role-suffix sentence and `python-packaging`'s examples.

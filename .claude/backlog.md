@@ -9,15 +9,8 @@ Nothing open.
 
 ## Agreed
 
-Items 45 and 46 were decided on 2026-09-30, item 4 on 2026-09-28. Every other agreed item has
-landed (D130–D145).
-
-### 45. A settings module is named for its class, everywhere
-Decided by the maintainer on 2026-09-30. `python-packaging`'s rule — a module holding one class is named
-for it in snake_case — holds without a carve-out: `QuxSettings` lives in `qux_settings.py`,
-`RedisSettings` in `redis_settings.py`, never in a bare `settings.py`. `flat-layered` rule 7,
-`hex-conventions`' settings row and every template, tree line and import that spells `settings.py`
-change to match.
+Item 46 was decided on 2026-09-30, item 4 on 2026-09-28. Every other agreed item has landed
+(D130–D146).
 
 ### 46. Rename the abbreviations `naming` bans in the templates
 Decided by the maintainer on 2026-09-30. `cmd`, `repo`, `sf`, `fid`, `creds`, `trans` and any other

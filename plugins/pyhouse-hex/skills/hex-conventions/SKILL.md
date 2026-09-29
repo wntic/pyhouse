@@ -69,7 +69,7 @@ every derived path and class name here, multiplying one careless choice across t
 | application command | `CreateBar` (subdomain derived, see below) | `CreateBarCommand` + `CreateBarHandler` | `application/bars/create_bar_command.py` + `application/bars/create_bar_handler.py` |
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |
 | datastore | named `<name>`, kind `<kind>` (e.g. `baz_store` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
-| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/settings.py` — subpackage = the consuming tech; one settings class per configured component (`python-settings` rule 1) — `settings.py` where the subpackage configures one, `<component>_settings.py` each where it configures several, as a shared `http/` does |
+| settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/redis_settings.py` — subpackage = the consuming tech; one settings class per configured component (`python-settings` rule 1) |
 | repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repo-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
 | capability adapter | implements `ICanClassifyFoos`, adapter `http`, role `FooClassifier` | `HttpFooClassifier` | `infrastructure/http/http_foo_classifier.py` |
 | wire schema | `FooCreateRequest` for resource `foos` | `FooCreateRequest` | grouped into `restapi/schemas/foos.py` |

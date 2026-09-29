@@ -242,7 +242,8 @@ subject in front of it says which one, so the name passes the six tests. The rol
 
 `CreateFooHandler`, `FooPayload`, `ImportResult`, `FooUniquenessService` and `FooRepository` pass as
 written. Two conditions keep the carve-out from swallowing the rule: **the subject is still there** —
-`Handler`, `Result`, `Payload` or `Service` alone names nothing — and **the class actually plays that
+a role suffix alone (`Handler`, `Result`, `Settings`, `Service`) names nothing, so a distribution's own
+settings class takes the distribution's name (`MyappSettings`) — and **the class actually plays that
 role** in this architecture. A `FooResult` that no handler or run returns, a `FooService` that is a
 client, a `FooHandler` that is not a use case's handler is the vague noun it looks like, and the table
 above applies to it. Conversely, `FooStorage`, `FooStore` or `FooDao` on the class that owns a

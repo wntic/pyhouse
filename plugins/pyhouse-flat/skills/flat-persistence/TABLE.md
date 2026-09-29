@@ -45,10 +45,10 @@ every table module once for its registration side effect (`flat-project-setup`),
 the whole schema. `src/myapp/postgres/__init__.py` re-exports the modules that declare `__all__`:
 
 ```python
-from . import engine, foo_repository, settings
+from . import engine, foo_repository, postgres_settings
 from .engine import *
 from .foo_repository import *
-from .settings import *
+from .postgres_settings import *
 
-__all__ = engine.__all__ + foo_repository.__all__ + settings.__all__
+__all__ = engine.__all__ + foo_repository.__all__ + postgres_settings.__all__
 ```

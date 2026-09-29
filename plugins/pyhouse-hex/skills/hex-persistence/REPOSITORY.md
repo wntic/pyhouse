@@ -254,7 +254,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 ## The store's settings, engine and binding — pydantic-settings, SQLAlchemy, dishka
 
-`src/myapp/infrastructure/postgres/settings.py` — the settings class the engine factory below reads. It
+`src/myapp/infrastructure/postgres/db_settings.py` — the settings class the engine factory below reads. It
 follows `python-settings`:
 
 ```python
@@ -302,7 +302,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .settings import DbSettings
+from .db_settings import DbSettings
 
 __all__ = ["create_engine", "create_session_factory"]
 

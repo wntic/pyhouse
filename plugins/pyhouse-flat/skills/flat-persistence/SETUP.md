@@ -37,7 +37,7 @@ full name yields `ck_foos_ck_foos_name_non_empty`.
 This package is a component with configuration of its own, so it declares that configuration here rather
 than borrowing a field from the service's class (`flat-layered` rule 7).
 
-`src/myapp/postgres/settings.py`:
+`src/myapp/postgres/postgres_settings.py`:
 
 ```python
 from pydantic import SecretStr, field_validator

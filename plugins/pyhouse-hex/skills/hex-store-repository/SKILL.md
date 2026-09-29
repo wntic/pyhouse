@@ -97,7 +97,7 @@ class BazRepository:
 ```
 
 The key prefix is the adapter's container token, fixed in code (rule 5). The settings class the store's
-connection factory reads, in `infrastructure/redis/settings.py`, follows `python-settings`; the URL is a
+connection factory reads, in `infrastructure/redis/redis_settings.py`, follows `python-settings`; the URL is a
 secret because it carries the password.
 
 ```python
@@ -123,7 +123,7 @@ datastore, never a stub (`hex-conventions` block B):
 ```python
 from redis.asyncio import Redis
 
-from .settings import RedisSettings
+from .redis_settings import RedisSettings
 
 __all__ = ["create_baz_store_client"]
 
@@ -205,11 +205,11 @@ second copy of this skill.
 ```
 src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra groups by tech
 ├── __init__.py
-├── connection.py          # create_<store>_client(settings) — shown in the template above
-├── settings.py            # the store's settings class — shown in the template above
+├── connection.py             # create_<store>_client(settings) — shown in the template above
+├── <store-kind>_settings.py  # the store's settings class, in the module named for that class (RedisSettings → redis_settings.py) — shown in the template above
 └── repositories/
-    ├── __init__.py        # package wiring — python-packaging
-    └── baz_repository.py  # this skill writes this file — the stem is the port's (`hex-conventions`)
+    ├── __init__.py           # package wiring — python-packaging
+    └── baz_repository.py     # this skill writes this file — the stem is the port's (`hex-conventions`)
 ```
 
 ### Form
@@ -244,7 +244,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.bazs import Baz`); a sibling module of the store's package relative (`from ..settings import RedisSettings`, where rule 5 puts a value there). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
+- Domain imports absolute (`from myapp.domain.bazs import Baz`); a sibling module of the store's package relative (`from ..redis_settings import RedisSettings`, where rule 5 puts a value there). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - Raw SDK payloads may be `dict[str, Any]` / `object` at the immediate boundary — convert to the domain type in the mapping helper, never return them.
 - No `from __future__ import annotations`. Full annotations on every method.

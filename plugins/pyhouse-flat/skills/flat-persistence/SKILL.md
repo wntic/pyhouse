@@ -60,7 +60,7 @@ one store, the package becomes a library they all depend on and rule 4 says what
 src/myapp/postgres/
 ├── __init__.py            # re-exports the repository class, the settings and the engine factory
 ├── metadata.py            # the one MetaData, carrying the naming convention
-├── settings.py            # this package's own settings class
+├── postgres_settings.py   # this package's own settings class
 ├── engine.py              # the engine factory
 ├── foo_table.py           # the Table definitions
 └── foo_repository.py      # the class that owns each write's transaction and builds its statements

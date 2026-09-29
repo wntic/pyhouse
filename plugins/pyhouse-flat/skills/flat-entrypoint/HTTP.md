@@ -118,7 +118,7 @@ rules 16 and 17).
 ## The process definition — uvicorn
 
 `src/myapp/__main__.py`, or a module in `entrypoints/` beside others without its last two lines. The
-process's `Settings` declares `http_host: str` and `http_port: int`, required like every tunable
+process's `MyappSettings` declares `http_host: str` and `http_port: int`, required like every tunable
 (`flat-layered` rule 9):
 
 ```python
@@ -127,13 +127,13 @@ import asyncio
 import uvicorn
 
 from myapp.logging import configure_logging
+from myapp.myapp_settings import MyappSettings
 from myapp.postgres import FooRepository, PostgresSettings, create_engine
-from myapp.settings import Settings
 from myapp.web import build_app
 
 
 async def _serve() -> None:
-    settings = Settings()
+    settings = MyappSettings()
     engine = create_engine(PostgresSettings().dsn.get_secret_value())
     try:
         app = build_app(FooRepository(engine))

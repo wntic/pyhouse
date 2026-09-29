@@ -103,7 +103,7 @@ import jwt
 from myapp.domain.auth import CurrentUser
 from myapp.domain.exceptions import UnauthorizedError
 
-from .settings import JwtSettings
+from .jwt_settings import JwtSettings
 
 __all__ = ["PyJwtTokenVerifier"]
 
@@ -149,7 +149,7 @@ the library checks `exp` only when the claim is present, so the verifier require
 response body verbatim, where a client keys on it, and a library upgrade renames its classes
 (`exception-catalog` rule 11).
 
-### `infrastructure/jwt/settings.py`
+### `infrastructure/jwt/jwt_settings.py`
 
 ```python
 from pydantic import SecretStr, field_validator
