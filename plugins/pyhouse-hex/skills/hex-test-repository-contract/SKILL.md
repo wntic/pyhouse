@@ -435,7 +435,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 1. **Exercise exactly the protocol the port declares** — every method, CRUD verbs and the port's own
    alike (`delete_by_<field>`, range/scan), each with its absent-record case, and no test for a method
    the port does not declare. A verb that promises an order asserts that order, not just membership. An
-   out-of-order write and a same-key batch, where the adapter takes them → `test-principles`,
+   out-of-order write and a batch write, where the adapter takes them → `test-principles`,
    *Datastore contract* rules 6 and 7.
 
 ### Relational

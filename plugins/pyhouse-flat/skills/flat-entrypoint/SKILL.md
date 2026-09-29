@@ -87,13 +87,16 @@ def to_foo(payload: FooPayload, observed_at: datetime) -> Foo:
 async def run_once(client: FooClient, repository: FooRepository) -> RunResult:
     payloads = await client.fetch_foos()
     observed_at = datetime.now(UTC)
-    await repository.record_batch([to_foo(payload, observed_at) for payload in payloads])
+    for payload in payloads:
+        await repository.record(to_foo(payload, observed_at))
     return RunResult(recorded=len(payloads))
 ```
 
 `to_foo` is the mapping as one pure step, so a test covers it without a datastore; a filter the run
-needs belongs in the same pure step. The body writes what one call returns; a source whose size the
-service does not control is read and written in bounded batches instead (rule 10).
+needs belongs in the same pure step. The body writes what one call returns, a record at a time: each
+record commits on its own, and a rerun completes a partial run because the write is idempotent by its
+key. A batched write is earned by the volume, not assumed (`persistence` rule 21), and a source whose
+size the service does not control is read in bounded slices instead (rule 10).
 
 **The work opens no transaction.** The repository class owns its own (`persistence` rule 1); a
 body that opens a connection has moved data access out of the one package allowed it.
@@ -301,7 +304,8 @@ for rule 9.
    against the raw body it signed before the body is parsed, and a redelivery of one already recorded is
    answered as a success and changes nothing.
 10. **An input whose size the service does not control is processed in bounded memory.** An upstream
-    file, an export or a feed is streamed — read, transformed and written in bounded batches — and
+    file, an export or a feed is streamed — read and transformed a bounded slice at a time, each slice
+    written before the next is read — and
     nothing in the process accumulates a whole source: no list of every record, no in-process set of
     every key seen. Deduplicating an unbounded input is the data-access package's job, by the record's
     key (`persistence` rules 15 and 17), not a set's. The size that fits today is the size that exhausts the

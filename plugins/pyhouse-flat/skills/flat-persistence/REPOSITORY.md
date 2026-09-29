@@ -1,8 +1,8 @@
 # flat-persistence — the repository class
 
-Topic file of `flat-persistence`. The mechanism-free obligations are rules 1, 2, 3, 4 and 10 in
-`SKILL.md`, and `persistence` rules 1, 2, 4–8 and 15–17; what follows is the **SQLAlchemy async +
-asyncpg** binding that satisfies them.
+Topic file of `flat-persistence`. The mechanism-free obligations are rules 1 and 7 in `SKILL.md`, and
+`persistence` rules 1, 2, 4–8 and 15–17; what follows is the **SQLAlchemy async + asyncpg** binding
+that satisfies them, and one paragraph on what `persistence` rule 21 comes to here.
 
 The class that owns a write and builds its statements, the translator that turns the driver's error
 into the service's own, the pure function that maps rows back into the service's declared types.
@@ -14,8 +14,6 @@ it stores plus `Repository` (`naming`). **Every public method opens and owns its
 this class's declared half of `persistence` rule 1, and it builds the statements it runs.
 
 ```python
-from collections.abc import Sequence
-
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DBAPIError, TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -29,31 +27,22 @@ __all__ = ["FooRepository"]
 
 _DRIVER_ERRORS = (DBAPIError, OSError, PoolTimeoutError)
 _REFUSED_DATA_CLASSES = frozenset({"22", "23"})
-_BIND_PARAMETER_CAP = 32767
-_CHUNK_SIZE = _BIND_PARAMETER_CAP // len(foo_table.columns)
 
 
 class FooRepository:
-    def __init__(self, engine: AsyncEngine, *, chunk_size: int = _CHUNK_SIZE) -> None:
+    def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
-        self._chunk_size = chunk_size
 
-    async def record_batch(self, foos: Sequence[Foo]) -> None:
-        latest_by_reference = {foo.reference: foo for foo in sorted(foos, key=lambda foo: foo.observed_at)}
-        rows = [
-            {"reference": foo.reference, "name": foo.name, "observed_at": foo.observed_at}
-            for foo in latest_by_reference.values()
-        ]
+    async def record(self, foo: Foo) -> None:
+        statement = insert(foo_table).values(reference=foo.reference, name=foo.name, observed_at=foo.observed_at)
         try:
             async with self._engine.begin() as conn:
-                for start in range(0, len(rows), self._chunk_size):
-                    statement = insert(foo_table).values(rows[start : start + self._chunk_size])
-                    await conn.execute(
-                        statement.on_conflict_do_update(
-                            index_elements=[foo_table.c.reference],
-                            set_={"name": statement.excluded.name, "observed_at": statement.excluded.observed_at},
-                        )
+                await conn.execute(
+                    statement.on_conflict_do_update(
+                        index_elements=[foo_table.c.reference],
+                        set_={"name": statement.excluded.name, "observed_at": statement.excluded.observed_at},
                     )
+                )
         except _DRIVER_ERRORS as exc:
             raise _translate(exc) from exc
 
@@ -73,41 +62,31 @@ def _translate(exc: DBAPIError | OSError | PoolTimeoutError) -> MyappError:
     )
 ```
 
-**The batch is optional.** A method that takes one `Foo` — a webhook's `record(foo)` — runs one
-`insert(foo_table).values(...).on_conflict_do_update(...)` inside its `engine.begin()`: no cap, no chunk
-constant, no `chunk_size` argument, no collapse and no loop — those exist only where a method takes a
-batch. Where deliveries for one reference can arrive out of order, the conflict clause is guarded on the
-stamp — `where=foo_table.c.observed_at < statement.excluded.observed_at` — for one row as for a batch
-(`persistence` rule 16).
-
 The class takes its engine as a **constructor argument**, never reaching for the factory itself, so a
-test can point it at a container without touching the environment. The chunk size defaults to the named
-constant and is keyword-only, so a test can cross a chunk boundary with five rows.
+test can point it at a container without touching the environment.
 
-**The chunk size is computed once, from the driver's cap and the table's width, never written as a
-literal** (rule 3): 32,767 bind parameters under asyncpg, because the Postgres wire protocol carries the
-count in a 16-bit field, divided by the columns one row binds. The cap is the store's and the width the
-table's: with one class the cap sits beside the statement, and with a second it moves to `engine.py`
-(below). Each chunk is one multi-row statement (rule 2), and its conflict clause is derived from that
-same statement's `excluded` row, so the update set names the incoming values of the row that conflicted
-(`persistence` rule 15). The set is declared here, per write, and never holds the key matched on; a
-write with nothing to update on conflict says `on_conflict_do_nothing()` instead, because a `DO UPDATE`
-with an empty `SET` is a syntax error.
+The conflict clause is derived from the statement's own `excluded` row, so the update set names the
+incoming values of the row that conflicted (`persistence` rule 15). The set is declared here, per
+write, and never holds the key matched on; a write with nothing to update on conflict says
+`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. Where
+writes for one reference can arrive out of order, the conflict clause is guarded on the stamp —
+`where=foo_table.c.observed_at < statement.excluded.observed_at` (`persistence` rule 16).
 
-`record_batch` is `persistence` rule 17's worked case: a foo already recorded is resolved by the
-statement's own conflict clause, never by asking which references exist before writing. **Two foos in
-one batch sharing a reference are collapsed before the statement** — the newest `observed_at` wins, and
-among equal stamps the later in the batch, since the sort is stable (`persistence` rules 16 and 17), so
-the collapse agrees with the guard above wherever it is present — because Postgres refuses an
-`ON CONFLICT DO UPDATE` that touches one row twice (SQLSTATE `21000`), and would fail the whole batch
-as `StorageUnavailableError` over data that was never unavailable. It is keyed on the reference exactly as
-the table stores it, because that is the key the constraint sees. An empty batch runs no statement.
+`record` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
+own conflict clause, never by asking whether its reference exists before writing.
+
+**A method that takes a batch** is written to `persistence` rule 21 against asyncpg's cap of 32,767
+bind parameters per statement, divided by `len(foo_table.columns)` — the table's width, since the
+client-side key default binds a value per row too — and collapses inputs sharing a reference before
+each statement (`persistence` rule 17), because Postgres refuses an `ON CONFLICT DO UPDATE` that touches one row twice
+(SQLSTATE `21000`) and the translator would report that as the store being unavailable.
 
 **Where one write spans statements** — a parent and its children, a later statement that needs keys an
-earlier one resolved — every statement sits inside this one `engine.begin()`, and the keys come back
-from the earlier statement's own `.returning(...)`, collected chunk by chunk (`persistence` rule 2,
-and rule 4 in `SKILL.md`). Under an empty update set `DO NOTHING` returns no row for the conflict it
-skipped, so a write whose keys are read back declares a non-empty one.
+earlier one resolved — every statement sits inside this one `engine.begin()` (`persistence` rule 2),
+and keys a statement resolved come back from that statement's own `.returning(...)`, never from a
+second read. Under an empty update set
+`DO NOTHING` returns no row for the conflict it skipped, so a write whose keys are read back declares a
+non-empty one.
 
 **The whole engine block sits inside the `try`, in every public method, a read as much as a write**
 (`persistence` rule 4). Three types reach the `except`: SQLAlchemy wraps what the driver raises in its
@@ -131,8 +110,7 @@ the caller catches, with the offending field and that name in its `context` (`pe
 
 **A second repository class shares the store's translation** (`persistence` rule 5): the tuple, the
 SQLSTATE classes and the final two returns move into `errors.py`, exposing a public translator each
-class calls after checking its own constraints, and the bind-parameter cap moves to `engine.py` as a
-public `BIND_PARAMETER_CAP` beside `get_engine`, each class dividing it by its own table's width.
+class calls after checking its own constraints.
 
 Where the class reads, every read maps its rows through one **pure function** (`_to_foo`,
 `persistence` rule 8), so one unit test pins it and nothing above this package sees a column name.

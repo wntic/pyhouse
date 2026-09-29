@@ -30,7 +30,7 @@ instead. The store profile decides which applies (`hex-conventions` block B).
   exists → `hex-project-setup`.
 - A repository on a client-style store — key-value, document, or an index kept beside the authoritative
   store, reached through an injected SDK client instead of the shared engine → `hex-store-repository`.
-- Tables, bulk upserts and migrations in a flat-layered service's own data-access package, reached
+- Tables, upserts and migrations in a flat-layered service's own data-access package, reached
   directly rather than through a port → `flat-persistence`, in the `pyhouse-flat` plugin.
 - The store's settings class and its container binding → `REPOSITORY.md`; what a settings class
   declares → `python-settings`; lifetimes, declaration order and the base they merge into → `hex-wiring`.

@@ -237,10 +237,10 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infra gr
 
 ### Vendor & semantics
 
-12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching, consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` serves every vendor with one skill).
+12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching (its limit; the obligation is `persistence` rule 21), consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` serves every vendor with one skill).
 13. **No provisioning** (`persistence` rule 14) — a bucket included.
 14. **Ordering is explicit** (`persistence` rule 18) — an explicit sort key, or the store's documented result order.
-15. **No retries, no caching, no domain reasoning, no logging.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules); a repository never logs by `persistence` rule 21, and which layer does is `hex-architecture`'s.
+15. **No retries, no caching, no domain reasoning, no logging.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules); a repository never logs by `persistence` rule 22, and which layer does is `hex-architecture`'s.
 
 ## Inlined typing / import rules
 

@@ -1,7 +1,7 @@
 ---
 name: flat-persistence
-description: Use when a flat-layered service reads or writes a datastore — its table definitions, its component-owned settings class, the repository class that owns each write's transaction and builds its statements, and where its migration history lives. Owns one data-access package per store named for its technology, the SQLAlchemy Core binding of `persistence`'s store-generic rules, multi-row writes chunked from the driver's bind-parameter cap, application-minted time-ordered keys, the settings class and engine factory the process definition builds, and one migration directory per store at the distribution root, only where the service owns the schema. Transaction ownership, driver-error translation, constraint names, conflicts and ordering, cursor reads and safe migrations are `persistence`'s. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a data-access library several distributions share is `python-workspace`.
-when_to_use: Also when asked for a bulk upsert, an `ON CONFLICT` clause, a chunk size, a repository class in a flat service, a second store beside the first, a constraint naming convention, a migration for a flat service or where its files go, deduplicating writes, or where a service's SQL is allowed to live.
+description: Use when a flat-layered service reads or writes a datastore — its table definitions, its component-owned settings class, the repository class that owns each write's transaction and builds its statements, and where its migration history lives. Owns one data-access package per store named for its technology, the SQLAlchemy Core binding of `persistence`'s store-generic rules, application-minted time-ordered keys, the settings class and engine factory the process definition builds, and one migration directory per store at the distribution root, only where the service owns the schema. Transaction ownership, driver-error translation, constraint names, conflicts and ordering, batched writes, cursor reads and safe migrations are `persistence`'s. A hexagonal service's repository adapter behind a port is `hex-persistence`, in the `pyhouse-hex` plugin; the repository root hosting a data-access library several distributions share is `python-workspace`.
+when_to_use: Also when asked for an upsert, an `ON CONFLICT` clause, a repository class in a flat service, a second store beside the first, a constraint naming convention, a migration for a flat service or where its files go, deduplicating writes, or where a service's SQL is allowed to live.
 ---
 
 # Flat Persistence — one package per store owns the data access
@@ -15,22 +15,17 @@ sits at the distribution root under `migrations/` in a directory named for the s
 **Load `persistence` before writing any file below**; the templates satisfy its rules and do not
 restate them. It owns the store-generic obligations — the declared transaction owner, translation at
 this package's edge, generated constraint names, the pure row mapping, stored types, conflicts and
-ordering, deduplication left to the store, paged reads, and migrations — and which of them bind,
-answered once there from the store's properties. This skill adds the flat family's shape around them —
-one package per store, its settings class and engine factory, the batched write, the key policy and
-where the history lives — and binds all of it to one stack.
+ordering, deduplication left to the store, batched writes, paged reads, and migrations — and which of
+them bind, answered once there from the store's properties. This skill adds the flat family's shape
+around them — one package per store, its settings class and engine factory, the key policy and where
+the history lives — and binds all of it to one stack.
 
-Its own rules carry one precondition of the same kind. Rule 4 needs a write readable immediately after
-it returns; without one, a read-back can only be a separate, later read. Rule 3 holds on any store
-wherever a write chunks, but inverts its reason: where a driver caps bind parameters the constant exists
-to stay under a ceiling, and on a columnar store that penalises small writes it exists to stay above a
-floor. The number is the store's; that it is named once and read by the test is not. Rule 9 holds
-wherever the schema is versioned by migrations at all, rule 5 wherever the service mints keys, and the
-rest for any store.
+Its own rules carry preconditions of the same kind. Rule 6 holds wherever the schema is versioned by
+migrations at all, rule 2 wherever the service mints keys, and the rest for any store.
 
 The default subject is **one distribution with one store**. **A service with a second store has a second
-package** (rule 8), answering `persistence`'s questions for itself. Where several distributions share
-one store, the package becomes a library they all depend on and rule 7 says what that changes.
+package** (rule 5), answering `persistence`'s questions for itself. Where several distributions share
+one store, the package becomes a library they all depend on and rule 4 says what that changes.
 
 ## When to use vs. neighbours
 
@@ -80,18 +75,18 @@ migrations/                # only where this service owns the schema
 
 A second store adds one sibling package, `src/myapp/<store>/`, and — only where its schema is
 versioned — one sibling migration directory, `migrations/<store>/`, and edits neither of the first's;
-`<store>` is that store's technology name — `clickhouse`, `mongodb`, `opensearch` (rule 8).
+`<store>` is that store's technology name — `clickhouse`, `mongodb`, `opensearch` (rule 5).
 
 The full file templates live in three topic files beside this one, one per group of artifacts in that
 layout. Only this file is loaded automatically, so open the one you need:
 
 - **Read `SETUP.md`** before writing the metadata module, the settings class, the engine factory or a
-  migration revision — it binds rules 6, 7, 8 and 9, and `persistence` rules 7, 19 and 20.
-- **Read `TABLE.md`** before defining a table, a column or a key — it binds rule 5, and `persistence`
+  migration revision — it binds rules 3, 4, 5 and 6, and `persistence` rules 7, 19 and 20.
+- **Read `TABLE.md`** before defining a table, a column or a key — it binds rule 2, and `persistence`
   rules 7, 9 and 13.
-- **Read `REPOSITORY.md`** before writing the repository class, a bulk write, its error translator, its
-  row mapper or a write that spans statements — it binds rules 1, 2, 3, 4 and 10, and `persistence`
-  rules 1, 2, 4–8 and 15–17.
+- **Read `REPOSITORY.md`** before writing the repository class, its error translator, its row mapper or
+  a write that spans statements — it binds rules 1 and 7, and `persistence` rules 1, 2, 4–8 and
+  15–17, and says in prose what `persistence` rule 21 comes to on this stack.
 
 ## Other bindings
 
@@ -99,13 +94,12 @@ layout. Only this file is loaded automatically, so open the one you need:
   session replaces the connection; the declared transaction owner, the driver-error translation with its
   mandatory fallback, the row mapping, the constraint-name contract and the factory-built engine are all
   unchanged. What you give up is the thing the primary binding is chosen for: with Core the SQL that runs
-  is the SQL in the file, so a bulk write's cost is readable at the call site and lazy loading cannot
-  appear behind an attribute access. Rule 2 is where this bites — an ORM project writes the bulk path as
-  the session's own bulk-insert API, never as mapped objects saved in a loop.
-- **Another engine or driver.** The dialect-specific column types, the bind-parameter cap the chunk size
-  is computed against, the driver exception the translator matches on and the read-back clause all change
-  together; which rules bind, and how a backend with no conflict clause resolves one, are
-  `persistence`'s (its precondition table, rules 15–17).
+  is the SQL in the file, so a write's cost is readable at the call site and lazy loading cannot appear
+  behind an attribute access. A batched write is where this bites (`persistence` rule 21) — an ORM
+  project writes it with the session's own bulk-insert API, never as mapped objects saved in a loop.
+- **Another engine or driver.** The dialect-specific column types, the driver exception the translator
+  matches on and the read-back clause all change together; which rules bind, and how a backend with no
+  conflict clause resolves one, are `persistence`'s (its precondition table, rules 15–17).
 - **Another store's migration tool.** A store whose schema is versioned keeps its history in
   `migrations/<store>/` and applies it with a tool that already speaks that store — a multi-database
   runner such as `golang-migrate` or Flyway, or the store's own — as a deploy step beside
@@ -124,24 +118,12 @@ layout. Only this file is loaded automatically, so open the one you need:
    datastore is a sticky dependency with no nameable alternative the business would plausibly adopt, so
    it never qualifies for an interface however generic it looks (`flat-layered` rule 3). Test doubles come
    from the real backend or from subclassing the concrete class (`test-principles`).
-2. **Where a method takes a batch, its write is one multi-row statement per chunk, never a per-row
-   statement in a loop** — that is what keeps a ten-thousand-row batch to a handful of round trips
-   instead of ten thousand.
-3. **Where a write chunks, chunk below the driver's bind-parameter limit, and hold the chunk size as a
-   named constant.** One statement binds chunk size × columns-per-row parameters, and a batch that
-   crosses the cap fails at execute time on size alone, whatever the data says. The number is computed
-   once, from the driver's cap and the column count of the table the statement writes, and named beside
-   the statement that reads it — never sprinkled as a literal at each call site.
-4. **Where a later statement needs keys an earlier one resolved, the earlier statement reads back the
-   rows it wrote, as one multi-row statement per chunk.** Whether a driver's batched-parameter
-   (`executemany`) path returns rows at all differs by driver and by library, so a read-back built on it
-   can hand back nothing for most of the batch. Every other write returns nothing.
-5. **Every surrogate key this service mints is a time-ordered identifier minted application-side by one
+2. **Every surrogate key this service mints is a time-ordered identifier minted application-side by one
    function every table shares.** A random identifier scatters rows inserted together across the index
    for no benefit, and a database-side default means the writer cannot know the id it just created
    without reading it back. One table diverging onto a different scheme splits the schema's id policy in
    two.
-6. **This package declares its own connection settings, and those settings and the engine built from
+3. **This package declares its own connection settings, and those settings and the engine built from
    them reach everything below the process definition as arguments.** Being a component with
    configuration of its own, it states that configuration in one settings class inside the package
    (`flat-layered` rule 7, `python-settings`), and builds its engine through a factory that takes the
@@ -149,28 +131,27 @@ layout. Only this file is loaded automatically, so open the one you need:
    (`python-packaging` rule 8), and no module in this package constructs its settings class or calls
    the engine factory: the process definition does both and hands the values down (`flat-layered`
    rule 6).
-7. **Where several distributions share a store, exactly one of them owns its schema and its migration
+4. **Where several distributions share a store, exactly one of them owns its schema and its migration
    history** (`python-workspace` rule 3). A service reading a store it does not own follows
    `persistence`'s schema-ownership row, and its suite creates that schema from its metadata
    (`flat-test-integration-setup`).
-8. **Two stores never share a package, a settings class or a migration history (`flat-layered`
+5. **Two stores never share a package, a settings class or a migration history (`flat-layered`
    rule 4):** they differ in which of `persistence`'s rules bind, in their drivers' failure types and in
    how their schema changes, and one package holding both turns every one of those differences into a
    branch inside it. Work that writes to both is handed both packages' objects by the process
    definition, like any other dependency, and a unit writing to both is made whole by retrying it to
    completion, each write idempotent by its key (`persistence` rule 3).
-9. **A store's migration history is data at the distribution root, one directory per store named for
+6. **A store's migration history is data at the distribution root, one directory per store named for
    it — never inside the package under `src/` — and it ships with whatever applies it.** A built
    distribution carries the package and not the root, so the deployable that runs migrations carries the
    directory itself: an image copies `migrations/` beside the installed package, or the migration job
    runs from the source tree. A hand-written runner, where `persistence` rule 19 calls for one, lives in
    that store's data-access package and takes the migration directory as a parameter rather than finding
    it through the package's import path.
-10. **Each repository class builds its own statements from its own declared type.** What several
-    classes in one package share is the store's — the driver-error translation (`persistence` rule 5)
-    and the bind-parameter cap — never a write helper taking a table, rows as mappings and conflict
-    columns, which moves every class's statement out of the class that owns it and its rows back to
-    untyped mappings.
+7. **Each repository class builds its own statements from its own declared type.** What several
+   classes in one package share is the store's — the driver-error translation (`persistence` rule 5) —
+   never a write helper taking a table, rows as mappings and conflict columns, which moves every class's
+   statement out of the class that owns it and its rows back to untyped mappings.
 
 ## Hard stops
 
