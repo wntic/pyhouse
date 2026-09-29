@@ -45,6 +45,7 @@ class FooSettings(BaseSettings):
         env_prefix="MYAPP_FOO_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     url: str
@@ -53,9 +54,10 @@ class FooSettings(BaseSettings):
 ```
 
 Each `model_config` key is one rule: `env_prefix` is the component's namespace (rule 2), `env_file` reads
-the local dotenv file where one exists and the real environment where it does not (rule 2), and
-`extra="ignore"` keeps the namespace non-strict (rule 2). `url` and `api_key` are required and have no
-default (rules 4 and 8); `timeout_seconds` is a tunable and has none either (rule 5). `SecretStr` is
+the local dotenv file where one exists and the real environment where it does not (rule 2),
+`extra="ignore"` keeps the namespace non-strict (rule 2), and `hide_input_in_errors` keeps a failed
+build from printing the values it was given, a secret among them (rule 7). `url` and `api_key` are
+required and have no default (rules 4 and 8); `timeout_seconds` is a tunable and has none either (rule 5). `SecretStr` is
 this binding's secret type and `.get_secret_value()` its unwrap (rules 7 and 9); a derived value is a
 `@property` on the class (rule 10), a validator a `@field_validator` (rule 12). The module builds
 nothing: the composition root calls the class — `settings = FooSettings()` inside `main()`, or in the
@@ -88,8 +90,8 @@ container's provider method — and a missing required variable fails there (rul
    reads no dotenv file, because whichever one sits in the working directory is not its own.
 3. **Only a settings class reads the environment.** No other module reads an environment variable; code
    that needs a configured value is handed it.
-4. **A required field has no default.** A missing value fails loudly the first time the settings object
-   is built, at startup, before any work is done.
+4. **A required field has no default.** A missing value fails loudly when the settings object is built,
+   which rule 13 puts before any work.
 5. **A tunable with no single right value carries no default.** A timeout, a pool size, a batch size is
    set from what the deployment observes and can afford; a default is one deployment's tuning frozen into
    a template, and it converts a missing variable into a silent wrong answer instead of a startup failure.
@@ -131,7 +133,10 @@ container's provider method — and a missing required variable fails there (rul
     import time (`python-packaging` rule 8), and never below the root — owning a settings class is not
     permission for a component to build it, and a client, repository or unit of work that builds its
     own settings cannot be given different ones. A container's provider method is the composition root
-    and constructs the class directly.
+    and constructs the class directly. The root builds every settings class before the program serves
+    or takes work; a root that builds on first use — a container that resolves lazily — forces each
+    settings class once at start, so a missing variable stops the process instead of failing the first
+    operation that needs it.
 14. **A published library reads no environment.** Its importer is the program with a composition root,
     so the library's constructors and functions take plain values and the importer's own settings supply
     them. A library shared inside one repository may declare a settings class under its own stem

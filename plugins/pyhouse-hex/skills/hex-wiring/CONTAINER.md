@@ -14,7 +14,7 @@ project merges the ones it has into the providers below, each line into the prov
 name, in declaration order; a provider class a binding adds (a second subdomain's) joins the
 `create_container` list.
 
-`SettingsProvider` holds the settings, at process lifetime, and everything else may depend on them.
+`SettingsProvider` holds every settings binding, at process lifetime, and everything else may depend on them.
 `InfrastructureProvider` holds the long-lived handles, each released after its yield, and the
 cross-cutting adapters, which the binding beside each adapter adds. There is one per-operation provider
 class per subdomain — `FoosProvider` here — declaring the repository, then the services that use it,
@@ -31,7 +31,7 @@ from dishka import AsyncContainer, Provider, Scope, make_async_container, provid
 
 from myapp.application.foos import CreateFooHandler
 
-__all__ = ["create_container"]
+__all__ = ["create_container", "resolve_settings"]
 
 
 class SettingsProvider(Provider):
@@ -55,7 +55,17 @@ def create_container(*overrides: Provider) -> AsyncContainer:
         FoosProvider(),
         *overrides,
     )
+
+
+async def resolve_settings(container: AsyncContainer) -> None:
+    for factory in SettingsProvider().factories:
+        await container.get(factory.provides.type_hint)
 ```
+
+`resolve_settings` is the startup check `SKILL.md` rule 2 requires, and each entrypoint calls it once
+before it serves or takes work; `create_container` never does. It resolves each type
+`SettingsProvider` declares, read off the provider itself so there is no second list, and the process
+lifetime keeps what it built for every later operation.
 
 Every add-on binding has the same parts, each in the place the declaration order gives it: a settings
 factory in `SettingsProvider`; in `InfrastructureProvider`, the client it needs — built by a factory that

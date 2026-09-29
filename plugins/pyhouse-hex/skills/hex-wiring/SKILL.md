@@ -1,6 +1,6 @@
 ---
 name: hex-wiring
-description: Use when adding a binding in `containers.py` — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and where each settings class is constructed and bound. Bound here to dishka, with other DI libraries mapped under `## Other bindings`. What a settings class declares, defaults and keeps secret is `python-settings`; the class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate is `hex-project-setup` and the toolchain `python-toolchain`, not runtime wiring.
+description: Use when adding a binding in `containers.py` — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and where each settings class is constructed and bound — every one before the process serves or takes work. Bound here to dishka, with other DI libraries mapped under `## Other bindings`. What a settings class declares, defaults and keeps secret is `python-settings`; the class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate is `hex-project-setup` and the toolchain `python-toolchain`, not runtime wiring.
 paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
@@ -8,15 +8,22 @@ paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi
 
 Handing objects to whoever needs them, from one composition root. Settings are among those objects:
 what a settings class declares is `python-settings`, and this skill says where, in a hexagonal service,
-it is constructed and bound — at a composition root and nowhere else (`python-settings` rule 13).
+it is constructed and bound — at a composition root and nowhere else (`python-settings` rule 13). Each
+settings class is shown beside the adapter that reads it: the relational store's `DbSettings` in
+`hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`, `RedisSettings` in
+`hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. The composition roots of that rule are,
+in this catalogue's layout, `src/myapp/containers.py` (the process's container), `migrations/env.py`
+(the migration environment, `hex-project-setup`) and `TestInfraProvider` with its fixtures in
+`tests/integration/conftest.py` (the test infrastructure, `hex-test-integration-setup`), which
+constructs settings with explicit values (`test-principles`).
 
 ## When to use vs. neighbours
 
-- What a settings class declares — its namespace, defaults, secrets, derived values, validation → `python-settings`; each integration's own class is shown beside the adapter that reads it.
+- What a settings class declares — its namespace, defaults, secrets, derived values, validation → `python-settings`.
 - Binding a new class in the composition root, or choosing its lifetime → this skill.
 - The class being wired must already exist — a handler, repository, service, adapter → `hex-application`, `hex-persistence`, `hex-store-repository`, `hex-domain-service`, `hex-capability-adapter`.
 - A frozen domain-shaped view of settings values the domain consults → the tunable variant in `hex-domain-model`; its provider reads the single field off a settings class and passes it.
-- Attaching the composition root to the HTTP app and closing it at shutdown, which runs every declared teardown → `hex-restapi-app`.
+- Attaching the composition root to the HTTP app, running its settings check at startup and closing it at shutdown, which runs every declared teardown → `hex-restapi-app`.
 - Resolving a bound object inside a route → `hex-restapi-endpoint`.
 - The token-verifier port, its adapter and the route dependencies that consume the resolved caller → `hex-restapi-auth`.
 - Substituting a binding for a test → `hex-test-integration-setup`.
@@ -24,16 +31,6 @@ it is constructed and bound — at a composition root and nowhere else (`python-
 - What a settings class, its env prefix or a provider method is called → `naming`.
 - Whether a class may be bound here at all, and which layer it belongs to → `hex-architecture`; it owns the layer contract this composition root sits outside of.
 - The unit-of-work factory binding a multi-repository transaction needs → `hex-persistence` (`UNIT_OF_WORK.md`); the compensating-handler shape → `hex-application`.
-
-## Settings in the composition root
-
-A settings class follows `python-settings`, and each one is shown beside the adapter that reads it: the
-relational store's `DbSettings` in `hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`,
-`RedisSettings` in `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. What is this skill's is where they are built. The composition roots of
-`python-settings` rule 13 are, in this catalogue's layout, `src/myapp/containers.py` (the process's
-container), `migrations/env.py` (the migration environment, `hex-project-setup`) and
-`TestInfraProvider` with its fixtures in `tests/integration/conftest.py` (the test infrastructure,
-`hex-test-integration-setup`), which constructs settings with explicit values (`test-principles`).
 
 ## Template — dishka
 
@@ -47,8 +44,8 @@ in `hex-capability-adapter`, the Redis repository in `hex-store-repository`, the
 `hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-persistence`; a project merges the ones it has.
 
 **Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
-carries the base composition root — the provider classes in declaration order and `create_container` —
-and how an add-on binding merges into it; only `SKILL.md` is loaded automatically.
+carries the base composition root — the provider classes in declaration order, `create_container` and
+the settings check an entrypoint runs at start — and how an add-on binding merges into it; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
 
@@ -61,9 +58,8 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   replace the factories, and — the rule dishka does not need — **a binding is reached at the call site
   by its attribute name, which must be the snake_case form of the class** — the call site writes
   `<root>.<snake_case_attr>()`. That name-based contract is unenforced: rename the class and the call
-  site breaks at runtime. Test substitution also differs: `.override(value)` / `.reset_override()`
-  mutate a *built* container, so an already-resolved `Singleton` may have captured the pre-override
-  value and needs a `.reset()` at teardown.
+  site breaks at runtime. Test substitution differs in kind, and its trap is
+  `hex-test-integration-setup`'s.
 
   | dishka | dependency-injector |
   |---|---|
@@ -75,31 +71,40 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   | generator factory + `container.close()` | `providers.Resource`, or teardown in the entrypoint |
   | `FromDishka[T]` at the call site | `container.<snake_case_attr>()` |
   | an extra provider with `override=True`, before the container is built | `.override()` / `.reset_override()` on a built container |
+  | `resolve_settings` over `SettingsProvider`'s declarations | each provider of the settings sub-container, walked with `.traverse()`, called once at start |
 
 - **Manual composition — a plain factory module.** A service small enough not to want a framework
   writes `create_container()` as a function that constructs each object and returns a frozen dataclass
   of them. Every rule below still holds; declaration order becomes literal statement order, teardown
   becomes an `AsyncExitStack` the entrypoint closes, and per-operation lifetime becomes a stored factory
-  callable rather than a stored instance.
+  callable rather than a stored instance. Building such a root constructs its settings, so it is its
+  own startup check, and its construct smoke passes explicit settings rather than reading the
+  environment.
 
 ## Rules
 
-- **Settings are constructed only at a composition root and bound there by type** (`python-settings`
-  rule 13) — never in a handler, an adapter, an entrypoint module or another settings class. An adapter
-  receives the whole settings object it reads, by type, as a constructor parameter; nothing below the
-  root reads the environment.
-- **The process's container module is the composition root.** Every concrete class is bound to the
-  protocol it satisfies there and **only** there. Domain and application code never instantiates a
-  concrete type.
-- **Every binding declares a lifetime, and the choice is deliberate.** Nothing is bound without an
-  answer to "how long does this live".
-- **Anything holding a resource that must be released declares its teardown in the same place as its
-  construction**, so construction and release cannot drift apart. The entrypoint closes the composition
-  root exactly once, which runs every declared teardown (`hex-restapi-app`).
-- **Bindings are reached by type, not by name.** A call site names the type it needs; the composition
-  root decides what satisfies it. Nothing outside the composition root may depend on how a binding is spelled.
-- **A unit of work is bound as its factory callable, never as an instance**, so each call opens its own
-  transaction and no two callers share one. `hex-persistence`'s `UNIT_OF_WORK.md` shows the form it binds.
+1. **Settings are constructed only at a composition root and bound there by type** (`python-settings`
+   rule 13) — never in a handler, an adapter, an entrypoint module or another settings class. An adapter
+   receives the whole settings object it reads, by type, as a constructor parameter; nothing below the
+   root reads the environment.
+2. **Every settings class the composition root provides is built when the process starts, before it
+   serves or takes work** (`python-settings` rule 13). Under a graph that resolves lazily every
+   entrypoint takes that step once at start — the REST shell in its lifespan (`hex-restapi-app`), a
+   consumer's launcher before its first message — as a step of its own rather than part of building the
+   root, which a test does with no environment. A root that several entrypoint processes share makes
+   each of them require every settings class it provides, so each is deployed with all of them.
+3. **The process's container module is the composition root.** Every concrete class is bound to the
+   protocol it satisfies there and **only** there. Domain and application code never instantiates a
+   concrete type.
+4. **Every binding declares a lifetime, and the choice is deliberate.** Nothing is bound without an
+   answer to "how long does this live".
+5. **Anything holding a resource that must be released declares its teardown in the same place as its
+   construction**, so construction and release cannot drift apart. The entrypoint closes the composition
+   root exactly once, which runs every declared teardown (`hex-restapi-app`).
+6. **Bindings are reached by type, not by name.** A call site names the type it needs; the composition
+   root decides what satisfies it. Nothing outside the composition root may depend on how a binding is spelled.
+7. **A unit of work is bound as its factory callable, never as an instance**, so each call opens its own
+   transaction and no two callers share one. `hex-persistence`'s `UNIT_OF_WORK.md` shows the form it binds.
 
 ### Where a settings class sits
 
@@ -147,9 +152,9 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ### Settings lifecycle in the composition root
 
-- Each `*Settings` is process-lifetime, built by a provider method that constructs it with no arguments
-  — the provider method builds it, so a missing required variable fails when the container is first
-  resolved.
+- Each `*Settings` is process-lifetime, built with no arguments by a factory in the composition root's
+  one settings group. The startup check reads that group, so a settings factory declared anywhere else
+  escapes it; the dishka spelling is in `CONTAINER.md`.
 - A **tunable value object** that needs a single field gets a factory of its own, which reads the field
   off the settings object and passes it. Never pass raw settings fields around otherwise.
 
