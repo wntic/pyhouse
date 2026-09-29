@@ -80,7 +80,9 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   writes `create_container()` as a function that constructs each object and returns a frozen dataclass
   of them. Every rule below still holds; declaration order becomes literal statement order, teardown
   becomes an `AsyncExitStack` the entrypoint closes, and per-operation lifetime becomes a stored factory
-  callable rather than a stored instance.
+  callable rather than a stored instance. Building such a root constructs its settings, so it is its
+  own startup check, and its construct smoke passes explicit settings rather than reading the
+  environment.
 
 ## Rules
 
