@@ -102,10 +102,10 @@ async def test_get_by_id_of_absent_row_raises_not_found(session_factory: async_s
     repository = FooRepository(session_factory=session_factory)
     missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.get_by_id(missing)
 
-    assert exc.value.context["id"] == str(missing)
+    assert exc_info.value.context["id"] == str(missing)
 
 
 # only where the port declares update
@@ -126,10 +126,10 @@ async def test_update_of_absent_row_raises_not_found(session_factory: async_sess
     repository = FooRepository(session_factory=session_factory)
     foo = _foo()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.update(foo)
 
-    assert exc.value.context["id"] == str(foo.id)
+    assert exc_info.value.context["id"] == str(foo.id)
 
 
 # only where the port declares delete
@@ -140,10 +140,10 @@ async def test_delete_removes_the_row(session_factory: async_sessionmaker[AsyncS
 
     await repository.delete(foo.id)
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.get_by_id(foo.id)
 
-    assert exc.value.context["id"] == str(foo.id)
+    assert exc_info.value.context["id"] == str(foo.id)
 
 
 # only where the port declares delete
@@ -151,10 +151,10 @@ async def test_delete_of_absent_row_raises_not_found(session_factory: async_sess
     repository = FooRepository(session_factory=session_factory)
     missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.delete(missing)
 
-    assert exc.value.context["id"] == str(missing)
+    assert exc_info.value.context["id"] == str(missing)
 
 
 async def test_read_and_write_against_unreachable_store_raise_upstream_error() -> None:
@@ -178,10 +178,10 @@ async def test_duplicate_name_on_insert_raises_conflict(session_factory: async_s
     repository = FooRepository(session_factory=session_factory)
     await repository.create(_foo(name="alpha"))
 
-    with pytest.raises(FooConflictError) as exc:
+    with pytest.raises(FooConflictError) as exc_info:
         await repository.create(_foo(name="alpha"))
 
-    assert exc.value.context["constraint"] == "uq_foos_name"
+    assert exc_info.value.context["constraint"] == "uq_foos_name"
 
 
 # only where Foo has a natural key and the port declares update
@@ -192,10 +192,10 @@ async def test_duplicate_name_on_update_raises_conflict(session_factory: async_s
     await repository.create(second)
 
     second.name = "alpha"
-    with pytest.raises(FooConflictError) as exc:
+    with pytest.raises(FooConflictError) as exc_info:
         await repository.update(second)
 
-    assert exc.value.context["constraint"] == "uq_foos_name"
+    assert exc_info.value.context["constraint"] == "uq_foos_name"
 
 
 # only where the port declares update
@@ -360,10 +360,10 @@ async def test_get_by_id_of_absent_record_raises_not_found(redis_client: Redis) 
     repository = BazRepository(client=redis_client)
     missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.get_by_id(missing)
 
-    assert exc.value.context["id"] == str(missing)
+    assert exc_info.value.context["id"] == str(missing)
 
 
 async def test_delete_removes_the_record(redis_client: Redis) -> None:
@@ -373,20 +373,20 @@ async def test_delete_removes_the_record(redis_client: Redis) -> None:
 
     await repository.delete(baz.id)
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.get_by_id(baz.id)
 
-    assert exc.value.context["id"] == str(baz.id)
+    assert exc_info.value.context["id"] == str(baz.id)
 
 
 async def test_delete_of_absent_record_raises_not_found(redis_client: Redis) -> None:
     repository = BazRepository(client=redis_client)
     missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await repository.delete(missing)
 
-    assert exc.value.context["id"] == str(missing)
+    assert exc_info.value.context["id"] == str(missing)
 
 
 async def test_read_and_write_against_unreachable_store_raise_upstream_error() -> None:
@@ -442,7 +442,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 
 2. **Every test takes the rollback-scoped handle the integration setup provides — `session_factory` under this binding (`hex-test-integration-setup`) — and opens nothing of its own** (`test-principles` reliability rule 6). The one exception is a handle to a store nothing listens on, which writes nothing (rule 4's forced error).
 3. Follow `test-principles` for the `_<aggregate>()` builder form. Defaults must be valid; no-override construction succeeds.
-4. Every conflict pins its constraint's name on the translated exception → `test-principles`, *Datastore contract* rule 2; here `assert exc.value.context["constraint"] == "<constraint_name>"` on the `ConflictError` subclass the translator raises for it (`FooConflictError` for `uq_foos_name`). A forced driver error on a write and a read → *Datastore contract* rule 4.
+4. Every conflict pins its constraint's name on the translated exception → `test-principles`, *Datastore contract* rule 2; here `assert exc_info.value.context["constraint"] == "<constraint_name>"` on the `ConflictError` subclass the translator raises for it (`FooConflictError` for `uq_foos_name`). A forced driver error on a write and a read → *Datastore contract* rule 4.
 5. Insert and update paths for every unique field → `test-principles`, *Datastore contract* rule 3.
 6. **The update timestamp is not an entity field** (`hex-domain-model`, Entity rule 6), so it is read from the row through the test's own session handle, against a value planted before the act → `test-principles` reliability rule 4.
 7. **Every cascade gets its own test**, `test_cascade_delete_removes_<child>` (`test-principles`, *Test naming*). Test the count after parent-delete is zero — only this proves the schema's `ON DELETE CASCADE` works.

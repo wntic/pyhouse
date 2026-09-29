@@ -110,10 +110,10 @@ async def test_classify_unparseable_body_raises_upstream(client: httpx.AsyncClie
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(UpstreamError, match="malformed body") as exc:
+    with pytest.raises(UpstreamError, match="malformed body") as exc_info:
         await adapter.classify(foo)
 
-    assert exc.value.context == {"foo_id": str(foo.id)}
+    assert exc_info.value.context == {"foo_id": str(foo.id)}
 
 
 # only where the upstream judges input the caller can correct
@@ -123,10 +123,10 @@ async def test_classify_400_raises_validation(client: httpx.AsyncClient) -> None
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(ValidationError) as exc_info:
         await adapter.classify(foo)
 
-    assert exc.value.context == {"foo_id": str(foo.id), "status": 400}
+    assert exc_info.value.context == {"foo_id": str(foo.id), "status": 400}
 
 
 @respx.mock
@@ -135,10 +135,10 @@ async def test_classify_503_raises_upstream(client: httpx.AsyncClient) -> None:
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(UpstreamError) as exc:
+    with pytest.raises(UpstreamError) as exc_info:
         await adapter.classify(foo)
 
-    assert exc.value.context == {"foo_id": str(foo.id), "status": 503}
+    assert exc_info.value.context == {"foo_id": str(foo.id), "status": 503}
 
 
 @respx.mock
@@ -147,10 +147,10 @@ async def test_classify_network_error_raises_upstream(client: httpx.AsyncClient)
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(UpstreamError, match="unreachable") as exc:
+    with pytest.raises(UpstreamError, match="unreachable") as exc_info:
         await adapter.classify(foo)
 
-    assert exc.value.context == {"foo_id": str(foo.id)}
+    assert exc_info.value.context == {"foo_id": str(foo.id)}
 
 
 @respx.mock
@@ -159,10 +159,10 @@ async def test_classify_read_timeout_raises_upstream(client: httpx.AsyncClient) 
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
-    with pytest.raises(UpstreamError, match="unreachable") as exc:
+    with pytest.raises(UpstreamError, match="unreachable") as exc_info:
         await adapter.classify(foo)
 
-    assert exc.value.context == {"foo_id": str(foo.id)}
+    assert exc_info.value.context == {"foo_id": str(foo.id)}
 ```
 
 Both halves of parsing are one parametrized test — a `200` whose body is not JSON, and one carrying a
@@ -206,7 +206,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 4. **Every public method gets a happy-path test.** Drive the adapter; assert the observable side effect (the object exists in the backend, the request matches the upstream's contract, the return value equals a literal).
 5. **Every row of the adapter's error mapping gets a dedicated test.** The bug class "translator handles error code X but not Y" only surfaces when each row is exercised. A row the backend never actually reports on a given call — an object store's delete of an absent key answers success — is exercised on a call where it does, and the call that cannot raise it pins its success instead.
-6. **An adapter call's failure is asserted on the translated catalogue exception, and `assert exc.value.context["<key>"] == <value>` on every one.** Never the SDK's own class — translation at the boundary is `exception-catalog`'s, and asserting the SDK class passes an adapter that never translated. The context map is the load-bearing contract this test exists to pin. This is the capability-adapter analogue of the `context["constraint"]` rule in `hex-test-repository-contract`. The fake-based handler test cannot verify this — only this test can.
+6. **An adapter call's failure is asserted on the translated catalogue exception, and `assert exc_info.value.context["<key>"] == <value>` on every one.** Never the SDK's own class — translation at the boundary is `exception-catalog`'s, and asserting the SDK class passes an adapter that never translated. The context map is the load-bearing contract this test exists to pin. This is the capability-adapter analogue of the `context["constraint"]` rule in `hex-test-repository-contract`. The fake-based handler test cannot verify this — only this test can.
 7. **A verification probe that reads the backend directly names the SDK's own error class**, as the narrowest class the probe can raise (`test-principles` *Assert strength* recipe 6), and asserts the error code that distinguishes "absent" from "unreachable" or "unauthorized". This is the one place an SDK exception is legitimate in a test — the probe is not going through the adapter, so there is nothing translated to assert on. Asserting on an adapter call still follows rule 6: the translated `MyappError` subclass, never the SDK's class.
 8. **A failure that never reaches the upstream is covered too, and lands on the upstream error.** The HTTP-gateway flavor needs a connect-refused and a read-timeout case (`ConnectError` / `ReadTimeout` here) asserting `UpstreamError`; the containerized flavor needs a wrong-container or wrong-credential case asserting the fallback translation. Every row of the adapter's error mapping can pass while the transport arm is unexercised, which is the arm that fires in a real outage.
 

@@ -55,55 +55,55 @@ def test_verify_valid_token_returns_current_user() -> None:
 def test_verify_expired_token_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(ttl_seconds=-3600))
 
-    assert exc.value.context == {"reason": "expired"}
+    assert exc_info.value.context == {"reason": "expired"}
 
 
 def test_verify_wrong_audience_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(audience="other-audience"))
 
-    assert exc.value.context == {"reason": "invalid"}
+    assert exc_info.value.context == {"reason": "invalid"}
 
 
 def test_verify_wrong_issuer_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(issuer="other-issuer"))
 
-    assert exc.value.context == {"reason": "invalid"}
+    assert exc_info.value.context == {"reason": "invalid"}
 
 
 def test_verify_tampered_signature_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token()[:-4] + "AAAA")
 
-    assert exc.value.context == {"reason": "invalid"}
+    assert exc_info.value.context == {"reason": "invalid"}
 
 
 def test_verify_token_missing_subject_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(claims={}))
 
-    assert exc.value.context == {"reason": "invalid"}
+    assert exc_info.value.context == {"reason": "invalid"}
 
 
 def test_verify_token_without_expiry_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(ttl_seconds=None))
 
-    assert exc.value.context == {"reason": "invalid"}
+    assert exc_info.value.context == {"reason": "invalid"}
 ```
 
 The subject is the issuer's opaque string and the verifier passes it through unparsed, so there is no
@@ -122,19 +122,19 @@ adds a check of its own. `_token`'s default claims and the happy-path expectatio
 def test_verify_token_missing_role_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(claims={"sub": _SUBJECT}))
 
-    assert exc.value.context == {"reason": "invalid"}
+    assert exc_info.value.context == {"reason": "invalid"}
 
 
 def test_verify_undeclared_role_raises_unauthorized_error() -> None:
     verifier = PyJwtTokenVerifier(settings=_SETTINGS)
 
-    with pytest.raises(UnauthorizedError) as exc:
+    with pytest.raises(UnauthorizedError) as exc_info:
         verifier.verify(_token(claims={"sub": _SUBJECT, "role": "NOT_A_ROLE"}))
 
-    assert exc.value.context == {"reason": "invalid_claims"}
+    assert exc_info.value.context == {"reason": "invalid_claims"}
 ```
 
 A role the app does not declare lands on the claim-parsing arm, which an app without rank does not have.

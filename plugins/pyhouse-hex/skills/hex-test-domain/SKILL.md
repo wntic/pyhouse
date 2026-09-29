@@ -69,9 +69,9 @@ def test_equality_by_id() -> None:
 
 
 def test_name_must_be_non_empty() -> None:
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(ValidationError) as exc_info:
         _foo(name="")
-    assert exc.value.context["field"] == "name"
+    assert exc_info.value.context["field"] == "name"
 ```
 
 The builder spreads **only the entity's real declared fields** — `id` plus its domain fields — because a
@@ -90,9 +90,9 @@ from myapp.domain.foos import FooQuota
 
 
 def test_field_b_must_be_non_negative() -> None:
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(ValidationError) as exc_info:
         FooQuota(field_a="alpha", field_b=-1)
-    assert exc.value.context["field"] == "field_b"
+    assert exc_info.value.context["field"] == "field_b"
 ```
 
 A value object that stores a raw input beside its normalized form and compares by the normalized field
@@ -137,9 +137,9 @@ def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
 
 async def test_assert_name_available_raises_when_taken() -> None:
     service = _service(["alpha"])
-    with pytest.raises(FooConflictError) as exc:
+    with pytest.raises(FooConflictError) as exc_info:
         await service.assert_name_available("alpha")
-    assert exc.value.context["field"] == "name"
+    assert exc_info.value.context["field"] == "name"
 
 
 async def test_assert_name_available_passes_when_free() -> None:

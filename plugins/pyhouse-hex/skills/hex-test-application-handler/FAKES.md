@@ -152,10 +152,10 @@ async def test_store_failure_undoes_the_upload() -> None:
     storage = FakeFooStorage()
     handler = CreateFooHandler(repository=repository, storage=storage)
 
-    with pytest.raises(UpstreamError) as exc:
+    with pytest.raises(UpstreamError) as exc_info:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
-    assert exc.value is repository.raised
+    assert exc_info.value is repository.raised
     assert len(storage.uploads) == 1
     assert storage.deletes == [storage.uploads[0][0]]
 
@@ -165,17 +165,17 @@ async def test_failed_undo_still_raises_the_original_failure() -> None:
     storage = _RaiseOnDeleteStorage()
     handler = CreateFooHandler(repository=repository, storage=storage)
 
-    with pytest.raises(UpstreamError) as exc:
+    with pytest.raises(UpstreamError) as exc_info:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
-    assert exc.value is repository.raised
+    assert exc_info.value is repository.raised
     assert storage.deletes == [storage.uploads[0][0]]
 ```
 
 Each injected failure is the catalogue class and `context` its real adapter raises (Fakes rules 6 and
 8, `test-principles` rung 4) — the repository's as `hex-persistence` translates a driver error, the
 storage's as its own adapter does — so both are `UpstreamError`, and the class alone cannot tell them apart. Which call raised
-does: the repository subclass keeps the exception it raised, and `exc.value is repository.raised` passes only
+does: the repository subclass keeps the exception it raised, and `exc_info.value is repository.raised` passes only
 when the caller sees that very failure. The contract is: **the upload landed, then the store write failed,
 then the same key was deleted, and the caller sees the failure that started it, unchanged.** The undo
 raises like any other call (`hex-application`, Compensation); the second test pins that the handler

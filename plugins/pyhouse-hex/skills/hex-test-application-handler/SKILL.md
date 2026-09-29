@@ -60,10 +60,10 @@ async def test_duplicate_name_raises_conflict() -> None:
     handler = CreateFooHandler(repository=repository)
     await handler.execute(CreateFooCommand(name="alpha"))
 
-    with pytest.raises(FooConflictError) as exc:
+    with pytest.raises(FooConflictError) as exc_info:
         await handler.execute(CreateFooCommand(name="alpha"))
 
-    assert exc.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
+    assert exc_info.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
 ```
 
 ### `update` handler — partial update, an absent field left as it was
@@ -108,10 +108,10 @@ async def test_update_unknown_id_raises_not_found() -> None:
     handler = UpdateFooHandler(repository=FakeFooRepository())
     missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await handler.execute(UpdateFooCommand(id=missing, sets_note=False, name="beta"))
 
-    assert exc.value.context["id"] == str(missing)
+    assert exc_info.value.context["id"] == str(missing)
 ```
 
 ### One-off failure injection
@@ -224,7 +224,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 #### `create` handler
 
 - `test_assigns_uuid_and_stores` — handler returns a `UUID`; `get_by_id` returns the entity with expected fields and that same id.
-- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repository, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc.value.context["constraint"] == "<full_constraint_name>"` where the adapter is relational.
+- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repository, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc_info.value.context["constraint"] == "<full_constraint_name>"` where the adapter is relational.
 - Field normalization (when applicable): assert the stored entity has the normalized form (`strip`, `upper`), not the raw input.
 
 #### `update` handler
