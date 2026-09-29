@@ -2140,3 +2140,28 @@ conftest never imports any entrypoint.
 `python-settings` rule 9 and `hex-capability-adapter` rule 7, the hook header, `python-workspace`'s
 Makefile and prose, `python-toolchain`'s override wording, `python-packaging` without rule 13, and the
 hex test-skill text listed above.
+
+### D142 — Batched writes leave the templates; one conditional rule in `persistence` keeps what an agent would not derive
+Taken by the maintainer (backlog item 43, D138) with two item-41 leftovers, after a four-lens review.
+Writing in chunks came from the reference service; most services write a row at a time. The flat
+repository template shows `record(foo)` — one upsert and its translation — and the bind-parameter cap,
+chunk constant, `chunk_size` argument, in-batch collapse, per-chunk loop and batch-only tests leave the
+templates; `flat-persistence` rules 2–4 go (5–10 become 2–7), and the flat work records each fetched
+record in turn, each committing on its own, a rerun completing a partial run because the write is
+idempotent by its key. `persistence` gains rule 21 (logging becomes 22): where a write takes a batch —
+because the volume, the memory bound or the store calls for it, never by default — it is one statement
+per chunk within the store's per-statement limit, counting every value a row binds including a
+client-filled default (reproduced: counting only the caller's fields crosses asyncpg's cap and surfaces
+as "unavailable"), inputs sharing a key collapsed first; its size is a fact of the store capping any
+batch-size setting, and the default a test overrides. `test-principles` *Datastore contract* rule 7
+carries both batch tests under its condition, and new rule 9 obliges a test of what each read returns.
+`flat-test-integration-setup`'s wipe asks the store for the schema's tables instead of the imported
+metadata, sparing the version table, with seeded rows and a further schema named. Neighbour lines that
+read batching as flat's scope or as a default (`hex-persistence`, `hex-store-repository` rule 12,
+`flat-entrypoint` rule 10, which now streams bounded slices) are reworded.
+**Reverse by:** from the parent of the commits that added this entry, restoring `flat-persistence` rules
+1–10, its preamble, Other bindings and `REPOSITORY.md`'s batch template, and the renumbered citations in
+`SETUP.md`, `TABLE.md` and `flat-test-integration-setup`; `persistence` rules 17, 18 and 21 (logging),
+dropping the batched-writes rule; `test-principles` rules 7 and 9 and its layer-table cell;
+`flat-test-persistence`'s template, rules 6 and 12–14 and description; `flat-entrypoint`'s batch call and
+rule 10; the wipe; `hex-persistence:33`, `hex-store-repository` rule 12, and both index lines.

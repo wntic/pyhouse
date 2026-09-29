@@ -1,7 +1,7 @@
 ---
 name: persistence
-description: Use when code reads or writes a datastore, written or reviewed, in any project whatever its architecture — beside the family's data-access skill whenever its templates are written, since the obligations they satisfy are stated here — who owns a transaction, where a driver error is translated and what its context carries, how constraint and table names are derived, how rows map back, which stored type a value gets, how a conflicting or older write is resolved, how a paged read orders, how a schema change ships safely, and whether data-access code logs. Owns these store-generic rules and which of them bind given the store's properties; it binds no library and writes no file. The data-access files that satisfy them are the architecture family's — `flat-persistence` in the `pyhouse-flat` plugin, `hex-persistence` or `hex-store-repository` in the `pyhouse-hex` plugin — and the error classes, translation with the cause chained and its fallback are `exception-catalog`'s.
-when_to_use: Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how to page through a table without skipping rows, whether a migration is safe to deploy, or whether a repository should log.
+description: Use when code reads or writes a datastore, written or reviewed, in any project whatever its architecture — beside the family's data-access skill whenever its templates are written, since the obligations they satisfy are stated here — who owns a transaction, where a driver error is translated and what its context carries, how constraint and table names are derived, how rows map back, which stored type a value gets, how a conflicting or older write is resolved, how a batched write is sized, how a paged read orders, how a schema change ships safely, and whether data-access code logs. Owns these store-generic rules and which of them bind given the store's properties; it binds no library and writes no file. The data-access files that satisfy them are the architecture family's — `flat-persistence` in the `pyhouse-flat` plugin, `hex-persistence` or `hex-store-repository` in the `pyhouse-hex` plugin — and the error classes, translation with the cause chained and its fallback are `exception-catalog`'s.
+when_to_use: Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, or whether a repository should log.
 ---
 
 # Persistence — the store-generic obligations
@@ -52,7 +52,7 @@ before reading the rules:
 | a schema versioned by migrations | rules 19, 20 |
 | two versions of the program running against it at once — a rolling deploy, or processes of different releases sharing one store | rule 19's expand-then-contract split — a single process upgrades the store where it starts, before its first statement, and one revision carries the whole change; such a program refuses to open a store stamped with a revision it does not know |
 
-**Rules 3–6, 8, 9, 14, 16–18 and 21 hold whatever kind of store it is**, SQL or not — a columnar store,
+**Rules 3–6, 8, 9, 14, 16–18, 21 and 22 hold whatever kind of store it is**, SQL or not — a columnar store,
 a document store, a key-value store or a vendor-managed index. A store answering *no* to every question
 is not a poor fit for this skill: the rules that lapse lapse because their subject does not exist.
 
@@ -148,19 +148,19 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
     conflict, rule 15 says how; where the store deduplicates at merge time, the store is configured for
     it once, in the schema — keeping the newest by rule 16's ordering stamp wherever an older write can
     arrive after a newer one — and a read that must see one row per key before the merge asks the store
-    for its deduplicated view. Looking up which rows already exist before inserting each chunk costs a
-    round trip the store never needed, and it still admits the duplicates two concurrent runs write
-    between one run's read and its write. **A column aggregated across writes is resolved the same way,
-    in the write or the merge, never by reading it first.** **Inputs sharing one key are collapsed by
-    that key before the statement is built** — the newest by rule 16's ordering stamp winning wherever
-    that stamp guards the write, the last otherwise, or aggregated as the conflict clause would — because
-    a store resolving conflicts per statement may refuse to touch one row twice within it. Collapsing a
-    batch already in memory reads nothing from the store and is bounded by the batch, so it is not the
-    read-before-write this rule forbids.
+    for its deduplicated view. Looking up which rows already exist before inserting costs a round trip
+    the store never needed, and it still admits the duplicates two concurrent runs write between one
+    run's read and its write. **A column aggregated across writes is resolved the same way,
+    in the write or the merge, never by reading it first.** **Where one statement writes several inputs,
+    those sharing one key are collapsed by that key before it is built** — the newest by rule 16's
+    ordering stamp winning wherever that stamp guards the write, the last otherwise, or aggregated as the
+    conflict clause would — because a store resolving conflicts per statement may refuse to touch one row
+    twice within it. Collapsing a batch already in memory reads nothing from the store and is bounded by
+    the batch, so it is not the read-before-write this rule forbids.
 18. **A read that promises an order produces it deliberately, never by insertion accident, and a paged
     read — by cursor or by offset — orders by a total order, a cursor carrying every column of it.** A
     limited read resumed from the last row's value of a column that is not unique skips every row
-    sharing that value beyond the page's edge — rows written in one batch share one timestamp, so a
+    sharing that value beyond the page's edge — rows written together share one timestamp, so a
     single boundary drops thousands of them with no error — and an offset page over the same order
     repeats or skips them as the ties fall. Order by the column plus a unique tiebreaker and resume
     strictly after the pair (keyset pagination), or do not limit the read.
@@ -186,9 +186,25 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
     a new revision, never an edit to a shipped one, and a revision a tool generated is a draft, reviewed
     against rule 19 before it is committed.
 
+### Batched writes
+
+21. **Where a write takes a batch — because the volume, the memory bound or the store calls for it,
+    never by default — it is one statement per chunk, never a statement per row in a loop, and each
+    chunk stays within the store's per-statement limit, its size a named constant computed once.**
+    Inputs sharing a key are collapsed before each statement is built (rule 17). The limit is the
+    store's — bind parameters per statement for a SQL driver, where one statement binds chunk size ×
+    every value one row binds, a default the client fills in included; items or bytes per request
+    elsewhere — and a batch crossing it fails at execute time on size alone. The constant is a fact of
+    the store, not a tunable: a batch size chosen for memory or throughput is a setting
+    (`python-settings` rule 5), capped by it. It is named beside the statement that reads it, never a
+    literal at a call site, and is the default of the size the batch method takes, so a test passes a
+    small one to cross a chunk edge (`test-principles`, *Datastore contract* rule 7). A statement per
+    row turns ten thousand rows into ten thousand round trips; on a store that penalises small writes
+    instead — a columnar store merging parts — the constant is a floor.
+
 ### Logging
 
-21. **Data-access code logs nothing.** It re-raises every failure, so `python-logging`'s log-once rule
+22. **Data-access code logs nothing.** It re-raises every failure, so `python-logging`'s log-once rule
     never lands on it, and a success is its caller's to log.
 
 ## Hard stops

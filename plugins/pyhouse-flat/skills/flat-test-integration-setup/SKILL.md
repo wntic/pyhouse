@@ -64,6 +64,10 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 
 _CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
 _DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
+_SCHEMA_TABLES = text(
+    "SELECT string_agg(quote_ident(tablename), ', ') FROM pg_tables"
+    " WHERE schemaname = current_schema() AND tablename <> 'alembic_version'"
+)
 
 
 @pytest.fixture(scope="session")
@@ -117,14 +121,11 @@ async def conn(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
 @pytest.fixture(autouse=True)
 async def truncate_all(engine: AsyncEngine) -> AsyncIterator[None]:
     """For code that opens and owns its own transaction; wipes every table afterwards."""
-    from myapp.postgres.metadata import metadata
-
     yield
-    tables = ", ".join(f'"{t.name}"' for t in metadata.sorted_tables)
-    if not tables:
-        return
     async with engine.begin() as cleanup:
-        await cleanup.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        tables: str | None = (await cleanup.execute(_SCHEMA_TABLES)).scalar_one()
+        if tables:
+            await cleanup.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 ```
 
 **`db_dsn` yields only the container the suite started**, so nothing it can reach holds data anyone
@@ -146,8 +147,15 @@ all of which reach code that commits. Autouse is also what orders it: pytest set
 the test requests by name and so finalizes it last, after `conn`'s transaction has rolled back and its
 connection returned to the pool — which `TRUNCATE`'s `ACCESS EXCLUSIVE` lock needs (rule 7).
 
+**The wipe asks the store which tables the schema holds**, never the metadata: a `MetaData` knows only
+the tables whose modules the session happened to import, so a test run that never imported one leaves
+its rows behind for the next test. The migration's own version table is spared, so the schema keeps
+the revision it was migrated to. Rows a revision seeds are wiped with the rest; a table whose rows the
+migrations own is spared by name beside the version table, or a test arranges the rows it needs. A
+history that creates tables in a further schema lists that schema beside `current_schema()`.
+
 No placeholder connection string is set for collection: nothing in the service builds settings or an
-engine at import (`flat-persistence` rule 6), so an unset variable fails only the code that reads it.
+engine at import (`flat-persistence` rule 3), so an unset variable fails only the code that reads it.
 
 The container library is imported **inside** the fixture that needs it, not at module scope, so a
 pure-unit collection pays nothing for it.
