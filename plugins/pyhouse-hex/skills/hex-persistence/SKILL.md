@@ -117,9 +117,9 @@ loaded automatically:
    transaction, so one caller's failure rolls back the other's work. The composition root binds the
    factory, never an instance (`hex-wiring`).
 7. **Commit is explicit and the last statement in the block; leaving it any other way rolls back.**
-   Nothing after the commit may fail non-idempotently. Nothing inside the block catches — only
-   compensation wraps it (`hex-application`) — and a failed unit of work is not retried in the handler:
-   the transaction is unusable once a statement in it failed.
+   An effect after the block follows `hex-application`, After the store write. Nothing inside the
+   block catches — only compensation wraps it (`hex-application`) — and a failed unit of work is not
+   retried in the handler: the transaction is unusable once a statement in it failed.
 
 ## Inlined typing / import rules
 

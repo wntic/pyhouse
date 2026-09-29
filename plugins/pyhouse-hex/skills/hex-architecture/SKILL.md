@@ -156,7 +156,7 @@ entrypoint.
 |---|---|
 | `domain/` | **Nothing.** Zero IO includes the log socket; raise an exception carrying `context` instead. |
 | `infrastructure/` | **Nothing.** An adapter translates and re-raises, so it is never the layer that stops; the low-level detail goes into the translated exception's `context`, where the layer that does log will find it. |
-| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. The one exception is a failed undo stopped under best-effort compensation, which the handler running the compensation logs at `warning` (`python-logging`, "A failed undo under compensation"). |
+| `application/` | **Successes only**, at `info`, after the operation completes. Never errors — they propagate. Two exceptions, each a failure the handler stops rather than re-raises: a failed undo under best-effort compensation, logged at `warning` (`python-logging`, "A failed undo under compensation"), and a failed side effect of a command already committed, logged once after the success event (`hex-application`, After the store write). |
 | entrypoints | Errors, once, at the central handler, with request context attached. |
 
 **A central handler takes `python-logging`'s level guide**, plus one case only it sees: an exception that is not a
@@ -244,7 +244,8 @@ subsections beneath give the reasoning and the judgement calls.
    Inject it.
 10. **Check every cross-layer import is absolute** and every within-layer import is relative.
 11. **Check who logs against the layer table** — nothing in `domain/` or `infrastructure/`;
-    `application/` logs successes only, apart from a failed undo under compensation. Every other error
+    `application/` logs successes only, apart from a failed undo under compensation and a failed side
+    effect after the store write. Every other error
     propagates to the entrypoint's central handler.
 
 If you are tempted to import `infrastructure` from `application` (rule 2), you are wiring a concrete adapter

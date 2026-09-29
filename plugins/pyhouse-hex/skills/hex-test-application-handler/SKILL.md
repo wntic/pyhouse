@@ -1,13 +1,13 @@
 ---
 name: hex-test-application-handler
-description: Use when unit-testing a CQRS command or query handler against in-memory fakes, or when writing one of those fakes — this skill owns `tests/unit/fakes/`, so a request for a fake repository or a fake `ICan<Verb>` capability lands here rather than on either adapter-test skill. Also covers failure injection through an inline `_RaiseXxxRepo` subclass. Not the real adapter against a real backend (`hex-test-repository-contract`, `hex-test-capability-adapter`) nor the handler over HTTP (`hex-test-restapi-endpoint`).
+description: Use when unit-testing a CQRS command or query handler against in-memory fakes, or when writing one of those fakes — this skill owns `tests/unit/fakes/`, so a request for a fake repository or a fake `ICan<Verb>` capability lands here rather than on either adapter-test skill. Also covers failure injection through an inline `_RaiseXxxRepo` subclass, and the test that a failed side effect after the store write leaves the command succeeded. Not the real adapter against a real backend (`hex-test-repository-contract`, `hex-test-capability-adapter`) nor the handler over HTTP (`hex-test-restapi-endpoint`).
 ---
 
 # Hex Test — Application Handler (unit)
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-Produces one unit-test file per handler module. Runs in milliseconds against in-memory fakes. Coverage targets the happy path plus every domain exception the handler propagates and — for compensating-transaction handlers — the post-failure undo.
+Produces one unit-test file per handler module. Runs in milliseconds against in-memory fakes. Coverage targets the happy path plus every domain exception the handler propagates and — for compensating-transaction handlers — the post-failure undo, and, where a side effect follows the store write, a failed effect that leaves the command succeeded.
 
 ## When to use vs. neighbours
 
@@ -254,6 +254,11 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 - `test_db_failure_after_upload_deletes_blob` — fake repo's mutation step raises; assert `storage.deletes` contains the keys `storage.uploads` recorded immediately before the failure.
 - `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted.
+
+#### handler with a side effect after the store write
+
+- `test_<effect>_failure_leaves_the_<command>_succeeded` — only where the handler runs a side effect after the store write (`hex-application`, After the store write): an inline subclass, at module scope, of the fake the call after the write reaches — the effect's own, or the hand-off's where the effect is handed to something that retries it — raises the catalogue exception its real adapter raises; assert the handler returns normally (the id, for a create), the write reads back from the repository fake, and the call was attempted, on that fake's call record. The one log line the handler owes is not asserted (Hard prohibitions).
+- `test_store_failure_skips_the_<effect>` — same condition: the repository fake's write raises the catalogue exception its real adapter raises; assert that very failure propagates and the effect's call record is empty. A `try` that also covers the write, or an effect sent before it, reds here.
 
 ### Hard prohibitions (across all handler-unit tests)
 

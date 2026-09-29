@@ -1,6 +1,6 @@
 ---
 name: hex-application
-description: Use when writing a use case — a CQRS command handler, a query handler, or its frozen input DTO — including a command that needs compensation, undoing an external write such as an upload when a later store write fails. Owns the command/query split, the read-model versus write-model rule deciding whether a query returns the entity or a row-projected read-model, the try/undo/re-raise compensation body, and a clearable field a partial update carries with its presence. Not the entity (`hex-domain-model`) nor the wire model (`hex-restapi-schema`); a unit of work making two repositories commit together is `hex-persistence`.
+description: Use when writing a use case — a CQRS command handler, a query handler, or its frozen input DTO — including a command that needs compensation, undoing an external write such as an upload when a later store write fails. Owns the command/query split, the read-model versus write-model rule deciding whether a query returns the entity or a row-projected read-model, the try/undo/re-raise compensation body, a side effect after the store write that never reports a committed command as failed, and a clearable field a partial update carries with its presence. Not the entity (`hex-domain-model`) nor the wire model (`hex-restapi-schema`); a unit of work making two repositories commit together is `hex-persistence`.
 paths: ["**/application/**"]
 ---
 
@@ -12,7 +12,7 @@ data. Both are thin — a frozen DTO plus a handler class whose only public meth
 ## When to use vs. neighbours
 
 Command or query → Command or query, at the head of Rules; whether a query returns the entity or a
-read-model → Read models, beside it; an undo-on-failure body → Compensation, under Rules, and its template in `COMPENSATION.md`. Outside it:
+read-model → Read models, beside it; an undo-on-failure body → Compensation, under Rules, and its template in `COMPENSATION.md`; a notification or other effect after the store write → After the store write, beside it. Outside it:
 
 - A handler writing two or more repositories in one transaction — the unit of work, its protocol and
   the handler form that opens it → `hex-persistence` (`UNIT_OF_WORK.md`).
@@ -94,6 +94,9 @@ class CreateFooHandler:
 Where the command makes an externally visible write before a store write that can still fail, this
 body gains the try/undo/re-raise form — **read `COMPENSATION.md`**, in this skill's directory, before
 writing it; the obligations are Compensation, under Rules.
+
+Where the command has an effect after the write — a notification, a publish — only that call sits in a
+`try` after `foo_created`, its failure logged once rather than raised: After the store write, under Rules.
 
 ### Command DTO and handler — update (returns `None`)
 
@@ -378,17 +381,18 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    services enforce the rules. The handler orchestrates: load, mutate, call the repository.
    **Normalization — strip, lowercase, reformat — is a domain concern** living in the entity's
    `__post_init__` or a value object. Pass `cmd.name`, not `cmd.name.strip()`.
-5. **No `try/except`, with two sanctioned exceptions.** (a) Compensation, below — its `try/except
+5. **No `try/except`, with three sanctioned exceptions.** (a) Compensation, below — its `try/except
    Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
    to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
    a later read or retry sees it — the handler may
    `try: <pipeline> except <Err>: <load-or-mutate>; entity.status = FAILED; await repo.update(entity); raise`.
-   The `except` writes the caller-visible state and **re-raises**. Follow `python-logging`
-   for logging and `exception-catalog` for exception propagation and boundary translation. Anything beyond
-   these two stays forbidden.
+   The `except` writes the caller-visible state and **re-raises**. (c) After the store write, below — the
+   `try/except Exception` around a side effect of a command already committed, which stops the effect's
+   failure instead of re-raising it. Follow `python-logging` for logging and `exception-catalog` for
+   exception propagation and boundary translation. Anything beyond these three stays forbidden.
 6. **Command success logging:** the application layer logs successes only, after the write
-   (`hex-architecture`), in `python-logging`'s event shape; include the caller's identity **only when the
-   command carries one**.
+   (`hex-architecture`), in `python-logging`'s event shape, apart from the one failure each of rule 5's
+   (a) and (c) stops; include the caller's identity **only when the command carries one**.
 7. **No transaction management inside the handler — the default.** A handler that writes through one
    repository leaves the transaction to it: the standalone repository form opens and commits its own
    (`hex-persistence`). The one earned exception is a handler that writes through **two or more**
@@ -405,7 +409,8 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 
 1. **Compensate only an externally visible write — a blob upload, a third-party POST, a file write —
    that lands before a store write that can still fail.** A side effect harmless if left behind, the last
-   step with nothing after it, or one that can be reordered after the store write needs no `try/except`.
+   step with nothing after it, or one that can be reordered after the store write needs no compensation;
+   one that runs after the store write follows After the store write, below.
 2. **The side effect runs outside the `try`, and only the fallible next step inside it.** Validation —
    building the entity, whose invariants run in its constructor — comes before the side effect, so a
    malformed command fails with nothing to undo.
@@ -419,8 +424,21 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 6. **Several side effects are recorded as each lands, and on failure each recorded one is undone behind
    its own guard**, so a failure part-way still cleans what already landed.
 7. **Compensation wraps a unit of work, never the reverse.**
-8. **Disposing of a replaced resource after a successful commit is not compensation** — no failure is
-   propagating, so its failure propagates like any other step's.
+
+### After the store write — a side effect of a committed command
+
+1. **A side effect that runs after the store write — a notification, a published event, a call to a
+   partner, disposing of a resource the write replaced — follows `exception-catalog`'s failure after a
+   committed write** (**Swallowing, stopping, and best-effort compensation**). One that must not be
+   lost is recorded atomically with the write — in its own transaction where the store has one (a unit
+   of work over the aggregate and an outbox row, `hex-persistence`) — and delivered by something that
+   retries it.
+2. **Only the side-effect call sits inside the `try`, after the write and its success event, and it
+   catches `Exception`**; several effects each sit behind their own guard, so one failing never skips
+   the next. The one event is at `error` — an unexpected failure under `python-logging`'s level guide,
+   and no other scope logs it — with the error attached, named for the effect that failed
+   (`foo_notification_failed`) and carrying what someone needs to redo it. It is not compensation: no
+   failure is propagating, and the write is never undone for it.
 
 ### Query handler
 

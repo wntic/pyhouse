@@ -1,6 +1,6 @@
 ---
 name: exception-catalog
-description: Use when adding an error class or reusing one, or translating an SDK or library exception at a boundary. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, and best-effort compensation as the one case a scope that re-raises stops a second failure. The status a transport answers with is mapped at that transport's boundary, never carried by the class; where the error is logged is `python-logging`.
+description: Use when adding an error class or reusing one, or translating an SDK or library exception at a boundary. Owns the single catalog file, its root and bare subclasses, the stable codes, the inherited `context` dict, translation with `from exc`, the ban on swallowing a failure, best-effort compensation as the one case a scope that re-raises stops a second failure, and a failure after a committed write, which is stopped rather than re-raised. The status a transport answers with is mapped at that transport's boundary, never carried by the class; where the error is logged is `python-logging`.
 ---
 
 # Exception Catalog
@@ -44,9 +44,10 @@ shape** — the catalogue knows no transport (rules 6 and 13).
   (`hex-restapi-app`, then `hex-restapi-endpoint`, in the `pyhouse-hex` plugin; `flat-entrypoint`'s
   `HTTP.md`, in `pyhouse-flat`).
 - Where the error is logged and by whom → `python-logging`.
-- Whether an undo step's own failure may be stopped while another failure propagates → this skill,
-  **Swallowing, stopping, and best-effort compensation**; the handler shape that runs the undo is the
-  architecture family's (`hex-application`, in the `pyhouse-hex` plugin, is one).
+- Whether an undo step's own failure may be stopped while another failure propagates, or a failure
+  after a committed write → this skill, **Swallowing, stopping, and best-effort compensation**; the
+  handler shape that does either is the architecture family's (`hex-application`, in the `pyhouse-hex`
+  plugin, is one).
 - Why this one file is exempt from one-class-per-module → `python-packaging`.
 - What the error class itself should be called → `naming`.
 - Rendering a caught error as an HTTP response body, and the central handler that does it → `hex-restapi-app`, in the `pyhouse-hex` plugin, or `flat-entrypoint`'s HTTP shape, in the `pyhouse-flat` plugin; this skill owns the class and its `code`, not the rendering and not the status a transport maps it to.
@@ -200,6 +201,17 @@ own failure is stopped in the scope that re-raises the original, on three condit
 3. **The original failure is re-raised unchanged**, and only the undo call sits inside the inner
    `try` — never the original operation, and never a bare `except: pass`.
 
+**A failure after a committed write is stopped rather than re-raised, where the effect is not part of
+what the operation changed** — a notification, a publish, disposing of what the write replaced. Raised,
+it tells the caller a change that happened did not, and the caller's retry repeats it or conflicts. The
+scope stops the effect's failure and logs it once, or hands the effect to something that retries it,
+and a hand-off made after the write is held to the same rule. A task started and never awaited is not a
+hand-off; it swallows its failure. An effect that must not be lost does not run after the write: it is
+recorded atomically with the write and delivered by something that retries it. An operation idempotent
+under redelivery may instead fail whole; its redelivery is the hand-off that reruns the effect. A second
+store's write that is part of what the operation changed is not such an effect: it is made whole under
+`persistence` rule 3, and its failure propagates.
+
 Everywhere else a failure a scope catches is re-raised, translated, or stopped and logged by the scope
 that stops it — never dropped. A translation's unmatched branch raises; it does not get to stop anything.
 
@@ -252,7 +264,10 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
     upstream failure and is translated as one. A project that verifies nobody has neither class.
 15. **A failure is never swallowed** — caught and dropped (`pass`, a bare `return`, a default value)
     with neither a re-raise nor a log line from the scope that stops it; it reads as a success. A caught
-    failure is re-raised, translated, or stopped and logged once. Best-effort compensation is the one
+    failure is re-raised, translated, or stopped and logged once, and a failure of an effect after a
+    committed write, outside what the operation changed, is stopped and logged or handed to something
+    that retries it — re-raised only where the operation is idempotent under redelivery. Best-effort
+    compensation is the one
     case where a scope that re-raises also stops a failure, on the three conditions in **Swallowing,
     stopping, and best-effort compensation**: the undo's failure is stopped by the scope that caught the
     original, never inside the undo method in case a caller is compensating, and never raised in place
