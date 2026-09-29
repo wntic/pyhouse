@@ -25,14 +25,6 @@ the store write never reports a committed command as failed and is never dropped
 handler stops its failure and logs it once, after the success event, or hands it to something that
 retries it.
 
-### 36. Settings a component needs fail before the app reports ready
-Found by item 24's verification (lens 3). Under dishka's lazily built composition root, `JwtSettings()`
-is first built on the first authenticated request: with the verifier's environment missing, a public
-health route answers 200 while every protected route answers 500, so a readiness check passes on a
-broken service (`python-settings` rule 4 asks for settings built "at startup, before any work"). The
-obligation would be `hex-wiring`'s, and it collides with `hex-restapi-app` rules 4 (lifespan does
-teardown only) and 5 (`main.py` resolves nothing), which the fix has to reconcile.
-
 ### 37. `CONVENTIONS.md` promises a banned-name blocklist that does not exist
 `meta-skill-author/CONVENTIONS.md` (~:218-220) says the repository's lint and review check carries a
 literal blocklist of banned names; none exists in `.claude/`, `tools/` or `/commit`, and `git log -S`
@@ -68,8 +60,6 @@ test have no way to carry it. Decide the command's shape for a clearable field.
 - `hex-test-application-handler/FAKES.md`'s `_RaiseAfterUploadRepo` raises `RuntimeError`, while
   `test-principles` rung 4 says an injected failure raises the catalogue exception; the second
   compensation test tells the two failures apart by type, so the fix needs a small redesign.
-- `hex-wiring` (~:63-65) restates the dependency-injection override trap `hex-test-integration-setup`
-  owns.
 - `mypy` over a workspace (`packages/ services/ tests/` with `explicit_package_bases`) sees two members'
   `tests.unit.fakes` as one module name; untested.
 - `test-principles`' wiring-smoke row names only the hex binding; a flat service has no named smoke.

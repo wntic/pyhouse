@@ -228,7 +228,10 @@ the production factory's close never runs and the fixture's does.
 An app with a REST entrypoint (`hex-restapi-app`) adds `real_app` to `tests/integration/conftest.py`:
 the app built on the per-test `container`, so a route under test reaches exactly the bindings the base
 and each store add-on substituted. The container fixture already closes the graph; this one only builds
-the app over it. A service with no HTTP entrypoint has neither this fixture nor the FastAPI import.
+the app over it. Driven over an in-process transport, it never runs the lifespan, so the startup
+settings check stays out of the suite; a test that must run it substitutes every settings class
+`SettingsProvider` declares. A service with no HTTP entrypoint has neither this fixture nor the FastAPI
+import.
 
 ```python
 import pytest
