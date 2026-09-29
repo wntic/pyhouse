@@ -104,8 +104,11 @@ container's provider method — and a missing required variable fails there (rul
 8. **Never default a secret the component requires.** A missing secret crashes the process at startup. A
    credential that is genuinely optional — a store that may run unauthenticated — is `None` when absent.
 9. **A secret is unwrapped only at the point of use** — inside the derived value that assembles a
-   connection string, or where the client that sends it is constructed, which then holds it privately.
-   Never into a log field, an exception's context, or an intermediate string built for anything else.
+   connection string, or where the component that puts it on the wire is constructed: the adapter or
+   client that sends it, which then holds it privately. Where one transport client is shared by several
+   components, each unwraps its own secret in its own constructor and sends it per request — a secret
+   set on the shared transport rides to every upstream that transport reaches. Never into a log field,
+   an exception's context, or an intermediate string built for anything else.
 10. **A value assembled from other fields is computed on the settings object, never reassembled by its
     consumers** — a connection string, a composite URL, a normalized form. One place decides how the
     parts go together, so changing the recipe is one edit rather than a search.
