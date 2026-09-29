@@ -121,8 +121,8 @@ would be two modules with one name — `explicit_package_bases` with `src` and t
 `mypy_path` makes mypy derive each module's name from its path instead.
 
 The pydantic plugin is not optional where pydantic is used: without it strict mode reports every
-no-argument settings construction — `FooSettings()` — as a call missing its required fields. A package
-the project carries that ships no stubs and no `py.typed` marker adds one block, dev dependencies
+no-argument settings construction — `FooSettings()` — as a call missing its required fields. A third-party
+package the project depends on that ships no stubs and no `py.typed` marker adds one block, dev dependencies
 included when the suite imports them:
 
 ```toml
@@ -173,7 +173,7 @@ there. Either is compliant once written; the setting drives the formatter as wel
    its setup skill sanctions at most two more — for generated revisions and for registration-only
    imports — and names them. No other `noqa`, inline or per file, in `src`, `tests` or anywhere else.
 6. **Type checking is strict, with the validation library's plugin where the project uses one that
-   ships it.** A package with no type information gets one per-package override in the configuration;
+   ships it.** A third-party package with no type information gets one per-package override in the configuration;
    every other type suppression follows `python-style`'s policy.
 7. **The line length is written down once, in one file, and the number is the project's.** Settled at setup; a later
    change reformats the tree and travels as its own commit, never inside a feature change.

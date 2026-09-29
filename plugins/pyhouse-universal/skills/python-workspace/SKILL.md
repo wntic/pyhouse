@@ -221,7 +221,9 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
    the other holds runnable distributions, one directory per deployable. `packages/*` and `services/*`
    are this example's names for them. Never put runnable code in the library group or shared library
    code in the runnable one, and never runtime code in the root project, which is a container: code
-   that has no member gets one.
+   that has no member gets one. A library member declares itself typed (`python-packaging` rule 13);
+   the untyped-package override is never the fix for a member, because it turns every import of it
+   into `Any`.
 2. **A new member is admitted with two sentences, not just a directory.** Before creating the
    directory, the change that adds it names the member's **encapsulated knowledge** — the tables it
    owns, the upstream it speaks, the vocabulary it defines, none of which another member may assume —

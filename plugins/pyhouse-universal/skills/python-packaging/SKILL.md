@@ -1,6 +1,6 @@
 ---
 name: python-packaging
-description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap with the test for when a closed set of declarations may share a module, the four-part re-export contract, and building nothing at import time. Naming a module is `naming`.
+description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap with the test for when a closed set of declarations may share a module, the four-part re-export contract, building nothing at import time, and the `py.typed` marker a library distribution ships. Naming a module is `naming`.
 when_to_use: Adding a public module to a package; a wildcard import; import order; a module-level settings object, engine or client.
 ---
 
@@ -377,6 +377,11 @@ hand-written imports land in the right block.
 12. **No mutable module-level state.** A dict used as a cache, an accumulating list, a registry filled
     at run time is a singleton nobody declared, shared by every caller and every test; give it an owner
     or drop it. Module-level constants are correct.
+13. **A library distribution declares itself typed** — an empty `py.typed` marker in its import
+    package, beside the root `__init__.py`, shipped in the wheel. Without it a type checker refuses to
+    analyse the installed library, and once that refusal is silenced every name imported from it is
+    untyped, so no importer's call into it is checked. An application's distribution, which nothing
+    imports, carries none.
 
 ## Hard stops
 
