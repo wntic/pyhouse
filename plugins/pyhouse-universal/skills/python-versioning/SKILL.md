@@ -85,7 +85,7 @@ in a module of its own, or where the version is reported; what the package root 
 from importlib.metadata import version
 
 
-def get_version() -> str:
+def read_installed_version() -> str:
     return version("myapp")
 ```
 
