@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from myapp.exceptions import InvalidPayloadError, MyappError
 from myapp.foo_record import record_foo
 from myapp.postgres import FooRepository
-from myapp.schemas import FooDelivery, RunResult
+from myapp.schemas import FooDelivery
 
 __all__ = ["build_app"]
 
@@ -71,9 +71,9 @@ def build_app(repository: FooRepository) -> FastAPI:
         fields = sorted({".".join(map(str, error["loc"])) for error in exc.errors()})
         return _log_and_render(InvalidPayloadError("the request is invalid", {"fields": fields}))
 
-    @app.post("/foos")
-    async def receive_foo(delivery: FooDelivery) -> RunResult:
-        return await record_foo(repository, delivery)
+    @app.post("/foos", status_code=204)
+    async def receive_foo(delivery: FooDelivery) -> None:
+        await record_foo(repository, delivery)
 
     return app
 ```
@@ -101,15 +101,14 @@ already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooDelivery, FooExternalId, RunResult
+from myapp.schemas import Foo, FooDelivery, FooExternalId
 
 __all__ = ["record_foo"]
 
 
-async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
+async def record_foo(repository: FooRepository, delivery: FooDelivery) -> None:
     foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, as_of=delivery.changed_at)
     await repository.record(foo)
-    return RunResult(recorded=1)
 ```
 
 Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the

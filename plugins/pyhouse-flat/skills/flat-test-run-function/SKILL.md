@@ -47,11 +47,11 @@ import respx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.foo_sync import run_once
+from myapp.foo_sync import sync_foos
 from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
 from myapp.qux import QuxClient
-from myapp.schemas import RunResult
+from myapp.schemas import FooSyncResult
 
 _TWO_FOOS = {"items": [{"id": "alpha", "name": "a"}, {"id": "beta", "name": "b"}]}
 
@@ -61,7 +61,7 @@ async def test_a_run_records_what_it_fetched(
 ) -> None:
     route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    await run_once(qux_client, FooRepository(engine))
+    await sync_foos(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await conn.execute(query)).all()
@@ -73,24 +73,24 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
     qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
     qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
-    await run_once(qux_client, FooRepository(engine))
+    await sync_foos(qux_client, FooRepository(engine))
 
-    await run_once(qux_client, FooRepository(engine))
+    await sync_foos(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await conn.execute(query)).all()
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
-async def test_a_run_reports_what_it_recorded(
+async def test_a_run_reports_what_it_fetched(
     qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine
 ) -> None:
     route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    result = await run_once(qux_client, FooRepository(engine))
+    result = await sync_foos(qux_client, FooRepository(engine))
 
     assert route.called
-    assert result == RunResult(recorded=2)
+    assert result == FooSyncResult(fetched_count=2)
 ```
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
@@ -143,10 +143,10 @@ connections to it.
    with neither, the same requests the first run sent, which is all a run that keeps no state can
    promise. A run whose input is consumed once, or that is by construction never repeated, has nothing
    to pin and the test would assert a coincidence.
-3. **Assert on the run's effect and on the returned aggregate**, never on log lines (`test-principles`).
-   The effect is what the run leaves behind: the rows it wrote; the file it produced, read back from a
-   per-test directory handed to the run as a parameter (`tmp_path` here); or, with neither, the requests
-   its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail. Rows the run
+3. **Assert on the run's effect and on the aggregate it returns, where it returns one**, never on log
+   lines (`test-principles`). The effect is what the run leaves behind: the rows it wrote; the file it
+   produced, read back from a per-test directory handed to the run as a parameter (`tmp_path` here); or,
+   with neither, the requests its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail. Rows the run
    reads, or a record it must meet already stored, are arranged committed before it runs
    (`flat-test-integration-setup`, `conn`). Rows arranged on `conn` are invisible to a run that opens
    its own connection, and a write by the run to the same key waits on their lock until teardown.

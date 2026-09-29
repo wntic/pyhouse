@@ -85,8 +85,7 @@ package root — and none of them imports any of the four.
 The kind is deliberately *not* called a "unit of work" — that name belongs to the transactional pattern
 of that name in the other family (`hex-persistence`, in `pyhouse-hex`), and one word for two unrelated
 things is how names stop identifying anything. What a work unit is called is `naming`'s decision and it
-names the work done; `run_once` in the templates names one whose work genuinely is one pass, not a
-convention to copy.
+names the work done, as `sync_foos` does in the templates.
 
 **Rule 8 is enforced by a firewall of `test-architecture-rule`'s standard form** — the framework's
 import is forbidden outside the declared wrapper package, whatever the framework. Only once a
@@ -184,17 +183,17 @@ class FooPayload(BaseModel):
     name: str
 ```
 
-`src/myapp/schemas/run_result.py` — the aggregate a run returns (`flat-entrypoint` rule 5):
+`src/myapp/schemas/foo_sync_result.py` — the aggregate a run returns (`flat-entrypoint` rule 5):
 
 ```python
 from dataclasses import dataclass
 
-__all__ = ["RunResult"]
+__all__ = ["FooSyncResult"]
 
 
 @dataclass(frozen=True, slots=True)
-class RunResult:
-    recorded: int
+class FooSyncResult:
+    fetched_count: int
 ```
 
 `src/myapp/schemas/__init__.py` re-exports all three modules (`python-packaging`).
