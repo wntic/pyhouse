@@ -34,6 +34,7 @@ handed it.
 The settings module of the component it configures — one component, one class:
 
 ```python
+# only where the system takes a credential
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -49,6 +50,7 @@ class QuxSettings(BaseSettings):
     )
 
     url: str
+    # only where the system takes a credential
     api_key: SecretStr
     timeout_seconds: float
 ```
