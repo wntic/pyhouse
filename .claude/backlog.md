@@ -25,22 +25,6 @@ the store write never reports a committed command as failed and is never dropped
 handler stops its failure and logs it once, after the success event, or hands it to something that
 retries it.
 
-### 37. `CONVENTIONS.md` promises a banned-name blocklist that does not exist
-`meta-skill-author/CONVENTIONS.md` (~:218-220) says the repository's lint and review check carries a
-literal blocklist of banned names; none exists in `.claude/`, `tools/` or `/commit`, and `git log -S`
-finds only the commit that added the sentence. Either write the check (a script beside
-`check_template_imports.py`) or drop the promise.
-
-### 38. `python-settings` rule 9 does not say which client unwraps a secret
-Rule 9 says a secret is unwrapped "where the client that sends it is constructed". Where a composition
-root builds a transport client and injects it into an adapter (`hex-capability-adapter`), that reads as
-the shared client, not the adapter's constructor, which `hex-capability-adapter` rule 7 now requires.
-
-### 39. The commit-msg hook's own header gives the install recipe that silences other hooks
-`plugins/pyhouse-git/git-hooks/commit-msg` (~:5-7) gives the shared-install recipe (`core.hooksPath`)
-with no warning; `/install-commit-hook` step 1 now warns that it silences hooks a manager such as
-pre-commit wrote into the clone. The header should agree.
-
 ### 40. `hex-application` cannot carry "clear this field" through a partial update
 `hex-restapi-schema` and `hex-restapi-endpoint` now say a field a client may clear passes its presence
 beside its value, but `UpdateFooCommand` (None = unchanged) and `hex-test-application-handler`'s update
@@ -49,8 +33,6 @@ test have no way to carry it. Decide the command's shape for a clearable field.
 ### 41. Smaller leftovers found by the reviews
 - `flat-test-integration-setup`'s `truncate_all` wipes only the tables whose modules the session
   imported (`metadata.sorted_tables`).
-- `hex-domain-service`'s template has `is_name_taken` beside `assert_name_available`, and only the
-  second is tested.
 - `Foo.note` rides through every hex template; it earns its place in the partial-update and round-trip
   tests, but no service in the test list needs it in production — decide whether the worked entity keeps
   a second field.
@@ -60,16 +42,8 @@ test have no way to carry it. Decide the command's shape for a clearable field.
 - `hex-test-application-handler/FAKES.md`'s `_RaiseAfterUploadRepo` raises `RuntimeError`, while
   `test-principles` rung 4 says an injected failure raises the catalogue exception; the second
   compensation test tells the two failures apart by type, so the fix needs a small redesign.
-- `mypy` over a workspace (`packages/ services/ tests/` with `explicit_package_bases`) sees two members'
-  `tests.unit.fakes` as one module name; untested.
-- `test-principles`' wiring-smoke row names only the hex binding; a flat service has no named smoke.
 - `hex-test-application-handler`'s compensating checklist is worded for storage plus a database
   (`upload`, `blob`, `db`).
-- `hex-test-integration-setup/CONFTEST.md`'s `api/conftest.py` and per-resource sections now only route
-  away, for files the skill no longer writes.
-- The absent-row tests for `update` and `delete` are required in prose (`hex-test-repository-contract`)
-  but are not template lines, so the template alone passes a repository that drops its zero-rowcount
-  branch.
 
 ### 42. Rename the identifiers carried over from the reference application
 Decided by the maintainer on 2026-09-29. The skills still spell names taken from the application they
