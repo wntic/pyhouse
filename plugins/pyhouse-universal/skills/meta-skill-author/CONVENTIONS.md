@@ -61,7 +61,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-test-repository-contract` — Exercise the same aggregate contract across adapters while selecting isolation for the actual store.
 - `hex-test-capability-adapter` — Select the backend-specific flavor; the HTTP gateway is templated, and a pure-CPU implementation runs directly without a container.
 - `hex-test-restapi-endpoint` — Reuse the shared integration setup and keep resource-specific fixture preparation in the sibling conftest.
-- `hex-test-app-invariants` — Pins properties of the assembled app that adding or removing an endpoint must never oblige anyone to edit; the CORS and request-size checks exist only where the app configures them.
+- `hex-test-app-invariants` — Pins properties of the assembled app that adding or removing an endpoint must never oblige anyone to edit; the CORS and request-size checks exist only where the app configures them, and a service with no HTTP entrypoint keeps only the construct smoke.
 - `hex-test-restapi-auth` — Layer the auth fixtures over the shared integration setup; produced only for an app whose entrypoint authenticates.
 
 ### Flat core (4)

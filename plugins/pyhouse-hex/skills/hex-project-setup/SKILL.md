@@ -64,9 +64,8 @@ each added with `uv add` or `uv add --dev`.
 
 Every entry is a name; a floor is written only at a known breaking boundary with the API beside it
 (`python-toolchain` rule 9), and an adapter's SDK takes one on exactly the same terms. Under the
-bindings here that case is real twice. The FastAPI one, whose line is written only with a FastAPI
-entrypoint:
-the app-invariant and auth-probe tests (`hex-test-app-invariants`, `hex-test-restapi-auth`) walk the
+bindings here that case is real twice. The FastAPI one, whose floor is written only where the app
+declares auth: the auth probe (`hex-test-restapi-auth`) walks the
 app's resolved operations through `fastapi.routing.iter_route_contexts`, which first ships in 0.137.2,
 and from 0.137.0 an included router is a single `_IncludedRouter` entry in `app.routes`, so a walk over
 `app.routes` alone no longer reaches the operations. Below 1.0 a release's minor is its breaking segment,
@@ -75,7 +74,7 @@ so the floor names the release that shipped the API rather than a major:
 ```toml
 [project]
 dependencies = [
-    "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the app-invariant tests rely on
+    "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the auth probe relies on
 ]
 
 [dependency-groups]

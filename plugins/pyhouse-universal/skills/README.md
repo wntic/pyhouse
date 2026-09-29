@@ -152,7 +152,7 @@ auth and never loads it.
 | `hex-test-repository-contract` | Real-backend repository contracts with relational rollback or client-store namespace isolation |
 | `hex-test-capability-adapter` | Capability adapter tests — a `respx` template for the HTTP gateway; the containerized and pure-CPU flavours in prose, pointing at their worked instances |
 | `hex-test-restapi-endpoint` | Real-app ASGI integration tests, success-body and error-code assertions, and per-resource fixtures |
-| `hex-test-app-invariants` | Properties of the assembled app that no endpoint change touches — the app-construction smoke and the OpenAPI invariant, plus CORS and request-size checks only where the app configures them |
+| `hex-test-app-invariants` | Properties of the assembled HTTP app that no endpoint change touches — the app-construction smoke and the catalogue's error shape on every advertised code, plus CORS and request-size checks only where the app configures them; a service with no HTTP entrypoint keeps only the smoke |
 | `hex-test-restapi-auth` | Token-minting fixtures, the authenticated client, the probe every operation not declared public must pass, and role and tenancy assertions |
 
 ## Flat core (4)

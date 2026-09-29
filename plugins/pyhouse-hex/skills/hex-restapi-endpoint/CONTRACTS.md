@@ -52,8 +52,7 @@ tells a client nothing.
   advertise-exactly-what-you-produce, and the allowed-code set taken from the boundary's status map and
   its registry of middleware-introduced statuses.
 - **A framework that injects nothing of its own.** Then rule 10 is the only thing putting the
-  input-validation status in the document, and the exemption `hex-test-app-invariants` rule 4 makes
-  disappears with it — the invariant test can check that code like any other.
+  input-validation status in the document.
 
 ## Hard stops
 

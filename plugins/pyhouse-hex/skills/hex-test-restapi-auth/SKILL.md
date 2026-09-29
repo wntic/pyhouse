@@ -122,9 +122,11 @@ Consult `test-principles` for the testing constitution.
 
 ### The discovered probe
 
-12. **Protected is the default; public is declared.** Probe every operation the app serves — walked as
-    `hex-test-app-invariants` rule 2 walks them, and requested under the path a client must use — except
-    those named in the probe file's public set. Never classify by whether the auth dependency is present: a route that forgot
+12. **Protected is the default; public is declared.** Probe every operation the app serves — walked off
+    its resolved routes rather than its published document, since a route left out of the document is
+    still served, keyed on the path the document would publish (under FastAPI, `iter_route_contexts`
+    filtered to `APIRoute`, keyed on `path_format`), and requested under the path a client must use —
+    except those named in the probe file's public set. Never classify by whether the auth dependency is present: a route that forgot
     it looks exactly like a public one, and that classification drops it from the probe instead of
     failing it (`hex-restapi-auth` rule 9). Every input comes off the app and the declaration, so a new
     protected endpoint joins the probe with nothing to edit.
@@ -133,7 +135,7 @@ Consult `test-principles` for the testing constitution.
     before path validation, but a typed converter such as `{n:int}` rejects a mismatched value at the
     router, before auth — the UUID-shaped dummy then answers 404, and that route fails the probe until
     its segment gets a value the converter accepts.
-14. **An empty discovery is a failure, not a skip** (`hex-test-app-invariants` rule 3). The companion
+14. **An empty discovery is a failure, not a skip** (`test-principles`, *When to parametrize*). The companion
     net test asserts the walk found operations, and that every operation declared public is still one
     the app serves, so the declaration cannot drift from the routes.
 15. **Every probed operation also refuses a credential the app does not trust.** The anonymous probe
