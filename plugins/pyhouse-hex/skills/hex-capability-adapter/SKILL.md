@@ -40,7 +40,7 @@ from myapp.domain.exceptions import (
 )
 from myapp.domain.foos import Foo, FooKind
 
-from .settings import FooClassifierSettings
+from .foo_classifier_settings import FooClassifierSettings
 
 __all__ = ["HttpFooClassifier"]
 
@@ -83,9 +83,9 @@ call that returns nothing reads no body.
 A call the service makes on its own behalf — a notification — maps every status to the fallback, as
 rule 9 does the adapter's own credential.
 
-Its settings class, in `infrastructure/http/settings.py` beside it; a second upstream under `http/` gives
-each class a module named for its component (`hex-conventions` block A). The adapter reads the base URL
-and, where the upstream takes one, the credential; the composition root reads the timeout when it builds this integration's own
+Its settings class, in `infrastructure/http/foo_classifier_settings.py` beside it — the module named for
+the class (`python-packaging`). The adapter reads the base URL and, where the upstream takes one, the
+credential; the composition root reads the timeout when it builds this integration's own
 `httpx.AsyncClient` (`hex-wiring`).
 
 ```python
@@ -237,7 +237,7 @@ class InfrastructureProvider(Provider):
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.foos import Foo, FooKind` — the domain types the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanClassifyFoos`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .settings import FooClassifierSettings`).
+- Domain imports absolute (`from myapp.domain.foos import Foo, FooKind` — the domain types the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanClassifyFoos`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .foo_classifier_settings import FooClassifierSettings`).
 - No `from __future__ import annotations`. Full annotations on every method.
 - `X | None` over `Optional`. `Mapping[K, V]` / `Sequence[T]` (from `collections.abc`) for read-only views.
 - **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (an untyped client method, a body read the SDK does not type) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way a route dependency casts a container-resolved value (`hex-restapi-auth`). An adapter can always restate the vendor type, so an inline ignore never meets `python-style`'s last-resort test here.

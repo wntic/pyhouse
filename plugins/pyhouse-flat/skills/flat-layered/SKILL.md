@@ -105,8 +105,8 @@ is the decision:
 - cross-cutting setup — logging, the exception catalogue, the process's own settings — sits in modules
   at the package root, never in a package named after the category;
 - **a component with configuration of its own is a package** at the package root, and its settings
-  module sits inside it beside the class it configures (`qux/settings.py`, rule 7) — never as a
-  `*_settings.py` sibling in a package it shares;
+  class sits inside it (`qux/qux_settings.py`, rule 7) — never in a package it shares with another
+  component;
 - each external system gets one such package, holding its one client class;
 - each store gets one data-access package, named for the store's technology (rule 4);
 - a work unit is a module named for its work, and several that share a concern share a package named
@@ -126,9 +126,9 @@ src/myapp/
 ├── __main__.py        # the one process: builds its dependencies and runs — `flat-entrypoint`
 ├── exceptions.py      # this service's exception catalogue — `exception-catalog`
 ├── logging.py         # configures logging once, called by the process definition
-├── settings.py        # only with settings of the process's own
+├── myapp_settings.py  # only with settings of the process's own
 ├── schemas/           # the records more than one package reads, one declared type per module
-├── qux/               # only with an external system: one package per system, named for it — its client and settings.py
+├── qux/               # only with an external system: one package per system, named for it — its client and its settings class
 ├── postgres/          # only with a store: one package per store, named for its technology — `flat-persistence`
 ├── foo_sync.py        # a work unit, named for its work
 └── entrypoints/       # only with more than one process: one module per process, replacing __main__.py
@@ -233,11 +233,14 @@ class QuxClient:
 (`exception-catalog`); what its
 `context` carries when a method takes an input is `exception-catalog`'s.
 
-`src/myapp/qux/settings.py` is `python-settings`' template — `QuxSettings` under
+`src/myapp/qux/qux_settings.py` is `python-settings`' template — `QuxSettings` under
 `MYAPP_QUX_`, declaring the client's `url` and `timeout_seconds`. The process's own
-`src/myapp/settings.py`, at the package root beside the rest of the cross-cutting setup, has the same
-shape — `Settings` under `MYAPP_` — holding only the fields that configure the process itself; a process
-with none has no such module, and a thin HTTP wrapper adds two server fields to it (`flat-entrypoint`).
+`src/myapp/myapp_settings.py`, at the package root beside the rest of the cross-cutting setup, has the
+same shape — `MyappSettings` under `MYAPP_`, both named for the distribution — holding only the fields
+that configure the process itself; where `entrypoints/` holds several processes with fields of their
+own, each process's class is named for its process (`FooSyncSettings` in `foo_sync_settings.py`). A
+process with none has no such module, and a thin HTTP wrapper adds two server fields to it
+(`flat-entrypoint`).
 The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
 re-exports the settings and client modules (`python-packaging`), so a caller writes
 `from myapp.qux import QuxClient, QuxSettings`. The data-access package declares its settings
@@ -317,14 +320,13 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    component's settings the same way (`flat-project-setup`). Nothing below the process-definition role
    imports settings, and no module below it builds a settings object, its own component's included:
    owning a settings class is not permission to read it from inside the component.
-7. **Every component that has configuration is a package, and declares its own settings class in a
-   `settings.py` inside that package** (`python-settings` rule 1). The process's configuration, an
-   external system's and a store's are three components and three classes — never one class holding two
-   components' fields, and never a client module with a `*_settings.py` sibling in a package it shares
-   with other systems. Its prefix, and the nested-prefix collision between the process's `MYAPP_` and a
-   component's `MYAPP_POSTGRES_`, are `naming`'s rule 7, the same whether the second component is a
-   package inside this distribution or a library shared with siblings (`flat-persistence` states that
-   package's half).
+7. **Every component that has configuration is a package, and declares its own settings class inside
+   that package, in the module named for it** (`python-settings` rule 1) — `qux/qux_settings.py`. The
+   process's configuration, an external system's and a store's are three components and three classes
+   — never one class holding two components' fields, and never two components sharing one package. Its
+   prefix, and the nested-prefix collision between the process's `MYAPP_` and a component's
+   `MYAPP_POSTGRES_`, are `naming`'s rule 7, the same whether the second component is a package inside
+   this distribution or a library shared with siblings (`flat-persistence` states that package's half).
 8. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
    durable-execution engine is earned, the one progress helper module the firewall's allow-list
    names by path, so the exemption stays one entry a reviewer can read. For one distribution that is a

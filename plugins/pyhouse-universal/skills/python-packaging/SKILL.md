@@ -157,12 +157,12 @@ at module level, because none of them needs anything to exist.
 
 ```python
 # no — runs on import, so importing this module is what fails
-settings = Settings()
+settings = QuxSettings()
 
 
 # yes — the caller decides when, and the failure names the missing value
 def main() -> None:
-    settings = Settings()
+    settings = QuxSettings()
     ...
 ```
 

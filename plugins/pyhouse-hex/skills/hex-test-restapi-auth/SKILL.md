@@ -163,7 +163,7 @@ Consult `test-principles` for the testing constitution.
   and `myapp.infrastructure.jwt.*`; no `myapp.application.*` and no `myapp.restapi.*` — it drives the
   adapter directly.
 - The api conftest adds `httpx`, `jwt` (PyJWT), `cryptography.hazmat.*` and
-  `myapp.infrastructure.jwt.settings`, and `myapp.domain.auth` in a rank app; full annotations on the factory and its `_factory` closure.
+  `myapp.infrastructure.jwt`, and `myapp.domain.auth` in a rank app; full annotations on the factory and its `_factory` closure.
 - The probe adds `pytest`, `fastapi`, `fastapi.routing`, `httpx`, `myapp.restapi.main`,
   `myapp.domain.exceptions` for the `UnauthorizedError.code` constant it asserts against, and
   `myapp.infrastructure.jwt` with `tests.helpers.jwt` for the untrusted credential. It never imports `myapp.containers`: `create_app()` builds the real

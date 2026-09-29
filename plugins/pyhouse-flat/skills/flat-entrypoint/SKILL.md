@@ -176,7 +176,7 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
 
 A loop sleeps between runs on an interval read from the process's settings — a required field with no
 default (rule 16). These lines replace the `await sync_foos(...)` line in `_run`, after
-`settings = Settings()`, the process's `Settings` declaring `poll_interval_seconds: float` with no
+`settings = MyappSettings()`, the process's `MyappSettings` declaring `poll_interval_seconds: float` with no
 default:
 
 ```python
