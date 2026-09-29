@@ -57,7 +57,9 @@ class Foo:
 ```
 
 Every other aggregate — `Bar`, or `Baz` in `hex-store-repository`'s key-value example — has this same
-form with its own fields, in its own subdomain package.
+form with its own fields, in its own subdomain package. `note` exists to show an optional field — one a
+partial update may leave, set or clear, and a store round trip carries as `None`; an entity with no
+such field has none.
 
 ### Value object — standard case (value equality across all fields)
 

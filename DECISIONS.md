@@ -2165,3 +2165,33 @@ read batching as flat's scope or as a default (`hex-persistence`, `hex-store-rep
 dropping the batched-writes rule; `test-principles` rules 7 and 9 and its layer-table cell;
 `flat-test-persistence`'s template, rules 6 and 12–14 and description; `flat-entrypoint`'s batch call and
 rule 10; the wipe; `hex-persistence:33`, `hex-store-repository` rule 12, and both index lines.
+
+### D143 — A failure after a committed write is stopped, not raised; a clearable field carries whether it was given
+Taken under backlog items 35, 40 and three item-41 leftovers, after a four-lens review. `exception-catalog`
+owns the rule, since a flat service needs it as much as a hex one: an effect after the operation's write
+has committed, outside what the operation changed — a notification, a publish, disposing of what the
+write replaced — has its failure stopped and logged once, or is handed to something that retries it,
+because raised it tells the caller a change that happened did not and the retry repeats or conflicts; a
+task never awaited is swallowing; an operation idempotent under redelivery may instead fail whole, its
+redelivery being the hand-off; an effect that must not be lost is recorded atomically with the write and
+delivered by something that retries it; a second store's write that is part of the operation is made
+whole under `persistence` rule 3 and propagates. Rule 15 names it. `hex-application` binds it (*After
+the store write*: a pointer, the store-neutral outbox binding, only the effect call in its own `try`
+after the success event, logged at `error`), command handler rules 5–6 sanction it, `hex-architecture`
+lets the application layer log that failure, and `hex-persistence` rule 7 points at it. **Compensation
+rule 8 (a post-commit disposal's failure propagates) is reversed**, as are the forbidden `try` of
+Compensation rule 1 and command handler rule 5 for such an effect. Handler tests check the command still
+succeeds and that a store failure skips the effect, never the log line. Command DTO rule 4: a field the
+caller may clear carries whether the caller gave it, apart from its value — stated without mechanism;
+the template's `sets_note: bool` has no default so a forgotten flag fails loudly. The REST schema and
+endpoint point at it, and a PATCH test sends the field as `null`. `Foo.note` stays, and
+`hex-domain-model` says why; the compensation tests inject catalogue exceptions and tell the two apart by
+identity; the checklist names no storage backend. Declined: a sentinel type for "unchanged" (a shared
+type a family skill must not define) and a `clear_note` flag (it admits a contradictory pair). The
+item-41 leftover on folding review fixes was settled by D139 and is removed with these.
+**Reverse by:** from the parent of the commits that added this entry, restoring `exception-catalog`'s
+description, rule 15 and section; `hex-application` Compensation rules 1 and 8, command handler rules
+5–6, Command DTO rules, the create and update templates and *After the store write*;
+`hex-architecture`'s table row and check 11; `hex-persistence` rule 7; the endpoint, schema, domain-model
+and `hex-test-restapi-endpoint` text; `hex-test-application-handler`'s tests, checklists, description and
+`FAKES.md`; and the index lines.

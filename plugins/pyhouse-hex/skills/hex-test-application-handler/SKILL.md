@@ -1,13 +1,13 @@
 ---
 name: hex-test-application-handler
-description: Use when unit-testing a CQRS command or query handler against in-memory fakes, or when writing one of those fakes — this skill owns `tests/unit/fakes/`, so a request for a fake repository or a fake `ICan<Verb>` capability lands here rather than on either adapter-test skill. Also covers failure injection through an inline `_RaiseXxxRepo` subclass. Not the real adapter against a real backend (`hex-test-repository-contract`, `hex-test-capability-adapter`) nor the handler over HTTP (`hex-test-restapi-endpoint`).
+description: Use when unit-testing a CQRS command or query handler against in-memory fakes, or when writing one of those fakes — this skill owns `tests/unit/fakes/`, so a request for a fake repository or a fake `ICan<Verb>` capability lands here rather than on either adapter-test skill. Also covers failure injection through an inline `_RaiseXxxRepo` subclass, and the test that a failed side effect after the store write leaves the command succeeded. Not the real adapter against a real backend (`hex-test-repository-contract`, `hex-test-capability-adapter`) nor the handler over HTTP (`hex-test-restapi-endpoint`).
 ---
 
 # Hex Test — Application Handler (unit)
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-Produces one unit-test file per handler module. Runs in milliseconds against in-memory fakes. Coverage targets the happy path plus every domain exception the handler propagates and — for compensating-transaction handlers — the post-failure undo.
+Produces one unit-test file per handler module. Runs in milliseconds against in-memory fakes. Coverage targets the happy path plus every domain exception the handler propagates and — for compensating-transaction handlers — the post-failure undo, and, where a side effect follows the store write, a failed effect that leaves the command succeeded.
 
 ## When to use vs. neighbours
 
@@ -66,7 +66,7 @@ async def test_duplicate_name_raises_conflict() -> None:
     assert exc.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
 ```
 
-### `update` handler — partial update, `None` means don't touch
+### `update` handler — partial update, an absent field left as it was
 
 ```python
 import uuid
@@ -83,11 +83,24 @@ async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     foo_id = uuid.uuid4()
     repo = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="kept")])
 
-    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, name="beta"))
+    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, sets_note=False, name="beta"))
 
     stored = await repo.get_by_id(foo_id)
     assert stored.name == "beta"
-    assert stored.note == "kept"  # None on the command means "don't touch"
+    assert stored.note == "kept"  # not given on the command, so left as it was
+    assert repo.updated == [foo_id]
+
+
+# only where a field may be cleared
+async def test_update_clears_note() -> None:
+    foo_id = uuid.uuid4()
+    repo = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="old")])
+
+    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, sets_note=True, note=None))
+
+    stored = await repo.get_by_id(foo_id)
+    assert stored.note is None
+    assert stored.name == "alpha"
     assert repo.updated == [foo_id]
 
 
@@ -96,7 +109,7 @@ async def test_update_unknown_id_raises_not_found() -> None:
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc:
-        await handler.execute(UpdateFooCommand(id=missing, name="beta"))
+        await handler.execute(UpdateFooCommand(id=missing, sets_note=False, name="beta"))
 
     assert exc.value.context["id"] == str(missing)
 ```
@@ -147,7 +160,7 @@ rule 5).
 ### `compensating-tx` handler
 
 Where a handler undoes an external write when a later step fails (`hex-application`, Compensation), its tests live in
-that handler's file and drive it over the storage fake's call record. The template — two tests, the
+that handler's file and drive it over the external write's call record. The template — two tests, the
 undo and a failed undo — sits beside the storage fake in `FAKES.md`.
 
 ## Fake repository and capability templates
@@ -216,7 +229,8 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 #### `update` handler
 
-- `test_partial_update_leaves_unspecified_fields_untouched` — set one field with a real value and another with `None`; assert the `None` field is **unchanged** and the real field is updated. This is the partial-update contract.
+- `test_partial_update_leaves_unspecified_fields_untouched` — set one field and leave another out; assert the one left out is **unchanged** and the one set is updated. This is the partial-update contract.
+- `test_update_clears_<clearable_field>` — only where a field may be cleared: give it with its presence and `None`; assert it reads back empty while a field left out is unchanged. A handler that reads `None` as "unchanged" for that field reds here.
 - `test_update_unknown_id_raises_not_found`.
 - `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `FooConflictError` — only where Foo has a natural key.
 
@@ -238,8 +252,13 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 #### `compensating-tx` handler
 
-- `test_db_failure_after_upload_deletes_blob` — fake repo's mutation step raises; assert `storage.deletes` contains the keys `storage.uploads` recorded immediately before the failure.
-- `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted.
+- `test_store_failure_undoes_the_<external_write>` — the store write raises the catalogue exception its real adapter raises; assert the external write's call record shows each write that landed before the failure undone, and the caller receives that same failure.
+- `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted. Both injected failures are catalogue classes (Fakes rules 6 and 8), so the test tells them apart by which call raised, never by class alone.
+
+#### handler with a side effect after the store write
+
+- `test_<effect>_failure_leaves_the_<command>_succeeded` — only where the handler runs a side effect after the store write (`hex-application`, After the store write): an inline subclass, at module scope, of the fake the call after the write reaches — the effect's own, or the hand-off's where the effect is handed to something that retries it — raises the catalogue exception its real adapter raises; assert the handler returns normally (the id, for a create), the write reads back from the repository fake, and the call was attempted, on that fake's call record. The one log line the handler owes is not asserted (Hard prohibitions).
+- `test_store_failure_skips_the_<effect>` — same condition: the repository fake's write raises the catalogue exception its real adapter raises; assert that very failure propagates and the effect's call record is empty. A `try` that also covers the write, or an effect sent before it, reds here.
 
 ### Hard prohibitions (across all handler-unit tests)
 

@@ -115,7 +115,7 @@ class FakeFooStorage:
         self.deletes.append(key)
 ```
 
-The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the DB write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at the test scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
+The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the store write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at module scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
 
 ### The compensating handler's tests — upload, then the write fails, assert the undo
 
@@ -132,42 +132,56 @@ from tests.unit.fakes import FakeFooRepository, FakeFooStorage
 
 
 class _RaiseAfterUploadRepo(FakeFooRepository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.raised: UpstreamError | None = None
+
     async def create(self, foo: Foo) -> None:
-        raise RuntimeError("simulated DB failure after blob upload")
+        self.raised = UpstreamError("the datastore could not complete the operation", {"id": str(foo.id)})
+        raise self.raised
 
 
 class _RaiseOnDeleteStorage(FakeFooStorage):
     async def delete(self, key: str) -> None:
         await super().delete(key)
-        raise UpstreamError("simulated undo failure", {"key": key})
+        raise UpstreamError("foo storage could not complete the operation", {"key": key})
 
 
-async def test_db_failure_after_upload_deletes_blob() -> None:
+async def test_store_failure_undoes_the_upload() -> None:
+    repo = _RaiseAfterUploadRepo()
     storage = FakeFooStorage()
-    handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
+    handler = CreateFooHandler(repo=repo, storage=storage)
 
-    with pytest.raises(RuntimeError, match="simulated DB failure"):
+    with pytest.raises(UpstreamError) as exc:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
+    assert exc.value is repo.raised
     assert len(storage.uploads) == 1
     assert storage.deletes == [storage.uploads[0][0]]
 
 
 async def test_failed_undo_still_raises_the_original_failure() -> None:
+    repo = _RaiseAfterUploadRepo()
     storage = _RaiseOnDeleteStorage()
-    handler = CreateFooHandler(repo=_RaiseAfterUploadRepo(), storage=storage)
+    handler = CreateFooHandler(repo=repo, storage=storage)
 
-    with pytest.raises(RuntimeError, match="simulated DB failure"):
+    with pytest.raises(UpstreamError) as exc:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
+    assert exc.value is repo.raised
     assert storage.deletes == [storage.uploads[0][0]]
 ```
 
-The simulated exception type is incidental — `RuntimeError` here, or any uncaught exception. The
-contract is: **the upload landed, then something failed, then the same key was deleted, and the caller
-sees the failure that started it.** The undo raises like any other call (`hex-application`, Compensation); the second
-test pins that the handler swallows the *undo's* failure and re-raises the original — an
-`UpstreamError` escaping instead fails `pytest.raises(RuntimeError)`.
+Each injected failure is the catalogue class and `context` its real adapter raises (Fakes rules 6 and
+8, `test-principles` rung 4) — the repository's as `hex-persistence` translates a driver error, the
+storage's as its own adapter does — so both are `UpstreamError`, and the class alone cannot tell them apart. Which call raised
+does: the repository subclass keeps the exception it raised, and `exc.value is repo.raised` passes only
+when the caller sees that very failure. The contract is: **the upload landed, then the store write failed,
+then the same key was deleted, and the caller sees the failure that started it, unchanged.** The undo
+raises like any other call (`hex-application`, Compensation); the second test pins that the handler
+stops the *undo's* failure and re-raises the original — the storage's `UpstreamError` escaping instead,
+or the original wrapped in another exception, fails the identity assertion. A handler catching only the
+catalogue root passes both; Compensation rule 3 is checked by reading.
 
 ## The fake's copy contract, pinned once
 
