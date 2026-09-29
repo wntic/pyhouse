@@ -84,8 +84,8 @@ dev = [
 ]
 ```
 
-The dev one: the integration suite shares one event loop across the session (`hex-test-integration-setup`,
-whose `CONFTEST.md` carries the `[tool.pytest.ini_options]` block that sets it), and
+The dev one: the integration suite shares one event loop across the session (`hex-test-integration-setup`;
+the `[tool.pytest.ini_options]` block that sets it is `python-toolchain`'s), and
 `asyncio_default_test_loop_scope`, the key that puts the tests on that loop, first ships in
 `pytest-asyncio` 0.26.
 

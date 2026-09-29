@@ -77,17 +77,16 @@ members = ["packages/*", "services/*"]
 # [tool.ruff*] and [tool.mypy]: python-toolchain's tables, whole, written here once
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib"
+# python-toolchain's keys, whole, and:
 testpaths = ["packages", "services", "tests"]
-filterwarnings = ["error"]
 
 [dependency-groups]
 dev = ["ruff", "mypy", "pytest"]
 ```
 
-The test configuration is whole here and nowhere else (rule 6). `--import-mode=importlib` is what lets
-two members each keep a `test_exceptions.py` without a collision; `filterwarnings = ["error"]` is
-`test-principles`' rule that a warning fails the run.
+The test configuration is whole here and nowhere else (rule 6): `python-toolchain`'s block, whose
+import mode is what lets two members each keep a `test_exceptions.py` without a collision, plus
+`testpaths` naming the member groups.
 
 The root project is a **workspace container plus shared tooling config, with no runtime code of its
 own**. Nothing importable lives at the root; every line of shipped code sits inside a member.
@@ -182,7 +181,7 @@ The Makefile gains a `migrate` target, the only sanctioned way schema changes re
 `cd`s into the owning library before running the migration tool (rules 3 and 4). The store's test
 fixtures live in a pytest plugin module beside that library's own tests —
 `packages/myschema/tests/myschema_testing.py` — loaded repository-wide by `-p myschema_testing` in
-`addopts` and `pythonpath = ["packages/myschema/tests"]`; a plugin is registered once per session, so
+`addopts` and `packages/myschema/tests` added to `pythonpath`; a plugin is registered once per session, so
 every member shares one container. What goes inside that module, and the test dependencies and
 event-loop scopes it needs, are the member family's integration-setup skill's; this root owns only the
 two settings that load it. Infrastructure with its own schema owner — a workflow engine, a metrics store

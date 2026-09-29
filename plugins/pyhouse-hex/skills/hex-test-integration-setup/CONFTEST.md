@@ -306,25 +306,7 @@ Leave empty:
 ```python
 ```
 
-The runner's configuration belongs in the root `pyproject.toml`, not here — the whole block:
-
-```toml
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
-asyncio_default_test_loop_scope = "session"
-addopts = "--import-mode=importlib"
-pythonpath = ["."]
-filterwarnings = ["error"]
-```
-
-`--import-mode=importlib` lets two test modules with the same basename live in different directories
-(a `test_foo.py` under both `tests/unit/` and `tests/integration/`, say) without an `__init__.py` in
-every test directory; because that mode puts nothing on `sys.path`,
-`pythonpath = ["."]` is what lets a test import `tests.unit.fakes` or `tests.helpers.jwt`.
-`filterwarnings = ["error"]` makes every warning a failure, so a deprecation or an unclosed resource reds
-the run instead of scrolling past (`test-principles`). The loop scopes are **session**, and both keys
-are required. The engine fixture above is session-scoped, and everything that uses it shares its one event loop (`test-principles`, *Fixture scope rules*).
+The runner's configuration belongs in the root `pyproject.toml`, not here — `python-toolchain`'s `[tool.pytest.ini_options]` block, whose session loop scopes the session-scoped engine above needs.
 
 **The root `tests/conftest.py` must NOT import `create_app` / `myapp.restapi.main` (nor define a `real_app` / `client` fixture).** pytest applies the root conftest to the WHOLE suite, so a *module-level* `from myapp.restapi.main import create_app` there makes every `tests/unit/**` collection pay the entire infrastructure import chain and fail on any module it never touches. The composition-root and app-construction fixtures (`container`, and `real_app` where the app has a REST entrypoint) live in `tests/integration/conftest.py` and import `create_container` / `create_app` **inside the fixture body** (deferred, as the templates above do), so only the integration suite — which legitimately constructs the app — pays that import. Keep app construction out of any conftest a unit test inherits.
 

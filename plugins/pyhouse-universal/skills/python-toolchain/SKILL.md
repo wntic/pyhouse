@@ -1,6 +1,6 @@
 ---
 name: python-toolchain
-description: Use when laying down or changing the configuration every Python distribution carries once in `pyproject.toml` — the src layout, the linter's rule selection and its written function-size and complexity thresholds, the few sanctioned lint suppressions, strict type checking, the line length, development dependencies grouped by role, and whether a dependency this project consumes may carry a version floor. Holds alike for a service of either architecture family, a CLI tool and a library. The interpreter floor and the type-ignore policy are `python-style`'s; which runtime libraries a service's roles bring and its migration bootstrap belong to the architecture family's setup skill; the version this distribution itself declares is `python-versioning`.
+description: Use when laying down or changing the configuration every Python distribution carries once in `pyproject.toml` — the src layout, the linter's rule selection and its written function-size and complexity thresholds, the few sanctioned lint suppressions, strict type checking, the line length, the test runner's configuration block, development dependencies grouped by role, and whether a dependency this project consumes may carry a version floor. Holds alike for a service of either architecture family, a CLI tool and a library. The interpreter floor and the type-ignore policy are `python-style`'s; which runtime libraries a service's roles bring and its migration bootstrap belong to the architecture family's setup skill; the version this distribution itself declares is `python-versioning`.
 when_to_use: Also when asked to configure ruff or mypy, why a complexity or too-many-arguments rule fired, whether a `noqa` is allowed, which line length to use, how to start a new package, library or CLI tool, where dev dependencies go, or whether to pin or floor a dependency.
 ---
 
@@ -24,14 +24,14 @@ no family needs only this skill.
 - Which runtime and development libraries a service's roles bring, the floors its family's templates
   rely on, and the migration bootstrap → the family's setup skill (`flat-project-setup`, in the
   `pyhouse-flat` plugin, or `hex-project-setup`, in `pyhouse-hex`).
-- The test runner's own configuration block → `test-principles` states what it must hold; the fixtures
-  it loads are the family's integration-setup skill's.
+- What the test runner's configuration block must hold → `test-principles`; this skill writes the
+  block, and the fixtures it loads are the family's integration-setup skill's.
 - Several distributions in one repository → `python-workspace`, which writes these values once at the
   root; what they are is still this skill's.
 - How large a module may grow → the architecture's one-responsibility rule, held in review; the linter
   has no module-length rule.
 
-## Template — ruff, mypy, hatchling (pyproject.toml)
+## Template — ruff, mypy, pytest, hatchling (pyproject.toml)
 
 `uv init --package --build-backend hatch myapp` lays the src layout — plain `uv init` lays a single
 module that matches nothing here. Then `uv add <lib>` for a runtime dependency and `uv add --dev <lib>`
@@ -83,13 +83,28 @@ files = ["src", "tests"]
 explicit_package_bases = true
 mypy_path = ["src", "."]
 plugins = ["pydantic.mypy"]  # only with pydantic
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]
+asyncio_mode = "auto"                            # where the suite has async tests
+asyncio_default_fixture_loop_scope = "session"   # where the suite has async tests
+asyncio_default_test_loop_scope = "session"      # where the suite has async tests
+filterwarnings = ["error"]
 ```
 
-The test runner's `[tool.pytest.ini_options]` block follows in the same file. At a workspace root the
-same tables are written once; mypy's `files` and `mypy_path` name the member directories instead of
-`src`. A library, and a service that runs a single process, remove the `main` stub and script `uv init`
-generates; a CLI tool, and a service with several processes, declare one console script per command or
-process in `[project.scripts]`.
+`--import-mode=importlib` lets two test modules with one basename live in different directories — a
+`test_foo.py` under both `tests/unit/` and `tests/integration/` — without an `__init__.py` in every
+test directory; because that mode puts nothing on `sys.path`, `pythonpath = ["."]` is what lets a test
+import shared test support by package (`tests.unit.fakes`, `tests.helpers`). `filterwarnings` is
+`test-principles` reliability rule 8. The three async lines are `test-principles`' async mode and its
+one session loop (*Fixture scope rules*): both loop scopes are required, and the async plugin they
+need is brought by the family's setup skill.
+
+At a workspace root the same tables are written once; mypy's `files` and `mypy_path` name the member
+directories instead of `src`. A library, and a service that runs a single process, remove the `main`
+stub and script `uv init` generates; a CLI tool, and a service with several processes, declare one
+console script per command or process in `[project.scripts]`.
 
 `E` and `F` are the error and pyflakes families, `I` import sorting; `B904` is raise-without-from and
 `B006` the mutable default argument; `F403` and `F405` are the two wildcard-import warnings. `C901` is
@@ -173,6 +188,11 @@ there. Either is compliant once written; the setting drives the formatter as wel
     the type checker — goes in the group the package manager installs by default, never a deprecated
     tool-specific table. A distributed package's optional integration is an extra its consumers opt
     into, not a runtime dependency all of them install. A package nothing imports is removed.
+11. **The test runner's configuration is one block in the same file.** It lets two test modules share
+    a basename in different directories, puts the tree root on the runner's path so a test imports
+    shared test support by package rather than by path, and holds what `test-principles` requires of
+    the run — a warning failing it, and where the suite has async tests, async-ness and one session
+    loop declared once.
 
 ## Hard stops
 

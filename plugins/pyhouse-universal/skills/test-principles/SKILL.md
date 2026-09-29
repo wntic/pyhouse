@@ -27,6 +27,7 @@ complete.
   `tests/integration/conftest.py`, its containers and isolation fixtures, and the shared plugin module
   several members load → the family's integration-setup skill — `hex-test-integration-setup` for a
   hexagonal package, `flat-test-integration-setup` for a flat one.
+- The runner's configuration block that declares the run → `python-toolchain`.
 - The root configuration that registers a shared fixture module across several distributions →
   `python-workspace`.
 - A static "no X in Y" invariant → `test-architecture-rule`.
