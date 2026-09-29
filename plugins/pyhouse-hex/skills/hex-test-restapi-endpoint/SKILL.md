@@ -116,6 +116,7 @@ def make_foo(sf: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uu
 7. **Per-resource fixtures live in the sibling `conftest.py`.** Factory fixtures (`make_foo`) return one fresh row per call — a default for a unique column differs per call.
 8. **Error responses are asserted by `code`, not by message.** `assert response.json()["code"] == ValidationError.code` — message text drifts, the `code` constant is the contract. The actual HTTP status is asserted separately.
 9. **Mocking.** Follow `test-principles` for the mocking prohibition. If a test needs to mock, it isn't an integration test; move it to a domain unit test (`hex-test-domain`) or to a handler test over fakes (`hex-test-application-handler`), which is also where a compensating handler's undo is pinned.
+10. **An in-process client's base URL names no real host** — `http://testserver`, never `localhost` or `127.0.0.1`. The transport reaches no network either way; a name no real host carries keeps the test's requests distinguishable from real traffic in CI logs.
 
 ## Inlined typing / import rules
 

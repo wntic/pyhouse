@@ -12,7 +12,7 @@ the constitution wins.
 Every test the auth machinery needs — the verifier's own unit test and the auth half of the integration
 suite — and all of it exists **only for an app that declares auth**
 (`hex-restapi-auth`). An auth-less app produces none of these files: no verifier to test, no
-`tests/helpers/jwt.py`, no auth fixtures in `tests/integration/api/conftest.py`, no
+`tests/helpers/jwt.py`, no `tests/integration/api/conftest.py` — this skill creates it — no
 `test_unauth_returns_401.py`, and every endpoint test drives a plain ASGI client.
 
 ## When to use vs. neighbours

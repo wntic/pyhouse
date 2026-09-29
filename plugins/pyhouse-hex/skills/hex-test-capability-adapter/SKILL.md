@@ -39,8 +39,8 @@ The flavor mirrors the adapter's form in `hex-capability-adapter` — an SDK cli
 ### Containerized backend
 
 `tests/integration/<adapter>/`, in the file mirroring the adapter's module, driving the real SDK client against
-a container the integration conftest starts (`hex-test-integration-setup`, obligation 9; its key-value
-add-on is the worked instance of a per-test namespace). One happy-path test per public method, observed by reading the
+a container the integration conftest starts (`hex-test-integration-setup`), in a per-test namespace
+(`test-principles` reliability rule 2) whose worked instance is that skill's key-value add-on. One happy-path test per public method, observed by reading the
 backend directly; one test per error code the adapter translates, each triggered where the backend
 really reports it and asserting the catalogue class and its `context`; and the fallback — a client the
 backend refuses, or one pointed at no backend — landing on the upstream error (rule 9). A reversing method the
@@ -217,7 +217,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 ### Containerized flavor specifics
 
 13. **Take the resource fixture, not raw settings.** Containerized adapters need a live client and settings naming the test's own namespace (the key-value add-on's `redis_client`, for one). Both come from the integration conftest — session scope for the container and the client, function scope for the namespace. The one exception is rule 9's refused or unreachable client, which the test builds itself.
-14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** An object store, a cache or a queue has no nested transaction to discard. Which fixture owns the per-test namespace and which the session-scoped container and client → `hex-test-integration-setup` (obligation 9 and its scope split).
+14. **Isolate by a per-test namespace with teardown; there is no rollback at this layer.** An object store, a cache or a queue has no nested transaction to discard. Which fixture owns the per-test namespace and which the session-scoped container and client → `hex-test-integration-setup` (its scope split).
 15. **Don't bypass the adapter to drive setup.** For success assertions, you may inspect the backend directly — that is the observation. But for setup that exists to drive the test, go through the adapter (`adapter.upload(...)` then `adapter.delete(...)`).
 
 ### HTTP-gateway flavor specifics
