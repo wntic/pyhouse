@@ -2223,3 +2223,27 @@ import split for ruff's isort, and the update-set test's id annotated for mypy -
 `hex-persistence/REPOSITORY.md`'s import, python-packaging, python-settings, python-toolchain,
 exception-catalog, python-versioning, test-principles, meta-skill-author (rules 4 and 8, the CONVENTIONS
 row and paragraph), skills/README.md and `CLAUDE.md`'s placeholder sentence.
+
+### D145 — Round 2's smaller leftovers: the relay's obligations, Python's own names, and four calls left as they are
+Taken by the maintainer (backlog item 47, 2026-09-30), after a four-lens review. `hex-persistence`'s
+`UNIT_OF_WORK.md` states what the relay delivering an outbox row owes, where the group includes one: each
+row at least once, under the row's own id on every attempt, marked delivered only after the receiver
+acknowledges it, so whatever consumes the effect is idempotent by that id; and no order between rows
+unless it holds back a key's later rows behind a failed one. `hex-persistence`'s routing now sends the
+relay's author there, the file's header names the paragraph as a mechanism-free obligation, and
+`hex-application` *After the store write* points at it; `exception-catalog`'s "delivered by something
+that retries it" is not restated. The obligations hold in any family; they sit in the hex file as
+agreed, and move to a universal skill if a flat service earns an outbox. `naming` allows the names
+Python's own style gives — exactly `self` and `cls` as a method's first parameter, and `exc` for an
+exception in hand, a handler's parameter included — which the maintainer keeps as the language's style;
+`cls` elsewhere and `tb` are renamed under item 46. `hex-wiring`'s declaration-order list is bulleted,
+so "`hex-wiring` rule N" means only the numbered rules; `python-versioning`'s `version.py` example
+declares `__all__`. Left unchanged, each checked: `hex-conventions`' citation of `hex-restapi-app` rule
+6 (the rule names the catch-all's place); no test that an entrypoint runs the settings check (checked
+by reading); `resolve_settings` walking dishka's `Provider.factories` (a rename fails loudly at start);
+`create_engine` keeping its name (no clash inside its module, and every alternative is worse by
+`naming`).
+**Reverse by:** from the parent of the commits that added this entry, deleting the relay paragraph and
+restoring `UNIT_OF_WORK.md`'s header, the two routing lines in `hex-persistence/SKILL.md` and
+`hex-application`'s pointer; restoring `naming`'s three kinds; renumbering the declaration-order list;
+removing the `__all__` line.

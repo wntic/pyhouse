@@ -267,12 +267,14 @@ seconds.
   public class, or anything crossing a package boundary earns full words. The distance between
   definition and use is what decides, not a character budget.
 - **No invented abbreviations.** Do not drop vowels (`cnt`, `msg`, `res`, `hdlr`) and do not truncate
-  (`conf`, `req`). Three kinds are allowed, and the lists below name the kind rather than enumerate
-  its members: acronyms the domain already writes that way (`http`, `url`, `id`, `db`, `io`, `csv`,
-  `xml`), technology names (`postgres`, `redis`, `s3`), and the conventional throwaways `i`, `j` and
-  `_`, which carry no meaning to abbreviate and are bounded by the scope rule above rather than by
-  this one. An acronym the domain genuinely writes that way qualifies whether or not it is printed
-  here; a word you shortened yourself never does.
+  (`conf`, `req`). Four kinds are allowed, and the examples given for the first two name the kind
+  rather than enumerate its members: acronyms the domain already writes that way (`http`, `url`, `id`,
+  `db`, `io`, `csv`, `xml`), technology names (`postgres`, `redis`, `s3`), the names Python's own style
+  gives — `self` and `cls` as a method's first parameter, and `exc` for an exception in hand
+  (`except … as exc`, a handler's parameter) — and the conventional throwaways `i`, `j` and `_`, which
+  carry no meaning to abbreviate and are bounded by the scope rule above rather than by this one.
+  An acronym the domain genuinely writes that way qualifies whether or not it is printed here; a word
+  you shortened yourself never does.
 - **Acronym casing is a project-wide choice made once** — `HttpClient` everywhere or `HTTPClient`
   everywhere, never both. This set's default is the first: only the leading letter capitalises, which
   keeps mechanical renames and case-sensitive searches predictable. On a project that already has a

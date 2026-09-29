@@ -2,14 +2,21 @@
 
 Topic file of `hex-persistence`, read only when one command writes **two or more repositories that must
 commit together** — two aggregates changed at once, an aggregate plus an outbox row. The
-mechanism-free obligations are rules 2 and 5–7 in `SKILL.md`, and `persistence` rules 1 and 4; what follows is
-the **SQLAlchemy async session + dishka** binding that satisfies them: the domain protocol, its
-implementation, its binding, and the handler form that opens it.
+mechanism-free obligations are rules 2 and 5–7 in `SKILL.md`, `persistence` rules 1 and 4, and the
+relay's paragraph below; the templates that follow are the **SQLAlchemy async session + dishka** binding
+that satisfies the first two: the domain protocol, its implementation, its binding, and the handler form
+that opens it.
 
 Not a unit of work: one repository per command (the standalone form in `REPOSITORY.md` owns its own
 transaction); keeping rows readable after the commit (the session factory's post-commit refresh policy
 in `REPOSITORY.md`); a group spanning two backends, such as a table plus object storage (compensation,
 in `hex-application`).
+
+Where the group includes an outbox row, the row records the effect and the relay that delivers it owes
+the rest. It delivers each row at least once, under the row's own id on every attempt, and marks a row
+delivered only after the receiver acknowledges it — so whatever consumes the effect must be idempotent
+by that id, its redelivery expected rather than an error. It promises no order between rows unless it
+holds back a key's later rows behind a failed one.
 
 ## Template — the protocol
 

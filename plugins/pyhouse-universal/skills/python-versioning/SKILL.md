@@ -84,6 +84,8 @@ in a module of its own, or where the version is reported; what the package root 
 ```python
 from importlib.metadata import version
 
+__all__ = ["read_installed_version"]
+
 
 def read_installed_version() -> str:
     return version("myapp")

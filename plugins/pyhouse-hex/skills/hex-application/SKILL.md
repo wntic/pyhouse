@@ -431,8 +431,8 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    partner, disposing of a resource the write replaced — follows `exception-catalog`'s failure after a
    committed write** (**Swallowing, stopping, and best-effort compensation**). One that must not be
    lost is recorded atomically with the write — in its own transaction where the store has one (a unit
-   of work over the aggregate and an outbox row, `hex-persistence`) — and delivered by something that
-   retries it.
+   of work over the aggregate and an outbox row, `hex-persistence`'s `UNIT_OF_WORK.md`) — and delivered
+   by something that retries it — read that file for what the relay owes.
 2. **Only the side-effect call sits inside the `try`, after the write and its success event, and it
    catches `Exception`**; several effects each sit behind their own guard, so one failing never skips
    the next. The one event is at `error` — an unexpected failure under `python-logging`'s level guide,
