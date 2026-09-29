@@ -27,7 +27,7 @@ Each function greps the source tree for a forbidden pattern and asserts the resu
 
 ## Template(s) — `grep` through `subprocess`, one plain pytest function per rule
 
-### File scaffold (once per repo)
+### File scaffold (once per repository)
 
 The standalone form follows — one distributable, one `src/`, one `tests/`. A repository of several
 members replaces the path-constant block with the multi-member fragment below; the imports, the
@@ -78,13 +78,15 @@ list here, so a rule splats it: `_grep(pattern, *_TESTS)`.
 _ROOT = Path(__file__).resolve().parents[1]
 
 # The directories under which this repository's members live, as it declared them.
-_MEMBER_DIRS = ("packages", "services")
+_MEMBER_DIRECTORIES = ("packages", "services")
 # Source trees only: a member's tests/ legitimately names what its src/ may not.
-_SRC_DIRS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/src")]
+_SRC_DIRECTORIES = [str(path) for directory in _MEMBER_DIRECTORIES for path in _ROOT.glob(f"{directory}/*/src")]
 
 # Tests live beside the member they cover, plus the root's own.
-_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests")] + [str(_ROOT / "tests")]
-_UNIT_TESTS = [str(p) for d in _MEMBER_DIRS for p in _ROOT.glob(f"{d}/*/tests/unit")]
+_TESTS = [str(path) for directory in _MEMBER_DIRECTORIES for path in _ROOT.glob(f"{directory}/*/tests")] + [
+    str(_ROOT / "tests")
+]
+_UNIT_TESTS = [str(path) for directory in _MEMBER_DIRECTORIES for path in _ROOT.glob(f"{directory}/*/tests/unit")]
 ```
 
 ### Standard rule (no allow-list)
@@ -103,7 +105,7 @@ def test_no_future_annotations_anywhere() -> None:
     assert hits == [], "from __future__ import annotations found:\n" + "\n".join(hits)
 ```
 
-The multi-member form is the same function over `*_SRC_DIRS, *_TESTS`.
+The multi-member form is the same function over `*_SRC_DIRECTORIES, *_TESTS`.
 
 ### Rule with an in-test allow-list
 
@@ -115,7 +117,7 @@ _ENTRYPOINT = str(_ROOT / "src" / "myapp" / "__main__.py")
 
 def test_no_process_exit_outside_the_entrypoint() -> None:
     all_hits = _grep(r"\bsys\.exit\(", _SRC)
-    forbidden = [h for h in all_hits if not h.startswith(_ENTRYPOINT)]
+    forbidden = [hit for hit in all_hits if not hit.startswith(_ENTRYPOINT)]
     assert forbidden == [], "sys.exit() outside the entry point:\n" + "\n".join(forbidden)
 ```
 
@@ -160,7 +162,7 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
    - **hex — layer-scoped:** `test_<layer>_has_no_<thing>`, e.g. `test_domain_has_no_pydantic`.
    - **flat — role-scoped:** `test_no_<thing>_outside_<role>`, e.g.
      `test_no_statement_outside_the_data_access_package`.
-   - **either family — repo-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
+   - **either family — repository-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
    A name that does not say where the rule looks sends a reader to the pattern to find out, and the
    file stops being readable as a constitution.
 3. **The failure names every offending location, never a count or a boolean.** Assert the collected

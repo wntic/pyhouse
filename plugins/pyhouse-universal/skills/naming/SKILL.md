@@ -1,7 +1,7 @@
 ---
 name: naming
 description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on ports, the error-class and repository-class identifier forms, the vague-noun replacements, and the role suffixes (`Handler`, `Result`, `Payload`, `Service`) an architecture defines that are exempt from them. The mechanics around a name are `python-packaging`.
-when_to_use: Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repo already spells two ways.
+when_to_use: Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repository already spells two ways.
 ---
 
 # Naming — deriving a name instead of recalling one
@@ -121,7 +121,7 @@ decided by someone.
   and sibling components here already call this concept is the word to use. Introducing a synonym
   (`candidate` here, `entry` there, `record` in the third place, for one row of the same table) is a
   more expensive mistake than a clumsy name, because it hides the fact that they are the same thing.
-- **Two invariants hold across the whole repo:** one concept, one word; one word, one concept. When a
+- **Two invariants hold across the whole repository:** one concept, one word; one word, one concept. When a
   port breaks either, the port fixes it — not a later cleanup.
 - **A qualifier that was implicit at the source is usually mandatory at the destination.** The source
   integrated one provider and could say `Client`; a codebase integrating three needs `StripeClient`.
@@ -258,7 +258,7 @@ its technology token plus `FooStorage` — and owns no record's data access.
 Two more. A category word is right when **a framework or library defines it and the thing genuinely is
 that** (a `worker` that is the framework's own term for a queue-serving process; a `handler` in a
 framework whose contract calls it one), and when **the project has deliberately established the term
-with a written meaning** (a `shared` package defined in that repo's layout skill or README). Outside
+with a written meaning** (a `shared` package defined in that repository's layout skill or README). Outside
 these and the role suffixes, reaching for one of these words is the signal to spend another ten
 seconds.
 
@@ -271,16 +271,18 @@ seconds.
   (`conf`, `req`). Four kinds are allowed, and the examples given for the first two name the kind
   rather than enumerate its members: acronyms the domain already writes that way (`http`, `url`, `id`,
   `db`, `io`, `csv`, `xml`), technology names (`postgres`, `redis`, `s3`), the names Python's own style
-  gives — `self` and `cls` as a method's first parameter, and `exc` for an exception in hand
-  (`except … as exc`, a handler's parameter) — and the conventional throwaways `i`, `j` and `_`, which
-  carry no meaning to abbreviate and are bounded by the scope rule above rather than by this one.
+  gives — `self` and `cls` as a method's first parameter, `exc` for an exception in hand
+  (`except … as exc`, a handler's parameter), and the standard library's own `exc_type` and `exc_info`
+  (the data model's `__exit__` parameter, pytest's and logging's `exc_info`) — and the conventional
+  single letters, the throwaways `i`, `j` and `_` and a type parameter (`T`, `S`), which carry no
+  meaning to abbreviate and are bounded by the scope rule above rather than by this one.
   An acronym the domain genuinely writes that way qualifies whether or not it is printed here; a word
   you shortened yourself never does.
 - **Acronym casing is a project-wide choice made once** — `HttpClient` everywhere or `HTTPClient`
   everywhere, never both. This set's default is the first: only the leading letter capitalises, which
   keeps mechanical renames and case-sensitive searches predictable. On a project that already has a
   consistent other form, follow it; on one that is inconsistent, standardise rather than add to it.
-- **One concept, one word, repo-wide.** Before inventing a term, search for what the shared packages
+- **One concept, one word, repository-wide.** Before inventing a term, search for what the shared packages
   and sibling components already call it, and use that.
 
 ## Renaming
@@ -318,7 +320,7 @@ name alongside it and retire the old one deliberately, with a migration.
    distributed library follows `typing`'s naming instead.
 9. Apply the scope, abbreviation and acronym-casing choices in **Length, abbreviations, consistency**.
 10. Keep the repository's concept-to-word mapping unambiguous in both directions — one concept, one
-    word; one word, one concept. A port that brings a second word for a concept the repo already names
+    word; one word, one concept. A port that brings a second word for a concept the repository already names
     takes the existing word.
 11. Perform renames separately from behaviour changes; complete port-time naming before callers spread.
     A module that has outgrown its name is renamed, in its own commit, before it is extended.

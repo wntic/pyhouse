@@ -118,7 +118,7 @@ from the one it re-raises. With SQLAlchemy, for one:
 ```python
 # yes — translate, carry the detail forward, stay silent
 try:
-    await self._session.execute(stmt)
+    await self._session.execute(statement)
 except IntegrityError as exc:
     raise ConflictError("foo name already exists", {"foo_name": foo.name}) from exc
 

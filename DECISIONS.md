@@ -2264,3 +2264,22 @@ nothing, `Settings` included, so the flat process's bare `Settings` becomes `Mya
 **Reverse by:** from the parent of the commits that added this entry, restoring `hex-conventions`'
 one/several split and `flat-layered` rule 7's `settings.py`, renaming the template paths, relative imports
 and re-exports back, and restoring `naming`'s role-suffix sentence and `python-packaging`'s examples.
+
+### D147 — Invented abbreviations are spelled out in templates and rule text
+Taken by the maintainer (backlog item 46, 2026-09-30), after a four-lens review. `naming` bans dropped
+vowels and truncations, and the templates broke that ban, so agents copied `repo=repo`, `cmd` and `sf`.
+Every name the catalogue coins is spelled out — `command`, `repository`, `session_factory`, `connection`,
+`transaction`, `statement`, `credentials`, `authenticated_client`, `TestInfrastructureProvider`,
+`foo_id`, `middleware`, `error_class` for a loop's class, `traceback` for `__aexit__`'s parameter, and
+one-letter locals, angle-bracket placeholders and prose "repo", "env", "tech", "infra" — and a name that
+would shadow one in scope takes the next clearest (`stored`, `http_client`). `with pytest.raises(...)`
+binds `exc_info`, the name the flat templates already used, and hex's driver-code local and context key
+become `sqlstate`, as in flat. "Repository" meaning a codebase became "project" where it would read as the
+storage pattern (architecture-choice, the reviewer, README). Kept, each checked: `get_current_user`
+(FastAPI's idiom) and `exc` (Python's style), both the maintainer's call; `uow` (the pattern's own
+acronym, and a module path); `_SRC`/`src` (the layout's directory name); library, protocol and driver
+names (`exc.orig.pgcode`, `op`, `sa`, `cwd=`, JWT claims). `naming` now allows a type parameter
+(`T`, `S`) beside `i`, `j` and `_`, and the standard library's `exc_type` and `exc_info` beside `exc`.
+Renames change no obligation, so they are `refactor`, as item 42's were.
+**Reverse by:** from the parent of the commits that added this entry, reverting the rename commits and
+restoring `naming`'s single-letter and Python-style clauses.

@@ -13,7 +13,7 @@ settings class is shown beside the adapter that reads it: the relational store's
 `hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`, `RedisSettings` in
 `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. The composition roots of that rule are,
 in this catalogue's layout, `src/myapp/containers.py` (the process's container), `migrations/env.py`
-(the migration environment, `hex-project-setup`) and `TestInfraProvider` with its fixtures in
+(the migration environment, `hex-project-setup`) and `TestInfrastructureProvider` with its fixtures in
 `tests/integration/conftest.py` (the test infrastructure, `hex-test-integration-setup`), which
 constructs settings with explicit values (`test-principles`).
 
@@ -57,7 +57,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   rule. A `containers.DeclarativeContainer` subclass replaces the provider classes, `providers.*`
   replace the factories, and — the rule dishka does not need — **a binding is reached at the call site
   by its attribute name, which must be the snake_case form of the class** — the call site writes
-  `<root>.<snake_case_attr>()`. That name-based contract is unenforced: rename the class and the call
+  `<root>.<snake_case_attribute>()`. That name-based contract is unenforced: rename the class and the call
   site breaks at runtime. Test substitution differs in kind, and its trap is
   `hex-test-integration-setup`'s.
 
@@ -69,7 +69,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   | `provides=IFooRepository` | `providers.Provider[IFooRepository]` annotation |
   | constructor arguments resolved by annotation | each argument passed explicitly |
   | generator factory + `container.close()` | `providers.Resource`, or teardown in the entrypoint |
-  | `FromDishka[T]` at the call site | `container.<snake_case_attr>()` |
+  | `FromDishka[T]` at the call site | `container.<snake_case_attribute>()` |
   | an extra provider with `override=True`, before the container is built | `.override()` / `.reset_override()` on a built container |
   | `resolve_settings` over `SettingsProvider`'s declarations | each provider of the settings sub-container, walked with `.traverse()`, called once at start |
 
@@ -124,7 +124,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 | **Per operation** | Instances meant to be fresh for each request or each job, cheap to construct. | Every `*Handler`, every `*Repository`, **domain services** that compose them, a stateful adapter bound to per-request state. |
 
 **Default to per-operation for application and domain artifacts. Reserve process lifetime for objects
-that own a connection pool, parse env once, or are pure-data configuration.**
+that own a connection pool, parse the environment once, or are pure-data configuration.**
 
 The pitfall: giving a repository process lifetime looks fine because it is stateless, but it freezes the
 session factory it was built with for the life of the process, which defeats substituting one for a test
@@ -161,7 +161,7 @@ adding a binding, find the right section and insert it after the latest declarat
 ### What never goes in the composition root
 
 - **No business logic.** It only wires.
-- **No conditionals on env.** Different environments produce different settings *values*; the wiring
+- **No conditionals on the environment.** Different environments produce different settings *values*; the wiring
   stays the same. Hide a feature flag behind a settings field inside the implementation, never behind a
   branch in the wiring.
 - **No imports from `restapi/` or another entrypoint.** The composition root sits below the entrypoint
@@ -181,13 +181,13 @@ adding a binding, find the right section and insert it after the latest declarat
   site.
 
 - **Import each class from the package that DIRECTLY re-exports it — one `from .module import *` hop —
-  never a grandparent** (`python-packaging`). This bites the nested infra layout: a repository class lives in
+  never a grandparent** (`python-packaging`). This bites the nested infrastructure layout: a repository class lives in
   `infrastructure/<store>/repositories/<x>.py`, so import it from the **`repositories` subpackage** —
   `from myapp.infrastructure.postgres.repositories import FooRepository` — **not** from the `<store>`
-  tech package. The tech-package form resolves at runtime but mypy reports `[attr-defined]`, because the
+  technology package. The technology-package form resolves at runtime but mypy reports `[attr-defined]`, because the
   intermediate `repositories/__init__.py` has a computed `__all__` mypy cannot evaluate across the
-  `from .repositories import *` hop. A class sitting directly under the tech package — the `engine` or
-  `settings` module, a capability adapter — is one hop away, so importing it from the tech package is
+  `from .repositories import *` hop. A class sitting directly under the technology package — the `engine` or
+  `settings` module, a capability adapter — is one hop away, so importing it from the technology package is
   correct.
 
 - No `from __future__ import annotations` (`python-style`).
@@ -203,7 +203,7 @@ distribution's root package, and the root `__init__.py` does not re-export it �
 
 ## Hard stops
 
-- Asked for an env read, a new settings field, or a default on one → stop, use `python-settings`.
+- Asked for an environment read, a new settings field, or a default on one → stop, use `python-settings`.
 - Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill
   runs first.
 - The composition root is asked to bind a store connection or transaction handle per operation, so a

@@ -27,7 +27,7 @@ __all__ = ["FakeFooRepository"]
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
         # Store DETACHED copies; never alias the caller's instances.
-        self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
+        self._store: dict[UUID, Foo] = {foo.id: replace(foo) for foo in (items or [])}
         self.updated: list[UUID] = []  # call record — ids passed to update(), in order
 
     # only where the port lists
@@ -36,12 +36,12 @@ class FakeFooRepository:
         matching = self._matching(filter)
         ordered: Sequence[Foo]
         if filter.sort is FooSort.NAME_ASC:
-            ordered = sorted(matching, key=lambda f: f.name)
+            ordered = sorted(matching, key=lambda foo: foo.name)
         elif filter.sort is FooSort.CREATED_AT_DESC:
             ordered = matching[::-1]
         else:
             ordered = matching
-        return [replace(f) for f in ordered[filter.offset : filter.offset + filter.limit]]
+        return [replace(foo) for foo in ordered[filter.offset : filter.offset + filter.limit]]
 
     # only where the port lists
     async def count(self, *, filter: FooListFilter) -> int:
@@ -50,7 +50,7 @@ class FakeFooRepository:
     # only where the port lists
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
         # One condition per scoping field the filter declares.
-        return [f for f in self._store.values() if filter.name is None or f.name == filter.name]
+        return [foo for foo in self._store.values() if filter.name is None or foo.name == filter.name]
 
     async def get_by_id(self, id: UUID) -> Foo:
         if id not in self._store:
@@ -59,12 +59,12 @@ class FakeFooRepository:
 
     # only where Foo has a natural key
     async def get_by_name(self, name: str) -> Foo | None:
-        match = next((f for f in self._store.values() if f.name == name), None)
+        match = next((foo for foo in self._store.values() if foo.name == name), None)
         return replace(match) if match is not None else None
 
     async def create(self, foo: Foo) -> None:
         # only where Foo has a natural key
-        if any(f.name == foo.name for f in self._store.values()):
+        if any(stored.name == foo.name for stored in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
                 {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
@@ -75,7 +75,7 @@ class FakeFooRepository:
         if foo.id not in self._store:
             raise NotFoundError("Foo not found", {"id": str(foo.id)})
         # only where Foo has a natural key
-        if any(f.name == foo.name and f.id != foo.id for f in self._store.values()):
+        if any(stored.name == foo.name and stored.id != foo.id for stored in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
                 {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
@@ -115,7 +115,7 @@ class FakeFooStorage:
         self.deletes.append(key)
 ```
 
-The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the store write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at module scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
+The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the store write *after* an upload to fail uses an inline `_RaiseAfterUploadRepository(FakeFooRepository)` at module scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
 
 ### The compensating handler's tests — upload, then the write fails, assert the undo
 
@@ -131,7 +131,7 @@ from myapp.domain.foos import Foo
 from tests.unit.fakes import FakeFooRepository, FakeFooStorage
 
 
-class _RaiseAfterUploadRepo(FakeFooRepository):
+class _RaiseAfterUploadRepository(FakeFooRepository):
     def __init__(self) -> None:
         super().__init__()
         self.raised: UpstreamError | None = None
@@ -148,34 +148,34 @@ class _RaiseOnDeleteStorage(FakeFooStorage):
 
 
 async def test_store_failure_undoes_the_upload() -> None:
-    repo = _RaiseAfterUploadRepo()
+    repository = _RaiseAfterUploadRepository()
     storage = FakeFooStorage()
-    handler = CreateFooHandler(repo=repo, storage=storage)
+    handler = CreateFooHandler(repository=repository, storage=storage)
 
-    with pytest.raises(UpstreamError) as exc:
+    with pytest.raises(UpstreamError) as exc_info:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
-    assert exc.value is repo.raised
+    assert exc_info.value is repository.raised
     assert len(storage.uploads) == 1
     assert storage.deletes == [storage.uploads[0][0]]
 
 
 async def test_failed_undo_still_raises_the_original_failure() -> None:
-    repo = _RaiseAfterUploadRepo()
+    repository = _RaiseAfterUploadRepository()
     storage = _RaiseOnDeleteStorage()
-    handler = CreateFooHandler(repo=repo, storage=storage)
+    handler = CreateFooHandler(repository=repository, storage=storage)
 
-    with pytest.raises(UpstreamError) as exc:
+    with pytest.raises(UpstreamError) as exc_info:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
-    assert exc.value is repo.raised
+    assert exc_info.value is repository.raised
     assert storage.deletes == [storage.uploads[0][0]]
 ```
 
 Each injected failure is the catalogue class and `context` its real adapter raises (Fakes rules 6 and
 8, `test-principles` rung 4) — the repository's as `hex-persistence` translates a driver error, the
 storage's as its own adapter does — so both are `UpstreamError`, and the class alone cannot tell them apart. Which call raised
-does: the repository subclass keeps the exception it raised, and `exc.value is repo.raised` passes only
+does: the repository subclass keeps the exception it raised, and `exc_info.value is repository.raised` passes only
 when the caller sees that very failure. The contract is: **the upload landed, then the store write failed,
 then the same key was deleted, and the caller sees the failure that started it, unchanged.** The undo
 raises like any other call (`hex-application`, Compensation); the second test pins that the handler
@@ -197,11 +197,11 @@ from tests.unit.fakes import FakeFooRepository
 
 async def test_a_mutated_entity_does_not_reach_the_store() -> None:
     foo = Foo(id=uuid.uuid4(), name="alpha")
-    repo = FakeFooRepository(items=[foo])
+    repository = FakeFooRepository(items=[foo])
 
     foo.name = "seeded-then-mutated"
-    loaded = await repo.get_by_id(foo.id)
+    loaded = await repository.get_by_id(foo.id)
     loaded.name = "read-then-mutated"
 
-    assert (await repo.get_by_id(foo.id)).name == "alpha"
+    assert (await repository.get_by_id(foo.id)).name == "alpha"
 ```

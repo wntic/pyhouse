@@ -48,7 +48,7 @@ depending on it.
   the inverse concern. A floor states a known breaking boundary in someone else's history; this skill
   is about producing your own. Where a distributed package raises a floor its consumers resolve
   against, the release that carries it is still weighed here.
-- A repository holding several distributions — the member split, in-repo dependency edges, tooling
+- A repository holding several distributions — the member split, in-repository dependency edges, tooling
   settled once → `python-workspace`. It governs members; which number each member carries is here.
 - Database schema evolution and the migration chain → the family's persistence skill. A migration is
   versioned by its own chain, not by the distribution's number.

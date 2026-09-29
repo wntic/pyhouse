@@ -57,11 +57,11 @@ _SORT_COLUMNS = {
 
 class FooRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        self._sf = session_factory
+        self._session_factory = session_factory
 
     async def get_by_id(self, id: UUID) -> Foo:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 row = (await session.execute(select(foos_table).where(foos_table.c.id == id))).mappings().one_or_none()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {"id": str(id)}) from exc
@@ -71,35 +71,35 @@ class FooRepository:
 
     async def get_by_name(self, name: str) -> Foo | None:
         try:
-            async with self._sf() as session:
-                stmt = select(foos_table).where(foos_table.c.name == name)
-                row = (await session.execute(stmt)).mappings().one_or_none()
+            async with self._session_factory() as session:
+                statement = select(foos_table).where(foos_table.c.name == name)
+                row = (await session.execute(statement)).mappings().one_or_none()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {"name": name}) from exc
         return _row_to_entity(row) if row is not None else None
 
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
-        stmt = _apply_filter(select(foos_table), filter).order_by(_SORT_COLUMNS[filter.sort], foos_table.c.id)
-        stmt = stmt.limit(filter.limit).offset(filter.offset)
+        statement = _apply_filter(select(foos_table), filter).order_by(_SORT_COLUMNS[filter.sort], foos_table.c.id)
+        statement = statement.limit(filter.limit).offset(filter.offset)
         try:
-            async with self._sf() as session:
-                rows = (await session.execute(stmt)).mappings().all()
+            async with self._session_factory() as session:
+                rows = (await session.execute(statement)).mappings().all()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
-        return [_row_to_entity(r) for r in rows]
+        return [_row_to_entity(row) for row in rows]
 
     async def count(self, *, filter: FooListFilter) -> int:
-        stmt = _apply_filter(select(func.count()).select_from(foos_table), filter)
+        statement = _apply_filter(select(func.count()).select_from(foos_table), filter)
         try:
-            async with self._sf() as session:
-                total: int = (await session.execute(stmt)).scalar_one()
+            async with self._session_factory() as session:
+                total: int = (await session.execute(statement)).scalar_one()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
         return total
 
     async def create(self, foo: Foo) -> None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 await session.execute(foos_table.insert().values(id=foo.id, name=foo.name, note=foo.note))
                 await session.commit()
         except _DRIVER_ERRORS as exc:
@@ -107,7 +107,7 @@ class FooRepository:
 
     async def update(self, foo: Foo) -> None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 result = cast(  # execute() is typed Result[Any], which has no rowcount
                     CursorResult[object],
                     await session.execute(
@@ -124,7 +124,7 @@ class FooRepository:
 
     async def delete(self, id: UUID) -> None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 result = cast(
                     CursorResult[object],
                     await session.execute(foos_table.delete().where(foos_table.c.id == id)),
@@ -149,7 +149,7 @@ def _translate(exc: DBAPIError | OSError | PoolTimeoutError, context: dict[str, 
 def _map_integrity_error(exc: IntegrityError) -> Exception:
     cause = exc.orig.__cause__ if exc.orig else None
     constraint = getattr(cause, "constraint_name", None) if cause else None
-    pgcode = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
+    sqlstate = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
 
     if constraint == "uq_foos_name":
         return FooConflictError("foo name already exists", {"field": "name", "constraint": constraint})
@@ -158,14 +158,14 @@ def _map_integrity_error(exc: IntegrityError) -> Exception:
 
     return ConflictError(
         "integrity violation",
-        {"constraint": constraint or "unknown", "pgcode": pgcode or "unknown"},
+        {"constraint": constraint or "unknown", "sqlstate": sqlstate or "unknown"},
     )
 
 
-def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:
+def _apply_filter[S: Select[Any]](statement: S, filter: FooListFilter) -> S:
     if filter.name is not None:
-        stmt = stmt.where(foos_table.c.name == filter.name)
-    return stmt
+        statement = statement.where(foos_table.c.name == filter.name)
+    return statement
 ```
 
 ## Template — unit-of-work-managed form
@@ -208,7 +208,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
    tiebreaker, so every page is a total order (`persistence` rule 18). Never hardcode one default order
    that ignores the caller's chosen sort.
 6. `count(*, filter)` returns `int` from `select(func.count()).select_from(table)`.
-7. Multi-field filter logic extracts to a module-level `_apply_filter(stmt, filter)`, generic over the
+7. Multi-field filter logic extracts to a module-level `_apply_filter(statement, filter)`, generic over the
    statement type so the list query and the count query each keep their own `Select` type.
 
 ## Rules — mutations
@@ -246,7 +246,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 ## Rules — row-to-entity mapper
 
 16. **A naive database datetime becomes UTC-aware in the mapper** —
-    `dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt` — this binding's half of `persistence` rule 8.
+    `stored.replace(tzinfo=UTC) if stored.tzinfo is None else stored` — this binding's half of `persistence` rule 8.
 17. **A private module function after the class, never a private method** — it reads no instance
     state (`python-packaging`). A simple aggregate (one row → one entity) has one `_row_to_entity(row)`;
     a composite aggregate (several rows → one entity) has an assembler,

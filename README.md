@@ -43,7 +43,7 @@ reports where the code departs from them; it runs in a subagent, so reading the 
 costs the calling session nothing but the report.
 
 It states no rules of its own. It works out which family the code is in — or that it is in neither,
-which is the answer for a Django tree, a library, a CLI or an ML repo, and means most of the
+which is the answer for a Django tree, a library, a CLI or an ML project, and means most of the
 catalogue does not bind — then checks each skill's own precondition before holding the code to its
 rules. Every finding names the skill and the rule or hard stop it came from; anything it cannot
 attribute is reported as a gap in the catalogue, not as a finding against you.

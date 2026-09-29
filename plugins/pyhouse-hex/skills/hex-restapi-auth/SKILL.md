@@ -38,7 +38,7 @@ is a *transport* rule — a single role-rank check — belongs here.
 - What a settings class declares → `python-settings`; binding lifetimes and composition-root declaration order → `hex-wiring`.
 - Authorization finer than a single role-rank check → `hex-application`; the handler raises
   `ForbiddenError`.
-- The fixtures that mint tokens, the `authed_client`, and the unauthenticated-probe invariant →
+- The fixtures that mint tokens, the `authenticated_client`, and the unauthenticated-probe invariant →
   `hex-test-restapi-auth`.
 - A login or token-refresh request/response model, or any other per-resource wire schema → `hex-restapi-schema`; this skill owns the dependencies, not the bodies.
 
@@ -92,7 +92,7 @@ adapter's alone (rule 12).
 
 ### Template — PyJWT
 
-Placement (`infrastructure/jwt/`, the external tech), constructor injection, secret handling, the
+Placement (`infrastructure/jwt/`, the external technology), constructor injection, secret handling, the
 no-logging rule and not importing the port it satisfies (`ICanVerifyToken`) are
 `hex-capability-adapter`'s; this is the sync pure-CPU adapter that skill describes in prose, bound to
 PyJWT. Translation of the library's parse/verify errors follows `exception-catalog`.
@@ -212,11 +212,11 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 @inject
 async def get_current_user(
     verifier: FromDishka[ICanVerifyToken],
-    creds: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> CurrentUser:
-    if creds is None:
+    if credentials is None:
         raise UnauthorizedError("Missing bearer token", {"reason": "missing_credentials"})
-    return verifier.verify(creds.credentials)
+    return verifier.verify(credentials.credentials)
 ```
 
 The bearer scheme is declared **once** at module level. `get_current_user` receives the verifier by

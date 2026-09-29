@@ -25,17 +25,17 @@ logger = structlog.get_logger()
 
 
 class CreateFooHandler:
-    def __init__(self, repo: IFooRepository, storage: ICanStoreFoos) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository, storage: ICanStoreFoos) -> None:
+        self._repository = repository
         self._storage = storage
 
-    async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(id=uuid.uuid4(), name=cmd.name, note=cmd.note)
+    async def execute(self, command: CreateFooCommand) -> uuid.UUID:
+        foo = Foo(id=uuid.uuid4(), name=command.name, note=command.note)
         storage_key = f"foos/{foo.id}"
 
-        await self._storage.upload(storage_key, cmd.data)
+        await self._storage.upload(storage_key, command.data)
         try:
-            await self._repo.create(foo)
+            await self._repository.create(foo)
         except Exception:
             try:
                 await self._storage.delete(storage_key)

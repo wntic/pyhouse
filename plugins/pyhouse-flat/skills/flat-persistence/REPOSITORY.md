@@ -37,8 +37,8 @@ class FooRepository:
     async def upsert(self, foo: Foo) -> None:
         statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, as_of=foo.as_of)
         try:
-            async with self._engine.begin() as conn:
-                await conn.execute(
+            async with self._engine.begin() as connection:
+                await connection.execute(
                     statement.on_conflict_do_update(
                         index_elements=[foo_table.c.external_id],
                         set_={"name": statement.excluded.name, "as_of": statement.excluded.as_of},
@@ -51,8 +51,8 @@ class FooRepository:
 
 
 def _translate(exc: DBAPIError | OSError | PoolTimeoutError) -> MyappError:
-    orig = exc.orig if isinstance(exc, DBAPIError) else None
-    driver_error = orig.__cause__ if orig is not None else None
+    original_error = exc.orig if isinstance(exc, DBAPIError) else None
+    driver_error = original_error.__cause__ if original_error is not None else None
     sqlstate = getattr(driver_error, "sqlstate", None)
     if sqlstate is not None and sqlstate[:2] in _REFUSED_DATA_CLASSES:
         return StorageWriteRejectedError(

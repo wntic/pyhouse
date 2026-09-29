@@ -232,16 +232,19 @@ MIDDLEWARE_ERRORS: dict[str, int] = {"INTERNAL_ERROR": 500}
 
 
 def status_for(exc: MyappError) -> int:
-    return next((STATUS_BY_ERROR[cls] for cls in type(exc).__mro__ if cls in STATUS_BY_ERROR), 500)
+    return next(
+        (STATUS_BY_ERROR[error_class] for error_class in type(exc).__mro__ if error_class in STATUS_BY_ERROR),
+        500,
+    )
 
 
 def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
     known = set(STATUS_BY_ERROR.values()) | set(MIDDLEWARE_ERRORS.values())
-    unknown = [c for c in codes if c not in known]
+    unknown = [code for code in codes if code not in known]
     if unknown:
         raise ValueError(f"HTTP statuses no mapped error class or middleware produces: {unknown}")
     # Exactly FastAPI's `responses=` type; a narrower value type fails strict mypy at the decorator.
-    out: dict[int | str, dict[str, Any]] = {c: {"model": ErrorResponse} for c in codes}
+    out: dict[int | str, dict[str, Any]] = {code: {"model": ErrorResponse} for code in codes}
     return out
 ```
 

@@ -12,7 +12,7 @@ because they are about naming and Python's import system rather than about layer
 
 What they do *not* decide is which package a module belongs in. That is the architecture's job:
 `hex-architecture` (in the `pyhouse-hex` plugin) for a layered app, `flat-layered` (in
-`pyhouse-flat`) for a package-by-tech service.
+`pyhouse-flat`) for a package-by-technology service.
 
 ## When to use vs. neighbours
 
@@ -222,7 +222,7 @@ __all__ = qux_client.__all__ + qux_settings.__all__
 
 **A package re-exports its immediate children — direct modules *and* child subpackages** — except the
 carve-outs below. A package with children and an empty `__init__.py` is wrong; re-export them so
-`from <pkg> import X` resolves. The two empty `__init__.py` files that are right are an application's
+`from <package> import X` resolves. The two empty `__init__.py` files that are right are an application's
 distribution root (carve-out 1) and a package whose modules may not be wildcarded (carve-out 2).
 
 Adding a module to a re-exporting package is **four edits**: declare `__all__` in the module, add it to
@@ -274,10 +274,10 @@ metadata`.
   `from ..parent import Y`.
 - **Same package → one dot, never up-and-back-down.** A module importing a sibling in its **own** package
   uses `.sibling`. Routing through the parent back into the same package
-  (`from ..pkg.sibling import X` while already inside `pkg/`) resolves but reads as a cross-package
+  (`from ..package.sibling import X` while already inside `package/`) resolves but reads as a cross-package
   reach. No tool flags it — the import is valid Python — so it is on the author.
 - **Three or more dots → absolute.** `from ...thing import Z` is banned; write
-  `from myapp.subpkg.thing import Z`. Once it would be `...`, the absolute path is both shorter and
+  `from myapp.subpackage.thing import Z`. Once it would be `...`, the absolute path is both shorter and
   clearer.
 - **Across package boundaries → absolute**, regardless of dot count. **A layer is a package**, so in a
   layered architecture this is the same rule under a second wording — cross-layer imports absolute,
@@ -318,7 +318,7 @@ from myapp.foos.foo_parser import FooParser
 **"Package" means the one that DIRECTLY contains the defining module — never a grandparent.** Reach a
 symbol through **one** `from .module import *` hop. Do not reach it through a grandparent that would
 re-export it across a second hop: the intermediate package's `__all__` is a **computed** concatenation
-(`a.__all__ + b.__all__`) that the type checker cannot evaluate through a `from .subpkg import *`, so the
+(`a.__all__ + b.__all__`) that the type checker cannot evaluate through a `from .subpackage import *`, so the
 name resolves at runtime while the checker reports "module has no attribute".
 
 Concretely: a class defined in `myapp/foos/bars/bar_parser.py` comes from its `bars` package —

@@ -14,7 +14,7 @@ Produces one integration-test file per endpoint. Self-contained: every test in t
 - A new or modified endpoint added by `hex-restapi-endpoint` → this skill.
 - A new resource introduces several endpoints (create + list + get + update + delete) → invoke this skill once per endpoint file; sibling files share a per-resource `conftest.py`.
 - The `tests/integration/conftest.py` itself (rollback, container fixtures, `container`, `real_app`) → `hex-test-integration-setup` (one-shot).
-- The auth half — the `authed_client` factory and its signing-key fixtures, a route driven as an authenticated caller, a role rejection or a cross-tenant 404, the token verifier's own unit test → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
+- The auth half — the `authenticated_client` factory and its signing-key fixtures, a route driven as an authenticated caller, a role rejection or a cross-tenant 404, the token verifier's own unit test → `hex-test-restapi-auth` (auth apps only; this skill is complete without it).
 - The route-side auth dependency, the role gate and the 401/403 codes a route advertises because of them → `hex-restapi-auth`.
 - Cross-cutting "every advertised error code carries the catalogue's shape" / CORS / request-size → `hex-test-app-invariants` (one-shot; discovers by walking the app's published document).
 - Repository contract (real DB, no HTTP) → `hex-test-repository-contract`.
@@ -71,7 +71,7 @@ never a fixed download shape.
 
 ### Per-resource `conftest.py` — relational seed factory, SQLAlchemy
 
-A raw `INSERT` is legitimate setup here: `hex-test-repository-contract` rule 9 bans it only in a test of the repository under test, where seeding behind the subject would prove nothing. An endpoint test's subject is the route, so the fastest honest way to put a row in front of it is to write one. The `make_foo` factory below seeds via a raw SQL `INSERT` through `sf` — that is the **relational-store** variant, valid when the resource is backed by a relational store. A resource backed by a client-style store (redis / a document store / …) has no `sf` and no SQL table: seed it either by **POSTing through the API** (drive the create endpoint, then test against the result) or via the **store's own client** in the fixture. Pick the path from the resource's datastore kind; don't reach for `INSERT INTO` when there is no SQL table.
+A raw `INSERT` is legitimate setup here: `hex-test-repository-contract` rule 9 bans it only in a test of the repository under test, where seeding behind the subject would prove nothing. An endpoint test's subject is the route, so the fastest honest way to put a row in front of it is to write one. The `make_foo` factory below seeds via a raw SQL `INSERT` through `session_factory` — that is the **relational-store** variant, valid when the resource is backed by a relational store. A resource backed by a client-style store (redis / a document store / …) has no `session_factory` and no SQL table: seed it either by **POSTing through the API** (drive the create endpoint, then test against the result) or via the **store's own client** in the fixture. Pick the path from the resource's datastore kind; don't reach for `INSERT INTO` when there is no SQL table.
 
 ```python
 import uuid
@@ -83,16 +83,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture
-def make_foo(sf: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
+def make_foo(session_factory: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
     async def _make(*, name: str | None = None) -> uuid.UUID:
-        fid = uuid.uuid4()
-        async with sf() as session:
+        foo_id = uuid.uuid4()
+        async with session_factory() as session:
             await session.execute(
                 text("INSERT INTO foos(id, name) VALUES(:id, :name)"),
-                {"id": str(fid), "name": name or f"foo-{fid}"},
+                {"id": str(foo_id), "name": name or f"foo-{foo_id}"},
             )
             await session.commit()
-        return fid
+        return foo_id
 
     return _make
 ```

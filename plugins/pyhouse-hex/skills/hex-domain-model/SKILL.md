@@ -1,6 +1,6 @@
 ---
 name: hex-domain-model
-description: Use when creating or changing a domain entity, value object, enum or filter record — stdlib dataclasses, `__post_init__` invariants, identity versus value equality, when a bare primitive carrying a constraint, a unit or a rule must become a value object instead, and the tunable variant of a value object for an env-sourced threshold (max rows, retention days), which is neither a service nor a settings class. A rule needing another aggregate's state is `hex-domain-service`; the wire model is `hex-restapi-schema`.
+description: Use when creating or changing a domain entity, value object, enum or filter record — stdlib dataclasses, `__post_init__` invariants, identity versus value equality, when a bare primitive carrying a constraint, a unit or a rule must become a value object instead, and the tunable variant of a value object for an environment-sourced threshold (max rows, retention days), which is neither a service nor a settings class. A rule needing another aggregate's state is `hex-domain-service`; the wire model is `hex-restapi-schema`.
 paths: ["**/domain/**"]
 ---
 
@@ -200,7 +200,7 @@ Inside this skill, pick by what the thing *is*:
   configuration or a store, is not closed → a **Value object**, with a lookup repository behind a port
   (`hex-domain-ports`).
 - A read-side parameter bag passed to a repository `list`/`count` → **Filter record**.
-- An env-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable
+- An environment-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable
   variant** of a value object, not a service and not a settings class.
 
 One case is neither a shape here nor a neighbour's:

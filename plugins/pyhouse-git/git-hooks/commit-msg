@@ -62,7 +62,7 @@ TYPE=$(printf '%s' "$SUBJECT" | sed -E 's/^([a-z]+).*/\1/')
 
 if [ -n "$TYPES" ]; then
     MATCHED=0
-    for t in $TYPES; do [ "$t" = "$TYPE" ] && MATCHED=1 && break; done
+    for allowed in $TYPES; do [ "$allowed" = "$TYPE" ] && MATCHED=1 && break; done
     [ "$MATCHED" = 1 ] || fail "type '$TYPE' is not one of: $TYPES"
 fi
 

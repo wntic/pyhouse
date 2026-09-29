@@ -57,20 +57,20 @@ _TWO_FOOS = {"items": [{"id": "alpha", "name": "a"}, {"id": "beta", "name": "b"}
 
 
 async def test_a_run_records_what_it_fetched(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, connection: AsyncConnection
 ) -> None:
     route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
     await sync_foos(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
-    rows = (await conn.execute(query)).all()
+    rows = (await connection.execute(query)).all()
     assert route.called
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, connection: AsyncConnection
 ) -> None:
     qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
     await sync_foos(qux_client, FooRepository(engine))
@@ -78,7 +78,7 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
     await sync_foos(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
-    rows = (await conn.execute(query)).all()
+    rows = (await connection.execute(query)).all()
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
@@ -148,7 +148,7 @@ connections to it.
    produced, read back from a per-test directory handed to the run as a parameter (`tmp_path` here); or,
    with neither, the requests its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail. Rows the run
    reads, or a record it must meet already stored, are arranged committed before it runs
-   (`flat-test-integration-setup`, `conn`). Rows arranged on `conn` are invisible to a run that opens
+   (`flat-test-integration-setup`, `connection`). Rows arranged on `connection` are invisible to a run that opens
    its own connection, and a write by the run to the same key waits on their lock until teardown.
 4. **A wrapper test proves the wrapper, not the body — two tests.** One drives the trigger and asserts
    the work's effect (rule 3), which proves the wrapper reaches the work; the other forces a failure of

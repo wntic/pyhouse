@@ -62,7 +62,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     # a fixture cannot feed parametrization
     if "method" in metafunc.fixturenames and "path" in metafunc.fixturenames:
         cases = _operations()
-        metafunc.parametrize("method,path", cases, ids=[f"{m.upper()} {p}" for m, p in cases])
+        metafunc.parametrize("method,path", cases, ids=[f"{method.upper()} {path}" for method, path in cases])
 
 
 def test_the_walk_found_operations_to_check() -> None:
@@ -97,9 +97,9 @@ from myapp.restapi.main import create_app
 
 def _configured_origin(app: FastAPI) -> str | None:
     # Starlette's `Middleware.kwargs` is untyped; cast rather than silence mypy.
-    for mw in app.user_middleware:
-        if getattr(mw.cls, "__name__", "") == "CORSMiddleware":
-            origins = cast(dict[str, Any], mw.kwargs).get("allow_origins", [])
+    for middleware in app.user_middleware:
+        if getattr(middleware.cls, "__name__", "") == "CORSMiddleware":
+            origins = cast(dict[str, Any], middleware.kwargs).get("allow_origins", [])
             return origins[0] if origins else None
     return None
 
@@ -132,9 +132,9 @@ _BODY_METHODS = ("post", "put", "patch")
 
 
 def _max_request_bytes(app: FastAPI) -> int | None:
-    for mw in app.user_middleware:
-        if getattr(mw.cls, "__name__", "") == "MaxRequestSizeMiddleware":
-            max_bytes = cast(dict[str, Any], mw.kwargs).get("max_bytes")
+    for middleware in app.user_middleware:
+        if getattr(middleware.cls, "__name__", "") == "MaxRequestSizeMiddleware":
+            max_bytes = cast(dict[str, Any], middleware.kwargs).get("max_bytes")
             return max_bytes if isinstance(max_bytes, int) else None
     return None
 

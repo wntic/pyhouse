@@ -43,7 +43,7 @@ class IUnitOfWork(Protocol):
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: TracebackType | None,
+        traceback: TracebackType | None,
     ) -> None: ...
     async def commit(self) -> None: ...
 ```
@@ -91,7 +91,7 @@ class SqlAlchemyUnitOfWork:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: TracebackType | None,
+        traceback: TracebackType | None,
     ) -> None:
         try:
             if exc_type is not None:
@@ -177,9 +177,9 @@ class CreateFooHandler:
     def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
         self._uow_factory = uow_factory
 
-    async def execute(self, cmd: CreateFooCommand) -> uuid.UUID:
-        foo = Foo(id=uuid.uuid4(), name=cmd.name, note=cmd.note)
-        bar = Bar(id=uuid.uuid4(), name=cmd.name)
+    async def execute(self, command: CreateFooCommand) -> uuid.UUID:
+        foo = Foo(id=uuid.uuid4(), name=command.name, note=command.note)
+        bar = Bar(id=uuid.uuid4(), name=command.name)
         async with self._uow_factory() as uow:
             await uow.foos.create(foo)
             await uow.bars.create(bar)

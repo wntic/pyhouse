@@ -1,6 +1,6 @@
 ---
 name: hex-test-integration-setup
-description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `sf` session factory, each store add-on's fixtures (the key-value store is the worked one), the per-test dishka composition root whose infrastructure providers are overridden, and `real_app` over it where the service has a REST entrypoint — or the same fixtures as one plugin module several hexagonal workspace members share. Maps the whole suite tree and names the skill that writes each file in it. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's fixtures, which are `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
+description: Use when laying or changing the `tests/integration/conftest.py` hierarchy one hexagonal package's suite rests on — session-scoped testcontainers, the Alembic run and the disposable-database guard, savepoint-rollback isolation through the `session_factory` fixture, each store add-on's fixtures (the key-value store is the worked one), the per-test dishka composition root whose infrastructure providers are overridden, and `real_app` over it where the service has a REST entrypoint — or the same fixtures as one plugin module several hexagonal workspace members share. Maps the whole suite tree and names the skill that writes each file in it. Owns the Postgres container fixture; testing a repository against it is `hex-test-repository-contract`. Not a flat-layered service's fixtures, which are `flat-test-integration-setup`, in the `pyhouse-flat` plugin.
 ---
 
 # Hex Test — Integration Setup
@@ -12,7 +12,7 @@ One-shot per project, and everything else in the integration suite depends on it
 ## When to use vs. neighbours
 
 - Laying the base conftest for the first time, or changing a fixture in it → this skill.
-- A repository contract test → `hex-test-repository-contract` (consumes `sf`).
+- A repository contract test → `hex-test-repository-contract` (consumes `session_factory`).
 - An API endpoint test → `hex-test-restapi-endpoint` (consumes `real_app`, the REST add-on, and the store's own fixture where it seeds rows).
 - The app-wide checks — the construct smoke, the error shape of every advertised code, CORS, the request-size limit → `hex-test-app-invariants`; they build the app themselves and take none of these fixtures.
 - A handler test that runs on in-memory fakes and needs no database at all → `hex-test-application-handler`; none of these fixtures apply to it.
@@ -32,8 +32,8 @@ One-shot per project, and everything else in the integration suite depends on it
 tests/
 ├── unit/                             # nothing here takes a fixture from integration/
 └── integration/
-    ├── conftest.py                   # base: Postgres container, guard, migrations, engine, `sf`, `container`
-    │                                 # + each add-on's fixtures (the key-value store is the worked one);
+    ├── conftest.py                   # base: Postgres container, guard, migrations, engine, `session_factory`,
+    │                                 # `container` + each add-on's fixtures (the key-value store is the worked one);
     │                                 # `real_app` only with a REST entrypoint
     ├── postgres/                     # only with a relational store; a client store's sit in <store-kind>/
     └── api/                          # only where the app has an HTTP entrypoint
@@ -78,7 +78,7 @@ schema gets there, and what the disposability marker is set by.
 
 ### Dependency injection
 
-- **`dependency-injector`.** The container fixtures, the migration run, the guard and the savepoint-rollback `sf` are unchanged; only the composition-root fixture differs, and it differs in kind rather than in spelling. There is no `TestInfraProvider`: the fixture builds the real container, calls `.override(value)` on each provider **after** construction, and must `.reset_override()` each one in the `finally` block. Because the substitution lands on a live container, an already-resolved singleton may have captured the pre-override value — the classic case is a singleton whose `__init__` snapshots a settings field — so the same `finally` block also calls `.reset()` on every such capturing singleton — an explicit teardown in the fixture that overrode it, never an autouse one, which `test-principles`' closed autouse set does not admit — and `containers.py` has to be audited once to find them. That failure mode does not exist under the primary binding, where the graph is assembled with the test factories already in it.
+- **`dependency-injector`.** The container fixtures, the migration run, the guard and the savepoint-rollback `session_factory` are unchanged; only the composition-root fixture differs, and it differs in kind rather than in spelling. There is no `TestInfrastructureProvider`: the fixture builds the real container, calls `.override(value)` on each provider **after** construction, and must `.reset_override()` each one in the `finally` block. Because the substitution lands on a live container, an already-resolved singleton may have captured the pre-override value — the classic case is a singleton whose `__init__` snapshots a settings field — so the same `finally` block also calls `.reset()` on every such capturing singleton — an explicit teardown in the fixture that overrode it, never an autouse one, which `test-principles`' closed autouse set does not admit — and `containers.py` has to be audited once to find them. That failure mode does not exist under the primary binding, where the graph is assembled with the test factories already in it.
 - **Manual composition.** The composition root is a factory function, so the fixture calls it with the test objects as arguments. No provider classes, no override marking, and teardown is whatever `AsyncExitStack` the factory returned.
 
 ### Shared across workspace members
@@ -95,15 +95,15 @@ Consult `test-principles` for the testing constitution.
 
 ### Scope
 
-- **`tests/integration/conftest.py`** — the containers, the engine, the transaction-rollback `sf` and the
+- **`tests/integration/conftest.py`** — the containers, the engine, the transaction-rollback `session_factory` and the
   per-test `container`; `real_app` joins them only with a REST entrypoint. A service without one —
   queue-driven, RPC — has a base conftest that ends at `container` and imports no web framework: a
   framework import there fails every collection of a service that does not install it.
 - **The autouse pair is the disposable-database guard and the migration run**, both session-scoped and
   both in the base conftest, for a relational app — the closed autouse set `test-principles` allows.
-  Everything else, `sf`, `container` and `real_app` included, is requested by name.
+  Everything else, `session_factory`, `container` and `real_app` included, is requested by name.
 
-The Postgres machinery — engine, migration run, savepoint-rollback `sf` — is laid only where the app has
+The Postgres machinery — engine, migration run, savepoint-rollback `session_factory` — is laid only where the app has
 a relational store; a service whose stores are all client-style keeps `container` and each store's
 add-on, isolated by a per-test namespace (`test-principles` reliability rule 2).
 

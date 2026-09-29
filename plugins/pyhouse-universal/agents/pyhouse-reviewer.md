@@ -43,7 +43,7 @@ Findings from the wrong family are noise in bulk, so settle this before reading 
    shape it names as uncovered to the nearer family.
 
 **"Neither" is a real outcome and it is the common one** for a framework-dictated tree, a library, a
-CLI, an orchestrator-shaped data repo, an ML repo, or anything too small to need an architecture.
+CLI, an orchestrator-shaped data-pipeline project, an ML project, or anything too small to need an architecture.
 It means most of the catalogue does not bind: name the shape, hold the code to the universal skills,
 and stop. Reporting a hex or flat rule against such a tree is the worst outcome available to you,
 because the layout it demands is one nothing else in the project expects.

@@ -8,8 +8,8 @@ authenticated endpoint form.
 ## `tests/helpers/jwt.py`
 
 ```python
-import datetime as _dt
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -50,10 +50,10 @@ def sign_token(
     algorithm: str = "RS256",
     ttl_seconds: int | None = 300,
 ) -> str:
-    now = _dt.datetime.now(_dt.UTC)
+    now = datetime.now(UTC)
     payload: dict[str, object] = {"iss": issuer, "aud": audience, "iat": int(now.timestamp())}
     if ttl_seconds is not None:
-        payload["exp"] = int((now + _dt.timedelta(seconds=ttl_seconds)).timestamp())
+        payload["exp"] = int((now + timedelta(seconds=ttl_seconds)).timestamp())
     return jwt.encode({**payload, **claims}, private_pem, algorithm=algorithm)
 ```
 
@@ -88,7 +88,7 @@ def jwt_settings(rsa_keypair: RsaKeypair) -> JwtSettings:
 
 
 @pytest.fixture
-def authed_client(
+def authenticated_client(
     real_app: FastAPI,
     rsa_keypair: RsaKeypair,
     jwt_settings: JwtSettings,
@@ -117,29 +117,29 @@ A rank app adds `role: Role | None = None` before `**extra_claims`, importing `R
 
 ## The `container` substitution this skill adds
 
-`container`, `real_app` and `TestInfraProvider` live in `tests/integration/conftest.py` and are owned by
-`hex-test-integration-setup`. An app that declares auth adds one fixture parameter, one constructor
-field and one factory — and nothing else:
+`container`, `real_app` and `TestInfrastructureProvider` live in `tests/integration/conftest.py` and are
+owned by `hex-test-integration-setup`. An app that declares auth adds one fixture parameter, one
+constructor field and one factory — and nothing else:
 
 ```python
 from myapp.infrastructure.jwt import JwtSettings
 ```
 
 ```python
-    jwt_settings: JwtSettings,          # in container's signature; TestInfraProvider(..., jwt_settings=jwt_settings)
+    jwt_settings: JwtSettings,  # in container's signature; TestInfrastructureProvider(..., jwt_settings=jwt_settings)
 ```
 
 ```python
-        self._jwt_settings = jwt_settings   # in TestInfraProvider.__init__, which takes jwt_settings: JwtSettings
+        self._jwt_settings = jwt_settings  # in TestInfrastructureProvider.__init__(..., jwt_settings: JwtSettings)
 ```
 
 ```python
-    @provide(override=True)             # in TestInfraProvider
+    @provide(override=True)             # in TestInfrastructureProvider
     def jwt_settings(self) -> JwtSettings:
         return self._jwt_settings
 ```
 
-That factory is what makes `authed_client`-minted tokens verify against the running app. Strip all three
+That factory is what makes `authenticated_client`-minted tokens verify against the running app. Strip all three
 on an auth-less app: nothing binds `JwtSettings`, so a factory claiming to override one fails when the
 graph is assembled.
 
@@ -147,7 +147,7 @@ graph is assembled.
 
 `container`, up-tree in `tests/integration/conftest.py`, takes `jwt_settings` by name, and a fixture
 defined down-tree is visible only to tests under it (`test-principles`, *Where tests and fixtures sit*
-rule 2). Without the substitution, every `authed_client`-minted token would be verified against the
+rule 2). Without the substitution, every `authenticated_client`-minted token would be verified against the
 production public key and answer 401.
 
 The coupling has a cost: `container`, and `real_app` over it, cannot be used from tests outside
@@ -155,7 +155,7 @@ The coupling has a cost: `container`, and `real_app` over it, cannot be used fro
 there. Repository contract tests take their store's own fixture and never need it; where another
 entrypoint's tests outside `api/` do, `rsa_keypair` and `jwt_settings` move up-tree beside `container`.
 
-## `test_unauth_returns_401.py` — the discovered probe
+## `test_unauthenticated_returns_401.py` — the discovered probe
 
 One file, emitted for an auth app only. It walks every operation off the running app and asserts that
 each one not declared public refuses an anonymous caller and a caller holding a token the app did not
@@ -247,7 +247,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         from myapp.restapi.main import create_app
 
         cases = _protected_operations(create_app())
-        metafunc.parametrize("method,path", cases, ids=[f"{m} {p}" for m, p in cases])
+        metafunc.parametrize("method,path", cases, ids=[f"{method} {path}" for method, path in cases])
 ```
 
 ## `test_<verb>_<noun>.py` — the authenticated endpoint form
@@ -263,8 +263,8 @@ from collections.abc import Callable
 from httpx import AsyncClient
 
 
-async def test_create_foo_returns_the_created_foo(authed_client: Callable[..., AsyncClient]) -> None:
-    async with authed_client() as client:
+async def test_create_foo_returns_the_created_foo(authenticated_client: Callable[..., AsyncClient]) -> None:
+    async with authenticated_client() as client:
         response = await client.post("/foos", json={"name": "alpha"})
 
     assert response.status_code == 201
@@ -273,6 +273,6 @@ async def test_create_foo_returns_the_created_foo(authed_client: Callable[..., A
 
 A rank app passes `role=` and adds the below-the-bar case (rule 17), asserting `ForbiddenError.code`;
 on a mutation that rejection also shows nothing was written — read it back as an allowed caller
-(`authed_client(...)` twice, rule 6). Its `Role.LOWER` / `Role.HIGHER` are the catalogue's
+(`authenticated_client(...)` twice, rule 6). Its `Role.LOWER` / `Role.HIGHER` are the catalogue's
 **placeholder** pair (`hex-restapi-auth`) — substitute the app's own members, however many it has.
 

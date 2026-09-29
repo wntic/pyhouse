@@ -1,6 +1,6 @@
 ---
 name: hex-test-application-handler
-description: Use when unit-testing a CQRS command or query handler against in-memory fakes, or when writing one of those fakes — this skill owns `tests/unit/fakes/`, so a request for a fake repository or a fake `ICan<Verb>` capability lands here rather than on either adapter-test skill. Also covers failure injection through an inline `_RaiseXxxRepo` subclass, and the test that a failed side effect after the store write leaves the command succeeded. Not the real adapter against a real backend (`hex-test-repository-contract`, `hex-test-capability-adapter`) nor the handler over HTTP (`hex-test-restapi-endpoint`).
+description: Use when unit-testing a CQRS command or query handler against in-memory fakes, or when writing one of those fakes — this skill owns `tests/unit/fakes/`, so a request for a fake repository or a fake `ICan<Verb>` capability lands here rather than on either adapter-test skill. Also covers failure injection through an inline `_RaiseXxxRepository` subclass, and the test that a failed side effect after the store write leaves the command succeeded. Not the real adapter against a real backend (`hex-test-repository-contract`, `hex-test-capability-adapter`) nor the handler over HTTP (`hex-test-restapi-endpoint`).
 ---
 
 # Hex Test — Application Handler (unit)
@@ -13,7 +13,7 @@ Produces one unit-test file per handler module. Runs in milliseconds against in-
 
 - A new or modified handler under `application/<subdomain>/`, or a fake it needs under `tests/unit/fakes/` → this skill (write the fake first).
 - A fake for a capability port (`ICan<Verb>`) as much as for a repository (`IFooRepository`) → this skill; it owns both, which is why a bare "write me a fake" lands here and not on an adapter-test skill.
-- One-off failure injection for a single handler test → this skill — declare a `_RaiseXxxRepo(FakeFooRepository)` subclass at the handler test module scope instead of extending the fake.
+- One-off failure injection for a single handler test → this skill — declare a `_RaiseXxxRepository(FakeFooRepository)` subclass at the handler test module scope instead of extending the fake.
 - A test that drives the handler through the HTTP surface → `hex-test-restapi-endpoint` (integration, not unit); as an authenticated caller → `hex-test-restapi-auth`.
 - A test for a domain entity, value object, enum or service → `hex-test-domain`.
 - A real-backend test of the repository the fake stands in for → `hex-test-repository-contract`; of a capability adapter → `hex-test-capability-adapter`. The fake's exception contract is copied verbatim from whichever of those pins it.
@@ -31,7 +31,7 @@ tests/unit/application/
 └── test_<verb>_<noun>_handler.py        # mirrors the handler module's filename
 ```
 
-One file per handler. Compensating-tx assertions live in the file for the handler that performs the compensation, not in a separate file.
+One file per handler. Compensating-transaction assertions live in the file for the handler that performs the compensation, not in a separate file.
 
 ### `create` handler
 
@@ -44,26 +44,26 @@ from tests.unit.fakes import FakeFooRepository
 
 
 async def test_assigns_uuid_and_stores() -> None:
-    repo = FakeFooRepository()
-    handler = CreateFooHandler(repo=repo)
+    repository = FakeFooRepository()
+    handler = CreateFooHandler(repository=repository)
 
     foo_id = await handler.execute(CreateFooCommand(name="alpha"))
 
-    stored = await repo.get_by_id(foo_id)
+    stored = await repository.get_by_id(foo_id)
     assert stored.name == "alpha"
     assert stored.id == foo_id
 
 
 # only where Foo has a natural key
 async def test_duplicate_name_raises_conflict() -> None:
-    repo = FakeFooRepository()
-    handler = CreateFooHandler(repo=repo)
+    repository = FakeFooRepository()
+    handler = CreateFooHandler(repository=repository)
     await handler.execute(CreateFooCommand(name="alpha"))
 
-    with pytest.raises(FooConflictError) as exc:
+    with pytest.raises(FooConflictError) as exc_info:
         await handler.execute(CreateFooCommand(name="alpha"))
 
-    assert exc.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
+    assert exc_info.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
 ```
 
 ### `update` handler — partial update, an absent field left as it was
@@ -81,43 +81,43 @@ from tests.unit.fakes import FakeFooRepository
 
 async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     foo_id = uuid.uuid4()
-    repo = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="kept")])
+    repository = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="kept")])
 
-    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, sets_note=False, name="beta"))
+    await UpdateFooHandler(repository=repository).execute(UpdateFooCommand(id=foo_id, sets_note=False, name="beta"))
 
-    stored = await repo.get_by_id(foo_id)
+    stored = await repository.get_by_id(foo_id)
     assert stored.name == "beta"
     assert stored.note == "kept"  # not given on the command, so left as it was
-    assert repo.updated == [foo_id]
+    assert repository.updated == [foo_id]
 
 
 # only where a field may be cleared
 async def test_update_clears_note() -> None:
     foo_id = uuid.uuid4()
-    repo = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="old")])
+    repository = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="old")])
 
-    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, sets_note=True, note=None))
+    await UpdateFooHandler(repository=repository).execute(UpdateFooCommand(id=foo_id, sets_note=True, note=None))
 
-    stored = await repo.get_by_id(foo_id)
+    stored = await repository.get_by_id(foo_id)
     assert stored.note is None
     assert stored.name == "alpha"
-    assert repo.updated == [foo_id]
+    assert repository.updated == [foo_id]
 
 
 async def test_update_unknown_id_raises_not_found() -> None:
-    handler = UpdateFooHandler(repo=FakeFooRepository())
+    handler = UpdateFooHandler(repository=FakeFooRepository())
     missing = uuid.uuid4()
 
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(NotFoundError) as exc_info:
         await handler.execute(UpdateFooCommand(id=missing, sets_note=False, name="beta"))
 
-    assert exc.value.context["id"] == str(missing)
+    assert exc_info.value.context["id"] == str(missing)
 ```
 
 ### One-off failure injection
 
 Only where another aggregate references `Foo` without a cascade, the delete handler's in-use case is
-driven by a module-scope `_RaiseInUseFooRepo(FakeFooRepository)` overriding `delete` alone (rule 6) and
+driven by a module-scope `_RaiseInUseFooRepository(FakeFooRepository)` overriding `delete` alone (rule 6) and
 raising the class, message and `context` the real adapter's delete raises for that reference — a
 relational adapter's includes the FK constraint name (Fakes rule 6); the test asserts it propagates
 unchanged.
@@ -133,20 +133,20 @@ from tests.unit.fakes import FakeFooRepository
 
 
 async def test_sorted_by_name() -> None:
-    repo = FakeFooRepository(
+    repository = FakeFooRepository(
         items=[
             Foo(id=uuid.uuid4(), name="b"),
             Foo(id=uuid.uuid4(), name="c"),
             Foo(id=uuid.uuid4(), name="a"),
         ]
     )
-    handler = ListFoosHandler(repo=repo)
+    handler = ListFoosHandler(repository=repository)
 
     result = await handler.execute(
         ListFoosQuery(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2)),
     )
 
-    assert [f.name for f in result.items] == ["a", "b"]
+    assert [foo.name for foo in result.items] == ["a", "b"]
     assert result.total == 3
 ```
 
@@ -157,7 +157,7 @@ Each field the filter narrows by gets one more test that seeds a row the filter 
 is absent from both `items` and `total` — which is also what proves the fake honours the filter (Fakes
 rule 5).
 
-### `compensating-tx` handler
+### `compensating-transaction` handler
 
 Where a handler undoes an external write when a later step fails (`hex-application`, Compensation), its tests live in
 that handler's file and drive it over the external write's call record. The template — two tests, the
@@ -206,10 +206,10 @@ Consult `test-principles` for the testing constitution, `naming` for names, `pyt
 
 1. **Where the command carries `caller_id`, add a module-level `_CALLER`** — the issuer's opaque subject, a `str` — and pass `caller_id=_CALLER` in every construction. The templates carry none: a command has `caller_id` only where its entrypoint authenticates the caller (`hex-application`).
 2. **AAA structure follows `test-principles`.** Arrange — construct fake(s) and handler. Act — call `handler.execute(...)`. Assert — read state back through the fake or assert raised exception.
-3. **Read state back via fake's domain methods** (`await repo.get_by_id(...)`), not via attribute peeking on `repo._store`.
+3. **Read state back via fake's domain methods** (`await repository.get_by_id(...)`), not via attribute peeking on `repository._store`.
 4. **A failure case pins the exception's context** (`test-principles` *Assert strength* recipe 6); the fake carries the real adapter's (Fakes rule 6), so asserting the class alone passes a fake with the wrong payload.
 5. **Compensation tests assert call-record state**, not implementation details. For a storage capability, `storage.uploads` and `storage.deletes` are the observation surface. Assert the right key was undone, in the right order, for the right reason — but never assert that a specific Python call site invoked them.
-6. **One-off failure injection is `test-principles` rung 4 with the fake as its base** — an inline `_RaiseXxxRepo(FakeFooRepository)` at module scope overriding exactly the method under test, never re-stubbing the whole protocol.
+6. **One-off failure injection is `test-principles` rung 4 with the fake as its base** — an inline `_RaiseXxxRepository(FakeFooRepository)` at module scope overriding exactly the method under test, never re-stubbing the whole protocol.
 7. **A concrete domain-service dependency is the real service built on the fakes of its ports**; a module-scope subclass overriding one method (`test-principles` rung 4) only injects a failure the fakes cannot produce — never a protocol extracted for the test, a `# type: ignore` or a mock.
 8. **A handler test's stand-in is a fake from `tests/unit/fakes/`; where the one it needs does not exist, write it there first.** Never improvise a stand-in at the test site, reach for a mock, or weaken the assertion so it is not needed — the fake's value is that its exception contract matches the real adapter's, and an improvised stub silently does not.
 
@@ -217,14 +217,14 @@ Consult `test-principles` for the testing constitution, `naming` for names, `pyt
 
 The recipes that hold for any test — assert a survivor rather than an empty result, seed a second row where one cannot prove scoping, pick a non-constant input for an echoed field, assert no side effect on a reject path, exercise a non-boundary case as well as the boundary, and expect the narrowest class on a raise path — are `test-principles`'. One is specific to a handler driven through in-memory fakes:
 
-- **Pin PERSISTED state, not the in-memory entity.** Assert the write happened via the fake's `updated` call-record (`assert repo.updated == [id]`) AND read the value back (`(await repo.get_by_id(id)).name == "beta"`). The fake returns a COPY and records updates (the `Fakes` rules below), so a body that mutates the entity but never calls `update()` **reds**. Asserting on the entity object the handler mutated in place pins nothing (it observes the in-memory mutation, not the persist).
+- **Pin PERSISTED state, not the in-memory entity.** Assert the write happened via the fake's `updated` call-record (`assert repository.updated == [id]`) AND read the value back (`(await repository.get_by_id(id)).name == "beta"`). The fake returns a COPY and records updates (the `Fakes` rules below), so a body that mutates the entity but never calls `update()` **reds**. Asserting on the entity object the handler mutated in place pins nothing (it observes the in-memory mutation, not the persist).
 
 ### Coverage checklist (one `test_*` per case — `test-principles` owns when not to parametrize)
 
 #### `create` handler
 
 - `test_assigns_uuid_and_stores` — handler returns a `UUID`; `get_by_id` returns the entity with expected fields and that same id.
-- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repo, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc.value.context["constraint"] == "<full_constraint_name>"` where the adapter is relational.
+- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repository, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc_info.value.context["constraint"] == "<full_constraint_name>"` where the adapter is relational.
 - Field normalization (when applicable): assert the stored entity has the normalized form (`strip`, `upper`), not the raw input.
 
 #### `update` handler
@@ -238,7 +238,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 - `test_delete_removes` — happy path; `get_by_id` after delete raises `NotFoundError`.
 - `test_delete_unknown_id_raises_not_found`.
-- `test_delete_<resource>_in_use_propagates` — only where another aggregate references this one without a cascade. An inline `_RaiseInUseFooRepo` raises the class, message and `context` the real adapter's delete raises for that reference (a relational adapter's includes the FK constraint name); assert it propagates unchanged.
+- `test_delete_<resource>_in_use_propagates` — only where another aggregate references this one without a cascade. An inline `_RaiseInUseFooRepository` raises the class, message and `context` the real adapter's delete raises for that reference (a relational adapter's includes the FK constraint name); assert it propagates unchanged.
 
 #### `get` / single-read query handler
 
@@ -250,7 +250,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 - `test_sorted_by_<order_key>` — load the fake with deliberately unsorted entities (vary both primary and secondary sort keys); assert the order of `result.items` is exactly the expected sequence.
 - `test_pagination_offset_limit` — load N > limit entities; call with `limit=L, offset=O`; assert `len(result.items) == L` and `result.total == N`.
 
-#### `compensating-tx` handler
+#### `compensating-transaction` handler
 
 - `test_store_failure_undoes_the_<external_write>` — the store write raises the catalogue exception its real adapter raises; assert the external write's call record shows each write that landed before the failure undone, and the caller receives that same failure.
 - `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted. Both injected failures are catalogue classes (Fakes rules 6 and 8), so the test tells them apart by which call raised, never by class alone.
@@ -278,7 +278,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 8. **Default-happy-path only.** No `fail_next_create=True` flags or `_should_raise` knobs, and no failure the default fake cannot know about — an in-use rejection needs a cross-aggregate reference the in-memory fake does not model. A one-off failure is an inline subclass at the handler test's module scope (handler rule 6):
 
 ```python
-class _RaiseUpstreamFooRepo(FakeFooRepository):
+class _RaiseUpstreamFooRepository(FakeFooRepository):
     async def create(self, foo: Foo) -> None:
         raise UpstreamError("the datastore could not complete the operation", {"id": str(foo.id)})
 ```

@@ -32,15 +32,15 @@ def db_settings() -> Iterator[DbSettings]:
     from testcontainers.community.postgres import PostgresContainer
 
     # An exact, deliberately bumped tag (e.g. `17-alpine`) — never `:latest`.
-    with PostgresContainer("postgres:<pinned-tag>") as pg:
+    with PostgresContainer("postgres:<pinned-tag>") as postgres:
         # Only the fixture that created the database may declare it disposable.
         os.environ["MYAPP_TEST_DISPOSABLE_DB"] = "1"
         yield DbSettings(
-            host=pg.get_container_host_ip(),
-            port=int(pg.get_exposed_port(5432)),
-            user=pg.username,
-            password=SecretStr(pg.password),
-            name=pg.dbname,
+            host=postgres.get_container_host_ip(),
+            port=int(postgres.get_exposed_port(5432)),
+            user=postgres.username,
+            password=SecretStr(postgres.password),
+            name=postgres.dbname,
         )
 
 
@@ -57,7 +57,7 @@ def _guard_against_real_db(db_settings: DbSettings) -> None:
 
 
 def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedProcess[str]:
-    env = {
+    environment = {
         **os.environ,
         "MYAPP_DB_HOST": db_settings.host,
         "MYAPP_DB_PORT": str(db_settings.port),
@@ -69,7 +69,7 @@ def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedPro
         [sys.executable, "-m", "alembic", *args],
         capture_output=True,
         text=True,
-        env=env,
+        env=environment,
     )
 
 
@@ -98,16 +98,16 @@ async def _engine(_migrated_db: DbSettings) -> AsyncIterator[AsyncEngine]:
 @pytest.fixture
 async def _outer_connection(_engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
     """One connection and one transaction per test, rolled back at teardown."""
-    async with _engine.connect() as conn:
-        trans = await conn.begin()
+    async with _engine.connect() as connection:
+        transaction = await connection.begin()
         try:
-            yield conn
+            yield connection
         finally:
-            await trans.rollback()
+            await transaction.rollback()
 
 
 @pytest.fixture
-def sf(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
+def session_factory(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
     """The one sanctioned session factory; every session joins the test's outer transaction."""
     return async_sessionmaker(
         bind=_outer_connection,
@@ -116,7 +116,7 @@ def sf(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
     )
 
 
-class TestInfraProvider(Provider):
+class TestInfrastructureProvider(Provider):
     """Per-test infrastructure bindings, passed last to the real composition root so they
     supersede the production ones before anything resolves."""
 
@@ -125,11 +125,11 @@ class TestInfraProvider(Provider):
     def __init__(
         self,
         db_settings: DbSettings,
-        sf: async_sessionmaker[AsyncSession],
+        session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         super().__init__()
         self._db_settings = db_settings
-        self._sf = sf
+        self._session_factory = session_factory
 
     @provide(override=True)
     def db_settings(self) -> DbSettings:
@@ -137,19 +137,19 @@ class TestInfraProvider(Provider):
 
     @provide(override=True)
     def session_factory(self) -> async_sessionmaker[AsyncSession]:
-        return self._sf
+        return self._session_factory
 
 
 @pytest.fixture
 async def container(
-    sf: async_sessionmaker[AsyncSession],
+    session_factory: async_sessionmaker[AsyncSession],
     db_settings: DbSettings,
 ) -> AsyncIterator[AsyncContainer]:
     """The real composition root with the per-test infrastructure bindings in place."""
     from myapp.containers import create_container
 
     container = create_container(
-        TestInfraProvider(db_settings=db_settings, sf=sf),
+        TestInfrastructureProvider(db_settings=db_settings, session_factory=session_factory),
     )
     try:
         yield container
@@ -162,8 +162,8 @@ RPC service collects it as it stands and resolves its handlers from `container`.
 app carries adds its own fixtures to this file — each add-on's fixtures (the key-value store is the
 worked one) — and a REST entrypoint adds `real_app`. Each store add-on, and in an app that declares
 auth the verifier settings (`hex-test-restapi-auth`), adds one parameter, field and factory to
-`TestInfraProvider` and one parameter to `container`. With no relational store the base's Postgres
-fixtures go, and `TestInfraProvider` and `container` keep only the add-on parameters.
+`TestInfrastructureProvider` and one parameter to `container`. With no relational store the base's Postgres
+fixtures go, and `TestInfrastructureProvider` and `container` keep only the add-on parameters.
 
 ## Client-store fixtures — redis-py
 
@@ -204,21 +204,21 @@ a run split across workers gives each worker its own session container. A store 
 is emptied only behind the same disposability marker; with no relational store, the guard moves to this
 add-on. The same app's `container`
 binds that client, so an entrypoint reaching `Baz` reads and writes the test's own store, never
-whatever store the environment names: one fixture parameter passed on to `TestInfraProvider`, and there
-one constructor parameter, one field and one factory. The factory replaces the client binding itself, so
-the production factory's close never runs and the fixture's does.
+whatever store the environment names: one fixture parameter passed on to `TestInfrastructureProvider`,
+and there one constructor parameter, one field and one factory. The factory replaces the client binding
+itself, so the production factory's close never runs and the fixture's does.
 
 ```python
-    redis_client: Redis,                # in container's signature; TestInfraProvider(..., redis_client=redis_client)
+    redis_client: Redis,  # in container's signature; TestInfrastructureProvider(..., redis_client=redis_client)
 ```
 
 ```python
-        redis_client: Redis,            # in TestInfraProvider.__init__
+        redis_client: Redis,            # in TestInfrastructureProvider.__init__
     ) -> None:
         ...
         self._redis_client = redis_client
 
-    @provide(override=True)             # in TestInfraProvider
+    @provide(override=True)             # in TestInfrastructureProvider
     def redis_client(self) -> Redis:
         return self._redis_client
 ```
@@ -257,6 +257,6 @@ The runner's configuration belongs in the root `pyproject.toml` — `python-tool
 
 ## How this binding spells them — SQLAlchemy savepoints, dishka
 
-1. **`sf` binds the per-test outer connection with `join_transaction_mode="create_savepoint"`, and neither is negotiable.** Bound to the engine instead, it bypasses the rollback and every row a test commits survives into the next; without the savepoint mode, the handler's `session.commit()` either commits to disk (defeating rollback) or raises `InvalidRequestError`. With both, commit() releases a SAVEPOINT inside the outer transaction — exactly what the test needs. Rollback alone isolates; a truncate teardown beside it is the fallback for stores without nested transactions and only slows the suite.
+1. **`session_factory` binds the per-test outer connection with `join_transaction_mode="create_savepoint"`, and neither is negotiable.** Bound to the engine instead, it bypasses the rollback and every row a test commits survives into the next; without the savepoint mode, the handler's `session.commit()` either commits to disk (defeating rollback) or raises `InvalidRequestError`. With both, commit() releases a SAVEPOINT inside the outer transaction — exactly what the test needs. Rollback alone isolates; a truncate teardown beside it is the fallback for stores without nested transactions and only slows the suite.
 2. **`expire_on_commit=False`** keeps loaded entities usable after a savepoint release. With `True`, every commit detaches attributes; tests asserting on returned entities then trigger lazy loads against a closed session.
-3. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.
+3. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._session_factory` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.
