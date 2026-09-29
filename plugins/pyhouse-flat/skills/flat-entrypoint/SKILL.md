@@ -88,7 +88,7 @@ async def sync_foos(client: QuxClient, repository: FooRepository) -> FooSyncResu
     payloads = await client.fetch_foos()
     fetched_at = datetime.now(UTC)
     for payload in payloads:
-        await repository.record(build_foo(payload, fetched_at))
+        await repository.upsert(build_foo(payload, fetched_at))
     return FooSyncResult(fetched_count=len(payloads))
 ```
 

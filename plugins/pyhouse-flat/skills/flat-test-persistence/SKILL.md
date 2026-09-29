@@ -69,10 +69,10 @@ async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_r
     conn: AsyncConnection,
 ) -> None:
     repository = FooRepository(engine)
-    await repository.record(_a_foo(name="first"))
+    await repository.upsert(_a_foo(name="first"))
     first_id = (await conn.execute(select(foo_table.c.id))).scalar_one()
 
-    await repository.record(_a_foo(name="second", as_of=_LATER))
+    await repository.upsert(_a_foo(name="second", as_of=_LATER))
 
     rows = (await conn.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.as_of))).all()
     assert [tuple(row) for row in rows] == [(first_id, "second", _LATER)]
@@ -80,7 +80,7 @@ async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_r
 
 async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: AsyncEngine) -> None:
     with pytest.raises(StorageWriteRejectedError) as exc_info:
-        await FooRepository(engine).record(_a_foo(name="nul\x00"))
+        await FooRepository(engine).upsert(_a_foo(name="nul\x00"))
 
     assert exc_info.value.context == {"sqlstate": "22021", "constraint": None}
 ```

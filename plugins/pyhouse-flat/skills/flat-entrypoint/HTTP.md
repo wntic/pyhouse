@@ -94,7 +94,7 @@ is for a caller the network already trusts.
 ## The work the route calls
 
 `src/myapp/foo_record.py` — framework-free, named for its work, writing through the repository's
-single-row `record` (`flat-persistence`, `REPOSITORY.md`). `FooDelivery`, in `schemas/`, is
+single-row `upsert` (`flat-persistence`, `REPOSITORY.md`). `FooDelivery`, in `schemas/`, is
 `FooPayload` plus the `changed_at: AwareDatetime` the sender assigned to the change, the same on every
 redelivery of it; the work writes that instant, never the clock, so a redelivery writes what the row
 already holds (rule 9):
@@ -108,7 +108,7 @@ __all__ = ["record_foo"]
 
 async def record_foo(repository: FooRepository, delivery: FooDelivery) -> None:
     foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, as_of=delivery.changed_at)
-    await repository.record(foo)
+    await repository.upsert(foo)
 ```
 
 Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the

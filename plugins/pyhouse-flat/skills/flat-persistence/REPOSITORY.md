@@ -33,7 +33,7 @@ class FooRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
-    async def record(self, foo: Foo) -> None:
+    async def upsert(self, foo: Foo) -> None:
         statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, as_of=foo.as_of)
         try:
             async with self._engine.begin() as conn:
@@ -72,7 +72,7 @@ write, and never holds the key matched on; a write with nothing to update on con
 writes for one external id can arrive out of order, the conflict clause is guarded on the stamp —
 `where=foo_table.c.as_of < statement.excluded.as_of` (`persistence` rule 16).
 
-`record` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
+`upsert` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
 own conflict clause, never by asking whether its external id exists before writing.
 
 **A method that takes a batch** is written to `persistence` rule 21 against asyncpg's cap of 32,767
