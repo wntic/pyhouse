@@ -105,10 +105,10 @@ loop scopes are required where a session-scoped async resource exists. The async
 `filterwarnings = ["error"]` turns that into a failed start — and the plugin is a development
 dependency (rule 10) floored at 0.26, where `asyncio_default_test_loop_scope` first ships (rule 9).
 
-At a workspace root the same tables are written once; mypy's `files` and `mypy_path` name the member
-directories instead of `src`. A library, and a service that runs a single process, remove the `main`
-stub and script `uv init` generates; a CLI tool, and a service with several processes, declare one
-console script per command or process in `[project.scripts]`.
+At a workspace root the tables are written once; what a root changes in them is `python-workspace`'s.
+A library, and a service that runs a single process, remove the `main` stub and script `uv init`
+generates; a CLI tool, and a service with several processes, declare one console script per command or
+process in `[project.scripts]`.
 
 `E` and `F` are the error and pyflakes families, `I` import sorting; `B904` is raise-without-from and
 `B006` the mutable default argument; `F403` and `F405` are the two wildcard-import warnings. `C901` is

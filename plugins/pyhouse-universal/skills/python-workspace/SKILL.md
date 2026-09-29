@@ -1,6 +1,6 @@
 ---
 name: python-workspace
-description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, run each member's test suite from its own directory, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
+description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, type-check and test each member from its own directory, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
 when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per runnable member.
 ---
 
@@ -162,8 +162,9 @@ fmt:
 	uv run ruff check --fix packages/ services/ tests/
 	uv run ruff format packages/ services/ tests/
 
-typecheck:
-	uv run mypy packages/ services/ tests/
+typecheck:  ## each member from its own directory, then the root's own tests
+	for m in packages/* services/*; do [ -d $$m/src ] || continue; (cd $$m && uv run mypy --config-file $(CURDIR)/pyproject.toml src $$(find tests -name '*.py' 2>/dev/null | grep -q . && echo tests)) || exit 1; done
+	uv run mypy tests
 
 test:  ## each member's suite from its own directory, then the root's own
 	for m in packages/* services/*; do [ -d $$m/tests ] || continue; (cd $$m && uv run pytest --rootdir .; rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 5 ]) || exit 1; done
@@ -181,6 +182,10 @@ syncs only the root project and leaves every member's dependencies uninstalled. 
 own stem, resolve their dotenv files relative to the process working directory, a member launched from
 the repo root reads none of them. The `test` loop skips a member with no `tests/` directory and accepts pytest's
 exit status 5 — nothing collected — from one whose `tests/` holds none yet, and stops on any other failure.
+The `typecheck` loop is rule 10 applied to the type checker. The root's `[tool.mypy]` table is
+`python-toolchain`'s as written for one distribution — its `src`, `tests` and `.` resolve against the
+directory the checker runs from — and it is passed explicitly, so the member's own `pyproject.toml` is
+never taken for it. The loop passes `tests` only where the member has Python files under it.
 
 **Where members share a store, add what serves it — and nothing above changes.** The compose file gains
 the datastore as a service whose `profiles` name every runnable member that uses it, on a named volume.
@@ -205,7 +210,7 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
   `invoke` and `nox` give the same one-discoverable-command-set-at-the-root property; a dev Kubernetes
   cluster or Tilt gives the same per-member profile. What must survive either swap: one command syncs
-  *every* member and not only the root, each member's suite runs with that member as the runner's root,
+  *every* member and not only the root, each member's suite and type check run with that member as root,
   each runnable member still starts from its own directory, one
   command applies migrations wherever members share a store, and a cleanup command names what it
   destroys instead of sweeping the project.
@@ -258,11 +263,12 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
 9. **A cleanup command names what it destroys.** It removes the one volume or artifact it is for, never
    everything the project holds — `docker compose down -v` drops every volume, application data
    included.
-10. **Each member's test suite runs with that member as the runner's root**, from the member's own
-    directory, and the repository's own tests run from the root. A member's tests import their own
-    support under a name that resolves to that member's tree; a single run from the root resolves that
-    name to the repository's directory or to whichever member it finds first, and a member's suite then
-    imports another member's support or none.
+10. **Each member's test suite and its type check run with that member as the tool's root**, from the
+    member's own directory, and the repository's own tests run from the root. A member's tests import
+    their own support under a name that resolves to that member's tree; a single run from the root
+    resolves that name to the repository's directory or to whichever member it finds first, and a
+    member's suite then imports another member's support or none — or, for the type checker, meets two
+    members' support under one module name and refuses to check either.
 
 ## Hard stops
 
