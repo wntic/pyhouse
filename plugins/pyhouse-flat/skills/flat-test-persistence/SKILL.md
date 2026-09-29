@@ -18,7 +18,7 @@ Where several distributions share one data-access library, the files sit with th
 instead — `myschema/tests/integration/` — and nothing else changes.
 
 **The isolation fixture follows the declared transaction owner** (`test-principles` reliability
-rule 2): `conn` for every assertion query and for a callable that accepts a connection; the `engine`
+rule 2): `connection` for every assertion query and for a callable that accepts a connection; the `engine`
 fixture handed to the repository class's constructor, with `truncate_all` cleaning up, for one that
 opens its own — asserting through a fresh connection only where its own rollback is under test
 (rule 10).
@@ -28,7 +28,7 @@ opens its own — asserting through a fresh connection only where its own rollba
 - A pure function in the data-access package — a connection-string builder, the row mapper → not this
   skill; it is a unit test with no fixtures at all.
 - The container, migration and isolation fixtures themselves → `flat-test-integration-setup`; this skill
-  consumes `conn`, `engine` and `truncate_all` and lays none of its own.
+  consumes `connection`, `engine` and `truncate_all` and lays none of its own.
 - Writing the tables, repository class and migrations under test → `flat-persistence`.
 - The work a trigger calls reaching this write path as part of a run → `flat-test-run-function`; this skill tests
   the write path, that one tests the wiring above it.
@@ -67,26 +67,26 @@ def _a_foo(external_id: str = "alpha", name: str = "first", as_of: datetime = _E
 # only where a write updates on conflict
 async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_rest(
     engine: AsyncEngine,
-    conn: AsyncConnection,
+    connection: AsyncConnection,
 ) -> None:
     repository = FooRepository(engine)
     await repository.upsert(_a_foo(name="first"))
-    first_id: UUID = (await conn.execute(select(foo_table.c.id))).scalar_one()
+    first_id: UUID = (await connection.execute(select(foo_table.c.id))).scalar_one()
 
     await repository.upsert(_a_foo(name="second", as_of=_LATER))
 
-    rows = (await conn.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.as_of))).all()
+    rows = (await connection.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.as_of))).all()
     assert [tuple(row) for row in rows] == [(first_id, "second", _LATER)]
 
 
 # only where writes for one key can arrive out of order
-async def test_an_older_write_after_a_newer_leaves_the_newer(engine: AsyncEngine, conn: AsyncConnection) -> None:
+async def test_an_older_write_after_a_newer_leaves_the_newer(engine: AsyncEngine, connection: AsyncConnection) -> None:
     repository = FooRepository(engine)
     await repository.upsert(_a_foo(name="newer", as_of=_LATER))
 
     await repository.upsert(_a_foo(name="older", as_of=_EARLIER))
 
-    rows = (await conn.execute(select(foo_table.c.name, foo_table.c.as_of))).all()
+    rows = (await connection.execute(select(foo_table.c.name, foo_table.c.as_of))).all()
     assert [tuple(row) for row in rows] == [("newer", _LATER)]
 
 
@@ -97,7 +97,7 @@ async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: 
     assert exc_info.value.context == {"sqlstate": "22021", "constraint": None}
 ```
 
-The tests drive the class a caller uses and assert through `conn`, a query against the store.
+The tests drive the class a caller uses and assert through `connection`, a query against the store.
 
 The first test pins the declared update set from both sides in one comparison: one row, not two; the
 name and stamp the set covers changed; the id it does not cover kept the value the first write minted.
@@ -154,7 +154,7 @@ each read returns, rule 14, wherever the class reads.
 10. **Where one write spans statements, it has an atomicity test** that forces its last statement to fail
     through a constraint the schema declares, expects the narrowest catalogue exception that constraint
     produces, and asserts through a fresh connection that the earlier statements left nothing behind —
-    never through `conn`, whose own transaction cannot observe another connection's rollback. Without it
+    never through `connection`, whose own transaction cannot observe another connection's rollback. Without it
     a refactor splitting the statements into two transactions passes every test.
 11. **Where a run walks a table in pages, a test crosses a page edge where the ordering column ties.**
 12. **A test arranges every row it asserts on as `test-principles` *Datastore contract* rule 5 states** —

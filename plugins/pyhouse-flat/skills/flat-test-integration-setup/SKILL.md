@@ -17,7 +17,7 @@ with no relational store takes none of this file.
 callable in the data-access package either *accepts* a live connection and never commits, or *opens and owns*
 one for the whole of its work (`persistence` rule 1). That declaration decides the fixture:
 
-- **`conn`** — a rollback-scoped connection, for anything that *accepts* one: a function in the
+- **`connection`** — a rollback-scoped connection, for anything that *accepts* one: a function in the
   data-access package that takes one, and every assertion query. Fast, nothing reaches disk. Never for
   arranging rows that code which opens its own connection will read or write: those rows are
   uncommitted, so that code cannot see them, and a write to the same key waits on their lock until
@@ -31,7 +31,7 @@ one for the whole of its work (`persistence` rule 1). That declaration decides t
 - Laying or changing the fixtures themselves → this skill.
 - The pytest configuration block that loads them → `python-toolchain`.
 - A test of a table or the repository class → `flat-test-persistence`, which consumes both
-  `conn` and `truncate_all` and lays none of its own.
+  `connection` and `truncate_all` and lays none of its own.
 - The work a trigger calls, its wrapper or the orchestration above them → `flat-test-run-function`; its code
   owns its transactions, so it takes the wipe.
 - An external-system client's own test → `flat-test-service-client`; it needs no datastore and must not
@@ -108,14 +108,14 @@ async def engine(_migrated_db: str) -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture
-async def conn(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
+async def connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
     """For anything that accepts a connection; rolled back at teardown."""
     async with engine.connect() as connection:
-        trans = await connection.begin()
+        transaction = await connection.begin()
         try:
             yield connection
         finally:
-            await trans.rollback()
+            await transaction.rollback()
 
 
 @pytest.fixture(autouse=True)
@@ -144,7 +144,7 @@ environment reads — the data-access component's own, `MYAPP_POSTGRES_DSN` (`fl
 
 `truncate_all` is autouse **here** because this conftest is scoped to one directory of integration tests,
 all of which reach code that commits. Autouse is also what orders it: pytest sets it up before any fixture
-the test requests by name and so finalizes it last, after `conn`'s transaction has rolled back and its
+the test requests by name and so finalizes it last, after `connection`'s transaction has rolled back and its
 connection returned to the pool — which `TRUNCATE`'s `ACCESS EXCLUSIVE` lock needs (rule 7).
 
 **The wipe asks the store which tables the schema holds**, never the metadata: a `MetaData` knows only

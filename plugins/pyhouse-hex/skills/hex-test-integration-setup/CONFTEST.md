@@ -98,12 +98,12 @@ async def _engine(_migrated_db: DbSettings) -> AsyncIterator[AsyncEngine]:
 @pytest.fixture
 async def _outer_connection(_engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
     """One connection and one transaction per test, rolled back at teardown."""
-    async with _engine.connect() as conn:
-        trans = await conn.begin()
+    async with _engine.connect() as connection:
+        transaction = await connection.begin()
         try:
-            yield conn
+            yield connection
         finally:
-            await trans.rollback()
+            await transaction.rollback()
 
 
 @pytest.fixture

@@ -37,8 +37,8 @@ class FooRepository:
     async def upsert(self, foo: Foo) -> None:
         statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, as_of=foo.as_of)
         try:
-            async with self._engine.begin() as conn:
-                await conn.execute(
+            async with self._engine.begin() as connection:
+                await connection.execute(
                     statement.on_conflict_do_update(
                         index_elements=[foo_table.c.external_id],
                         set_={"name": statement.excluded.name, "as_of": statement.excluded.as_of},
