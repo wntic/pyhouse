@@ -60,7 +60,7 @@ class FakeFooRepository:
         if any(f.name == foo.name for f in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
-                {"field": "name", "constraint": "uq_foos_name"},
+                {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
             )
         self._store[foo.id] = replace(foo)
 
@@ -71,7 +71,7 @@ class FakeFooRepository:
         if any(f.name == foo.name and f.id != foo.id for f in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
-                {"field": "name", "constraint": "uq_foos_name"},
+                {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
             )
         self._store[foo.id] = replace(foo)
         self.updated.append(foo.id)  # so a "mutate-but-never-persist" handler is observably caught

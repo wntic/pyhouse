@@ -63,7 +63,7 @@ async def test_duplicate_name_raises_conflict() -> None:
     with pytest.raises(FooConflictError) as exc:
         await handler.execute(CreateFooCommand(name="alpha"))
 
-    assert exc.value.context["constraint"] == "uq_foos_name"
+    assert exc.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
 ```
 
 ### `update` handler — partial update, `None` means don't touch
@@ -210,7 +210,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 #### `create` handler
 
 - `test_assigns_uuid_and_stores` — handler returns a `UUID`; `get_by_id` returns the entity with expected fields and that same id.
-- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repo, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc.value.context["constraint"] == "<full_constraint_name>"`.
+- `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repo, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc.value.context["constraint"] == "<full_constraint_name>"` where the adapter is relational.
 - Field normalization (when applicable): assert the stored entity has the normalized form (`strip`, `upper`), not the raw input.
 
 #### `update` handler
