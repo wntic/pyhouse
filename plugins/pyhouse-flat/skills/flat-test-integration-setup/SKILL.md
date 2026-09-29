@@ -11,7 +11,7 @@ Consult `test-principles` for the testing constitution. Where this skill contrad
 One-shot per distribution. Everything under its `tests/integration/` depends on this file: the datastore
 the suite runs against, the migration history replayed onto it, the engine every test shares, and the two
 isolation fixtures. **Its home is the distribution's own `tests/integration/conftest.py`.** A distribution
-with no relational store takes only the pytest configuration block.
+with no relational store takes none of this file.
 
 **Two isolation fixtures, and which one a test uses follows from the declared transaction owner.** Every
 callable in the data-access package either *accepts* a live connection and never commits, or *opens and owns*
@@ -28,8 +28,8 @@ one for the whole of its work (`persistence` rule 1). That declaration decides t
 
 ## When to use vs. neighbours
 
-- Laying or changing the fixtures themselves, or the pytest configuration block that loads them → this
-  skill.
+- Laying or changing the fixtures themselves → this skill.
+- The pytest configuration block that loads them → `python-toolchain`.
 - A test of a table or the repository class → `flat-test-persistence`, which consumes both
   `conn` and `truncate_all` and lays none of its own.
 - The work a trigger calls, its wrapper or the orchestration above them → `flat-test-run-function`; its code
@@ -146,21 +146,6 @@ all of which reach code that commits. Autouse is also what orders it: pytest set
 the test requests by name and so finalizes it last, after `conn`'s transaction has rolled back and its
 connection returned to the pool — which `TRUNCATE`'s `ACCESS EXCLUSIVE` lock needs (rule 7).
 
-## Template — pytest configuration (pytest, pytest-asyncio)
-
-In the distribution's own `pyproject.toml` — or, where several distributions share one repository, in
-the root `pyproject.toml` that `python-workspace` lays, since pytest reads one configuration per run:
-
-```toml
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
-asyncio_default_test_loop_scope = "session"
-filterwarnings = ["error"]
-```
-
-Both loop-scope lines are load-bearing (rule 8).
-
 No placeholder connection string is set for collection: nothing in the service builds settings or an
 engine at import (`flat-persistence` rule 6), so an unset variable fails only the code that reads it.
 
@@ -171,8 +156,9 @@ pure-unit collection pays nothing for it.
 
 - **One shared instance of these fixtures, where several distributions in one repository share a
   datastore.** The bodies move verbatim into a pytest plugin module beside the tests of the library that
-  owns the schema, registered once per session from the repository root, so every member shares one
-  container instead of starting one each (`python-workspace` carries the root configuration). Three things
+  owns the schema, registered from the repository root's configuration, so every member loads the one
+  module instead of a copy each (`python-workspace` carries the root configuration and runs each
+  member's suite). Three things
   change and nothing else does: every environment name follows the owning library rather than a
   dependant, the migration subprocess runs from that library's directory, and **nothing in the module is
   autouse** — a plugin is loaded for every collection in the repository, so `truncate_all` keeps its body
@@ -198,7 +184,8 @@ pure-unit collection pays nothing for it.
 ## Rules
 
 1. **The migration runs from wherever the schema is defined** — this distribution, or the owning
-   library when several share one — with the round trip of `persistence` rule 20; a store another
+   library when several share one — with the round trip of `persistence` rule 20; it is the project's
+   own schema path `test-principles`, *Datastore contract* rule 8, requires, and a store another
    project owns is created from the metadata instead.
 2. **Where the suite can reach a database it did not start, the guard of `test-principles` reliability
    rule 1 lives inside the fixture producing the connection details**, comparing the database name by
@@ -219,7 +206,7 @@ pure-unit collection pays nothing for it.
    already covers it, and a by-name request loses the autouse ordering that keeps the wipe's exclusive
    table lock from meeting the connection's still-open transaction.
 8. **Every fixture and test shares the session-scoped engine's one event loop** — `test-principles`,
-   *Fixture scope rules*; the pytest block's two loop-scope lines are that rule here.
+   *Fixture scope rules*; the two loop-scope lines of `python-toolchain`'s pytest block are that rule here.
 9. **Code that opens and owns its transaction is isolated by the wipe, never by a rollback or savepoint
    fixture.** It opens its own connection (`persistence` rule 1), so a savepoint isolates a
    connection nothing under test uses, and the test passes while asserting nothing.

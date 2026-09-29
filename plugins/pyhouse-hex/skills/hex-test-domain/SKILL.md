@@ -29,8 +29,6 @@ Inside this skill, by what is under test:
 
 - A `@dataclass` entity with UUID identity → **Entity**.
 - A frozen value object **with** `__post_init__` invariants or a normalized equality → **Value object**.
-  With neither, **write no file at all**: Python's data model already guarantees frozen-dataclass
-  equality, and a test for it is maintenance with no defect-detection value.
 - A `StrEnum` / `Enum` member set → **Enum**.
 - A domain service with injected protocols, or the module-level function a pure transformation takes
   instead of a class (`hex-domain-service`) → **Domain service**.
@@ -41,8 +39,7 @@ object the module holds — `foo.py` → `test_foo.py`, `foo_status.py` → `tes
 `foo_uniqueness_service.py` → `test_foo_uniqueness_service.py`. The file name adds no suffix the
 module name does not already carry.
 
-The subjects below are `hex-domain-model`'s shapes filled in: `Money` the standard value object over
-`amount` (non-negative) and `currency` (three letters), and `FooStatus` a `StrEnum` of `ALPHA` and `BETA`.
+The enum below is `FooStatus`, a `StrEnum` of `ALPHA` and `BETA`.
 
 ### Entity — standard
 
@@ -55,15 +52,15 @@ from myapp.domain.exceptions import ValidationError
 from myapp.domain.foos import Foo
 
 
-def _make_foo(*, id: uuid.UUID | None = None, name: str = "Test", note: str | None = None) -> Foo:
+def _foo(*, id: uuid.UUID | None = None, name: str = "Test", note: str | None = None) -> Foo:
     return Foo(id=id or uuid.uuid4(), name=name, note=note)
 
 
 def test_equality_by_id() -> None:
     shared_id = uuid.uuid4()
-    a = _make_foo(id=shared_id, name="alpha")
-    b = _make_foo(id=shared_id, name="beta")
-    c = _make_foo(name="alpha")
+    a = _foo(id=shared_id, name="alpha")
+    b = _foo(id=shared_id, name="beta")
+    c = _foo(name="alpha")
 
     assert a == b
     assert a != c
@@ -73,7 +70,7 @@ def test_equality_by_id() -> None:
 
 def test_name_must_be_non_empty() -> None:
     with pytest.raises(ValidationError) as exc:
-        _make_foo(name="")
+        _foo(name="")
     assert exc.value.context["field"] == "name"
 ```
 
@@ -88,25 +85,19 @@ entity fields at all (`hex-domain-model`, Entity rule 6 — the store maintains 
 ```python
 import pytest
 
-from myapp.domain.amounts import Money
 from myapp.domain.exceptions import ValidationError
+from myapp.domain.foos import FooQuota
 
 
-def test_amount_must_be_non_negative() -> None:
+def test_field_b_must_be_non_negative() -> None:
     with pytest.raises(ValidationError) as exc:
-        Money(amount=-1, currency="USD")
-    assert exc.value.context["field"] == "amount"
-
-
-def test_currency_must_be_three_letters() -> None:
-    with pytest.raises(ValidationError) as exc:
-        Money(amount=1, currency="US")
-    assert exc.value.context["field"] == "currency"
+        FooQuota(field_a="alpha", field_b=-1)
+    assert exc.value.context["field"] == "field_b"
 ```
 
 A value object that stores a raw input beside its normalized form and compares by the normalized field
 (`hex-domain-model`) adds one equality test: two instances with the same normalized field and different
-raw inputs are equal and hash alike (rule 11).
+raw inputs are equal and hash alike (rule 9).
 
 ### Enum — values plus rejection
 
@@ -163,75 +154,72 @@ async def test_assert_name_available_passes_when_free() -> None:
 1. **A domain test is synchronous unless the thing under test is awaited.** Only a test of an async
    method is declared async; making the rest async buys nothing and hides which subjects do IO-shaped
    work. Async configuration and markers → `test-principles`.
-2. The no-mocks contract — no `MagicMock`, `AsyncMock` or `monkeypatch` → `test-principles`. The
-   domain has no IO to stub, and where a stand-in is needed (a service's injected protocol) it is hand-written — the port's fake, or a
-   class for a narrow protocol (rule 17).
-3. Fixture-versus-builder rules → `test-principles`.
-4. Literal expected values, never a re-implementation of the rule → `test-principles`, assert strength.
-5. Test what the author wrote, never what the data model already guarantees → `test-principles`, assert
+2. The no-mocks contract — no `MagicMock` or `AsyncMock` → `test-principles`. The domain has no IO to
+   stub, and where a stand-in is needed (a service's injected protocol) it is hand-written — the port's
+   fake, or a class for a narrow protocol (rule 15).
+3. Test what the author wrote, never what the data model already guarantees → `test-principles`, assert
    strength. In the domain that means the constructor's invariants, the computed properties and the
    methods, and never the equality, hash or immutability a frozen `@dataclass` supplies — nor log
    output: the domain layer logs nothing at all (`hex-architecture`, *Who logs, by layer*), so a test
    asserts the return value or the raised exception.
-6. **One test per invariant, and a rejection test asserts the failure's machine-readable field key,
-   never its message.** Capture the raised catalogue exception (`pytest.raises(ValidationError) as exc`)
-   and assert the `context` entry naming the offending field: the message is prose and drifts, the key is
-   what the entrypoint reads. Several failure modes of the *same* invariant group under one test named
-   after that invariant; two different invariants never share a test.
+4. **One test per invariant, and a rejection test asserts the failure's machine-readable field key,
+   never its message** → `test-principles` *Assert strength* recipe 6. Several failure modes of the
+   *same* invariant group under one test named after that invariant; two different invariants never
+   share a test.
 
 ### Entity
 
-7. **The four-line identity-equality block is the contract**: equality by id only, and `hash` agreeing
+5. **The four-line identity-equality block is the contract**: equality by id only, and `hash` agreeing
    with `eq`. Do not paraphrase it.
-8. **`_make_<entity>(*, <field>: <type> = <valid default>, …)` is a module-level `def`** with one
+6. **`_<entity>(*, <field>: <type> = <valid default>, …)` is a module-level `def`** with one
    keyword-only, annotated parameter per declared field and valid defaults, so construction with no
    arguments succeeds. It takes nothing the entity does not declare — `created_at` / `updated_at` are
    the usual case: the store maintains them, so they are not entity fields (`hex-domain-model`, Entity
    rule 6). **No logic in it beyond a fresh id** — it is a dumb spreader, and computation
    belongs in the tests.
-9. **A computed property or method gets its own `test_*`** named after the rule — but only when the entity
+7. **A computed property or method gets its own `test_*`** named after the rule — but only when the entity
    actually declares one. Do not add a lifecycle or archive test to an entity that has no such property;
    that is a per-aggregate feature, not a default.
 
 ### Value object
 
-10. **Write no file for a value object that declares no invariant of its own and no custom equality.**
-    There is nothing the author wrote left to pin (rule 5).
-11. **A normalized-equality test pins the rule, not Python's `==`**: two instances with the same
-    normalized field must be equal even when their raw fields differ, and `hash` must agree.
-12. **No builder.** Value objects are small — pass the fields directly.
+8. **Write no file for a value object that declares no invariant of its own and no custom equality.**
+   There is nothing the author wrote left to pin (rule 3).
+9. **A normalized-equality test pins the rule, not Python's `==`**: two instances with the same
+   normalized field must be equal even when their raw fields differ, and `hash` must agree.
+10. **No builder.** Value objects are small — pass the fields directly.
 
 ### Enum
 
-13. **Pin every member with an explicit assertion**, one line each. The database and the wire format
+11. **Pin every member with an explicit assertion**, one line each. The database and the wire format
     depend on these strings, so a silent rename must break the test.
-14. **Never loop over members.** `for m in FooStatus: assert m.value == m.name` masks the very bug it
+12. **Never loop over members.** `for m in FooStatus: assert m.value == m.name` masks the very bug it
     looks like it catches — a renamed value still passes.
-15. **Always include the unknown-value rejection**:
+13. **Always include the unknown-value rejection**:
     `with pytest.raises(ValueError, match="<unknown>"): FooStatus("<unknown>")` proves the enum is
     closed — the value in the message is the only thing distinguishing the failure (`test-principles`
     *Assert strength* recipe 6).
-16. **One `test_*` per pure-logic method**, named after the method, asserting every relevant
+14. **One `test_*` per pure-logic method**, named after the method, asserting every relevant
     input/output pair; a boolean is asserted as `test-principles` states (`is True` / `is False`).
 
 ### Domain service
 
-17. **An orchestrator runs on the fake of the port it takes.** A service that takes the whole
+15. **An orchestrator runs on the fake of the port it takes.** A service that takes the whole
     repository port (`IFooRepository`) is built on `FakeFooRepository` from `tests.unit.fakes`
     (`hex-test-application-handler`): under a strict type checker a stand-in must satisfy the whole
     protocol, and that fake already does, with the real adapter's exception contract. A minimal inline
     class is allowed only when the service's parameter is a protocol declaring exactly the methods it
     calls — it then implements that protocol and nothing more, which keeps the narrow dependency
-    surface visible.
-18. **The `_service(...)` factory returns the constructed service**, hiding the collaborator plumbing
+    surface visible. Where that fake does not exist yet, write it first under
+    `hex-test-application-handler` (its `FAKES.md`).
+16. **The `_service(...)` factory returns the constructed service**, hiding the collaborator plumbing
     from each test body.
-19. **One `test_*` per behaviour of each method**, named so the test name *is* the behaviour's one-line statement —
+17. **One `test_*` per behaviour of each method**, named so the test name *is* the behaviour's one-line statement —
     `test_assert_name_available_raises_when_taken`, `test_assert_name_available_passes_when_free`.
-20. **A domain function is called directly.** It has no instance to construct, share or fake.
-21. **A normalizing function has `test_idempotent`** — parametrized over a few representative inputs,
-    one reported case each, asserting `f(f(x)) == f(x)`. Idempotence is part of the normalization
-    contract; a loop inside one test stops at the first failing input and hides the rest.
-22. Every happy path is paired with a rejection test → `test-principles`, assert strength.
+18. **A domain function is called directly.** It has no instance to construct, share or fake.
+19. **A normalizing function has `test_idempotent`** — parametrized over a few representative inputs,
+    asserting `f(f(x)) == f(x)`, one reported case per input (`test-principles`, *When to
+    parametrize*). Idempotence is part of the normalization contract.
 
 ## Inlined typing / import rules
 
@@ -249,4 +237,4 @@ Identical for all four kinds:
 - A test here needs a database, an HTTP endpoint or blob storage → stop, use
   `hex-test-repository-contract`, `hex-test-restapi-endpoint` or `hex-test-capability-adapter`.
 - The value object declares no invariant of its own and no custom equality → stop, produce no file
-  (rule 10).
+  (rule 8).

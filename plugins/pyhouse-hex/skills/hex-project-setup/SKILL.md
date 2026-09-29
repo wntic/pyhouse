@@ -64,9 +64,8 @@ each added with `uv add` or `uv add --dev`.
 
 Every entry is a name; a floor is written only at a known breaking boundary with the API beside it
 (`python-toolchain` rule 9), and an adapter's SDK takes one on exactly the same terms. Under the
-bindings here that case is real twice. The FastAPI one, whose line is written only with a FastAPI
-entrypoint:
-the app-invariant and auth-probe tests (`hex-test-app-invariants`, `hex-test-restapi-auth`) walk the
+bindings here that case is real once — the async test plugin's floor is `python-toolchain`'s. The
+FastAPI floor is written only where the app declares auth: the auth probe (`hex-test-restapi-auth`) walks the
 app's resolved operations through `fastapi.routing.iter_route_contexts`, which first ships in 0.137.2,
 and from 0.137.0 an included router is a single `_IncludedRouter` entry in `app.routes`, so a walk over
 `app.routes` alone no longer reaches the operations. Below 1.0 a release's minor is its breaking segment,
@@ -75,19 +74,9 @@ so the floor names the release that shipped the API rather than a major:
 ```toml
 [project]
 dependencies = [
-    "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the app-invariant tests rely on
-]
-
-[dependency-groups]
-dev = [
-    "pytest-asyncio>=0.26",  # asyncio_default_test_loop_scope, the session loop the integration suite runs on
+    "fastapi>=0.137.2",  # iter_route_contexts, the resolved-route walk the auth probe relies on
 ]
 ```
-
-The dev one: the integration suite shares one event loop across the session (`hex-test-integration-setup`,
-whose `CONFTEST.md` carries the `[tool.pytest.ini_options]` block that sets it), and
-`asyncio_default_test_loop_scope`, the key that puts the tests on that loop, first ships in
-`pytest-asyncio` 0.26.
 
 ## B. Relational migration bootstrap (write-once) — Alembic over SQLAlchemy and Postgres
 
@@ -191,7 +180,7 @@ wide table is not a function to split; every other bound stays on for revisions.
 ## Other bindings
 
 - **Another package manager.** poetry or pdm replace `uv add`; the substrate by role, the SDK riding
-  with its adapter and the two floors with their APIs are unchanged. The rest is `python-toolchain`'s.
+  with its adapter and the floor with its API are unchanged. The rest is `python-toolchain`'s.
 - **Another migration tool.** The config file, the revision template and the autogenerate command all
   change; the environment logging through the service's one configuration, a greenfield chain rooted at
   its first real revision, a write-once baseline of hand-frozen DDL only over a database that already
@@ -205,7 +194,7 @@ wide table is not a function to split; every other bound stays on for revisions.
    entrypoint calls the service's one logging setup, `myapp.logging.configure_logging`, written once
    where the service has none, before anything logs.
 2. Write a floor — an SDK's or a substrate library's — only at the documented breaking boundary the
-   project's code relies on, under `python-toolchain` rule 9; block A's two are this family's.
+   project's code relies on, under `python-toolchain` rule 9; block A's one is this family's.
 3. Take everything else in the project file from `python-toolchain` — the src layout, the development
    group, the linter and type-checker configuration with its written bounds and sanctioned
    suppressions, the line length — and the interpreter floor from `python-style`.

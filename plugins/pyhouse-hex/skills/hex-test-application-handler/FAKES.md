@@ -7,24 +7,32 @@ satisfies them.
 ## CRUD repository fake
 
 ```python
-from collections.abc import Sequence
+from collections.abc import Sequence  # only where the port lists
 from dataclasses import replace
 from uuid import UUID
 
-from myapp.domain.exceptions import FooConflictError, NotFoundError
-from myapp.domain.foos import Foo, FooListFilter, FooSort
+from myapp.domain.exceptions import (
+    FooConflictError,  # only where Foo has a natural key
+    NotFoundError,
+)
+from myapp.domain.foos import (
+    Foo,
+    FooListFilter,  # only where the port lists
+    FooSort,  # only where the port lists
+)
 
 __all__ = ["FakeFooRepository"]
 
 
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
-        # Store DETACHED copies; never alias the caller's instances (Fakes rule 9).
+        # Store DETACHED copies; never alias the caller's instances.
         self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
         self.updated: list[UUID] = []  # call record — ids passed to update(), in order
 
+    # only where the port lists
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
-        # The real ORDER BY per sort key; insertion order stands in for creation order.
+        # insertion order stands in for creation order
         matching = self._matching(filter)
         ordered: Sequence[Foo]
         if filter.sort is FooSort.NAME_ASC:
@@ -35,11 +43,13 @@ class FakeFooRepository:
             ordered = matching
         return [replace(f) for f in ordered[filter.offset : filter.offset + filter.limit]]
 
+    # only where the port lists
     async def count(self, *, filter: FooListFilter) -> int:
         return len(self._matching(filter))
 
+    # only where the port lists
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
-        # One condition per scoping field the filter declares, as the real WHERE applies it.
+        # One condition per scoping field the filter declares.
         return [f for f in self._store.values() if filter.name is None or f.name == filter.name]
 
     async def get_by_id(self, id: UUID) -> Foo:
@@ -47,25 +57,28 @@ class FakeFooRepository:
             raise NotFoundError("Foo not found", {"id": str(id)})
         return replace(self._store[id])  # a copy — a caller mutation must not leak into the store
 
+    # only where Foo has a natural key
     async def get_by_name(self, name: str) -> Foo | None:
         match = next((f for f in self._store.values() if f.name == name), None)
         return replace(match) if match is not None else None
 
     async def create(self, foo: Foo) -> None:
+        # only where Foo has a natural key
         if any(f.name == foo.name for f in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
-                {"field": "name", "constraint": "uq_foos_name"},
+                {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
             )
         self._store[foo.id] = replace(foo)
 
     async def update(self, foo: Foo) -> None:
         if foo.id not in self._store:
             raise NotFoundError("Foo not found", {"id": str(foo.id)})
+        # only where Foo has a natural key
         if any(f.name == foo.name and f.id != foo.id for f in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
-                {"field": "name", "constraint": "uq_foos_name"},
+                {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
             )
         self._store[foo.id] = replace(foo)
         self.updated.append(foo.id)  # so a "mutate-but-never-persist" handler is observably caught

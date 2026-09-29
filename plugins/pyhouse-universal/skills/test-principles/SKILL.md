@@ -27,6 +27,7 @@ complete.
   `tests/integration/conftest.py`, its containers and isolation fixtures, and the shared plugin module
   several members load → the family's integration-setup skill — `hex-test-integration-setup` for a
   hexagonal package, `flat-test-integration-setup` for a flat one.
+- The runner's configuration block that declares the run → `python-toolchain`.
 - The root configuration that registers a shared fixture module across several distributions →
   `python-workspace`.
 - A static "no X in Y" invariant → `test-architecture-rule`.
@@ -67,7 +68,7 @@ not its identity. A project in neither family has the same layers and writes the
 | Wiring smoke | nothing, but nothing out-of-process is reached either | the object graph, constructed the way the entrypoint constructs it | construct-time wiring and framework dependencies the type, lint and unit layers all miss; generated-schema build | < 100 ms | `hex-test-app-invariants` |
 | Datastore contract | nothing — a real store, started and disposed by the suite | the driver, the schema, the statements | constraint behaviour and generated constraint names, conflict and upsert semantics, cascades, returned and auto-updated values, driver-error translation, chunking | < 500 ms | `hex-test-repository-contract`, `flat-test-persistence` |
 | Entrypoint | nothing, or only the transport beneath a remote dependency | the entrypoint driven the way a caller drives it, with its real dependencies | dispatch and routing, dependency wiring, input and output validation, the run wired end to end; where the entrypoint authenticates, role gating and tenancy scoping | < 1 s, or < 2 s with a real datastore behind it | `hex-test-restapi-endpoint` (with `hex-test-restapi-auth`), `flat-test-run-function` |
-| Surface invariant | nothing — the surface is enumerated from the running program | the program's own declared surface | global properties no single test owns — every advertised error code matching what the code can raise, every protected route refusing an anonymous caller, cross-origin and request-size policy | < 500 ms | `hex-test-app-invariants` |
+| Surface invariant | nothing — the surface is enumerated from the running program | the program's own declared surface | global properties no single test owns — every error code the published contract advertises carrying the program's one error shape, every protected route refusing an anonymous caller, cross-origin and request-size policy | < 500 ms | `hex-test-app-invariants` |
 | Architecture | everything — nothing runs | the source tree, read as text | static "no X in layer Y" invariants | < 100 ms | `test-architecture-rule` |
 
 **A project has the layers its subject has, and writes no others.** One with no datastore has no
@@ -93,7 +94,8 @@ entrypoint, the layer is leaking and the speed budget is gone.
    from the consuming test outward, so a fixture defined down-tree is visible only to tests under it —
    and a fixture up-tree that consumes a down-tree one is usable only from there.
 3. **Fixtures several distributions share live in one module registered once per session** — a pytest
-   plugin, never a conftest copied into each member, which starts one container per member. It sits
+   plugin, never a conftest copied into each member, which is two copies of one setup waiting to
+   diverge. It sits
    beside the tests of the library that owns what it provisions, never in `src/`: test support does not
    ship in the wheel.
 4. **Nothing is autouse except the suite's safety guard, its schema setup and its per-test isolation
@@ -144,6 +146,13 @@ entrypoint, the layer is leaking and the speed budget is gone.
 - The parameter set is **discovered from the running system** — every operation an app serves, every entry its published document lists; `hex-test-app-invariants`, in the `pyhouse-hex` plugin, is one example.
 - The test is **input-domain coverage**: a single behavior verified against many inputs (10 invalid emails, 20 valid date formats). The behavior is one thing; the inputs vary.
 - Adding a new parameter would extend, not duplicate, an existing test set.
+
+**Every parameter set yields one reported case per item, never a loop inside one test** — a loop stops
+at the first failure and hides the rest. A discovered set is also asserted non-empty, by a separate test
+that does not take the parameters — an empty parameter set reports as skipped, so a check inside the
+parametrized body never runs, and the run goes green having checked nothing. Under this binding a
+discovered set is read in the collection hook (`pytest_generate_tests`): a fixture cannot feed
+parametrization.
 
 **Do not parametrize** when:
 
@@ -302,6 +311,12 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
 7. **Where a write takes a batch, one call carries two inputs sharing a key**, and one record holding
    the input the collapse keeps is asserted (`persistence` rule 17); under an ordering guard the newer
    stamp goes first, so a collapse that keeps the last input fails.
+8. **Where the program owns the schema, the suite establishes it by the project's own schema path** —
+   its migrations, or the schema creation production runs — once per session, or per store where the
+   store is created per test, never by tables the suite writes by hand, so a schema change that was
+   never migrated reds here rather than in production. Where another project owns it, the suite creates
+   only what the code reads, from the layout the code declares where it declares one (rule 5). A store
+   with no schema has nothing here.
 
 ### Reliability rules (local-vs-CI parity)
 
@@ -322,7 +337,9 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    Where the subject has a datastore that means an empty store at the start of every test — a store
    created per test where that is cheap (a file-backed or in-process one, in the test's temporary
    directory), otherwise the outer-transaction rollback, a whole-schema truncation, or a per-test
-   namespace where the store has no transactions. The rollback covers only code handed the test's
+   namespace where the store has no transactions. Where the code fixes its namespace, the namespace a
+   test owns is a whole store the suite started, emptied after each test, and a test asserts only
+   inside it. The rollback covers only code handed the test's
    connection (`persistence` rule 1): an outer transaction can neither see nor roll back a connection it
    did not open, so code that opens its own takes the wipe. Where it has none, the same rule binds whatever
    state there is: a temporary directory created per test, a fresh in-process object rather than a
@@ -341,7 +358,9 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    equality.** Read the clock before and after the act and assert the value falls between them
    (`>=`, `<=`). A store's clock is not the test's — Postgres `now()`, for one, returns the
    transaction's start time for every row written in it — so equality with a value the test computed
-   passes or flakes by coincidence.
+   passes or flakes by coincidence. Where the store stamps a modification instant with a clock fixed
+   per transaction and the test runs inside one outer transaction, the arrange and the act share that
+   instant; plant a value far in the past before the act and assert the act replaced it.
 5. **A UUID a test asserts on is constructed inside that test**, never drawn from `uuid.uuid4()` at
    module scope and shared with its neighbours.
 6. **No environment-dependent values.** Tests must not read `os.environ` or check `os.getenv("CI")` to alter behavior. The fixture that provisions the store handles the local/CI fork once, and it does so on a **dedicated opt-in variable**, never on an ambient one like `CI`. A test that needs a settings object constructs it with explicit values and passes it in; one that needs the store takes the suite's fixture and never builds a connection, client or pool of its own nor calls the program's own factory for one, which would sit outside the isolation and the session's teardown — the one exception is a client pointed at an address nothing listens on, built and disposed inside the test that forces a failed connection. A test never mutates or reassigns a factory's cached value. Only a test of the settings parsing itself lets it read an environment, one the test sets, and it disables the loader's file sources, since a dotenv or config path resolved against the working directory makes the test pass or fail by where the runner was started.

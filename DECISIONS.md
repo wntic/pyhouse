@@ -2039,3 +2039,33 @@ refreshing `httpx.Auth` overrides. Batch 2 (the remaining hex test skills) stays
 skills, the `test-principles` sections named above, the hex test skills' rule text in place of the
 pointers, the repository template's positional collapse and `flat-layered`'s refresh sentence; each move
 is its own commit.
+
+### D137 — The hex test skills keep only what is hex; the runner configuration and the workspace test run have one owner each
+Taken under backlog item 26 (batch 2: `hex-test-app-invariants`, `hex-test-application-handler`,
+`hex-test-capability-adapter`, `hex-test-domain`, `hex-test-integration-setup`,
+`hex-test-repository-contract`), after a six-agent audit, a four-lens verification and a final check.
+The suite obligations `hex-test-integration-setup` restated live in `test-principles`: isolation, the
+one sanctioned handle, scopes and the guard; the schema from the project's own path where the program
+owns it, or from the declared layout where another project does (*Datastore contract* rule 8); the
+fixed-namespace store and the planted modification stamp (reliability rules 2 and 4); one case per
+parameter, with a separate non-empty test for a discovered set. The hex setup keeps only its three
+substitution obligations. `python-toolchain` owns the single `[tool.pytest.ini_options]` block — it
+existed in three disagreeing versions — together with `pytest-asyncio>=0.26`, and the async lines and
+the plugin travel together, since pytest rejects a key no installed plugin declares under
+`filterwarnings = ["error"]`. `python-workspace` runs each member's suite with that member as the
+runner's root: under importlib mode that is what makes `tests` name the member's own tree, and a
+workspace-wide run resolved every member's `tests.unit.fakes` against the repository root or let one
+member shadow the others (verified on a two-member layout); the root block therefore carries no `.`,
+and a member with no tests does not break the run. `hex-test-app-invariants` asserts the catalogue's
+error shape on every error code the published document advertises — the old declared-versus-published
+comparison checked FastAPI against itself — builds each file with `create_app()` under
+`tests/unit/restapi/`, and keeps a resolve-nothing construct smoke for a service with no HTTP
+entrypoint. Templates mark the natural key, the paged list, the port methods and the relational
+constraint key as conditions; the repository contract forces a driver error on a read and a write and
+pins the absent row on every lookup; the gateway test covers both halves of a bad body; the domain test
+uses `hex-domain-model`'s own value object instead of `Money`; the failure-injection example is a store
+outage, and no `InUseError` exists. Declined: moving the fakes rules into `FAKES.md`.
+**Reverse by:** from the parent of the commits that added this entry, restoring the six hex test skills,
+the `test-principles` additions, the pytest block in each family's setup skill and in
+`python-workspace`, and the workspace-wide test run; restoring the declared-versus-published OpenAPI
+comparison brings back its framework exemption and a second user of the route-context walk.

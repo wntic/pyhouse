@@ -51,7 +51,6 @@ the role that needs them and not before:
 | Role present | Runtime dependencies it brings | Development dependencies it brings |
 |---|---|---|
 | any | `pydantic`, `pydantic-settings`, `structlog` | `pytest`, `ruff`, `mypy` |
-| a suite with async tests | — | `pytest-asyncio>=0.26` (0.26: `asyncio_default_test_loop_scope`) |
 | a client over HTTP | `httpx` | `respx` |
 | data access on a relational store | `sqlalchemy[asyncio]>=2` (2.0: inline type annotations under mypy `--strict`), `asyncpg` | `testcontainers[postgres]>=4.15` (4.15: `testcontainers.community`) |
 | a relational store whose schema this service owns | `alembic` | — |
@@ -65,9 +64,9 @@ reads a table another service owns carries the Core library and the driver and n
 with no HTTP trigger carries no web framework. A dependency nothing imports is a stray package.
 
 **Each floor is written with the API beside it, as a comment on its line** —
-`"sqlalchemy[asyncio]>=2",  # 2.0: inline type annotations under mypy --strict`. The three above are
-there because this family's templates call exactly those names — the strictly typed engine, the
-session-scoped test loop, the container module. A service whose own code
+`"sqlalchemy[asyncio]>=2",  # 2.0: inline type annotations under mypy --strict`. The two above are
+there because this family's templates call exactly those names — the strictly typed engine and the
+container module. A service whose own code
 calls none of a floor's names drops the floor and its comment together; one that relies on something
 newer raises the floor and names that instead (`python-toolchain` rule 9).
 

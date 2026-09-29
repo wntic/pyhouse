@@ -12,7 +12,7 @@ the constitution wins.
 Every test the auth machinery needs — the verifier's own unit test and the auth half of the integration
 suite — and all of it exists **only for an app that declares auth**
 (`hex-restapi-auth`). An auth-less app produces none of these files: no verifier to test, no
-`tests/helpers/jwt.py`, no auth fixtures in `tests/integration/api/conftest.py`, no
+`tests/helpers/jwt.py`, no `tests/integration/api/conftest.py` — this skill creates it — no
 `test_unauth_returns_401.py`, and every endpoint test drives a plain ASGI client.
 
 ## When to use vs. neighbours
@@ -80,10 +80,10 @@ Consult `test-principles` for the testing constitution.
 
 ### The verifier's unit test
 
-1. **The verifier's unit test is `hex-test-capability-adapter`'s pure-CPU flavour** (its rules 2–3 and
-   20–22) — real keys and real signatures, settings and keys at module scope, no fixtures, and the file
+1. **The verifier's unit test is `hex-test-capability-adapter`'s pure-CPU flavour** (its rules 2, 3, 14
+   and 15) — real keys and real signatures, settings and keys at module scope, no fixtures, and the file
    under `tests/unit/infrastructure/<adapter>/`.
-2. **One test per check the verifier makes** (`hex-test-capability-adapter` rule 21) — the signature and
+2. **One test per check the verifier makes** (`hex-test-capability-adapter` rule 15) — the signature and
    each claim it validates or requires.
 3. **One signer for the whole suite.** The unit test and the integration fixtures mint tokens through
    the same helper, so a change to the claim shape cannot leave them disagreeing.
@@ -122,9 +122,11 @@ Consult `test-principles` for the testing constitution.
 
 ### The discovered probe
 
-12. **Protected is the default; public is declared.** Probe every operation the app serves — walked as
-    `hex-test-app-invariants` rule 2 walks them, and requested under the path a client must use — except
-    those named in the probe file's public set. Never classify by whether the auth dependency is present: a route that forgot
+12. **Protected is the default; public is declared.** Probe every operation the app serves — walked off
+    its resolved routes rather than its published document, since a route left out of the document is
+    still served, keyed on the path the document would publish (under FastAPI, `iter_route_contexts`
+    filtered to `APIRoute`, keyed on `path_format`), and requested under the path a client must use —
+    except those named in the probe file's public set. Never classify by whether the auth dependency is present: a route that forgot
     it looks exactly like a public one, and that classification drops it from the probe instead of
     failing it (`hex-restapi-auth` rule 9). Every input comes off the app and the declaration, so a new
     protected endpoint joins the probe with nothing to edit.
@@ -133,7 +135,7 @@ Consult `test-principles` for the testing constitution.
     before path validation, but a typed converter such as `{n:int}` rejects a mismatched value at the
     router, before auth — the UUID-shaped dummy then answers 404, and that route fails the probe until
     its segment gets a value the converter accepts.
-14. **An empty discovery is a failure, not a skip** (`hex-test-app-invariants` rule 3). The companion
+14. **An empty discovery is a failure, not a skip** (`test-principles`, *When to parametrize*). The companion
     net test asserts the walk found operations, and that every operation declared public is still one
     the app serves, so the declaration cannot drift from the routes.
 15. **Every probed operation also refuses a credential the app does not trust.** The anonymous probe

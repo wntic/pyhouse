@@ -44,7 +44,7 @@ first thing to get right.
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** — a unique key-prefix, collection or database name, or, where the adapter fixes its namespace in code, a store the suite itself started — created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** (rule 14), created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
 
 ### Relational
 
@@ -57,6 +57,9 @@ Default is one file per repository. **Concern-split when the single file stops b
 
 ### Standard CRUD test file — SQLAlchemy async session factory
 
+One test group per method the port declares and no others (rule 1); the conflict tests exist only where
+the table has a natural key (`hex-persistence`, `TABLE.md`).
+
 ```python
 import datetime as dt
 import uuid
@@ -64,17 +67,25 @@ from dataclasses import asdict
 
 import pytest
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from myapp.domain.exceptions import FooConflictError, NotFoundError
-from myapp.domain.foos import Foo, FooListFilter, FooSort
+from myapp.domain.exceptions import (
+    FooConflictError,  # only where Foo has a natural key
+    NotFoundError,
+    UpstreamError,
+)
+from myapp.domain.foos import (
+    Foo,
+    FooListFilter,  # only with a paged list
+    FooSort,  # only with a paged list
+)
 from myapp.infrastructure.postgres.repositories import FooRepository
 from myapp.infrastructure.postgres.tables.foos import foos_table
 
 _PLANTED = dt.datetime(2000, 1, 1, tzinfo=dt.UTC)
 
 
-def _foo(name: str = "alpha") -> Foo:
+def _foo(*, name: str = "alpha") -> Foo:
     return Foo(id=uuid.uuid4(), name=name, note="a note")
 
 
@@ -87,17 +98,30 @@ async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncS
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
+async def test_get_by_id_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
+    repo = FooRepository(session_factory=sf)
+    missing = uuid.uuid4()
+
+    with pytest.raises(NotFoundError) as exc:
+        await repo.get_by_id(missing)
+
+    assert exc.value.context["id"] == str(missing)
+
+
+# only where the port declares update
 async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    foo = _foo("alpha")
+    foo = _foo(name="alpha")
     await repo.create(foo)
     foo.name = "beta"
+    foo.note = "another note"
 
     await repo.update(foo)
 
     assert asdict(await repo.get_by_id(foo.id)) == asdict(foo)
 
 
+# only where the port declares delete
 async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo()
@@ -111,20 +135,38 @@ async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> N
     assert exc.value.context["id"] == str(foo.id)
 
 
+async def test_read_and_write_against_unreachable_store_raise_upstream_error() -> None:
+    dead = create_async_engine("postgresql+asyncpg://u:p@127.0.0.1:1/none")  # nothing listening
+    foo = _foo()
+    try:
+        repo = FooRepository(session_factory=async_sessionmaker(dead))
+        with pytest.raises(UpstreamError) as read:
+            await repo.get_by_id(foo.id)
+        with pytest.raises(UpstreamError) as write:
+            await repo.create(foo)
+    finally:
+        await dead.dispose()
+
+    assert read.value.context == {"id": str(foo.id)}
+    assert write.value.context == {"id": str(foo.id)}
+
+
+# only where Foo has a natural key
 async def test_duplicate_name_on_insert_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo("alpha"))
+    await repo.create(_foo(name="alpha"))
 
     with pytest.raises(FooConflictError) as exc:
-        await repo.create(_foo("alpha"))
+        await repo.create(_foo(name="alpha"))
 
     assert exc.value.context["constraint"] == "uq_foos_name"
 
 
+# only where Foo has a natural key and the port declares update
 async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo("alpha"))
-    second = _foo("beta")
+    await repo.create(_foo(name="alpha"))
+    second = _foo(name="beta")
     await repo.create(second)
 
     second.name = "alpha"
@@ -134,6 +176,7 @@ async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[A
     assert exc.value.context["constraint"] == "uq_foos_name"
 
 
+# only where the port declares update
 async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
     foo = _foo()
@@ -152,15 +195,17 @@ async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession]) ->
     assert written > _PLANTED
 
 
+# only where the port declares a lookup by a natural key
 async def test_get_by_name_returns_match(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo("alpha"))
+    await repo.create(_foo(name="alpha"))
 
     loaded = await repo.get_by_name("alpha")
     assert loaded is not None
     assert loaded.name == "alpha"
 
 
+# only where the port declares a lookup by a natural key
 async def test_get_by_name_returns_none_when_absent(
     sf: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -169,28 +214,36 @@ async def test_get_by_name_returns_none_when_absent(
     assert await repo.get_by_name("alpha") is None
 
 
+# only where the port declares a paged, sorted list
 async def test_list_respects_pagination_and_sort(sf: async_sessionmaker[AsyncSession]) -> None:
     repo = FooRepository(session_factory=sf)
-    await repo.create(_foo("c"))
-    await repo.create(_foo("a"))
-    await repo.create(_foo("b"))
+    await repo.create(_foo(name="c"))
+    await repo.create(_foo(name="a"))
+    await repo.create(_foo(name="b"))
 
     page = await repo.list(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2, offset=0))
     assert [f.name for f in page] == ["a", "b"]
+
+
+# only where the port declares a paged, sorted list
+async def test_count_applies_the_filter(sf: async_sessionmaker[AsyncSession]) -> None:
+    repo = FooRepository(session_factory=sf)
+    await repo.create(_foo(name="a"))
+    await repo.create(_foo(name="b"))
+
+    assert await repo.count(filter=FooListFilter(name="a")) == 1
 ```
+
+`update` and `delete` of an id never created each get the same test as `get_by_id`'s absent row (rule 1).
 
 **Compare every field, never the entity.** An entity's equality is by id (`hex-domain-model`), so
 `loaded == foo` passes a repository that maps the id and drops or swaps every other column;
-`asdict(...)` on both sides compares what the row actually carried back.
+`asdict(...)` on both sides compares what the row actually carried back. The builder gives every
+optional field a non-default value, and the update test changes every field `update` writes; otherwise
+a column the mapping drops comes back as its default and the comparison passes.
 
-**The update timestamp is read from the row, off a value the test planted.** It is not an entity field
-(`hex-domain-model`, Entity rule 6), so the repository never returns it; the test reads the column
-through its own session handle. Planting a value far in the past first is what lets the test fail:
-inside the one rollback transaction the store's clock can stand still — Postgres `now()` returns the
-transaction's start time — so the value written at create and the one written at update can be
-identical, and comparing those two proves nothing. Against the planted value, a repository that never
-writes the column leaves it in place and the assertion reds. The planting `UPDATE` is not seed data
-(rule 10): no repository method can set the column, which is the point.
+The planting `UPDATE` is not seed data (rule 9): no repository method can set the column, which is the
+point.
 
 **Seed 3, page 2.** The page size must be *smaller* than the seeded set or the test proves nothing: at
 `limit=3` the page holds every row, so the same assertion passes a repository that ignores the bound
@@ -239,8 +292,8 @@ A client store gives the test an **SDK client** and a **namespace** the test own
 binding — `hex-store-repository`'s own — whose adapter fixes its key prefix in code, so the namespace
 a test owns is the suite's own container, emptied after each test. The
 adapter is `hex-store-repository`'s `BazRepository`, whose `IBazRepository` declares three verbs, so the
-contract is those three: create, fetch by id and delete, each with its absent-record case, plus the
-translation of a store failure.
+contract is those three (rule 1): create, fetch by id and delete, each with its absent-record case, plus
+the translation of a store failure on a read and a write.
 
 The fixtures — the Redis container for the run (`redis_url`) and the per-test client whose teardown
 empties it (`redis_client`) — are `hex-test-integration-setup`'s, in its `CONFTEST.md`: the client sits
@@ -261,7 +314,7 @@ from myapp.domain.exceptions import NotFoundError, UpstreamError
 from myapp.infrastructure.redis.repositories import BazRepository
 
 
-def _baz(name: str = "alpha") -> Baz:
+def _baz(*, name: str = "alpha") -> Baz:
     return Baz(id=uuid.uuid4(), name=name)
 
 
@@ -316,18 +369,20 @@ async def test_delete_of_absent_record_raises_not_found(redis_client: Redis) -> 
     assert exc.value.context["id"] == str(missing)
 
 
-async def test_get_against_unreachable_store_raises_upstream_error() -> None:
+async def test_read_and_write_against_unreachable_store_raise_upstream_error() -> None:
     dead = Redis.from_url("redis://127.0.0.1:1/0")  # nothing listening
-    missing = uuid.uuid4()
+    baz = _baz()
     try:
         repo = BazRepository(client=dead)
-
-        with pytest.raises(UpstreamError) as exc:
-            await repo.get_by_id(missing)
+        with pytest.raises(UpstreamError) as read:
+            await repo.get_by_id(baz.id)
+        with pytest.raises(UpstreamError) as write:
+            await repo.create(baz)
     finally:
         await dead.aclose()
 
-    assert exc.value.context["key"] == f"bazs:{missing}"
+    assert read.value.context["key"] == f"bazs:{baz.id}"
+    assert write.value.context["key"] == f"bazs:{baz.id}"
 ```
 
 The key test reads the raw key through the test's client: an adapter whose key layout drifted would
@@ -355,46 +410,50 @@ record landed — which is what every record already stored depends on.
 
 Follow `test-principles` for the testing constitution. Follow `naming` for names and `exception-catalog` for the error catalogue and boundary translation.
 
+### Both halves
+
+1. **Exercise exactly the protocol the port declares** — every method, CRUD verbs and the port's own
+   alike (`delete_by_<field>`, range/scan), each with its absent-record case, and no test for a method
+   the port does not declare. A verb that promises an order asserts that order, not just membership. An
+   out-of-order write and a same-key batch, where the adapter takes them → `test-principles`,
+   *Datastore contract* rules 6 and 7.
+
 ### Relational
 
-1. **Every test takes the session handle the integration setup provides — the one whose writes are discarded when the test ends — and opens nothing of its own.** That handle is what makes the database empty at test start and undoes every write at teardown; `sf`, the rollback-scoped session factory, is its name under this catalogue's binding (`hex-test-integration-setup`), and what this rule requires is the property, not the name. A test that builds its own session factory, connection or engine writes outside that boundary, so its rows survive into the next test and the failure surfaces somewhere else entirely. No marker, no second database fixture.
-2. Follow `test-principles` for the `_<aggregate>()` builder form. Defaults must be valid; no-override construction succeeds.
-3. Follow `test-principles` for natural-key test values. Rollback isolation guarantees an empty DB; `name="alpha"` is safe across tests.
-4. Every conflict pins its constraint's name on the translated exception → `test-principles`, *Datastore contract* rule 2; here `assert exc.value.context["constraint"] == "<constraint_name>"` on the `ConflictError` subclass the translator raises for it (`FooConflictError` for `uq_foos_name`). A forced driver error on a read, where the repository has one → *Datastore contract* rule 4.
-5. Insert and update paths for every unique field → `test-principles`, *Datastore contract* rule 3; an out-of-order write and a same-key batch, where the repository takes them → rules 6 and 7 there.
-6. **The update timestamp is read from the row and compared with a value the test planted before the act.** It is not an entity field (`hex-domain-model`, Entity rule 6), so it is read through the test's own session handle. Where the store's clock is transaction-scoped — Postgres `now()` is — the create and the update inside one rollback transaction carry the identical value, so comparing those two can never fail; a value planted far in the past can, and a repository that never writes the column leaves it there.
-7. **Every cascade gets its own test.** Follow `naming`; the test form is `test_cascade_delete_removes_<child>`. Test the count after parent-delete is zero — only this proves the schema's `ON DELETE CASCADE` works.
+2. **Every test takes the rollback-scoped handle the integration setup provides — `sf` under this binding (`hex-test-integration-setup`) — and opens nothing of its own** (`test-principles` reliability rule 6). The one exception is a handle to a store nothing listens on, which writes nothing (rule 4's forced error).
+3. Follow `test-principles` for the `_<aggregate>()` builder form. Defaults must be valid; no-override construction succeeds.
+4. Every conflict pins its constraint's name on the translated exception → `test-principles`, *Datastore contract* rule 2; here `assert exc.value.context["constraint"] == "<constraint_name>"` on the `ConflictError` subclass the translator raises for it (`FooConflictError` for `uq_foos_name`). A forced driver error on a write and a read → *Datastore contract* rule 4.
+5. Insert and update paths for every unique field → `test-principles`, *Datastore contract* rule 3.
+6. **The update timestamp is not an entity field** (`hex-domain-model`, Entity rule 6), so it is read from the row through the test's own session handle, against a value planted before the act → `test-principles` reliability rule 4.
+7. **Every cascade gets its own test**, `test_cascade_delete_removes_<child>` (`test-principles`, *Test naming*). Test the count after parent-delete is zero — only this proves the schema's `ON DELETE CASCADE` works.
 8. **Every `get_by_<field>` gets both a found and a not-found test.** For case-sensitivity-sensitive fields, add a mixed-case test that asserts the documented behavior.
-9. Follow `test-principles` for collection assertion strength. The rollback fixture gives this repository test an empty DB.
-10. Seed data on the table under test goes through the repository's own `create`, never a raw INSERT, and a row `Foo` only references is seeded raw → `test-principles`, *Datastore contract* rule 5; the ban binds only a test of the repository under test.
-11. **No web framework, no HTTP client, no DI container in this file.** The test imports the repository class, takes the session factory, calls methods and asserts. Reaching the adapter through a route tests the route as well, and a failure no longer says which of the two is broken; the HTTP surface is `hex-test-restapi-endpoint`'s.
-12. **A test that moves the schema cannot share the fixture that assumes the schema is already at head.** Migration regressions live in their own flat files (`tests/integration/postgres/test_<NNNN>_migration.py`), take the migration runner (`run_alembic`, `hex-test-integration-setup`) and drive it directly, so they are free to downgrade and upgrade. An ordinary repository test is not: it assumes head, and a downgrade underneath it takes the rest of the file with it. One of those files is always present: **the migration round trip** — upgrade to head, downgrade to base, upgrade to head again, against the real database — which is what proves every revision's `downgrade()` runs (`hex-persistence` relies on it) and that the chain rebuilds what it tore down.
+9. Seed data on the table under test goes through the repository's own `create`, never a raw INSERT, and a row `Foo` only references is seeded raw → `test-principles`, *Datastore contract* rule 5; the ban binds only a test of the repository under test.
+10. **No web framework, no HTTP client, no DI container in this file.** The test imports the repository class, takes the session factory, calls methods and asserts. Reaching the adapter through a route tests the route as well, and a failure no longer says which of the two is broken; the HTTP surface is `hex-test-restapi-endpoint`'s.
+11. **A test that moves the schema takes the migration runner (`run_alembic`, `hex-test-integration-setup`), never the fixture that assumes head**, and lives in its own flat file (`tests/integration/postgres/test_<NNNN>_migration.py`); a downgrade underneath an ordinary repository test takes the rest of its file with it. The round trip `persistence` rule 20 requires is one of those files, always present.
+12. **Where the store has a unit of work, its implementation gets one test over `sf`**: an exception inside the block leaves nothing from any member, read back through a fresh session; the session-injected form is tested through the unit of work, never with a hand-opened session.
 
 ### Client-style store
 
-13. Each test runs against the real store, never a fake or a mock → `test-principles`, *Datastore contract* rule 1; as in the relational half, the file holds no web framework, HTTP client or DI container (rule 11).
-14. **Isolate by a per-test namespace, not rollback.** A fresh key-prefix / collection / database per test, or — where the adapter's namespace is fixed in code — the suite's own container emptied after each test (`redis_client`'s teardown). There is no transaction to roll back; do not reach for `sf`. The empty namespace is what makes natural-key values safe here, as rollback does in rule 3.
-15. **The container is session-scoped; the namespace is function-scoped** — `hex-test-integration-setup` obligation 3. A store the environment supplies instead is opted into as `test-principles` reliability rules 1 and 6 state.
-16. **Exercise the full protocol**, CRUD verbs and non-CRUD alike — `create`/`get_by_id`/`delete` with their absent-record cases AND any verb of the port's own (`delete_by_<field>`, range/scan). A verb that promises an order asserts that order, not just membership. An out-of-order write and a same-key batch, where the adapter takes them → `test-principles`, *Datastore contract* rules 6 and 7.
-17. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A compound return asserts every element it carries, not just the entity.
-18. The SDK-error translation is asserted end to end, on the exceptions `hex-store-repository` promises and never on rule 4's `ConflictError` contract → `test-principles`, *Datastore contract* rule 4.
-19. **Assert where the record landed.** The key layout is the adapter's persisted contract (`hex-store-repository`), and an adapter that changes it still round-trips through its own reads; one test reads the raw record through the client, under the key the adapter documents, to prove the layout is the one used.
-20. **No assertions on global store contents.** Assert only within this test's namespace — exactly the per-test bucket's discipline, because cleanup is namespace-scoped, not transactional.
+13. Each test runs against the real store, never a fake or a mock → `test-principles`, *Datastore contract* rule 1; as in the relational half, the file holds no web framework, HTTP client or DI container (rule 10).
+14. **Isolate by a per-test namespace, not rollback** (`test-principles` reliability rule 2) — the suite's own container emptied after each test (`redis_client`'s teardown) where the adapter fixes its namespace in code. There is no transaction to roll back, so no `sf` here.
+15. **The container is session-scoped; the namespace is function-scoped** — `test-principles`, *Fixture scope rules*. A store the environment supplies instead is opted into as `test-principles` reliability rules 1 and 6 state.
+16. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A compound return asserts every element it carries, not just the entity.
+17. A forced store failure is asserted on the catalogue's upstream class and the `context` the adapter sets — a write and a read (`test-principles`, *Datastore contract* rule 4) — and an absent record on the not-found class (`exception-catalog`); a store with no constraints has no rule-4 constraint pin.
+18. **Assert where the record landed.** The key layout is the adapter's persisted contract (its key prefix is a module constant, `hex-store-repository` rule 5), and an adapter that changes it still round-trips through its own reads; one test reads the raw record through the client, under the key the adapter documents, to prove the layout is the one used.
 
 ## Inlined typing / import rules
 
-- `pytest`, `sqlalchemy.ext.asyncio`, stdlib `uuid`, `myapp.domain.*`, `myapp.infrastructure.postgres.repositories.*`. No `myapp.application.*`, no `myapp.restapi.*`.
+- No `myapp.application.*`, no `myapp.restapi.*`.
 - Full annotations on every test signature including `sf: async_sessionmaker[AsyncSession]`.
 - Builder `_<aggregate>()` returns the entity type; overrides keyword-only.
 - No `from __future__ import annotations`.
 
-For a client-style store, the store's own SDK (`redis.asyncio`) and `myapp.infrastructure.<store-kind>`
-replace the SQLAlchemy and Postgres imports. Where a test needs the client and a settings object both,
-they arrive as two fixtures, each annotated with its own type — never a bare tuple (`python-style`) —
-and a yielding fixture uses `AsyncIterator[T]` / `Iterator[T]`.
+Where a client-store test needs the client and a settings object both, they arrive as two fixtures, each
+annotated with its own type — never a bare tuple (`python-style`) — and a yielding fixture uses
+`AsyncIterator[T]` / `Iterator[T]`.
 
 ## Hard stops
 
-- Nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding) → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
+- A relational test and nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding), or a client-store test and nothing up-tree provides the store client emptied per test → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
 - A test references FastAPI, `httpx` or the DI container → stop, use `hex-test-restapi-endpoint`.
 - Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.

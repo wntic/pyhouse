@@ -1,157 +1,101 @@
 ---
 name: hex-test-app-invariants
-description: Use when testing a property of the assembled app itself rather than one route's own behaviour — a check that needs no edit when an endpoint is added or removed. Covers the one-shot OpenAPI error-code cross-check against `error_responses(...)`, the CORS preflight and the request-size limit where the app configures them, and the app-construction smoke, each taking its inputs from the running app rather than from a maintained list. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
+description: Use when testing a property of the assembled HTTP app itself rather than one route's own behaviour — a check that needs no edit when an endpoint is added or removed — or the construct smoke any entrypoint gets. Covers the catalogue's error shape on every error code the published OpenAPI document advertises, the CORS preflight and the request-size limit where the app configures them, and the app-construction smoke, each built with `create_app()` and taking its inputs from the app rather than from a maintained list; a service with no HTTP entrypoint keeps only the smoke, for its own entrypoint. A single endpoint's test is `hex-test-restapi-endpoint`; the anonymous-caller probe and every token fixture are `hex-test-restapi-auth`'s.
 ---
 
 # Hex Test — App Invariants
 
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
-One-shot per project. One to three integration files under `tests/integration/api/` plus one unit-level app-construction smoke. Each one iterates — or constructs — the running app and asserts a single global property; none of them needs to be edited when an endpoint is added or removed. An app that declares auth gains one more discovered invariant — every protected route rejects an anonymous caller — which is `hex-test-restapi-auth`'s.
+One-shot per project. An HTTP app gets up to four files under `tests/unit/restapi/`, each of which builds the app with `create_app()` and asserts a single global property; a service with no HTTP entrypoint gets only the construct smoke, for its own entrypoint (rule 10). None of them needs to be edited when an endpoint is added or removed. None needs a store, so none waits on the integration suite's containers. An app that declares auth gains one more discovered invariant — every protected route rejects an anonymous caller — which is `hex-test-restapi-auth`'s.
 
 ## When to use vs. neighbours
 
 - Laying the cross-cutting tests for the first time → this skill.
 - A per-endpoint integration test → `hex-test-restapi-endpoint`.
-- The rollback fixture / containers / `real_app` → `hex-test-integration-setup` (owns `real_app`, which every test here imports).
+- The integration fixtures, `real_app` among them → `hex-test-integration-setup`; nothing here takes them.
 - The every-protected-route-rejects-an-anonymous-caller probe, and the fixtures that mint tokens → `hex-test-restapi-auth` (auth apps only; nothing here consumes them — see Rule 8).
-- The route-side `error_responses(...)` declaration this skill cross-checks the document against → `hex-restapi-endpoint`, in its sibling `CONTRACTS.md`; the 401/403 half of it → `hex-restapi-auth`.
+- The route-side `error_responses(...)` declaration that puts the catalogue's shape on each advertised code → `hex-restapi-endpoint`, in its sibling `CONTRACTS.md`; the 401/403 half of it → `hex-restapi-auth`.
 - A grep-firewall static rule → `test-architecture-rule` (compile-time, not runtime).
 - The testing constitution — markers, async mode, the mocking prohibition → `test-principles`.
 
 ## Template(s) — pytest, FastAPI, httpx over an in-process ASGI transport
 
 ```
-tests/integration/api/
-├── test_openapi_advertises_error_codes.py   # always
-├── test_cors.py                             # only if CORS is configured (Rule 11)
-└── test_request_size_limit.py               # only if a size-cap middleware is declared (Rule 11)
 tests/unit/restapi/
-└── test_app_constructs.py                   # always — unit-level construct smoke, no DB (Rule 12)
+├── test_app_constructs.py                   # always
+├── test_openapi_advertises_error_codes.py   # always
+├── test_cors.py                             # only if CORS is configured
+└── test_request_size_limit.py               # only if a size-cap middleware is declared
 ```
 
-### `tests/unit/restapi/test_app_constructs.py`
+### `test_app_constructs.py`
 
 ```python
 from myapp.restapi.main import create_app
 
 
 def test_app_constructs_and_renders_openapi() -> None:
-    """Smoke: the composition root + app shell wire up, and the OpenAPI schema
-    renders over every route. This is the ONLY place a construct-time failure
-    surfaces — a missing framework dependency FastAPI imports at app-build time
-    (e.g. `python-multipart` for a Form(...)/UploadFile route, raised at
-    create_app, never at type-check), broken middleware wiring, or a route
-    whose response schema won't build. mypy / ruff / handler unit tests all
-    stay green through these; constructing the app does not."""
     app = create_app()
-    assert app.openapi()["paths"]  # forces the full schema build over every route
+    assert app.openapi()["paths"]
 ```
-
-This lives at the **unit** layer, not under `tests/integration/`, on purpose: `create_app` needs **no** database — factories are lazy, so it wires routers/middleware/error-handlers and assembles the composition root without resolving a handler or opening a connection. Placing it under `tests/integration/` would drag that tree's session-autouse `_migrated_db` / `_guard_against_real_db` fixtures and require Postgres, defeating the point — the construct-time defect class must be catchable with no Docker daemon (exactly the environment where mypy/ruff/unit run green and miss it). The test is structural, not a body test: it passes on freshly laid routes (the functions exist with valid signatures; their `NotImplementedError` bodies are never *called* by construction or `openapi()`), so a missing dependency reds it as soon as the routes exist, before their bodies are filled.
 
 ### `test_openapi_advertises_error_codes.py`
 
 ```python
+from typing import Any
+
 import pytest
-from fastapi import FastAPI
-from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 
-# The one code FastAPI publishes unasked, on any operation whose input it validates (rule 4).
-_FRAMEWORK_VALIDATION_CODE = 422
+from myapp.restapi.main import create_app
+
 _ERROR_SCHEMA_REF = "#/components/schemas/ErrorResponse"
+_HTTP_METHODS = frozenset({"get", "put", "post", "delete", "patch", "options", "head", "trace"})
 
 
-def _api_operations(app: FastAPI) -> list[RouteContext]:
-    """Every API operation the app serves, one resolved route context each.
-
-    `include_router(...)` keeps each included router as a single entry in
-    `app.routes`; `iter_route_contexts` resolves those entries into one context
-    per operation, carrying the include-time prefix and the router-level
-    dependencies. A context whose original route is not an `APIRoute` (the
-    documentation routes, a mount, a plain Starlette route) advertises no
-    operation and drops out.
-
-    Key on `path_format` and not `path`: `path_format` is the string the
-    document is keyed on, and the two diverge the moment a route uses a path
-    converter — `/files/{file_path:path}` is published as `/files/{file_path}`.
-    Either already carries the include-time prefix; only one of them matches
-    the document on every route."""
-    return [context for context in iter_route_contexts(app.routes) if isinstance(context.original_route, APIRoute)]
-
-
-def _operations(app: FastAPI) -> list[tuple[str, str]]:
-    return [
-        (method, route.path_format or "")
-        for route in _api_operations(app)
-        for method in sorted(route.methods or ())
-        if method != "HEAD"
-    ]
-
-
-def _route(app: FastAPI, method: str, path: str) -> RouteContext:
-    return next(
-        route for route in _api_operations(app) if route.path_format == path and method in (route.methods or ())
-    )
-
-
-def _declared_codes(route: RouteContext) -> set[int]:
-    """The error codes the route's decorator advertised. FastAPI keeps the
-    dict `error_responses(...)` produced on the route's `responses`, keyed by
-    status code, and the resolved context carries it unchanged."""
-    return {code for code in route.responses if isinstance(code, int) and code >= 400}
+def _operations() -> list[tuple[str, str]]:
+    paths: dict[str, dict[str, Any]] = create_app().openapi()["paths"]
+    return [(method, path) for path, item in paths.items() for method in item if method in _HTTP_METHODS]
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    """One case per operation, discovered at collection time from the app
-    itself — a fixture cannot feed parametrization (rule 10)."""
+    # a fixture cannot feed parametrization
     if "method" in metafunc.fixturenames and "path" in metafunc.fixturenames:
-        from myapp.restapi.main import create_app
-
-        cases = _operations(create_app())
-        metafunc.parametrize("method,path", cases, ids=[f"{m} {p}" for m, p in cases])
+        cases = _operations()
+        metafunc.parametrize("method,path", cases, ids=[f"{m.upper()} {p}" for m, p in cases])
 
 
-async def test_the_walk_found_operations_to_compare(real_app: FastAPI) -> None:
-    """The net under the parametrized test below: an empty parameter set is
-    reported as skipped, not failed, so a walk that discovers nothing would
-    otherwise leave the run green having compared nothing (rule 3)."""
-    assert _api_operations(real_app), "no API operation was discovered, so nothing was compared"
+def test_the_walk_found_operations_to_check() -> None:
+    # an empty parameter set is reported as skipped
+    assert _operations(), "no API operation was published, so nothing was checked"
 
 
-async def test_operation_publishes_what_its_decorator_declared(method: str, path: str, real_app: FastAPI) -> None:
-    declared = _declared_codes(_route(real_app, method, path))
-    published_responses = real_app.openapi()["paths"][path][method.lower()]["responses"]
-    published = {int(c) for c in published_responses if c.isdigit() and int(c) >= 400}
+def test_every_advertised_error_code_carries_the_error_schema(method: str, path: str) -> None:
+    responses: dict[str, dict[str, Any]] = create_app().openapi()["paths"][path][method]["responses"]
 
-    assert declared - published == set(), "declared but not published"
-    assert published - declared - {_FRAMEWORK_VALIDATION_CODE} == set(), "published undeclared"
     off_shape = {
         code
-        for code in published
-        if published_responses[str(code)]["content"]["application/json"]["schema"] != {"$ref": _ERROR_SCHEMA_REF}
+        for code, response in responses.items()
+        if code.isdigit()
+        and int(code) >= 400
+        and response.get("content", {}).get("application/json", {}).get("schema") != {"$ref": _ERROR_SCHEMA_REF}
     }
+
     assert off_shape == set(), "published without the catalogue's error shape"
 ```
-
-The last assertion — one set, so every offending code is reported at once — is what keeps the one exemption honest. A route that validates input but forgot to
-declare `422` still has one published — FastAPI's own, whose schema is its validation-error model rather
-than the catalogue's `ErrorResponse` that the app's validation handler actually returns
-(`hex-restapi-app`) — so the code comparison lets it through and the schema check does not.
 
 ### `test_cors.py`
 
 ```python
 from typing import Any, cast
 
-import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from myapp.restapi.main import create_app
+
 
 def _configured_origin(app: FastAPI) -> str | None:
-    """Read a real allowed origin off the app's CORS middleware, instead of
-    hardcoding one. Returns None when the app configures no CORS."""
     # Starlette's `Middleware.kwargs` is untyped; cast rather than silence mypy.
     for mw in app.user_middleware:
         if getattr(mw.cls, "__name__", "") == "CORSMiddleware":
@@ -160,15 +104,12 @@ def _configured_origin(app: FastAPI) -> str | None:
     return None
 
 
-async def test_cors_preflight_echoes_a_configured_origin(real_app: FastAPI) -> None:
-    origin = _configured_origin(real_app)
-    if origin is None:
-        pytest.skip("app configures no CORS allow_origins")
+async def test_cors_preflight_echoes_a_configured_origin() -> None:
+    app = create_app()
+    origin = _configured_origin(app)
+    assert origin is not None, "CORS is configured but the app under test allows no origin"
 
-    async with AsyncClient(
-        transport=ASGITransport(app=real_app),
-        base_url="http://testserver",
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
         response = await client.options(
             "/",
             headers={"Origin": origin, "Access-Control-Request-Method": "GET"},
@@ -182,19 +123,15 @@ async def test_cors_preflight_echoes_a_configured_origin(real_app: FastAPI) -> N
 ```python
 from typing import Any, cast
 
-import pytest
 from fastapi import FastAPI
-from fastapi.routing import APIRoute, iter_route_contexts
 from httpx import ASGITransport, AsyncClient
 
-_BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
+from myapp.restapi.main import create_app
+
+_BODY_METHODS = ("post", "put", "patch")
 
 
 def _max_request_bytes(app: FastAPI) -> int | None:
-    """The configured cap of the request-size middleware, read off the app.
-    Returns None when the app declares no such middleware (the kwarg name
-    matches the middleware's config field — see hex-restapi-app)."""
-    # `Middleware.kwargs` is effectively untyped — cast, as in test_cors.py.
     for mw in app.user_middleware:
         if getattr(mw.cls, "__name__", "") == "MaxRequestSizeMiddleware":
             max_bytes = cast(dict[str, Any], mw.kwargs).get("max_bytes")
@@ -203,29 +140,23 @@ def _max_request_bytes(app: FastAPI) -> int | None:
 
 
 def _body_operation(app: FastAPI) -> tuple[str, str] | None:
-    """A (METHOD, path) the app serves that accepts a request body, read off
-    the app's own routes rather than named here."""
-    for route in iter_route_contexts(app.routes):
-        path = route.path_format or ""
-        if isinstance(route.original_route, APIRoute) and "{" not in path:
-            methods = sorted((route.methods or set()) & _BODY_METHODS)
-            if methods:
-                return methods[0], path
+    paths: dict[str, dict[str, Any]] = app.openapi()["paths"]
+    for path, item in paths.items():
+        methods = [method for method in _BODY_METHODS if "requestBody" in item.get(method, {})]
+        if methods and "{" not in path:
+            return methods[0].upper(), path
     return None
 
 
-async def test_oversize_payload_returns_413(real_app: FastAPI) -> None:
-    limit = _max_request_bytes(real_app)
-    if limit is None:
-        pytest.skip("app declares no request-size middleware")
-    operation = _body_operation(real_app)
-    assert operation is not None, "a size cap is declared but no route accepts a body"
+async def test_oversize_payload_returns_413() -> None:
+    app = create_app()
+    limit = _max_request_bytes(app)
+    assert limit is not None, "the size-cap middleware is missing from the app under test"
+    operation = _body_operation(app)
+    assert operation is not None, "a size cap is declared but no operation accepts a body"
     method, path = operation
 
-    async with AsyncClient(
-        transport=ASGITransport(app=real_app),
-        base_url="http://testserver",
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
         response = await client.request(
             method,
             path,
@@ -240,41 +171,35 @@ A health or info endpoint is tested like any endpoint (`hex-test-restapi-endpoin
 
 ## Other bindings
 
-- **Another web framework.** Every rule here survives the swap; two mechanisms do not. The route walk
-  (rule 2) becomes whatever that framework exposes as its list of resolved operations, keyed by whichever
-  attribute on them carries the *published* path — the string its document is keyed on. The exemption of
-  rule 4 has to be re-derived by measuring a live app — carrying `422` across because it is written here is how
-  this test starts lying. Reading the CORS origin and the size cap off the running app rather than
-  freezing them stays the rule; only the attribute they are read from is the framework's.
-- **A framework that generates no API document.** The cross-check then has nothing to compare against and
-  that file is not written. The construct smoke still is, and the CORS preflight and the size-limit probe where the app configures them,
-  and rule 3 — a walk that discovers nothing is a failure — matters more, not less.
+- **Another web framework.** Every rule here survives the swap; reading the CORS origin and the size
+  cap off the running app rather than freezing them stays the rule, and only the attribute they are read
+  from is the framework's.
+- **A framework that generates no API document.** The error-shape check then has nothing to walk and
+  that file is not written. The construct smoke still is, and the CORS preflight and the size-limit
+  probe where the app configures them.
 
 ## Rules
 
 Consult `test-principles` for the testing constitution.
 
-1. **Every test discovers its inputs from `real_app`** — never from a hand-maintained route or expectation table, and never from a value frozen into the test. The expected error codes come from each route's own declaration, so the decorator stays the source of truth; the CORS origin is read off the app's CORS configuration, never the source app's dev origin, and `allow_credentials` is not assumed; the size cap, and the route the probe posts to, are read off the app's own middleware and routes, the probe sending one byte past the cap. A probe whose feature the app leaves unconfigured — an empty origin list, no size-cap middleware — skips rather than presuming it. The cost of adding a new endpoint must be zero in this directory.
-2. **Walk the app's resolved operations, and key both sides of the comparison on the published path.** The comparison is only a comparison if the walk reports every operation the app serves under the same string the document is keyed on — include-time prefix and all — and if a walk that finds nothing fails rather than passes (rule 3). Never assemble that key by hand out of a router prefix and a decorator argument; the framework already resolved it, and a hand-assembled key drifts the moment a router is nested or re-prefixed. *FastAPI binding:* `include_router` keeps each included router as one entry in `app.routes`, so the resolved operations are `fastapi.routing.iter_route_contexts(app.routes)` filtered to contexts whose original route is an `APIRoute` (FastAPI 0.137.2 and later; a bare `app.routes` filter finds nothing behind an included router and the walk comes back empty), and the published path is each context's `path_format` — not `path`, which keeps a path converter's suffix (`/files/{file_path:path}`) where the document publishes `/files/{file_path}`.
-3. **A walk that discovers nothing is a failure, not a pass.** Every file here asserts the walk returned operations before comparing them; `mismatches == []` over an empty walk passes green having proved nothing. An app whose routers are never wired, and a walk filtered on the wrong class, both land there — and the assertion is the only thing between that and a green run.
-4. **OpenAPI cross-check compares decorator-declared codes to document codes, per operation.** The walk of Rule 2 supplies the *key* the two sides meet on — the published path, include-time prefix and all — and only the key. The decorator side comes off the route object itself, from wherever the framework stores what the decorator declared (FastAPI: the route's `responses`, holding the dict `error_responses(...)` produced). The document side comes out of `app.openapi()`, read per `(METHOD, path)`; the route does not carry it. The two are compared exactly **except** for the validation code the framework inserts on its own — FastAPI publishes a `422` on any operation whose input it validates, whether or not the decorator declared one, and the decorator side cannot see it. The template keeps that one code in `_FRAMEWORK_VALIDATION_CODE` and subtracts it from the `extra` set; comparing without the exemption reds every route that takes any input at all. Bounded that way, the test catches decorator mismatches and genuine framework drift both. **Exempt exactly what the framework inserts unasked, and nothing else** — every code added to that exemption is a code this test stops checking, and the list is re-derived per framework by measuring a live app, never copied. The exemption covers the code, not its body: every published error response must carry the app's own error schema, which is what catches an operation that validates input but never declared the `422` the app's validation handler answers with (`hex-restapi-app`).
+1. **Every test discovers its inputs from the app itself** — never from a hand-maintained route or expectation table, and never from a value frozen into the test. The operations come off the app's published document; the CORS origin is read off the app's CORS configuration, never the source app's dev origin, and `allow_credentials` is not assumed; the size cap, and the operation the probe posts to, are read off the app's own middleware and document, the probe sending one byte past the cap. A probe file exists only where its feature is configured (rule 9), so the feature being absent from the app is a failure, as an empty walk is (rule 3). The cost of adding a new endpoint must be zero in this directory.
+2. **Walk the operations the app publishes, under the path its document is keyed on**, never a key assembled by hand out of a router prefix and a decorator argument — under FastAPI, the paths of `create_app().openapi()`.
+3. **One reported case per discovered operation, and a walk that discovers nothing is a failure, not a pass** → `test-principles`, *When to parametrize*. An app whose routers are never wired lands there, and the non-empty assertion is the only thing between that and a green run.
+4. **Every published error response carries the app's own error schema.** An advertised code whose body is the framework's own — FastAPI's validation model on a `422` the route never declared, where the app's validation handler answers with the catalogue's shape (`hex-restapi-app`) — fails.
 5. **Each file holds one invariant.** Don't merge `test_cors.py` and `test_request_size_limit.py` even though both are tiny — failures in one don't mask the other, and the file names list the invariants.
 6. **CORS test uses an OPTIONS preflight.** Asserting on a GET response's `Access-Control-Allow-Origin` is a softer test; the preflight is the one browsers actually consult.
 7. **Request-size test uses raw bytes**, not JSON-encoded data, to bypass schema validation and hit the middleware directly. Otherwise the response is `422` (validation) before the middleware sees the body.
-8. **No authenticated client here.** Every test in this skill reads OpenAPI or route metadata, or probes an unauthenticated path. A test here that needs a token is either the auth probe (`hex-test-restapi-auth`) or a per-endpoint concern (`hex-test-restapi-endpoint`).
-9. **Test markers and async mode** → `test-principles`.
-10. **Parametrize from the discovered list at collection time — one reported case per discovered item, never a loop inside a single test.** A loop stops at the first failure and says nothing about the items it never reached, so one broken route hides the rest. The runner's collection hook (`pytest_generate_tests`) is what can read a list discovered at import time; a fixture cannot feed parametrization.
-11. **Emit only the files the app's features justify.** `test_openapi_advertises_error_codes.py` is always produced; `test_cors.py` only where the app configures CORS; and `test_request_size_limit.py` only with a size-cap middleware — a CORS policy and a size cap are deployment choices (`hex-restapi-app`), not defaults every app has. A file whose module-level imports name something the app does not have fails at collection time and takes down the whole `tests/integration/api/` package — which is also why the auth probe is `hex-test-restapi-auth`'s and is emitted only by an app that declares auth.
-12. **`test_app_constructs.py` is the always-emitted, unit-level construct smoke.** It is the one file this skill places at `tests/unit/restapi/`, not `tests/integration/api/` beside the other invariants, because it needs no database (factories are lazy — `create_app` builds the composition root but resolves nothing, so it opens nothing) and must run with no Docker daemon — under `tests/integration/` the session-autouse `_migrated_db` / `_guard_against_real_db` fixtures would force Postgres on a check that opens no connection — the environment where the other gates pass and a construct-time dependency gap (`python-multipart`, …) slips through. Construct via `create_app()` directly (no `real_app` fixture), assert `app.openapi()["paths"]`. Sync, no fixtures, no `await` — needing a fixture means it is no longer the Docker-less smoke. It is structural (green on freshly laid routes), so every app gets it, auth or not.
+8. **No authenticated client here.** Every test in this skill reads the published document or probes an unauthenticated path. A test here that needs a token is either the auth probe (`hex-test-restapi-auth`) or a per-endpoint concern (`hex-test-restapi-endpoint`).
+9. **Emit only the files the app's features justify.** In an HTTP app, `test_app_constructs.py` and `test_openapi_advertises_error_codes.py` are always produced; `test_cors.py` only where the app configures CORS; and `test_request_size_limit.py` only with a size-cap middleware — a CORS policy and a size cap are deployment choices (`hex-restapi-app`), not defaults every app has. A file whose module-level imports name something the app does not have fails at collection time and takes down the whole `tests/unit/restapi/` package — which is also why the auth probe is `hex-test-restapi-auth`'s and is emitted only by an app that declares auth.
+10. **`test_app_constructs.py` is the always-emitted construct smoke of every HTTP app.** It builds the app with `create_app()` and forces the whole document with `app.openapi()` — sync, no fixtures, no `await`: `create_app` builds the composition root but resolves nothing, so it opens nothing, and a test needing a fixture would no longer run with no Docker daemon, the environment where the other gates pass and a construct-time dependency gap (`python-multipart`, …) slips through. It is structural (green on freshly laid routes), so every app gets it, auth or not. A service with no HTTP entrypoint keeps the obligation in `tests/unit/test_<entrypoint>_constructs.py`: build the composition root and the entrypoint object as its launcher does, and resolve nothing from the graph — resolution reads settings and opens clients, which this layer must not — and write none of the other files.
 
 ## Inlined typing / import rules
 
-- `pytest`, `fastapi`, `fastapi.routing`, `httpx`, `myapp.restapi.main`.
+- `pytest`, `fastapi`, `httpx`, `myapp.restapi.main`.
 - Full annotations on every helper.
 - No `from __future__ import annotations`.
 
 ## Hard stops
 
 - Asked to fold a per-endpoint test into one of these files → stop, these files hold discovered global properties only; a single endpoint's behaviour belongs to `hex-test-restapi-endpoint`.
-- Nothing up-tree builds the app on the test's own infrastructure bindings — the `real_app` fixture under this catalogue's binding → stop, the suite cannot collect without it; lay it with `hex-test-integration-setup` first. (No authenticated client is consumed here — Rule 8 — so the absence of the auth fixture set does not block this skill.)
 - Asked for an authentication probe here → stop, use `hex-test-restapi-auth`; it owns that invariant and is emitted only by an app that declares auth.
