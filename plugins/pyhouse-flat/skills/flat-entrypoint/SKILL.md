@@ -98,6 +98,10 @@ record commits on its own, and a rerun completes a partial run because the write
 key. A batched write is earned by the volume, not assumed (`persistence` rule 21), and a source whose
 size the service does not control is read in bounded slices instead (rule 10).
 
+Where the source stamps its records, that stamp is `as_of` — an `updated_at` is mapped inside
+`build_foo`, and the run's clock goes. The fetch instant is the stamp only for a source that stamps
+nothing (`persistence` rule 16).
+
 **The work opens no transaction.** The repository class owns its own (`persistence` rule 1); a
 body that opens a connection has moved data access out of the one package allowed it.
 
