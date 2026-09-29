@@ -5,18 +5,6 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-### 45. `python-packaging`'s module-per-class rule and the families' `settings.py`
-`python-packaging` (~:52-53) says a module holding one class is named for it in snake_case, while
-`flat-layered` rule 7 puts `QuxSettings` in `qux/settings.py` and `hex-conventions` uses `settings.py`
-the same way. A reviewer applying the universal rule flags both families' layouts. Either the rule
-carves out a settings module inside a component package, or the families change.
-
-### 46. Abbreviations `naming` bans survive in the hex templates
-`cmd` and `repo` are written into `hex-application`'s handler-signature rule, and `sf`, `fid`, `creds`
-and `trans` appear in hex templates; `hex-restapi-auth`'s `get_current_user` is an unqualified `get_`
-(`naming` rule 5), though it is FastAPI's documented idiom. Renaming touches hex rule text, so it was
-left out of item 42. Decide which to rename and whether a framework idiom earns an exception.
-
 ### 47. Smaller leftovers found by round 2's reviews
 - `hex-conventions` (~:77) cites `hex-restapi-app` rule 6 (a middleware is transport-level) for where
   the catch-all lives; the rule may not say that.
@@ -33,7 +21,21 @@ left out of item 42. Decide which to rename and whether a framework idiom earns 
 
 ## Agreed
 
-Item 4 remains, agreed on 2026-09-28. Every other agreed item has landed (D130–D144).
+Items 45 and 46 were decided on 2026-09-30, item 4 on 2026-09-28. Every other agreed item has
+landed (D130–D144).
+
+### 45. A settings module is named for its class, everywhere
+Decided by the maintainer on 2026-09-30. `python-packaging`'s rule — a module holding one class is named
+for it in snake_case — holds without a carve-out: `QuxSettings` lives in `qux_settings.py`,
+`RedisSettings` in `redis_settings.py`, never in a bare `settings.py`. `flat-layered` rule 7,
+`hex-conventions`' settings row and every template, tree line and import that spells `settings.py`
+change to match.
+
+### 46. Rename the abbreviations `naming` bans in the templates
+Decided by the maintainer on 2026-09-30. `cmd`, `repo`, `sf`, `fid`, `creds`, `trans` and any other
+invented abbreviation in a template or a rule's text is spelled out as `naming` requires (`command`,
+`repository`, `session_factory`, …). `hex-restapi-auth`'s `get_current_user` stays: it is the
+framework's documented idiom.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
