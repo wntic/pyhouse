@@ -22,6 +22,54 @@ broken service (`python-settings` rule 4 asks for settings built "at startup, be
 obligation would be `hex-wiring`'s, and it collides with `hex-restapi-app` rules 4 (lifespan does
 teardown only) and 5 (`main.py` resolves nothing), which the fix has to reconcile.
 
+### 37. `CONVENTIONS.md` promises a banned-name blocklist that does not exist
+`meta-skill-author/CONVENTIONS.md` (~:218-220) says the repository's lint and review check carries a
+literal blocklist of banned names; none exists in `.claude/`, `tools/` or `/commit`, and `git log -S`
+finds only the commit that added the sentence. Either write the check (a script beside
+`check_template_imports.py`) or drop the promise.
+
+### 38. `python-settings` rule 9 does not say which client unwraps a secret
+Rule 9 says a secret is unwrapped "where the client that sends it is constructed". Where a composition
+root builds a transport client and injects it into an adapter (`hex-capability-adapter`), that reads as
+the shared client, not the adapter's constructor, which `hex-capability-adapter` rule 7 now requires.
+
+### 39. The commit-msg hook's own header gives the install recipe that silences other hooks
+`plugins/pyhouse-git/git-hooks/commit-msg` (~:5-7) gives the shared-install recipe (`core.hooksPath`)
+with no warning; `/install-commit-hook` step 1 now warns that it silences hooks a manager such as
+pre-commit wrote into the clone. The header should agree.
+
+### 40. `hex-application` cannot carry "clear this field" through a partial update
+`hex-restapi-schema` and `hex-restapi-endpoint` now say a field a client may clear passes its presence
+beside its value, but `UpdateFooCommand` (None = unchanged) and `hex-test-application-handler`'s update
+test have no way to carry it. Decide the command's shape for a clearable field.
+
+### 41. Smaller leftovers found by the reviews
+- `flat-test-integration-setup`'s `truncate_all` wipes only the tables whose modules the session
+  imported (`metadata.sorted_tables`).
+- `hex-domain-service`'s template has `is_name_taken` beside `assert_name_available`, and only the
+  second is tested.
+- `Foo.note` rides through every hex template; it earns its place in the partial-update and round-trip
+  tests, but no service in the test list needs it in production — decide whether the worked entity keeps
+  a second field.
+- Nothing obliges a test of what a read-only repository returns (the nightly job's).
+- Review fix-ups land as separate "apply the review" commits, while the shipped `git-branching` rule 4
+  says a fix to unlanded work is folded; this repository's practice and its own skill disagree.
+- `hex-test-application-handler/FAKES.md`'s `_RaiseAfterUploadRepo` raises `RuntimeError`, while
+  `test-principles` rung 4 says an injected failure raises the catalogue exception; the second
+  compensation test tells the two failures apart by type, so the fix needs a small redesign.
+- `hex-wiring` (~:63-65) restates the dependency-injection override trap `hex-test-integration-setup`
+  owns.
+- `mypy` over a workspace (`packages/ services/ tests/` with `explicit_package_bases`) sees two members'
+  `tests.unit.fakes` as one module name; untested.
+- `test-principles`' wiring-smoke row names only the hex binding; a flat service has no named smoke.
+- `hex-test-application-handler`'s compensating checklist is worded for storage plus a database
+  (`upload`, `blob`, `db`).
+- `hex-test-integration-setup/CONFTEST.md`'s `api/conftest.py` and per-resource sections now only route
+  away, for files the skill no longer writes.
+- The absent-row tests for `update` and `delete` are required in prose (`hex-test-repository-contract`)
+  but are not template lines, so the template alone passes a repository that drops its zero-rowcount
+  branch.
+
 ## Agreed
 
 Decided by the maintainer on 2026-09-28, every open item at once. Order of work: 34, 19, 11 and 31
@@ -29,18 +77,6 @@ first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, w
 `flat-persistence`) and 24 (after 34, which touches `hex-restapi-app`); then 26; 4 last. Review
 findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
 file or skill deleted, a rule reversed — goes to the maintainer.
-
-### 26. Audit the test skills the same way — batch 2 remains
-Batch 1 (the four `flat-test-*` skills) is done (D136); `hex-test-restapi-auth` and
-`hex-test-restapi-endpoint` were audited with item 24 (D135). Remaining: `hex-test-app-invariants`,
-`hex-test-application-handler` (with `FAKES.md`), `hex-test-capability-adapter`, `hex-test-domain`,
-`hex-test-integration-setup` (whose obligations 2–5 read as universal) and
-`hex-test-repository-contract`, reviewed with `/review-skills` and the findings applied. Known echoes:
-`hex-test-repository-contract` rule 18 no longer names the classes it promises; `hex-test-application-
-handler` rule 6's `FooConflictError` example assumes a natural key; the `note` field carried through
-`Foo` across hex; `flat-test-integration-setup` rule 9 still restates `test-principles` reliability rule
-2 beside its savepoint clause; the credential-refresh obligation sits in `flat-test-service-client`'s
-prose, not its rules; nothing obliges a test of what a read-only repository returns.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
