@@ -100,13 +100,6 @@ templates. What survives is one conditional obligation in `persistence` — wher
 it is one statement per chunk sized under the driver's limit, never a per-row loop — because the
 parameter cap failing a batch on size alone is the one part an agent would not derive.
 
-### 44. Fold review fixes into the commits they correct before a branch lands
-Decided by the maintainer on 2026-09-29 (option b of the review's three). A fix to unlanded work is
-committed with `git commit --fixup=<sha>` and folded non-interactively before the merge, as
-`git-branching` rule 4 already says, so the history and the changelog `/release` builds carry no fix for
-a defect no release ever had. Record it in `CLAUDE.md`'s *Branching*, in `.claude/commands/commit.md`
-and in `/kickoff`'s *How work is done here*. The existing history is left as it is.
-
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
 against the pushed `main`, as before the generality rework; the output is then reviewed the same way
