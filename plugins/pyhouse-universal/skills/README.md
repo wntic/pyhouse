@@ -66,7 +66,7 @@ once rather than throughout — before the family is known:
 | `python-packaging` | Whether a module wants a class at all, the one-class cap and the test for when a closed set of declarations shares a module, framework-dictated modules, `__all__`, the `__init__.py` re-export contract, import rules, a library's `py.typed` marker |
 | `python-settings` | **Configuration read from the environment** — one settings class per configured component, its non-strict namespace, no default on a required field, a secret or a tunable, the secret type and where it is unwrapped, derived values, validation that only normalizes or rejects, construction at the composition root, and a published library that reads nothing |
 | `python-toolchain` | **What every distribution configures once** — the src layout, the lint selection with written function-size and complexity thresholds, the sanctioned suppressions, strict type checking over `src` and `tests`, the line length, the test runner's configuration block, development dependencies by role, and a version floor only at a named break |
-| `python-workspace` | The repository root when several distributions share one — the member split, in-repo dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
+| `python-workspace` | The repository root when several distributions share one — the member split, in-repository dependency edges, tooling settled once, compose profiles and task-runner targets; about members, never about what is inside one |
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
 | `persistence` | **The store-generic data-access obligations**, whatever the family — which of them bind given the store's properties, one declared transaction owner and none across two stores, driver errors translated at the data-access edge by one shared translator, the field and the full constraint name in the context, one constraint-naming convention and one table-name rule, the pure row mapping, stored types, closed sets and indexes, no schema created at runtime, explicit conflicts, an older write never replacing a newer one, deduplication left to the store, a batched write one statement per chunk sized under the store's limit, paged reads over a total order, migrations that run once before the new code and reverse, and no logging |
 | `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, best-effort compensation, and a failure after a committed write stopped rather than re-raised |
@@ -80,7 +80,7 @@ it, that skill is wrong.
 
 `naming` is the one most worth loading before writing anything, and the one to load *first* when code
 is being ported in from another project or generated wholesale. A name chosen by inertia — copied
-from the source repo where its missing qualifiers were obvious (`CheckResult`), or one generic word
+from the source repository where its missing qualifiers were obvious (`CheckResult`), or one generic word
 (`worker`, `manager`, `utils`) spread over several unrelated things — is the most expensive mistake in
 this set, because nothing ever fails to make you fix it.
 
@@ -209,7 +209,7 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
   is typed bare, `/naming`. Inside a skill body, name the skill and never its slash form; it is
   the name that is stable across both install paths.
 - **Portability.** `paths` and `when_to_use` are Claude Code fields; other clients ignore them, which
-  is why `description` alone must identify a skill. Marketplace distribution via a GitHub repo and
+  is why `description` alone must identify a skill. Marketplace distribution via a GitHub repository and
   `plugin.json` carries them fine; publishing to claude.ai or the Skills API does not — that channel
   fails hard on any key outside `name`, `description`, `license`, `compatibility`, `metadata` and
   `allowed-tools`, so both fields are stripped on that path.

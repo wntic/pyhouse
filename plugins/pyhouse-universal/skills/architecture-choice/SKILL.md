@@ -1,7 +1,7 @@
 ---
 name: architecture-choice
 description: Use when deciding whether a service should be hexagonal or flat-layered — a greenfield service whose family is unsettled, or an existing one that has outgrown the style it was built in. Decides from what the service itself must enforce, names what each choice costs, and states plainly which project shapes this catalogue does not cover rather than forcing one into a family. Routes to `hex-architecture` or `flat-layered` and teaches neither style; where a boundary goes at all is `coupling`'s.
-when_to_use: Also fires on "which architecture for this service", "should this be hexagonal", "do we need ports here" and "is a plain layered layout enough", and on asking whether the catalogue's families fit a Django or Flask project, a package-by-feature tree, a library or SDK, a CLI tool, an orchestrator-shaped data repo, or a modular monolith.
+when_to_use: Also fires on "which architecture for this service", "should this be hexagonal", "do we need ports here" and "is a plain layered layout enough", and on asking whether the catalogue's families fit a Django or Flask project, a package-by-feature tree, a library or SDK, a CLI tool, an orchestrator-shaped data-pipeline project, or a modular monolith.
 ---
 
 # Architecture Choice — hexagonal, flat-layered, or neither
@@ -38,7 +38,7 @@ needed to reach a recommendation and state its reason is here; the family skills
 - A script, a single-purpose job, a one-shot migration → too small for either family; see
   `### Too small for either family`, and do not route to a family skill.
 - A Django or Flask project, a package-by-feature tree, a library or SDK, a CLI tool, an
-  orchestrator-shaped data repo, a modular monolith → outside this catalogue's two families; see
+  orchestrator-shaped data-pipeline project, a modular monolith → outside this catalogue's two families; see
   `### Project shapes this catalogue does not cover`. Name the shape rather than routing to the nearer
   family.
 
@@ -162,9 +162,9 @@ them. These are the ones that come up in Python:
 - **A library, an SDK or any distributed package.** No entrypoint and no deployment; the public API is
   the only boundary that matters. It is not a script either, so the section above does not reach it.
 - **A multi-command CLI tool**, where the command tree is the structure.
-- **A data repository shaped by its orchestrator** — Airflow, Dagster, Prefect. The DAG or asset graph
+- **A data-pipeline project shaped by its orchestrator** — Airflow, Dagster, Prefect. The DAG or asset graph
   dictates the directories, and that tool's conventions outrank anything here.
-- **An ML or research repository** — notebooks, experiment scripts, training and evaluation runs.
+- **An ML or research project** — notebooks, experiment scripts, training and evaluation runs.
 - **A modular monolith** — one deployable with enforced boundaries between internal modules. The
   catalogue's workspace skill covers a monorepo of separate services, which is a different thing.
 
@@ -278,7 +278,7 @@ so installing one keeps everything here.
 - A script, a lambda body or a one-shot migration is being given an architecture → stop, it needs none;
   name the universal skills and finish.
 - A project whose layout a framework, an orchestrator or a packaging form already fixes — a Django or
-  Flask tree, a package-by-feature service, a library, a CLI tool, an Airflow or Dagster repo, a
+  Flask tree, a package-by-feature service, a library, a CLI tool, an Airflow or Dagster project, a
   modular monolith — is being assigned hexagonal or flat → stop, this catalogue does not cover that
   shape; name it, name the universal skills, and finish.
 - This skill is being asked for the layer contract, the package layout or a file template, or to review

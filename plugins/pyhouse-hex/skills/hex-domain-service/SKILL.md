@@ -30,11 +30,11 @@ __all__ = ["FooUniquenessService"]
 
 
 class FooUniquenessService:
-    def __init__(self, repo: IFooRepository) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository) -> None:
+        self._repository = repository
 
     async def assert_name_available(self, name: str) -> None:
-        if await self._repo.get_by_name(name) is not None:
+        if await self._repository.get_by_name(name) is not None:
             raise FooConflictError("foo name already exists", {"field": "name"})
 ```
 

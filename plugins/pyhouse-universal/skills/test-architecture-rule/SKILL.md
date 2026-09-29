@@ -27,7 +27,7 @@ Each function greps the source tree for a forbidden pattern and asserts the resu
 
 ## Template(s) — `grep` through `subprocess`, one plain pytest function per rule
 
-### File scaffold (once per repo)
+### File scaffold (once per repository)
 
 The standalone form follows — one distributable, one `src/`, one `tests/`. A repository of several
 members replaces the path-constant block with the multi-member fragment below; the imports, the
@@ -160,7 +160,7 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
    - **hex — layer-scoped:** `test_<layer>_has_no_<thing>`, e.g. `test_domain_has_no_pydantic`.
    - **flat — role-scoped:** `test_no_<thing>_outside_<role>`, e.g.
      `test_no_statement_outside_the_data_access_package`.
-   - **either family — repo-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
+   - **either family — repository-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
    A name that does not say where the rule looks sends a reader to the pattern to find out, and the
    file stops being readable as a constitution.
 3. **The failure names every offending location, never a count or a boolean.** Assert the collected

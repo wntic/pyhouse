@@ -1,6 +1,6 @@
 ---
 name: python-workspace
-description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repo dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, type-check and test each member from its own directory, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
+description: Use when several Python distributions live in one repository — creating the workspace root, or admitting a member to it. Covers the root project as a container with no runtime code of its own, the shared-library versus runnable-member split, the two-sentence admission test a new member passes, in-repository dependency edges the packaging tool resolves rather than path hacks, tooling values settled once at the root, one container profile per runnable member, and the task-runner targets that sync every member, type-check and test each member from its own directory, apply migrations where members share a store, and launch each member from its own directory. Everything here is about members, never about what is inside one, so a member of any internal layout needs the same root. One distribution on its own needs none of it; a member's own layout and data access belong to that member's architecture skills, and whether a proposed member is a boundary at all is `coupling`.
 when_to_use: Also when asked for a monorepo, a uv workspace, a `packages/` and `services/` layout, a root `Makefile` target, or a `docker compose` profile per runnable member.
 ---
 
@@ -180,7 +180,7 @@ Two details in there are load-bearing. `uv sync --all-packages` is needed becaus
 syncs only the root project and leaves every member's dependencies uninstalled. And `run-*` targets
 `cd` into the member directory first: where a member's settings, and a shared library's that reads its
 own stem, resolve their dotenv files relative to the process working directory, a member launched from
-the repo root reads none of them. The `test` loop skips a member with no `tests/` directory and accepts pytest's
+the repository root reads none of them. The `test` loop skips a member with no `tests/` directory and accepts pytest's
 exit status 5 — nothing collected — from one whose `tests/` holds none yet, and stops on any other failure.
 The `typecheck` loop is rule 10 applied to the type checker. The root's `[tool.mypy]` table is
 `python-toolchain`'s as written for one distribution — its `src`, `tests` and `.` resolve against the
@@ -204,7 +204,7 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
 
 - **Another workspace tool in place of uv.** Poetry path dependencies, PDM local sources, Pants and
   Bazel all express the same two things: the member list declared once at the root, and each member
-  pinning its in-repo dependencies through an edge the tool itself resolves. The member-glob syntax,
+  pinning its in-repository dependencies through an edge the tool itself resolves. The member-glob syntax,
   the lock file and the sync command change; rules 1–10 do not. Rule 5 is the one to carry over
   literally — whatever the tool, the edge is *declared*, never faked with a path insert.
 - **Another task runner in place of Make, another container runtime in place of Compose.** `just`,
@@ -244,7 +244,7 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
    a *dependant* resolves its connection settings from that member's environment and working directory,
    so two members can apply one migration history to two different databases and neither of them
    notices.
-5. **A member declares its in-repo dependencies as edges the packaging tool resolves** —
+5. **A member declares its in-repository dependencies as edges the packaging tool resolves** —
    `[tool.uv.sources]` under uv — never a path hack, a `sys.path` append, or a copy-pasted module. A
    dependency the packaging tool cannot see is one the installer, the type checker and CI each resolve
    differently, and the disagreement surfaces as an import error on somebody else's machine.
@@ -260,7 +260,7 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
 8. **Where a member resolves settings files against the working directory, it is launched from its own
    directory** — `cd services/<member> && uv run python -m <member>`, which is what `make run-<member>`
    does. A member's settings, and a shared library's that reads its own stem, then resolve their env
-   files against the process working directory, so a member started from the repo root silently reads
+   files against the process working directory, so a member started from the repository root silently reads
    none of them. Migrations and syncs have no such restriction.
 9. **A cleanup command names what it destroys.** It removes the one volume or artifact it is for, never
    everything the project holds — `docker compose down -v` drops every volume, application data

@@ -231,8 +231,8 @@ subsections beneath give the reasoning and the judgement calls.
    anything that knows a transport in an entrypoint.
 5. **Check every port is a `typing.Protocol` in `domain/<subdomain>/`**, one per module, named
    `I<Thing>Repository` or `ICan<Verb>`.
-6. **Check every handler constructor annotates a protocol type, not a concrete class.** `repo:
-   IFooRepository`, never `repo: FooRepository`.
+6. **Check every handler constructor annotates a protocol type, not a concrete class.** `repository:
+   IFooRepository`, never `repository: FooRepository`.
 7. **Check no adapter inherits from the protocol it satisfies.** Satisfaction is structural and is
    checked at the injection site; an adapter that imports the protocol it satisfies leaves an unused
    import and gains nothing.

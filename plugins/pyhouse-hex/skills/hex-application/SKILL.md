@@ -81,12 +81,12 @@ logger = structlog.get_logger()
 
 
 class CreateFooHandler:
-    def __init__(self, repo: IFooRepository) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository) -> None:
+        self._repository = repository
 
     async def execute(self, command: CreateFooCommand) -> uuid.UUID:
         foo = Foo(id=uuid.uuid4(), name=command.name, note=command.note)
-        await self._repo.create(foo)
+        await self._repository.create(foo)
         logger.info("foo_created", foo_id=str(foo.id))
         return foo.id
 ```
@@ -133,17 +133,17 @@ logger = structlog.get_logger()
 
 
 class UpdateFooHandler:
-    def __init__(self, repo: IFooRepository) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository) -> None:
+        self._repository = repository
 
     async def execute(self, command: UpdateFooCommand) -> None:
-        foo = await self._repo.get_by_id(command.id)
+        foo = await self._repository.get_by_id(command.id)
         changed = replace(
             foo,
             name=foo.name if command.name is None else command.name,
             note=command.note if command.sets_note else foo.note,
         )
-        await self._repo.update(changed)
+        await self._repository.update(changed)
         logger.info("foo_updated", foo_id=str(command.id))
 ```
 
@@ -177,11 +177,11 @@ logger = structlog.get_logger()
 
 
 class DeleteFooHandler:
-    def __init__(self, repo: IFooRepository) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository) -> None:
+        self._repository = repository
 
     async def execute(self, command: DeleteFooCommand) -> None:
-        await self._repo.delete(command.id)
+        await self._repository.delete(command.id)
         logger.info("foo_deleted", foo_id=str(command.id))
 ```
 
@@ -225,11 +225,11 @@ __all__ = ["GetFooHandler"]
 
 
 class GetFooHandler:
-    def __init__(self, repo: IFooRepository) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository) -> None:
+        self._repository = repository
 
     async def execute(self, query: GetFooQuery) -> Foo:
-        return await self._repo.get_by_id(query.id)
+        return await self._repository.get_by_id(query.id)
 ```
 
 For an entity-or-none read the annotation is `Foo | None` and the repository method is the one returning
@@ -249,12 +249,12 @@ __all__ = ["ListFoosHandler"]
 
 
 class ListFoosHandler:
-    def __init__(self, repo: IFooRepository) -> None:
-        self._repo = repo
+    def __init__(self, repository: IFooRepository) -> None:
+        self._repository = repository
 
     async def execute(self, query: ListFoosQuery) -> ListFoosResult:
-        items = await self._repo.list(filter=query.filter)
-        total = await self._repo.count(filter=query.filter)
+        items = await self._repository.list(filter=query.filter)
+        total = await self._repository.count(filter=query.filter)
         return ListFoosResult(items=items, total=total)
 ```
 
@@ -385,7 +385,7 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
    to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
    a later read or retry sees it — the handler may
-   `try: <pipeline> except <Err>: <load-or-mutate>; entity.status = FAILED; await repo.update(entity); raise`.
+   `try: <pipeline> except <Err>: <load-or-mutate>; entity.status = FAILED; await repository.update(entity); raise`.
    The `except` writes the caller-visible state and **re-raises**. (c) After the store write, below — the
    `try/except Exception` around a side effect of a command already committed, which stops the effect's
    failure instead of re-raising it. Follow `python-logging` for logging and `exception-catalog` for

@@ -70,7 +70,7 @@ every derived path and class name here, multiplying one careless choice across t
 | application query | `ListBars` | `ListBarsQuery` + `ListBarsHandler` + `ListBarsResult` | `application/bars/list_bars_query.py` + `_handler.py` + `_result.py` |
 | datastore | named `<name>`, kind `<kind>` (e.g. `baz_store` on a `redis` store) | — (a configured resource, no class) | `infrastructure/<kind>/connection.py`, holding `create_<name>_client` |
 | settings | `RedisSettings` | `RedisSettings` | `infrastructure/redis/redis_settings.py` — subpackage = the consuming tech; one settings class per configured component (`python-settings` rule 1) |
-| repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repo-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
+| repository adapter | implements `IFooRepository`, backs `Foo`, on store `main` | `FooRepository` | `infrastructure/<store-kind>/repositories/<repository-stem>.py` (+ a write-once `Table` at `infrastructure/<store-kind>/tables/foos.py` for a relational store) |
 | capability adapter | implements `ICanClassifyFoos`, adapter `http`, role `FooClassifier` | `HttpFooClassifier` | `infrastructure/http/http_foo_classifier.py` |
 | wire schema | `FooCreateRequest` for resource `foos` | `FooCreateRequest` | grouped into `restapi/schemas/foos.py` |
 | endpoint | method + path, resource `foos` | endpoint function (name from method + path) | grouped into `restapi/routers/foos.py` |
@@ -109,9 +109,9 @@ on the store profile (block B), because an aggregate's one authoritative store m
 projection beside it — an index over the same aggregate, on a second store, behind a narrower port of its
 own (`hex-store-repository` rule 1):
 
-- a **relational store** repo → `<snake(aggregate)>_repository.py` (`Foo` on `main` →
+- a **relational store** repository → `<snake(aggregate)>_repository.py` (`Foo` on `main` →
   `foo_repository.py`).
-- a **client-style store** repo → the **protocol-derived** stem: the implemented protocol name minus its
+- a **client-style store** repository → the **protocol-derived** stem: the implemented protocol name minus its
   leading `I`, snaked (`IBazRepository` on `baz_store` → `baz_repository.py`).
 
 So a `Foo` stored relationally behind `IFooRepository`, with a search index beside it behind an

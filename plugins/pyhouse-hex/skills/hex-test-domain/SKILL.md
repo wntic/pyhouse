@@ -132,7 +132,7 @@ from tests.unit.fakes import FakeFooRepository
 
 def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
     foos = [Foo(id=uuid.uuid4(), name=n) for n in existing_names or []]
-    return FooUniquenessService(repo=FakeFooRepository(items=foos))
+    return FooUniquenessService(repository=FakeFooRepository(items=foos))
 
 
 async def test_assert_name_available_raises_when_taken() -> None:

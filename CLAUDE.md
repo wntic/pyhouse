@@ -56,7 +56,7 @@ claude plugin marketplace add wntic/pyhouse        # or `add .` to test this che
 claude plugin install pyhouse-hex@pyhouse          # or pyhouse-flat / pyhouse-universal
 ```
 
-`/commit` (in `.claude/commands/`) is the repo's own commit flow, and its subject is **this
+`/commit` (in `.claude/commands/`) is the repository's own commit flow, and its subject is **this
 repository**: step 2 checks the catalogue contract — frontmatter, the placeholder vocabulary, the two
 layers, the index counts — because there is no Python here to lint. It calls nothing external.
 
@@ -228,7 +228,7 @@ directory prefixed `**/` (`**/domain/**`) and never appears on a universal skill
 `architecture-choice`, which must fire on a greenfield tree.
 
 **Placeholders only.** `Foo`/`Bar` aggregates (`Baz` a third, held by a different kind of store), `Qux` an external system the service calls, `myapp` a distribution's own package, `myschema` a
-shared library several distributions depend on, `myrepo` the repo root, `myframework` a framework a
+shared library several distributions depend on, `myrepo` the repository root, `myframework` a framework a
 rule is about *wrapping*. No placeholder asserts a repository shape — one distribution and no
 `myschema` is the ordinary case. Real role, tenant, bucket, queue, database or product names are
 banned in every spelling including SCREAMING env-var prefixes. Technology names (`postgres`, `redis`,

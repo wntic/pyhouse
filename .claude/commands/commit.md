@@ -2,7 +2,7 @@
 description: Check the catalogue contract, stage, and commit specified files or previously introduced changes
 ---
 
-> This repo holds no Python — the "code" is `SKILL.md` files and plugin manifests. There is nothing to
+> This repository holds no Python — the "code" is `SKILL.md` files and plugin manifests. There is nothing to
 > lint, so step 2 checks the contracts that break silently instead. The commit message rules are
 > unchanged.
 

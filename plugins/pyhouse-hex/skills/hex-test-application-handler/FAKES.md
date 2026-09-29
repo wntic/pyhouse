@@ -115,7 +115,7 @@ class FakeFooStorage:
         self.deletes.append(key)
 ```
 
-The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the store write *after* an upload to fail uses an inline `_RaiseAfterUploadRepo(FakeFooRepository)` at module scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
+The `uploads` and `deletes` lists are the test-side observation surface. **No `fail_next_call=...` flags**: a test that needs the store write *after* an upload to fail uses an inline `_RaiseAfterUploadRepository(FakeFooRepository)` at module scope, and one that needs the undo to fail an inline storage subclass — never a flag on the fake.
 
 ### The compensating handler's tests — upload, then the write fails, assert the undo
 
@@ -131,7 +131,7 @@ from myapp.domain.foos import Foo
 from tests.unit.fakes import FakeFooRepository, FakeFooStorage
 
 
-class _RaiseAfterUploadRepo(FakeFooRepository):
+class _RaiseAfterUploadRepository(FakeFooRepository):
     def __init__(self) -> None:
         super().__init__()
         self.raised: UpstreamError | None = None
@@ -148,34 +148,34 @@ class _RaiseOnDeleteStorage(FakeFooStorage):
 
 
 async def test_store_failure_undoes_the_upload() -> None:
-    repo = _RaiseAfterUploadRepo()
+    repository = _RaiseAfterUploadRepository()
     storage = FakeFooStorage()
-    handler = CreateFooHandler(repo=repo, storage=storage)
+    handler = CreateFooHandler(repository=repository, storage=storage)
 
     with pytest.raises(UpstreamError) as exc:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
-    assert exc.value is repo.raised
+    assert exc.value is repository.raised
     assert len(storage.uploads) == 1
     assert storage.deletes == [storage.uploads[0][0]]
 
 
 async def test_failed_undo_still_raises_the_original_failure() -> None:
-    repo = _RaiseAfterUploadRepo()
+    repository = _RaiseAfterUploadRepository()
     storage = _RaiseOnDeleteStorage()
-    handler = CreateFooHandler(repo=repo, storage=storage)
+    handler = CreateFooHandler(repository=repository, storage=storage)
 
     with pytest.raises(UpstreamError) as exc:
         await handler.execute(CreateFooCommand(name="alpha", data=b"payload"))
 
-    assert exc.value is repo.raised
+    assert exc.value is repository.raised
     assert storage.deletes == [storage.uploads[0][0]]
 ```
 
 Each injected failure is the catalogue class and `context` its real adapter raises (Fakes rules 6 and
 8, `test-principles` rung 4) — the repository's as `hex-persistence` translates a driver error, the
 storage's as its own adapter does — so both are `UpstreamError`, and the class alone cannot tell them apart. Which call raised
-does: the repository subclass keeps the exception it raised, and `exc.value is repo.raised` passes only
+does: the repository subclass keeps the exception it raised, and `exc.value is repository.raised` passes only
 when the caller sees that very failure. The contract is: **the upload landed, then the store write failed,
 then the same key was deleted, and the caller sees the failure that started it, unchanged.** The undo
 raises like any other call (`hex-application`, Compensation); the second test pins that the handler
@@ -197,11 +197,11 @@ from tests.unit.fakes import FakeFooRepository
 
 async def test_a_mutated_entity_does_not_reach_the_store() -> None:
     foo = Foo(id=uuid.uuid4(), name="alpha")
-    repo = FakeFooRepository(items=[foo])
+    repository = FakeFooRepository(items=[foo])
 
     foo.name = "seeded-then-mutated"
-    loaded = await repo.get_by_id(foo.id)
+    loaded = await repository.get_by_id(foo.id)
     loaded.name = "read-then-mutated"
 
-    assert (await repo.get_by_id(foo.id)).name == "alpha"
+    assert (await repository.get_by_id(foo.id)).name == "alpha"
 ```
