@@ -210,7 +210,7 @@ Vocabulary only the `hex-*` skills use:
 
 Names carried over from a real system are banned outright, in templates, rules and prose alike:
 **any real role, tenant, bucket, database, queue, service or product name**, in every spelling it
-travels in — snake_case, kebab-case, and the SCREAMING env-var prefix derived from it. A skill that
+travels in — snake_case, kebab-case, and the SCREAMING environment-variable prefix derived from it. A skill that
 teaches through one system's vocabulary is unreadable to everyone else on it.
 
 Use the placeholder vocabulary above instead. A real name with no placeholder to map onto gets a row
@@ -227,7 +227,7 @@ One bounded exception sits outside that list: a **named third-party vendor used 
 disambiguation example** — where the point of the example is that the reader recognises the name as
 one of several interchangeable providers, so a placeholder would blunt it. It stays an example and
 never becomes a subject: no rule, section or template may depend on that vendor, and the name may not
-travel into a path, a package, an env-var prefix or a shipped identifier.
+travel into a path, a package, an environment-variable prefix or a shipped identifier.
 
 ## Out of scope (intentionally not in this catalog)
 

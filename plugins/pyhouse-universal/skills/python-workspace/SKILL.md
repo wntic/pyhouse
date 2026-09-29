@@ -163,11 +163,11 @@ fmt:
 	uv run ruff format
 
 typecheck:  ## each member from its own directory, then the root's own tests
-	for m in packages/* services/*; do [ -d $$m/src ] || continue; (cd $$m && uv run mypy --config-file $(CURDIR)/pyproject.toml src $$(find tests -name '*.py' 2>/dev/null | grep -q . && echo tests)) || exit 1; done
+	for member in packages/* services/*; do [ -d $$member/src ] || continue; (cd $$member && uv run mypy --config-file $(CURDIR)/pyproject.toml src $$(find tests -name '*.py' 2>/dev/null | grep -q . && echo tests)) || exit 1; done
 	uv run mypy tests
 
 test:  ## each member's suite from its own directory, then the root's own
-	for m in packages/* services/*; do [ -d $$m/tests ] || continue; (cd $$m && uv run pytest --rootdir .; rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 5 ]) || exit 1; done
+	for member in packages/* services/*; do [ -d $$member/tests ] || continue; (cd $$member && uv run pytest --rootdir .; rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 5 ]) || exit 1; done
 	uv run pytest
 
 verify: lint typecheck test  ## run before pushing
@@ -259,7 +259,7 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
    independent deployables into one program.
 8. **Where a member resolves settings files against the working directory, it is launched from its own
    directory** — `cd services/<member> && uv run python -m <member>`, which is what `make run-<member>`
-   does. A member's settings, and a shared library's that reads its own stem, then resolve their env
+   does. A member's settings, and a shared library's that reads its own stem, then resolve their dotenv
    files against the process working directory, so a member started from the repository root silently reads
    none of them. Migrations and syncs have no such restriction.
 9. **A cleanup command names what it destroys.** It removes the one volume or artifact it is for, never

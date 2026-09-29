@@ -58,14 +58,14 @@ def _foo(*, id: uuid.UUID | None = None, name: str = "Test", note: str | None = 
 
 def test_equality_by_id() -> None:
     shared_id = uuid.uuid4()
-    a = _foo(id=shared_id, name="alpha")
-    b = _foo(id=shared_id, name="beta")
-    c = _foo(name="alpha")
+    foo = _foo(id=shared_id, name="alpha")
+    same_id = _foo(id=shared_id, name="beta")
+    other = _foo(name="alpha")
 
-    assert a == b
-    assert a != c
-    assert hash(a) == hash(b)
-    assert hash(a) != hash(c)
+    assert foo == same_id
+    assert foo != other
+    assert hash(foo) == hash(same_id)
+    assert hash(foo) != hash(other)
 
 
 def test_name_must_be_non_empty() -> None:
@@ -193,7 +193,7 @@ async def test_assert_name_available_passes_when_free() -> None:
 
 11. **Pin every member with an explicit assertion**, one line each. The database and the wire format
     depend on these strings, so a silent rename must break the test.
-12. **Never loop over members.** `for m in FooStatus: assert m.value == m.name` masks the very bug it
+12. **Never loop over members.** `for member in FooStatus: assert member.value == member.name` masks the very bug it
     looks like it catches — a renamed value still passes.
 13. **Always include the unknown-value rejection**:
     `with pytest.raises(ValueError, match="<unknown>"): FooStatus("<unknown>")` proves the enum is

@@ -124,7 +124,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
 | **Per operation** | Instances meant to be fresh for each request or each job, cheap to construct. | Every `*Handler`, every `*Repository`, **domain services** that compose them, a stateful adapter bound to per-request state. |
 
 **Default to per-operation for application and domain artifacts. Reserve process lifetime for objects
-that own a connection pool, parse env once, or are pure-data configuration.**
+that own a connection pool, parse the environment once, or are pure-data configuration.**
 
 The pitfall: giving a repository process lifetime looks fine because it is stateless, but it freezes the
 session factory it was built with for the life of the process, which defeats substituting one for a test
@@ -161,7 +161,7 @@ adding a binding, find the right section and insert it after the latest declarat
 ### What never goes in the composition root
 
 - **No business logic.** It only wires.
-- **No conditionals on env.** Different environments produce different settings *values*; the wiring
+- **No conditionals on the environment.** Different environments produce different settings *values*; the wiring
   stays the same. Hide a feature flag behind a settings field inside the implementation, never behind a
   branch in the wiring.
 - **No imports from `restapi/` or another entrypoint.** The composition root sits below the entrypoint
@@ -203,7 +203,7 @@ distribution's root package, and the root `__init__.py` does not re-export it �
 
 ## Hard stops
 
-- Asked for an env read, a new settings field, or a default on one → stop, use `python-settings`.
+- Asked for an environment read, a new settings field, or a default on one → stop, use `python-settings`.
 - Asked to add a binding whose dependency is not yet declared → stop, that dependency's own skill
   runs first.
 - The composition root is asked to bind a store connection or transaction handle per operation, so a

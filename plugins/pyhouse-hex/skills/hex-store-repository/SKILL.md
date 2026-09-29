@@ -15,7 +15,7 @@ Produces one repository class that adapts a domain repository protocol to a clie
 - The aggregate's store is the relational bootstrap store (SQLAlchemy/Postgres) → `hex-persistence`.
 - The protocol file (`i_foo_repository.py`) → `hex-domain-ports`.
 - A single-action `ICan<Verb>` port (not an aggregate's collection) → `hex-capability-adapter`.
-- The obligations a settings class meets (env namespace, secrets, construction only at a composition root) → `python-settings`; the store's own settings class is shown here, beside the adapter that reads it.
+- The obligations a settings class meets (environment namespace, secrets, construction only at a composition root) → `python-settings`; the store's own settings class is shown here, beside the adapter that reads it.
 - The lifetime and declaration-order rules the repository's binding follows, and the base composition root it merges into → `hex-wiring`; the binding itself is shown here, beside the adapter.
 - Which store profile a datastore is, and the client factory that profile names → `hex-conventions`.
 - The catalogue exception an SDK error is translated into → `exception-catalog`.

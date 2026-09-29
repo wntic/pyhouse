@@ -232,7 +232,7 @@ Artifact-specific coverage for domain behavior → `hex-test-domain`; repository
 | `unittest.mock.AsyncMock` | yes | always |
 | `unittest.mock.patch` | yes | always |
 
-`monkeypatch.setenv` is allowed inside settings-parsing tests, which exercise the env-reading code
+`monkeypatch.setenv` is allowed inside settings-parsing tests, which exercise the environment-reading code
 itself, and nowhere else. Every other substitution follows the ladder below.
 
 The rationale: mocks describe *what was called*; a real dependency or a fake describes *what state

@@ -21,7 +21,7 @@ recur are `hex-conventions`; the layer boundaries are `hex-architecture`.
 - Where a file goes and what it is called → `hex-conventions`.
 - Layer boundaries → `hex-architecture`; packaging mechanics → `python-packaging`.
 - Module files, `__all__` and the re-export contract inside the package → `python-packaging`.
-- The runtime DI bindings → `hex-wiring`; the env-backed settings classes → `python-settings`, each shown beside the adapter that reads it. This skill stops at which libraries exist.
+- The runtime DI bindings → `hex-wiring`; the environment-backed settings classes → `python-settings`, each shown beside the adapter that reads it. This skill stops at which libraries exist.
 - The interpreter floor → `python-style`.
 - Whether the project should be hexagonal or flat-layered at all → `architecture-choice`; settle that before laying this down.
 - A multi-service uv workspace rather than a single package → `python-workspace`.
