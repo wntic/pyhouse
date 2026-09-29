@@ -1,6 +1,6 @@
 ---
 name: hex-application
-description: Use when writing a use case — a CQRS command handler, a query handler, or its frozen input DTO — including a command that needs compensation, undoing an external write such as an upload when a later store write fails. Owns the command/query split, the read-model versus write-model rule deciding whether a query returns the entity or a row-projected read-model, and the try/undo/re-raise compensation body. Not the entity (`hex-domain-model`) nor the wire model (`hex-restapi-schema`); a unit of work making two repositories commit together is `hex-persistence`.
+description: Use when writing a use case — a CQRS command handler, a query handler, or its frozen input DTO — including a command that needs compensation, undoing an external write such as an upload when a later store write fails. Owns the command/query split, the read-model versus write-model rule deciding whether a query returns the entity or a row-projected read-model, the try/undo/re-raise compensation body, and a clearable field a partial update carries with its presence. Not the entity (`hex-domain-model`) nor the wire model (`hex-restapi-schema`); a unit of work making two repositories commit together is `hex-persistence`.
 paths: ["**/application/**"]
 ---
 
@@ -97,8 +97,8 @@ writing it; the obligations are Compensation, under Rules.
 
 ### Command DTO and handler — update (returns `None`)
 
-A partial update: `None` on a field means "leave it unchanged", the same contract as the PATCH body
-(`hex-restapi-schema`).
+A partial update, the same contract as the PATCH body (`hex-restapi-schema`): `None` on `name` leaves it
+unchanged; `note` may be cleared, so it carries `sets_note` (Command DTO rule 4).
 
 ```python
 from dataclasses import dataclass
@@ -110,6 +110,7 @@ __all__ = ["UpdateFooCommand"]
 @dataclass(frozen=True)
 class UpdateFooCommand:
     id: UUID
+    sets_note: bool
     name: str | None = None
     note: str | None = None
 ```
@@ -137,7 +138,7 @@ class UpdateFooHandler:
         changed = replace(
             foo,
             name=foo.name if cmd.name is None else cmd.name,
-            note=foo.note if cmd.note is None else cmd.note,
+            note=cmd.note if cmd.sets_note else foo.note,
         )
         await self._repo.update(changed)
         logger.info("foo_updated", foo_id=str(cmd.id))
@@ -333,6 +334,10 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 1. **`@dataclass(frozen=True)`.** Always frozen.
 2. **No methods, no behaviour.** Just data.
 3. **Optional fields:** follow `python-style`.
+4. **A field the caller may clear carries whether the caller gave it, apart from its value**, so
+   "absent" and "cleared" stay distinct and a value the caller gave is never ignored — one `None`
+   cannot mean both. A field that cannot be cleared carries no such distinction; `None` on it
+   means "leave it unchanged".
 
 ### Query DTO
 

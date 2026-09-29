@@ -120,7 +120,7 @@ the protected rules will keep changing, load `coupling` alongside it — it owns
 | `hex-domain-model` | Entities, value objects — including when a constrained primitive becomes one — enums, filter records with their sort enum, and tunable thresholds with no default |
 | `hex-domain-ports` | Aggregate repository protocols, including one for a store that answers only some reads, and external-capability protocols — async by default, a reversible pair, sync for pure CPU |
 | `hex-domain-service` | Stateless domain rules that need state one entity cannot see, with injected ports; a pure transformation stays a module function |
-| `hex-application` | CQRS commands, queries, handlers, and read-result forms; the compensating handler body that undoes an external write |
+| `hex-application` | CQRS commands, queries, handlers, and read-result forms; a clearable field carried with its presence; the compensating handler body that undoes an external write |
 | `hex-wiring` | DI providers, lifetimes, container declaration order, and where each settings class is built, bound and checked before the process serves or takes work |
 | `hex-capability-adapter` | Concrete capability implementations — one template, an HTTP gateway with its settings and binding; the SDK-client and pure-CPU forms in prose |
 | `hex-store-repository` | Aggregate repositories for nonrelational stores, their record mappings, settings and connection factory, with the key prefix a module constant; bound to redis, other stores under Other bindings |

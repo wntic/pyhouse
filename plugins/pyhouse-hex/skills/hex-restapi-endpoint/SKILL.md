@@ -157,14 +157,14 @@ async def update_foo(
     get_handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
     await handler.execute(
-        UpdateFooCommand(id=id, name=body.name, note=body.note),
+        UpdateFooCommand(id=id, name=body.name, note=body.note, sets_note="note" in body.model_fields_set),
     )
     foo = await get_handler.execute(GetFooQuery(id=id))
     return FooResponse(id=foo.id, name=foo.name, note=foo.note)
 ```
 
-`note=body.note` makes `null` mean unchanged; a field the client may clear passes its presence as well
-(`hex-restapi-schema` rule 6).
+`note` may be cleared, so the route passes its presence beside its value (`hex-application`, Command
+DTO rule 4).
 
 ### `delete` (204)
 

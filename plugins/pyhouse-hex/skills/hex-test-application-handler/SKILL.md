@@ -66,7 +66,7 @@ async def test_duplicate_name_raises_conflict() -> None:
     assert exc.value.context["constraint"] == "uq_foos_name"  # only with a relational adapter
 ```
 
-### `update` handler — partial update, `None` means don't touch
+### `update` handler — partial update, an absent field left as it was
 
 ```python
 import uuid
@@ -83,11 +83,24 @@ async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     foo_id = uuid.uuid4()
     repo = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="kept")])
 
-    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, name="beta"))
+    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, sets_note=False, name="beta"))
 
     stored = await repo.get_by_id(foo_id)
     assert stored.name == "beta"
-    assert stored.note == "kept"  # None on the command means "don't touch"
+    assert stored.note == "kept"  # not given on the command, so left as it was
+    assert repo.updated == [foo_id]
+
+
+# only where a field may be cleared
+async def test_update_clears_note() -> None:
+    foo_id = uuid.uuid4()
+    repo = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="old")])
+
+    await UpdateFooHandler(repo=repo).execute(UpdateFooCommand(id=foo_id, sets_note=True, note=None))
+
+    stored = await repo.get_by_id(foo_id)
+    assert stored.note is None
+    assert stored.name == "alpha"
     assert repo.updated == [foo_id]
 
 
@@ -96,7 +109,7 @@ async def test_update_unknown_id_raises_not_found() -> None:
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc:
-        await handler.execute(UpdateFooCommand(id=missing, name="beta"))
+        await handler.execute(UpdateFooCommand(id=missing, sets_note=False, name="beta"))
 
     assert exc.value.context["id"] == str(missing)
 ```
@@ -216,7 +229,8 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 
 #### `update` handler
 
-- `test_partial_update_leaves_unspecified_fields_untouched` — set one field with a real value and another with `None`; assert the `None` field is **unchanged** and the real field is updated. This is the partial-update contract.
+- `test_partial_update_leaves_unspecified_fields_untouched` — set one field and leave another out; assert the one left out is **unchanged** and the one set is updated. This is the partial-update contract.
+- `test_update_clears_<clearable_field>` — only where a field may be cleared: give it with its presence and `None`; assert it reads back empty while a field left out is unchanged. A handler that reads `None` as "unchanged" for that field reds here.
 - `test_update_unknown_id_raises_not_found`.
 - `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `FooConflictError` — only where Foo has a natural key.
 
