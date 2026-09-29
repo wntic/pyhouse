@@ -49,7 +49,7 @@ from dishka import AsyncContainer
 from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
 
-from myapp.containers import create_container
+from myapp.containers import create_container, resolve_settings
 from myapp.logging import configure_logging
 
 from .error_handler import UnexpectedErrorMiddleware, register_error_handlers
@@ -59,8 +59,10 @@ __all__ = ["create_app"]
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
+    container: AsyncContainer = app.state.dishka_container
+    await resolve_settings(container)
     yield
-    await app.state.dishka_container.close()
+    await container.close()
 
 
 def create_app(container: AsyncContainer | None = None) -> FastAPI:
@@ -77,7 +79,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
 Notes:
 
 - **`configure_logging()` runs first**, before the composition root is built — the process's one logging setup (`python-logging` rule 3), which `hex-project-setup` lays. The server is pointed at the factory (`uvicorn --factory myapp.restapi.main:create_app`), never at a module-level `app`, which would build the composition root at import; so the setup runs after the server has configured its own loggers and takes them over, and their records reach the one stream in its format. A process that builds the app itself passes the server `log_config=None`. Each test builds the app again, which rule 3 makes safe.
-- **`lifespan` is the resource-teardown hook**, and closing the composition root is the whole of it. Each long-lived handle declares its own release beside its construction (`hex-wiring`) and runs in reverse order of construction, so this file never names a datastore and never grows a per-app variant; an app that opens nothing disposable still closes cleanly.
+- **`lifespan` makes two calls into the composition root and nothing else.** On startup, `resolve_settings` — `hex-wiring`'s check that every settings class is built before the process serves, placed by rule 4 below — so a missing variable stops the process, uvicorn reporting the startup failure and exiting, instead of answering `500` on the first request that needs it; the construct smoke builds the app and never reaches it (`hex-test-app-invariants`). On shutdown, closing the composition root: each long-lived handle declares its own release beside its construction (`hex-wiring`) and runs in reverse order of construction, so this file never names a datastore or a settings class and never grows a per-app variant; an app that opens nothing disposable still closes cleanly.
 - **The catch-all, `UnexpectedErrorMiddleware`, is added first**, which makes it the innermost layer: every declared middleware wraps it, so the failure it logs carries the logging context bound outside it, and its `500` leaves through every layer, CORS included, like any other response.
 - **Where browsers call the API cross-origin, add `CORSMiddleware` last of the declared middleware, with every value from settings** — the outermost of them, so every response, a middleware's rejection included, carries its headers; never a literal origin, and never a `"*"` default, which is the deployment's decision made where it can no longer make it. A header a page's script must read, such as a download's `Content-Disposition`, is listed in its `expose_headers` setting.
 - **No other middleware is presumed** — not even a request-size cap. A declared one is added after the catch-all and before CORS, all of them before the error handlers are registered (`## Middleware`). Starlette wraps the last-added outermost, and `setup_dishka` then adds dishka's scope middleware outside every declared one (rule 10).
@@ -331,8 +333,8 @@ carries that same code (rule 9).
 1. **One-shot.** This skill runs once per project. After bootstrap, this file set is stable; updates to `main.py` go through whichever skill needs them (typically `hex-restapi-endpoint` appending an `include_router(...)` line).
 2. **A route may advertise only a status `STATUS_BY_ERROR` or `MIDDLEWARE_ERRORS` holds, and never `500`**; the map is this boundary's, under `exception-catalog` rules 6 and 13.
 3. **The translator stays minimal.** `restapi/error_handler.py` has **at most one** `isinstance` branch — the primary template this skill publishes has none, and an app that declares auth adds exactly one, for the RFC-7235 challenge (`hex-restapi-auth`). All other behaviour comes from the `MyappError` subclass and its mapped status, so new behaviour is a new subclass — and, where its status differs from its parent's, one map entry — never a new branch. The framework's own rejection of malformed input is translated into the catalogue's validation class, and its answer to an unknown path into the not-found class, each rendered by the same handler — a translation, not a second branch — so a route's advertised input-validation response is the body the client actually receives.
-4. **Resource teardown is triggered in `lifespan` and declared in the composition root.** `main.py` closes the composition root once; *what* that releases is decided where each resource is constructed (`hex-wiring`). `main.py` never names a datastore, so it never falls out of step with the ones the app actually opened. `lifespan` holds that teardown and nothing else — no business logic.
-5. **`main.py` neither resolves anything nor exposes the composition root for others to resolve from**; how a route receives its handler is `hex-restapi-endpoint`'s.
+4. **`lifespan` runs `hex-wiring`'s settings check on startup and closes the composition root once on shutdown, and nothing else.** The check sits in the startup hook, not in building the app, because the server completes startup before it accepts a connection while building the app reads no environment. *What* the close releases is decided where each resource is constructed (`hex-wiring`), so `main.py` never names a datastore or a settings class. No business logic.
+5. **`main.py` resolves nothing itself and never exposes the composition root for others to resolve from**; the startup check it calls is the composition root's own. How a route receives its handler is `hex-restapi-endpoint`'s.
 
 6. **A middleware is transport-level and nothing else.** Bytes, headers, timing, the logging context.
    Anything that needs a domain entity, a repository or an application handler is not a middleware.
@@ -372,7 +374,7 @@ For `restapi/__init__.py` and `restapi/middleware/__init__.py`, follow `python-p
 
 - `domain/exceptions.py` does not exist yet → stop, use `exception-catalog` bootstrap first.
 - `myapp/containers.py` does not exist yet → stop, use `hex-wiring` first.
-- `lifespan` is asked to dispose a named engine or client → stop, declare that release beside the resource's construction in `hex-wiring`; `lifespan` closes the composition root and nothing else.
+- `lifespan` is asked to dispose a named engine or client → stop, declare that release beside the resource's construction in `hex-wiring`.
 - A concern is for one route rather than all → stop, use `hex-restapi-endpoint` plus a handler.
 - A middleware needs a domain entity, a repository or an application handler → stop, use `hex-application` for application logic.
 - A middleware authenticates or authorizes → stop, use `hex-restapi-auth`; caller authentication is a route dependency, not a middleware.

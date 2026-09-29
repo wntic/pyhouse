@@ -42,7 +42,7 @@ too. The counts in every heading are the number of directories on disk.
 - `hex-domain-ports` — Defines the signatures that adapters satisfy without inheriting or importing the protocol; a capability is async unless it is pure CPU, and a reversible action declares its undo beside it.
 - `hex-domain-service` — Place rules beside their primary aggregate; use an entity for rules enforceable from its own fields, and a module function for a transformation with nothing to inject.
 - `hex-application` — Commands mutate and return an id; queries read and return data through an execute-only handler surface; an external write undone when a later store write fails is its compensation body, the one sanctioned `try/except` beside a failure-state transition.
-- `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler; it builds and binds settings classes, whose contents are `python-settings`'s.
+- `hex-wiring` — Extend the existing composition root when a concrete dependency must become available to a handler; it builds and binds settings classes, all of them before the process serves or takes work, whose contents are `python-settings`'s.
 - `hex-capability-adapter` — Implements an external action, templated once as an HTTP gateway with the SDK-client and pure-CPU forms in prose; aggregate persistence belongs to a repository skill.
 - `hex-store-repository` — Use for client-style storage, bound to redis, other stores under Other bindings; it writes the store's connection factory and fixes the key prefix in code, while relational tables and Alembic revisions belong to the persistence skill.
 

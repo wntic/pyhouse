@@ -1,6 +1,6 @@
 ---
 name: hex-wiring
-description: Use when adding a binding in `containers.py` — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and where each settings class is constructed and bound. Bound here to dishka, with other DI libraries mapped under `## Other bindings`. What a settings class declares, defaults and keeps secret is `python-settings`; the class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate is `hex-project-setup` and the toolchain `python-toolchain`, not runtime wiring.
+description: Use when adding a binding in `containers.py` — provider classes, binding lifetimes, the `create_container` composition root and its declaration order, and where each settings class is constructed and bound — every one before the process serves or takes work. Bound here to dishka, with other DI libraries mapped under `## Other bindings`. What a settings class declares, defaults and keeps secret is `python-settings`; the class being bound must already exist — `hex-application`, `hex-capability-adapter`; the project substrate is `hex-project-setup` and the toolchain `python-toolchain`, not runtime wiring.
 paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
@@ -16,7 +16,7 @@ it is constructed and bound — at a composition root and nowhere else (`python-
 - Binding a new class in the composition root, or choosing its lifetime → this skill.
 - The class being wired must already exist — a handler, repository, service, adapter → `hex-application`, `hex-persistence`, `hex-store-repository`, `hex-domain-service`, `hex-capability-adapter`.
 - A frozen domain-shaped view of settings values the domain consults → the tunable variant in `hex-domain-model`; its provider reads the single field off a settings class and passes it.
-- Attaching the composition root to the HTTP app and closing it at shutdown, which runs every declared teardown → `hex-restapi-app`.
+- Attaching the composition root to the HTTP app, running its settings check at startup and closing it at shutdown, which runs every declared teardown → `hex-restapi-app`.
 - Resolving a bound object inside a route → `hex-restapi-endpoint`.
 - The token-verifier port, its adapter and the route dependencies that consume the resolved caller → `hex-restapi-auth`.
 - Substituting a binding for a test → `hex-test-integration-setup`.
@@ -47,8 +47,8 @@ in `hex-capability-adapter`, the Redis repository in `hex-store-repository`, the
 `hex-restapi-auth`, the tunable in `hex-domain-model`, the unit-of-work factory in `hex-persistence`; a project merges the ones it has.
 
 **Read `CONTAINER.md`** in this skill's directory before writing or extending `containers.py`. It
-carries the base composition root — the provider classes in declaration order and `create_container` —
-and how an add-on binding merges into it; only `SKILL.md` is loaded automatically.
+carries the base composition root — the provider classes in declaration order, `create_container` and
+the settings check an entrypoint runs at start — and how an add-on binding merges into it; only `SKILL.md` is loaded automatically.
 
 ## Other bindings
 
@@ -75,6 +75,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   | generator factory + `container.close()` | `providers.Resource`, or teardown in the entrypoint |
   | `FromDishka[T]` at the call site | `container.<snake_case_attr>()` |
   | an extra provider with `override=True`, before the container is built | `.override()` / `.reset_override()` on a built container |
+  | `resolve_settings` over `SettingsProvider`'s declarations | each provider of the settings sub-container, walked with `.traverse()`, called once at start |
 
 - **Manual composition — a plain factory module.** A service small enough not to want a framework
   writes `create_container()` as a function that constructs each object and returns a frozen dataclass
@@ -88,6 +89,12 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   rule 13) — never in a handler, an adapter, an entrypoint module or another settings class. An adapter
   receives the whole settings object it reads, by type, as a constructor parameter; nothing below the
   root reads the environment.
+- **Every settings class the composition root provides is built when the process starts, before it
+  serves or takes work** (`python-settings` rule 13). Under a graph that resolves lazily every
+  entrypoint takes that step once at start — the REST shell in its lifespan (`hex-restapi-app`), a
+  consumer's launcher before its first message — as a step of its own rather than part of building the
+  root, which a test does with no environment. A root that several entrypoint processes share makes
+  each of them require every settings class it provides, so each is deployed with all of them.
 - **The process's container module is the composition root.** Every concrete class is bound to the
   protocol it satisfies there and **only** there. Domain and application code never instantiates a
   concrete type.
@@ -147,9 +154,9 @@ adding a binding, find the right section and insert it after the latest declarat
 
 ### Settings lifecycle in the composition root
 
-- Each `*Settings` is process-lifetime, built by a provider method that constructs it with no arguments
-  — the provider method builds it, so a missing required variable fails when the container is first
-  resolved.
+- Each `*Settings` is process-lifetime, built with no arguments by a factory in the composition root's
+  one settings group. The startup check reads that group, so a settings factory declared anywhere else
+  escapes it; the dishka spelling is in `CONTAINER.md`.
 - A **tunable value object** that needs a single field gets a factory of its own, which reads the field
   off the settings object and passes it. Never pass raw settings fields around otherwise.
 
