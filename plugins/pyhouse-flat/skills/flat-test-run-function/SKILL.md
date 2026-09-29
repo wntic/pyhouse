@@ -53,7 +53,7 @@ from myapp.postgres.foo_table import foo_table
 from myapp.qux import QuxClient
 from myapp.schemas import RunResult
 
-_TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b"}]}
+_TWO_FOOS = {"items": [{"id": "alpha", "name": "a"}, {"id": "beta", "name": "b"}]}
 
 
 async def test_a_run_records_what_it_fetched(
@@ -63,7 +63,7 @@ async def test_a_run_records_what_it_fetched(
 
     await run_once(qux_client, FooRepository(engine))
 
-    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await conn.execute(query)).all()
     assert route.called
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
@@ -77,7 +77,7 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
     await run_once(qux_client, FooRepository(engine))
 
-    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await conn.execute(query)).all()
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 

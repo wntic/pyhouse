@@ -81,13 +81,13 @@ from myapp.schemas import FooPayload
 
 async def test_fetch_foos_returns_the_parsed_payloads(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
     route = qux_stub.get("/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]})
+        return_value=httpx.Response(200, json={"items": [{"id": "f1", "name": "alpha"}]})
     )
 
     result = await qux_client.fetch_foos()
 
     assert route.called
-    assert result == (FooPayload(ref="f1", name="alpha"),)
+    assert result == (FooPayload(id="f1", name="alpha"),)
 
 
 @pytest.mark.parametrize("status", [400, 404, 500, 503])

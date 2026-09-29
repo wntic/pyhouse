@@ -34,12 +34,12 @@ class FooRepository:
         self._engine = engine
 
     async def record(self, foo: Foo) -> None:
-        statement = insert(foo_table).values(reference=foo.reference, name=foo.name, observed_at=foo.observed_at)
+        statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, observed_at=foo.observed_at)
         try:
             async with self._engine.begin() as conn:
                 await conn.execute(
                     statement.on_conflict_do_update(
-                        index_elements=[foo_table.c.reference],
+                        index_elements=[foo_table.c.external_id],
                         set_={"name": statement.excluded.name, "observed_at": statement.excluded.observed_at},
                     )
                 )
@@ -69,15 +69,15 @@ The conflict clause is derived from the statement's own `excluded` row, so the u
 incoming values of the row that conflicted (`persistence` rule 15). The set is declared here, per
 write, and never holds the key matched on; a write with nothing to update on conflict says
 `on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. Where
-writes for one reference can arrive out of order, the conflict clause is guarded on the stamp —
+writes for one external id can arrive out of order, the conflict clause is guarded on the stamp —
 `where=foo_table.c.observed_at < statement.excluded.observed_at` (`persistence` rule 16).
 
 `record` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
-own conflict clause, never by asking whether its reference exists before writing.
+own conflict clause, never by asking whether its external id exists before writing.
 
 **A method that takes a batch** is written to `persistence` rule 21 against asyncpg's cap of 32,767
 bind parameters per statement, divided by `len(foo_table.columns)` — the table's width, since the
-client-side key default binds a value per row too — and collapses inputs sharing a reference before
+client-side key default binds a value per row too — and collapses inputs sharing an external id before
 each statement (`persistence` rule 17), because Postgres refuses an `ON CONFLICT DO UPDATE` that touches one row twice
 (SQLSTATE `21000`) and the translator would report that as the store being unavailable.
 

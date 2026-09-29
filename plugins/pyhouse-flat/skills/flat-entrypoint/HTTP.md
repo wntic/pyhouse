@@ -101,18 +101,18 @@ already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooDelivery, FooReference, RunResult
+from myapp.schemas import Foo, FooDelivery, FooExternalId, RunResult
 
 __all__ = ["record_foo"]
 
 
 async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
-    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.changed_at)
+    foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, observed_at=delivery.changed_at)
     await repository.record(foo)
     return RunResult(recorded=1)
 ```
 
-Where an older delivery can arrive after a newer one for the same reference, keeping the newer is the
+Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the
 data-access package's job (`persistence` rules 16 and 17).
 
 ## The process definition — uvicorn

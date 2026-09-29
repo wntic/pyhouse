@@ -26,16 +26,16 @@ foo_table = Table(
     "foos",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid7),
-    Column("reference", String, nullable=False, unique=True),
+    Column("external_id", String, nullable=False, unique=True),
     Column("name", String, nullable=False),
     Column("observed_at", DateTime(timezone=True), nullable=False),
 )
 ```
 
 `foos` is the plural snake-case of the record the table holds — the one derivation a project declares
-once (`persistence` rule 13). `reference` is the natural key the source hands over, stored as it
+once (`persistence` rule 13). `external_id` is the natural key the source hands over, stored as it
 arrives; its unique constraint is the one the writes resolve conflicts on, and the convention names it
-`uq_foos_reference`.
+`uq_foos_external_id`.
 
 A table module's public names are bare `Table` objects, and `metadata.py`'s is a bare `MetaData`, so
 neither is wildcarded into the package `__init__` (`python-packaging`, carve-out 3 — `foo_table` would

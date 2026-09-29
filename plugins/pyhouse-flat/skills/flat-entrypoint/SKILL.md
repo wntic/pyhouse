@@ -75,13 +75,13 @@ from datetime import UTC, datetime
 
 from myapp.postgres import FooRepository
 from myapp.qux import QuxClient
-from myapp.schemas import Foo, FooPayload, FooReference, RunResult
+from myapp.schemas import Foo, FooExternalId, FooPayload, RunResult
 
 __all__ = ["run_once", "to_foo"]
 
 
 def to_foo(payload: FooPayload, observed_at: datetime) -> Foo:
-    return Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=observed_at)
+    return Foo(external_id=FooExternalId(payload.id), name=payload.name, observed_at=observed_at)
 
 
 async def run_once(client: QuxClient, repository: FooRepository) -> RunResult:

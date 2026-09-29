@@ -149,7 +149,7 @@ module: they change for three different reasons — the service's model, the ups
 a run reports — so they are not one set (`python-packaging`).
 
 `src/myapp/schemas/foo.py` — the service's own record, built by the work unit and by the
-repository's row mapper, identified by its `reference` — an identifier the source issued, so a distinct
+repository's row mapper, identified by its `external_id` — an identifier the source issued, so a distinct
 type over `str` (`python-style`), wrapped where a value is mapped into the record:
 
 ```python
@@ -157,14 +157,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import NewType
 
-__all__ = ["Foo", "FooReference"]
+__all__ = ["Foo", "FooExternalId"]
 
-FooReference = NewType("FooReference", str)
+FooExternalId = NewType("FooExternalId", str)
 
 
 @dataclass(frozen=True, slots=True)
 class Foo:
-    reference: FooReference
+    external_id: FooExternalId
     name: str
     observed_at: datetime
 ```
@@ -180,7 +180,7 @@ __all__ = ["FooPayload"]
 class FooPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    ref: str
+    id: str
     name: str
 ```
 

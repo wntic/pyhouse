@@ -53,18 +53,18 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from myapp.exceptions import StorageWriteRejectedError
 from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
-from myapp.schemas import Foo, FooReference
+from myapp.schemas import Foo, FooExternalId
 
 _DAY_1 = datetime(2024, 1, 1, tzinfo=UTC)
 _DAY_2 = datetime(2024, 1, 2, tzinfo=UTC)
 
 
-def _a_foo(reference: str = "alpha", name: str = "first", observed_at: datetime = _DAY_1) -> Foo:
-    return Foo(reference=FooReference(reference), name=name, observed_at=observed_at)
+def _a_foo(external_id: str = "alpha", name: str = "first", observed_at: datetime = _DAY_1) -> Foo:
+    return Foo(external_id=FooExternalId(external_id), name=name, observed_at=observed_at)
 
 
 # only where a write updates on conflict
-async def test_a_second_write_of_one_reference_updates_the_set_and_keeps_the_rest(
+async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_rest(
     engine: AsyncEngine,
     conn: AsyncConnection,
 ) -> None:
