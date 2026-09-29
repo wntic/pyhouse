@@ -199,12 +199,8 @@ class InfrastructureProvider(Provider):
 6. **Stash the fields the methods use, not the settings object** — unless several methods read several
    fields. What each method reads is then visible in the constructor; the settings object itself arrives
    whole, by type (`hex-wiring`).
-7. **Where the adapter holds a secret, it is unwrapped once, in the adapter's constructor** — the point
-   of use `python-settings` rule 9 names — and held privately, never unwrapped per call. Where the
-   transport has a URL, the secret never rides in it if the upstream accepts it anywhere else (a header):
-   the client library logs every request's URL and prints it in its status errors, so a key in the query
-   string or path reaches the log line on every call. An upstream that takes it only there has that
-   request log kept below the level the service emits.
+7. **Where the adapter holds a secret, it is unwrapped once, in the adapter's constructor, and kept out
+   of the URL** — `python-settings` rule 9.
 
 ### Exception translation
 

@@ -108,7 +108,10 @@ container's provider method — and a missing required variable fails there (rul
    client that sends it, which then holds it privately. Where one transport client is shared by several
    components, each unwraps its own secret in its own constructor and sends it per request — a secret
    set on the shared transport rides to every upstream that transport reaches. Never into a log field,
-   an exception's context, or an intermediate string built for anything else.
+   an exception's context, or an intermediate string built for anything else. A URL is such a string:
+   where the upstream accepts the secret anywhere else (a header), it never rides in the URL, which the
+   client logs and prints in its errors. An upstream that takes it only there has that request log kept
+   below the level the program emits.
 10. **A value assembled from other fields is computed on the settings object, never reassembled by its
     consumers** — a connection string, a composite URL, a normalized form. One place decides how the
     parts go together, so changing the recipe is one edit rather than a search.
