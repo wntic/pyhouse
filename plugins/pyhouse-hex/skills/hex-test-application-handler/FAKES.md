@@ -11,7 +11,10 @@ from collections.abc import Sequence
 from dataclasses import replace
 from uuid import UUID
 
-from myapp.domain.exceptions import FooConflictError, NotFoundError
+from myapp.domain.exceptions import (
+    FooConflictError,  # only where Foo has a natural key
+    NotFoundError,
+)
 from myapp.domain.foos import Foo, FooListFilter, FooSort
 
 __all__ = ["FakeFooRepository"]
@@ -19,12 +22,12 @@ __all__ = ["FakeFooRepository"]
 
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
-        # Store DETACHED copies; never alias the caller's instances (Fakes rule 9).
+        # Store DETACHED copies; never alias the caller's instances.
         self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
         self.updated: list[UUID] = []  # call record — ids passed to update(), in order
 
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
-        # The real ORDER BY per sort key; insertion order stands in for creation order.
+        # insertion order stands in for creation order
         matching = self._matching(filter)
         ordered: Sequence[Foo]
         if filter.sort is FooSort.NAME_ASC:
@@ -39,7 +42,7 @@ class FakeFooRepository:
         return len(self._matching(filter))
 
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
-        # One condition per scoping field the filter declares, as the real WHERE applies it.
+        # One condition per scoping field the filter declares.
         return [f for f in self._store.values() if filter.name is None or f.name == filter.name]
 
     async def get_by_id(self, id: UUID) -> Foo:
@@ -47,11 +50,13 @@ class FakeFooRepository:
             raise NotFoundError("Foo not found", {"id": str(id)})
         return replace(self._store[id])  # a copy — a caller mutation must not leak into the store
 
+    # only where Foo has a natural key
     async def get_by_name(self, name: str) -> Foo | None:
         match = next((f for f in self._store.values() if f.name == name), None)
         return replace(match) if match is not None else None
 
     async def create(self, foo: Foo) -> None:
+        # only where Foo has a natural key
         if any(f.name == foo.name for f in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
@@ -62,6 +67,7 @@ class FakeFooRepository:
     async def update(self, foo: Foo) -> None:
         if foo.id not in self._store:
             raise NotFoundError("Foo not found", {"id": str(foo.id)})
+        # only where Foo has a natural key
         if any(f.name == foo.name and f.id != foo.id for f in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
