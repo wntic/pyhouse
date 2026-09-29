@@ -236,11 +236,10 @@ class QuxClient:
 `src/myapp/qux/qux_settings.py` is `python-settings`' template — `QuxSettings` under
 `MYAPP_QUX_`, declaring the client's `url` and `timeout_seconds`. The process's own
 `src/myapp/myapp_settings.py`, at the package root beside the rest of the cross-cutting setup, has the
-same shape — `MyappSettings` under `MYAPP_`, both named for the distribution — holding only the fields
-that configure the process itself; where `entrypoints/` holds several processes with fields of their
-own, each process's class is named for its process (`FooSyncSettings` in `foo_sync_settings.py`). A
-process with none has no such module, and a thin HTTP wrapper adds two server fields to it
-(`flat-entrypoint`).
+same shape — `MyappSettings` under `MYAPP_` (`naming`) — holding only the fields that configure the
+process itself; where `entrypoints/` holds several processes with fields of their own, each process's
+class is named for its process (`FooSyncSettings` in `foo_sync_settings.py`). A process with none has
+no such module, and a thin HTTP wrapper adds two server fields to it (`flat-entrypoint`).
 The data-access package's prefix is `MYAPP_POSTGRES_` (`naming`). The package's `__init__.py`
 re-exports the settings and client modules (`python-packaging`), so a caller writes
 `from myapp.qux import QuxClient, QuxSettings`. The data-access package declares its settings
