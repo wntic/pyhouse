@@ -61,9 +61,8 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   replace the factories, and — the rule dishka does not need — **a binding is reached at the call site
   by its attribute name, which must be the snake_case form of the class** — the call site writes
   `<root>.<snake_case_attr>()`. That name-based contract is unenforced: rename the class and the call
-  site breaks at runtime. Test substitution also differs: `.override(value)` / `.reset_override()`
-  mutate a *built* container, so an already-resolved `Singleton` may have captured the pre-override
-  value and needs a `.reset()` at teardown.
+  site breaks at runtime. Test substitution differs in kind, and its trap is
+  `hex-test-integration-setup`'s.
 
   | dishka | dependency-injector |
   |---|---|
