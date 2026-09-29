@@ -31,12 +31,9 @@ beside its value, but `UpdateFooCommand` (None = unchanged) and `hex-test-applic
 test have no way to carry it. Decide the command's shape for a clearable field.
 
 ### 41. Smaller leftovers found by the reviews
-- `flat-test-integration-setup`'s `truncate_all` wipes only the tables whose modules the session
-  imported (`metadata.sorted_tables`).
 - `Foo.note` rides through every hex template; it earns its place in the partial-update and round-trip
   tests, but no service in the test list needs it in production — decide whether the worked entity keeps
   a second field.
-- Nothing obliges a test of what a read-only repository returns (the nightly job's).
 - Review fix-ups land as separate "apply the review" commits, while the shipped `git-branching` rule 4
   says a fix to unlanded work is folded; this repository's practice and its own skill disagree.
 - `hex-test-application-handler/FAKES.md`'s `_RaiseAfterUploadRepo` raises `RuntimeError`, while
@@ -54,15 +51,6 @@ identifiers that come from the reference rather than from `naming`'s derivation,
 neutral name derived by `naming` (a method named for what it does, a field for what it means). The
 flat upsert template's ordering guard (a marked `where=` line, D131 kept it prose) is revisited after
 the rename, on the renamed column.
-
-### 43. Batch writes leave the templates
-Decided by the maintainer on 2026-09-29. Writing in chunks came from the reference service, which
-loaded large volumes; most services write a row at a time, and batching is derived from a service's own
-needs. The flat repository template shows a single-row write; the chunking machinery (the bind-parameter
-cap, the chunk constant, the in-batch collapse, the per-chunk loop) and the batch-only tests leave the
-templates. What survives is one conditional obligation in `persistence` — where a write takes a batch,
-it is one statement per chunk sized under the driver's limit, never a per-row loop — because the
-parameter cap failing a batch on size alone is the one part an agent would not derive.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
