@@ -55,12 +55,12 @@ from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
 from myapp.schemas import Foo, FooExternalId
 
-_DAY_1 = datetime(2024, 1, 1, tzinfo=UTC)
-_DAY_2 = datetime(2024, 1, 2, tzinfo=UTC)
+_EARLIER = datetime(2024, 1, 1, tzinfo=UTC)
+_LATER = datetime(2024, 1, 2, tzinfo=UTC)
 
 
-def _a_foo(external_id: str = "alpha", name: str = "first", observed_at: datetime = _DAY_1) -> Foo:
-    return Foo(external_id=FooExternalId(external_id), name=name, observed_at=observed_at)
+def _a_foo(external_id: str = "alpha", name: str = "first", as_of: datetime = _EARLIER) -> Foo:
+    return Foo(external_id=FooExternalId(external_id), name=name, as_of=as_of)
 
 
 # only where a write updates on conflict
@@ -72,10 +72,10 @@ async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_r
     await repository.record(_a_foo(name="first"))
     first_id = (await conn.execute(select(foo_table.c.id))).scalar_one()
 
-    await repository.record(_a_foo(name="second", observed_at=_DAY_2))
+    await repository.record(_a_foo(name="second", as_of=_LATER))
 
-    rows = (await conn.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.observed_at))).all()
-    assert [tuple(row) for row in rows] == [(first_id, "second", _DAY_2)]
+    rows = (await conn.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.as_of))).all()
+    assert [tuple(row) for row in rows] == [(first_id, "second", _LATER)]
 
 
 async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: AsyncEngine) -> None:

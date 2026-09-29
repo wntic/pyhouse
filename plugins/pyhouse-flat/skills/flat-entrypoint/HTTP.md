@@ -107,7 +107,7 @@ __all__ = ["record_foo"]
 
 
 async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
-    foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, observed_at=delivery.changed_at)
+    foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, as_of=delivery.changed_at)
     await repository.record(foo)
     return RunResult(recorded=1)
 ```

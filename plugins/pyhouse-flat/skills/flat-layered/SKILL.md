@@ -166,7 +166,7 @@ FooExternalId = NewType("FooExternalId", str)
 class Foo:
     external_id: FooExternalId
     name: str
-    observed_at: datetime
+    as_of: datetime
 ```
 
 `src/myapp/schemas/foo_payload.py` — the wire record, parsed and validated where it arrives:

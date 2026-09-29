@@ -80,15 +80,15 @@ from myapp.schemas import Foo, FooExternalId, FooPayload, RunResult
 __all__ = ["run_once", "to_foo"]
 
 
-def to_foo(payload: FooPayload, observed_at: datetime) -> Foo:
-    return Foo(external_id=FooExternalId(payload.id), name=payload.name, observed_at=observed_at)
+def to_foo(payload: FooPayload, as_of: datetime) -> Foo:
+    return Foo(external_id=FooExternalId(payload.id), name=payload.name, as_of=as_of)
 
 
 async def run_once(client: QuxClient, repository: FooRepository) -> RunResult:
     payloads = await client.fetch_foos()
-    observed_at = datetime.now(UTC)
+    fetched_at = datetime.now(UTC)
     for payload in payloads:
-        await repository.record(to_foo(payload, observed_at))
+        await repository.record(to_foo(payload, fetched_at))
     return RunResult(recorded=len(payloads))
 ```
 

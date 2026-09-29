@@ -34,13 +34,13 @@ class FooRepository:
         self._engine = engine
 
     async def record(self, foo: Foo) -> None:
-        statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, observed_at=foo.observed_at)
+        statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, as_of=foo.as_of)
         try:
             async with self._engine.begin() as conn:
                 await conn.execute(
                     statement.on_conflict_do_update(
                         index_elements=[foo_table.c.external_id],
-                        set_={"name": statement.excluded.name, "observed_at": statement.excluded.observed_at},
+                        set_={"name": statement.excluded.name, "as_of": statement.excluded.as_of},
                     )
                 )
         except _DRIVER_ERRORS as exc:
@@ -70,7 +70,7 @@ incoming values of the row that conflicted (`persistence` rule 15). The set is d
 write, and never holds the key matched on; a write with nothing to update on conflict says
 `on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. Where
 writes for one external id can arrive out of order, the conflict clause is guarded on the stamp —
-`where=foo_table.c.observed_at < statement.excluded.observed_at` (`persistence` rule 16).
+`where=foo_table.c.as_of < statement.excluded.as_of` (`persistence` rule 16).
 
 `record` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
 own conflict clause, never by asking whether its external id exists before writing.
