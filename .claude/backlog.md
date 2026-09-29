@@ -72,11 +72,8 @@ test have no way to carry it. Decide the command's shape for a clearable field.
 
 ## Agreed
 
-Decided by the maintainer on 2026-09-28, every open item at once. Order of work: 34, 19, 11 and 31
-first, in parallel, since they touch disjoint files; then 14 (after 11 and 31, which touch
-`flat-persistence`) and 24 (after 34, which touches `hex-restapi-app`); then 26; 4 last. Review
-findings are applied where a test service backs them; a contested one — lenses disagreeing, a whole
-file or skill deleted, a rule reversed — goes to the maintainer.
+Decided by the maintainer on 2026-09-28. Every other item agreed that day has landed (D130–D137); the
+Proposed items above were found by those reviews, outside the items they served, and await a decision.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
