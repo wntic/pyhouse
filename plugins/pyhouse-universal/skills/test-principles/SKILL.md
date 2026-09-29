@@ -146,8 +146,8 @@ entrypoint, the layer is leaking and the speed budget is gone.
 - The test is **input-domain coverage**: a single behavior verified against many inputs (10 invalid emails, 20 valid date formats). The behavior is one thing; the inputs vary.
 - Adding a new parameter would extend, not duplicate, an existing test set.
 
-**A discovered set yields one reported case per item, never a loop inside one test** — a loop stops at
-the first failure and hides the rest. A test over a discovered set also asserts the set is non-empty;
+**Every parameter set yields one reported case per item, never a loop inside one test** — a loop stops
+at the first failure and hides the rest. A test over a discovered set also asserts the set is non-empty;
 an empty parameter set reports as skipped, and the run goes green having checked nothing. Under this
 binding the set is read in the collection hook (`pytest_generate_tests`): a fixture cannot feed
 parametrization.
