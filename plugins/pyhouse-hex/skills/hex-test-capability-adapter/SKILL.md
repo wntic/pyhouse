@@ -81,8 +81,8 @@ _SETTINGS = FooClassifierSettings(
 
 @pytest.fixture
 async def client() -> AsyncIterator[httpx.AsyncClient]:
-    async with httpx.AsyncClient() as c:
-        yield c
+    async with httpx.AsyncClient() as http_client:
+        yield http_client
 
 
 @respx.mock

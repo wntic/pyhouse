@@ -146,7 +146,7 @@ async def test_sorted_by_name() -> None:
         ListFoosQuery(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2)),
     )
 
-    assert [f.name for f in result.items] == ["a", "b"]
+    assert [foo.name for foo in result.items] == ["a", "b"]
     assert result.total == 3
 ```
 

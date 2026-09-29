@@ -131,7 +131,7 @@ from tests.unit.fakes import FakeFooRepository
 
 
 def _service(existing_names: list[str] | None = None) -> FooUniquenessService:
-    foos = [Foo(id=uuid.uuid4(), name=n) for n in existing_names or []]
+    foos = [Foo(id=uuid.uuid4(), name=name) for name in existing_names or []]
     return FooUniquenessService(repository=FakeFooRepository(items=foos))
 
 

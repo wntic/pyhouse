@@ -35,7 +35,10 @@ _STATUS_BY_ERROR: dict[type[MyappError], int] = {InvalidPayloadError: 422}
 
 
 def _status_for(exc: MyappError) -> int:
-    return next((_STATUS_BY_ERROR[cls] for cls in type(exc).__mro__ if cls in _STATUS_BY_ERROR), 500)
+    return next(
+        (_STATUS_BY_ERROR[error_class] for error_class in type(exc).__mro__ if error_class in _STATUS_BY_ERROR),
+        500,
+    )
 
 
 def _render(exc: MyappError) -> JSONResponse:

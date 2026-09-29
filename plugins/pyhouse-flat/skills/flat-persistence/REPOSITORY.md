@@ -51,8 +51,8 @@ class FooRepository:
 
 
 def _translate(exc: DBAPIError | OSError | PoolTimeoutError) -> MyappError:
-    orig = exc.orig if isinstance(exc, DBAPIError) else None
-    driver_error = orig.__cause__ if orig is not None else None
+    original_error = exc.orig if isinstance(exc, DBAPIError) else None
+    driver_error = original_error.__cause__ if original_error is not None else None
     sqlstate = getattr(driver_error, "sqlstate", None)
     if sqlstate is not None and sqlstate[:2] in _REFUSED_DATA_CLASSES:
         return StorageWriteRejectedError(

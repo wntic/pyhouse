@@ -74,8 +74,8 @@ _SCHEMA_TABLES = text(
 def db_dsn() -> Iterator[str]:
     from testcontainers.community.postgres import PostgresContainer
 
-    with PostgresContainer(_CONTAINER_IMAGE, driver="asyncpg") as pg:
-        yield pg.get_connection_url()
+    with PostgresContainer(_CONTAINER_IMAGE, driver="asyncpg") as postgres:
+        yield postgres.get_connection_url()
 
 
 def _alembic(dsn: str, *args: str) -> None:

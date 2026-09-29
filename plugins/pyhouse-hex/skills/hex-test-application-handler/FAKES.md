@@ -27,7 +27,7 @@ __all__ = ["FakeFooRepository"]
 class FakeFooRepository:
     def __init__(self, items: list[Foo] | None = None) -> None:
         # Store DETACHED copies; never alias the caller's instances.
-        self._store: dict[UUID, Foo] = {f.id: replace(f) for f in (items or [])}
+        self._store: dict[UUID, Foo] = {foo.id: replace(foo) for foo in (items or [])}
         self.updated: list[UUID] = []  # call record — ids passed to update(), in order
 
     # only where the port lists
@@ -36,12 +36,12 @@ class FakeFooRepository:
         matching = self._matching(filter)
         ordered: Sequence[Foo]
         if filter.sort is FooSort.NAME_ASC:
-            ordered = sorted(matching, key=lambda f: f.name)
+            ordered = sorted(matching, key=lambda foo: foo.name)
         elif filter.sort is FooSort.CREATED_AT_DESC:
             ordered = matching[::-1]
         else:
             ordered = matching
-        return [replace(f) for f in ordered[filter.offset : filter.offset + filter.limit]]
+        return [replace(foo) for foo in ordered[filter.offset : filter.offset + filter.limit]]
 
     # only where the port lists
     async def count(self, *, filter: FooListFilter) -> int:
@@ -50,7 +50,7 @@ class FakeFooRepository:
     # only where the port lists
     def _matching(self, filter: FooListFilter) -> Sequence[Foo]:
         # One condition per scoping field the filter declares.
-        return [f for f in self._store.values() if filter.name is None or f.name == filter.name]
+        return [foo for foo in self._store.values() if filter.name is None or foo.name == filter.name]
 
     async def get_by_id(self, id: UUID) -> Foo:
         if id not in self._store:
@@ -59,12 +59,12 @@ class FakeFooRepository:
 
     # only where Foo has a natural key
     async def get_by_name(self, name: str) -> Foo | None:
-        match = next((f for f in self._store.values() if f.name == name), None)
+        match = next((foo for foo in self._store.values() if foo.name == name), None)
         return replace(match) if match is not None else None
 
     async def create(self, foo: Foo) -> None:
         # only where Foo has a natural key
-        if any(f.name == foo.name for f in self._store.values()):
+        if any(stored.name == foo.name for stored in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
                 {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter
@@ -75,7 +75,7 @@ class FakeFooRepository:
         if foo.id not in self._store:
             raise NotFoundError("Foo not found", {"id": str(foo.id)})
         # only where Foo has a natural key
-        if any(f.name == foo.name and f.id != foo.id for f in self._store.values()):
+        if any(stored.name == foo.name and stored.id != foo.id for stored in self._store.values()):
             raise FooConflictError(
                 "foo name already exists",
                 {"field": "name", "constraint": "uq_foos_name"},  # "constraint" only with a relational adapter

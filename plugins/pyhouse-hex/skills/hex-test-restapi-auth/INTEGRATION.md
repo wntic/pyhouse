@@ -8,8 +8,8 @@ authenticated endpoint form.
 ## `tests/helpers/jwt.py`
 
 ```python
-import datetime as _dt
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -50,10 +50,10 @@ def sign_token(
     algorithm: str = "RS256",
     ttl_seconds: int | None = 300,
 ) -> str:
-    now = _dt.datetime.now(_dt.UTC)
+    now = datetime.now(UTC)
     payload: dict[str, object] = {"iss": issuer, "aud": audience, "iat": int(now.timestamp())}
     if ttl_seconds is not None:
-        payload["exp"] = int((now + _dt.timedelta(seconds=ttl_seconds)).timestamp())
+        payload["exp"] = int((now + timedelta(seconds=ttl_seconds)).timestamp())
     return jwt.encode({**payload, **claims}, private_pem, algorithm=algorithm)
 ```
 
@@ -247,7 +247,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         from myapp.restapi.main import create_app
 
         cases = _protected_operations(create_app())
-        metafunc.parametrize("method,path", cases, ids=[f"{m} {p}" for m, p in cases])
+        metafunc.parametrize("method,path", cases, ids=[f"{method} {path}" for method, path in cases])
 ```
 
 ## `test_<verb>_<noun>.py` — the authenticated endpoint form

@@ -32,15 +32,15 @@ def db_settings() -> Iterator[DbSettings]:
     from testcontainers.community.postgres import PostgresContainer
 
     # An exact, deliberately bumped tag (e.g. `17-alpine`) — never `:latest`.
-    with PostgresContainer("postgres:<pinned-tag>") as pg:
+    with PostgresContainer("postgres:<pinned-tag>") as postgres:
         # Only the fixture that created the database may declare it disposable.
         os.environ["MYAPP_TEST_DISPOSABLE_DB"] = "1"
         yield DbSettings(
-            host=pg.get_container_host_ip(),
-            port=int(pg.get_exposed_port(5432)),
-            user=pg.username,
-            password=SecretStr(pg.password),
-            name=pg.dbname,
+            host=postgres.get_container_host_ip(),
+            port=int(postgres.get_exposed_port(5432)),
+            user=postgres.username,
+            password=SecretStr(postgres.password),
+            name=postgres.dbname,
         )
 
 
@@ -57,7 +57,7 @@ def _guard_against_real_db(db_settings: DbSettings) -> None:
 
 
 def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedProcess[str]:
-    env = {
+    environment = {
         **os.environ,
         "MYAPP_DB_HOST": db_settings.host,
         "MYAPP_DB_PORT": str(db_settings.port),
@@ -69,7 +69,7 @@ def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedPro
         [sys.executable, "-m", "alembic", *args],
         capture_output=True,
         text=True,
-        env=env,
+        env=environment,
     )
 
 

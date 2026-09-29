@@ -43,7 +43,7 @@ class IUnitOfWork(Protocol):
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: TracebackType | None,
+        traceback: TracebackType | None,
     ) -> None: ...
     async def commit(self) -> None: ...
 ```
@@ -91,7 +91,7 @@ class SqlAlchemyUnitOfWork:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: TracebackType | None,
+        traceback: TracebackType | None,
     ) -> None:
         try:
             if exc_type is not None:

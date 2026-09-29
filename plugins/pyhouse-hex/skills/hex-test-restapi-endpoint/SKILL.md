@@ -85,14 +85,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 @pytest.fixture
 def make_foo(session_factory: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
     async def _make(*, name: str | None = None) -> uuid.UUID:
-        fid = uuid.uuid4()
+        foo_id = uuid.uuid4()
         async with session_factory() as session:
             await session.execute(
                 text("INSERT INTO foos(id, name) VALUES(:id, :name)"),
-                {"id": str(fid), "name": name or f"foo-{fid}"},
+                {"id": str(foo_id), "name": name or f"foo-{foo_id}"},
             )
             await session.commit()
-        return fid
+        return foo_id
 
     return _make
 ```

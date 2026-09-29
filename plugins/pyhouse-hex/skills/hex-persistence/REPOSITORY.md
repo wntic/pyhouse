@@ -86,7 +86,7 @@ class FooRepository:
                 rows = (await session.execute(statement)).mappings().all()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
-        return [_row_to_entity(r) for r in rows]
+        return [_row_to_entity(row) for row in rows]
 
     async def count(self, *, filter: FooListFilter) -> int:
         statement = _apply_filter(select(func.count()).select_from(foos_table), filter)
@@ -246,7 +246,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 ## Rules — row-to-entity mapper
 
 16. **A naive database datetime becomes UTC-aware in the mapper** —
-    `dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt` — this binding's half of `persistence` rule 8.
+    `stored.replace(tzinfo=UTC) if stored.tzinfo is None else stored` — this binding's half of `persistence` rule 8.
 17. **A private module function after the class, never a private method** — it reads no instance
     state (`python-packaging`). A simple aggregate (one row → one entity) has one `_row_to_entity(row)`;
     a composite aggregate (several rows → one entity) has an assembler,

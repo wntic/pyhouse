@@ -61,9 +61,9 @@ One test group per method the port declares and no others (rule 1); the conflict
 the table has a natural key (`hex-persistence`, `TABLE.md`).
 
 ```python
-import datetime as dt
 import uuid
 from dataclasses import asdict
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select, update
@@ -82,7 +82,7 @@ from myapp.domain.foos import (
 from myapp.infrastructure.postgres.repositories import FooRepository
 from myapp.infrastructure.postgres.tables.foos import foos_table
 
-_PLANTED = dt.datetime(2000, 1, 1, tzinfo=dt.UTC)
+_PLANTED = datetime(2000, 1, 1, tzinfo=UTC)
 
 
 def _foo(*, name: str = "alpha") -> Foo:
@@ -211,7 +211,7 @@ async def test_update_writes_updated_at(session_factory: async_sessionmaker[Asyn
     await repository.update(foo)
 
     async with session_factory() as session:
-        written: dt.datetime = (
+        written: datetime = (
             await session.execute(select(foos_table.c.updated_at).where(foos_table.c.id == foo.id))
         ).scalar_one()
     assert written > _PLANTED
@@ -244,7 +244,7 @@ async def test_list_respects_pagination_and_sort(session_factory: async_sessionm
     await repository.create(_foo(name="b"))
 
     page = await repository.list(filter=FooListFilter(sort=FooSort.NAME_ASC, limit=2, offset=0))
-    assert [f.name for f in page] == ["a", "b"]
+    assert [foo.name for foo in page] == ["a", "b"]
 
 
 # only where the port declares a paged, sorted list
