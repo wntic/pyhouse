@@ -72,8 +72,34 @@ test have no way to carry it. Decide the command's shape for a clearable field.
 
 ## Agreed
 
-Decided by the maintainer on 2026-09-28. Every other item agreed that day has landed (D130–D137); the
-Proposed items above were found by those reviews, outside the items they served, and await a decision.
+Items 42–44 were decided on 2026-09-29, item 4 on 2026-09-28; every other item agreed on 2026-09-28 has
+landed (D130–D137).
+
+### 42. Rename the identifiers carried over from the reference application
+Decided by the maintainer on 2026-09-29. The skills still spell names taken from the application they
+were first written from — `foo_api` (27 occurrences), `observed_at` (22), `run_once` (12), `RunResult`
+(12), `fetch_foos` (11), `FooPayload` (11), `FooReference` (10), `record_batch` (8) and others. `Foo`
+is a placeholder; the suffixes, method and field names are the sample's. Sweep the catalogue for
+identifiers that come from the reference rather than from `naming`'s derivation, and replace each with a
+neutral name derived by `naming` (a method named for what it does, a field for what it means). The
+flat upsert template's ordering guard (a marked `where=` line, D131 kept it prose) is revisited after
+the rename, on the renamed column.
+
+### 43. Batch writes leave the templates
+Decided by the maintainer on 2026-09-29. Writing in chunks came from the reference service, which
+loaded large volumes; most services write a row at a time, and batching is derived from a service's own
+needs. The flat repository template shows a single-row write; the chunking machinery (the bind-parameter
+cap, the chunk constant, the in-batch collapse, the per-chunk loop) and the batch-only tests leave the
+templates. What survives is one conditional obligation in `persistence` — where a write takes a batch,
+it is one statement per chunk sized under the driver's limit, never a per-row loop — because the
+parameter cap failing a batch on size alone is the one part an agent would not derive.
+
+### 44. Fold review fixes into the commits they correct before a branch lands
+Decided by the maintainer on 2026-09-29 (option b of the review's three). A fix to unlanded work is
+committed with `git commit --fixup=<sha>` and folded non-interactively before the merge, as
+`git-branching` rule 4 already says, so the history and the changelog `/release` builds carry no fix for
+a defect no release ever had. Record it in `CLAUDE.md`'s *Branching*, in `.claude/commands/commit.md`
+and in `/kickoff`'s *How work is done here*. The existing history is left as it is.
 
 ### 4. Re-run the short-prompt scenario on the current skills
 Last, once everything above has landed. The maintainer runs the short `dns_scanner` prompt on GLM
