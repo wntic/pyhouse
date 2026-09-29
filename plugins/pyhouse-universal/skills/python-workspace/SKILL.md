@@ -156,11 +156,11 @@ install:  ## sync the whole workspace (bare `uv sync` only syncs the root projec
 	uv sync --all-packages
 
 lint:
-	uv run ruff check packages/ services/ tests/
+	uv run ruff check
 
 fmt:
-	uv run ruff check --fix packages/ services/ tests/
-	uv run ruff format packages/ services/ tests/
+	uv run ruff check --fix
+	uv run ruff format
 
 typecheck:  ## each member from its own directory, then the root's own tests
 	for m in packages/* services/*; do [ -d $$m/src ] || continue; (cd $$m && uv run mypy --config-file $(CURDIR)/pyproject.toml src $$(find tests -name '*.py' 2>/dev/null | grep -q . && echo tests)) || exit 1; done
