@@ -304,7 +304,8 @@ for rule 9.
    against the raw body it signed before the body is parsed, and a redelivery of one already recorded is
    answered as a success and changes nothing.
 10. **An input whose size the service does not control is processed in bounded memory.** An upstream
-    file, an export or a feed is streamed — read, transformed and written in bounded batches — and
+    file, an export or a feed is streamed — read and transformed a bounded slice at a time, each slice
+    written before the next is read — and
     nothing in the process accumulates a whole source: no list of every record, no in-process set of
     every key seen. Deduplicating an unbounded input is the data-access package's job, by the record's
     key (`persistence` rules 15 and 17), not a set's. The size that fits today is the size that exhausts the
