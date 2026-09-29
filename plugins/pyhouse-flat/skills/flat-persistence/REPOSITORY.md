@@ -15,7 +15,8 @@ this class's declared half of `persistence` rule 1, and it builds the statements
 
 ```python
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import DBAPIError, TimeoutError as PoolTimeoutError
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from myapp.exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError

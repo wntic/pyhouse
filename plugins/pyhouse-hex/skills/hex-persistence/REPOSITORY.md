@@ -29,7 +29,8 @@ from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import CursorResult, RowMapping, Select, func, select
-from sqlalchemy.exc import DBAPIError, IntegrityError, TimeoutError as PoolTimeoutError
+from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from myapp.domain.exceptions import (
