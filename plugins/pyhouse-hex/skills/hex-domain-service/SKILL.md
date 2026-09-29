@@ -36,9 +36,6 @@ class FooUniquenessService:
     async def assert_name_available(self, name: str) -> None:
         if await self._repo.get_by_name(name) is not None:
             raise FooConflictError("foo name already exists", {"field": "name"})
-
-    async def is_name_taken(self, name: str) -> bool:
-        return await self._repo.get_by_name(name) is not None
 ```
 
 **A service exists because it has collaborators.** Injected protocols on `__init__`, async methods

@@ -117,9 +117,6 @@ beside the session half so a route under test reaches it. The worked add-on in `
 case: the key-value store's per-test client, whose teardown empties the suite's own container, is bound
 by `container`, so an entrypoint never reaches a store the environment names.
 
-- Per-resource row factories (`make_foo`, `make_bar`, …) → not this skill; declare them in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
-- The app-wide checks → `hex-test-app-invariants`; the every-protected-route-rejects-an-anonymous-caller probe → `hex-test-restapi-auth`.
-
 ### The obligations
 
 The suite obligations — an empty store per test with the undo in the handle it is given, or a namespace

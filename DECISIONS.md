@@ -2119,3 +2119,24 @@ the dependency-injection override trap becomes a pointer at `hex-test-integratio
 override-trap text; `resolve_settings` in `CONTAINER.md`; `hex-restapi-app` rules 4–5, its lifespan and
 hard stop; the `hex-architecture`, `CONFTEST.md` and `hex-test-app-invariants` sentences; and both index
 lines.
+
+### D141 — Small agreed items: no promised blocklist, the secret's owner, the hook header, workspace typing
+Taken under backlog items 37, 38, 39 and five item-41 leftovers, after a four-lens review.
+`meta-skill-author/CONVENTIONS.md` no longer promises a banned-name blocklist no check carries (37).
+`python-settings` rule 9 names the component that unwraps a secret: where one transport is shared by
+several components each unwraps its own in its constructor and sends it per request; the rule keeping a
+secret out of a URL moves there from `hex-capability-adapter` rule 7, which points at it (38). The
+commit-msg hook's header gives the shared recipe only where no hook manager is installed, and otherwise
+the manager's own commit-msg stage (`pre-commit install --hook-type commit-msg`), agreeing with
+`/install-commit-hook` (39). A workspace type-checks each member from its own directory with the root's
+configuration passed explicitly (`--config-file`), rather than trusting mypy ≥1.15 to find it; ruff runs
+with no paths; a library distribution ships `py.typed` (`python-packaging` rule 13), and the
+untyped-package override is for third-party packages only — the override on a member silently made every
+import of it `Any` (reproduced). Also: the untested `is_name_taken` leaves `hex-domain-service`; the
+absent-row tests for `update` and `delete` are template lines; `test-principles`' wiring-smoke row is
+family-neutral; `CONFTEST.md`'s routing-only sections and two repeated routing bullets go; a root
+conftest never imports any entrypoint.
+**Reverse by:** from the parent of the commits that added this entry, restoring the blocklist sentence,
+`python-settings` rule 9 and `hex-capability-adapter` rule 7, the hook header, `python-workspace`'s
+Makefile and prose, `python-toolchain`'s override wording, `python-packaging` without rule 13, and the
+hex test-skill text listed above.

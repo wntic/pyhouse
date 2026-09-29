@@ -253,16 +253,7 @@ def real_app(container: AsyncContainer) -> FastAPI:
 The runner's configuration belongs in the root `pyproject.toml` — `python-toolchain`'s
 `[tool.pytest.ini_options]` block, whose session loop scopes the session-scoped engine above needs.
 
-**A root `tests/conftest.py`, where a project has one, must NOT import `create_app` / `myapp.restapi.main` (nor define a `real_app` / `client` fixture).** pytest applies the root conftest to the WHOLE suite, so a *module-level* `from myapp.restapi.main import create_app` there makes every `tests/unit/**` collection pay the entire infrastructure import chain and fail on any module it never touches. The composition-root and app-construction fixtures (`container`, and `real_app` where the app has a REST entrypoint) live in `tests/integration/conftest.py` and import `create_container` / `create_app` **inside the fixture body** (deferred, as the templates above do), so only the integration suite — which legitimately constructs the app — pays that import. Keep app construction out of any conftest a unit test inherits.
-
-## `tests/integration/api/conftest.py`
-
-In an app that declares auth, `hex-test-restapi-auth` creates this file and adds the `jwt_settings`
-parameter to `container`.
-
-## Per-resource `conftest.py` is **not** owned here
-
-Per-resource fixtures (`make_foo`, …) live in `tests/integration/api/<resource>/conftest.py` next to the endpoint tests that use them. This skill does not write them; `hex-test-restapi-endpoint` references them, and each resource's tests declare the ones they need.
+**A root `tests/conftest.py`, where a project has one, never imports the composition root or an entrypoint's app factory at module level, nor defines a fixture that builds either.** pytest applies the root conftest to the WHOLE suite, so a *module-level* `from myapp.restapi.main import create_app` there makes every `tests/unit/**` collection pay the entire infrastructure import chain and fail on any module it never touches. The composition-root and app-construction fixtures (`container`, and `real_app` where the app has a REST entrypoint) live in `tests/integration/conftest.py` and import `create_container` / `create_app` **inside the fixture body** (deferred, as the templates above do), so only the integration suite — which legitimately constructs the app — pays that import. Keep app construction out of any conftest a unit test inherits.
 
 ## How this binding spells them — SQLAlchemy savepoints, dishka
 

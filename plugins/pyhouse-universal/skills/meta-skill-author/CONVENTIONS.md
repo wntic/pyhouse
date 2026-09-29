@@ -216,9 +216,9 @@ Use the placeholder vocabulary above instead: `Foo`/`Bar` for aggregates (`Baz` 
 package, `myschema` for a library several distributions share, `myrepo` for the repo root,
 `myframework` where a rule is about wrapping a framework rather than about that framework. A real
 name with no placeholder to map onto gets a row added to the
-table above — never an exception here. The repo's own lint and review check carries the literal
-blocklist of names already found and removed, so this file states the category and does not reprint
-them.
+table above — never an exception here. No tool catches a real name; it is caught by reading the
+diff before a commit, so this file states the category and does not list the names already found and
+removed.
 
 Technology names stay concrete, because a rule about grouping infrastructure by technology is
 meaningless with the technology abstracted away: `postgres`, `redis`, `s3`, `jwt`, `dishka`. A
