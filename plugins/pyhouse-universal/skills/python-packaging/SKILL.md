@@ -50,10 +50,10 @@ Two consequences of naming land here, in the packaging mechanics, and are enforc
 ## Modules
 
 - **A module that defines a class defines exactly one**, and the module name matches it in snake_case
-  (`qux_client.py` → `QuxClient`, `entity_registry.py` → `EntityRegistry`). The rule caps classes per
-  module; it does not require one. A module of related functions is a first-class shape — see below.
-  The one way past the cap is a closed set of declarations, named for the set — see **When several
-  classes may share a module**.
+  (`qux_client.py` → `QuxClient`, `entity_registry.py` → `EntityRegistry`, `qux_settings.py` →
+  `QuxSettings`). The rule caps classes per module; it does not require one. A module of related
+  functions is a first-class shape — see below. The one way past the cap is a closed set of
+  declarations, named for the set — see **When several classes may share a module**.
 - **`__all__` goes after the imports and before the class definition**, never at the top of the file.
 - A module filename must describe its contents, by the rules in `naming`.
 
