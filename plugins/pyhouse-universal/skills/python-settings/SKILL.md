@@ -88,8 +88,8 @@ container's provider method — and a missing required variable fails there (rul
    reads no dotenv file, because whichever one sits in the working directory is not its own.
 3. **Only a settings class reads the environment.** No other module reads an environment variable; code
    that needs a configured value is handed it.
-4. **A required field has no default.** A missing value fails loudly the first time the settings object
-   is built, at startup, before any work is done.
+4. **A required field has no default.** A missing value fails loudly when the settings object is built,
+   which rule 13 puts before any work.
 5. **A tunable with no single right value carries no default.** A timeout, a pool size, a batch size is
    set from what the deployment observes and can afford; a default is one deployment's tuning frozen into
    a template, and it converts a missing variable into a silent wrong answer instead of a startup failure.
@@ -125,7 +125,10 @@ container's provider method — and a missing required variable fails there (rul
     import time (`python-packaging` rule 8), and never below the root — owning a settings class is not
     permission for a component to build it, and a client, repository or unit of work that builds its
     own settings cannot be given different ones. A container's provider method is the composition root
-    and constructs the class directly.
+    and constructs the class directly. The root builds every settings class before the program serves
+    or takes work; a root that builds on first use — a container that resolves lazily — forces each
+    settings class once at start, so a missing variable stops the process instead of failing the first
+    operation that needs it.
 14. **A published library reads no environment.** Its importer is the program with a composition root,
     so the library's constructors and functions take plain values and the importer's own settings supply
     them. A library shared inside one repository may declare a settings class under its own stem
