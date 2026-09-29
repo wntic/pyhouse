@@ -94,7 +94,7 @@ Pick once, and document the consequence in the repository's `delete`.
 
 - What to index is `persistence` rule 12; an FK column's index is declared, because the library creates
   none for it.
-- Single-column index name: `ix_<table>_<col>`. A composite index is named explicitly with the same
+- Single-column index name: `ix_<table>_<column>`. A composite index is named explicitly with the same
   prefix.
 - **A bare string argument to `Index` is a COLUMN NAME, not an expression.**
   `Index("ix_foos_name_lower", "lower(name)")` makes the library look for a column literally named

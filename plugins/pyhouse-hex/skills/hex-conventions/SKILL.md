@@ -138,11 +138,11 @@ backend's SQL/SDK internals:
 There are only **two** profiles, and the table has only two rows. Everything else is a vendor filling
 one of them in:
 
-| profile | resource param / attr | resource type | resource import | relational |
+| profile | resource parameter | resource type | resource import | relational |
 |---|---|---|---|---|
-| **relational** — reached through the shared engine bootstrap | `session_factory` / `session_factory` | `async_sessionmaker[AsyncSession]` | the engine library's session types | **yes** |
-| **client-style** — reached through an injected SDK client | `client` / `client` | the SDK's own async client class | that SDK's client import | no |
-| *(kind not yet profiled)* | `client` / `client` | `object` | — | no |
+| **relational** — reached through the shared engine bootstrap | `session_factory` | `async_sessionmaker[AsyncSession]` | the engine library's session types | **yes** |
+| **client-style** — reached through an injected SDK client | `client` | the SDK's own async client class | that SDK's client import | no |
+| *(kind not yet profiled)* | `client` | `object` | — | no |
 
 A concrete kind is one row of an **appendix the project fills in**, not a row of the table above. Two
 worked out, as the shape to copy:

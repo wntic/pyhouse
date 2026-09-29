@@ -57,7 +57,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   rule. A `containers.DeclarativeContainer` subclass replaces the provider classes, `providers.*`
   replace the factories, and — the rule dishka does not need — **a binding is reached at the call site
   by its attribute name, which must be the snake_case form of the class** — the call site writes
-  `<root>.<snake_case_attr>()`. That name-based contract is unenforced: rename the class and the call
+  `<root>.<snake_case_attribute>()`. That name-based contract is unenforced: rename the class and the call
   site breaks at runtime. Test substitution differs in kind, and its trap is
   `hex-test-integration-setup`'s.
 
@@ -69,7 +69,7 @@ own interpreter requirement sits below the house floor `python-style` sets, so i
   | `provides=IFooRepository` | `providers.Provider[IFooRepository]` annotation |
   | constructor arguments resolved by annotation | each argument passed explicitly |
   | generator factory + `container.close()` | `providers.Resource`, or teardown in the entrypoint |
-  | `FromDishka[T]` at the call site | `container.<snake_case_attr>()` |
+  | `FromDishka[T]` at the call site | `container.<snake_case_attribute>()` |
   | an extra provider with `override=True`, before the container is built | `.override()` / `.reset_override()` on a built container |
   | `resolve_settings` over `SettingsProvider`'s declarations | each provider of the settings sub-container, walked with `.traverse()`, called once at start |
 

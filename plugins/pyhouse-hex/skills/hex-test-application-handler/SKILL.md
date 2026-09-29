@@ -31,7 +31,7 @@ tests/unit/application/
 └── test_<verb>_<noun>_handler.py        # mirrors the handler module's filename
 ```
 
-One file per handler. Compensating-tx assertions live in the file for the handler that performs the compensation, not in a separate file.
+One file per handler. Compensating-transaction assertions live in the file for the handler that performs the compensation, not in a separate file.
 
 ### `create` handler
 
@@ -157,7 +157,7 @@ Each field the filter narrows by gets one more test that seeds a row the filter 
 is absent from both `items` and `total` — which is also what proves the fake honours the filter (Fakes
 rule 5).
 
-### `compensating-tx` handler
+### `compensating-transaction` handler
 
 Where a handler undoes an external write when a later step fails (`hex-application`, Compensation), its tests live in
 that handler's file and drive it over the external write's call record. The template — two tests, the
@@ -250,7 +250,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 - `test_sorted_by_<order_key>` — load the fake with deliberately unsorted entities (vary both primary and secondary sort keys); assert the order of `result.items` is exactly the expected sequence.
 - `test_pagination_offset_limit` — load N > limit entities; call with `limit=L, offset=O`; assert `len(result.items) == L` and `result.total == N`.
 
-#### `compensating-tx` handler
+#### `compensating-transaction` handler
 
 - `test_store_failure_undoes_the_<external_write>` — the store write raises the catalogue exception its real adapter raises; assert the external write's call record shows each write that landed before the failure undone, and the caller receives that same failure.
 - `test_failed_undo_still_raises_the_original_failure` — the undo raises too; assert the original failure propagates, not the undo's, and the undo was still attempted. Both injected failures are catalogue classes (Fakes rules 6 and 8), so the test tells them apart by which call raised, never by class alone.

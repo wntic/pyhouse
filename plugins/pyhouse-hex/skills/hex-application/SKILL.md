@@ -385,7 +385,7 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
    to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
    a later read or retry sees it — the handler may
-   `try: <pipeline> except <Err>: <load-or-mutate>; entity.status = FAILED; await repository.update(entity); raise`.
+   `try: <pipeline> except <Error>: <load-or-mutate>; entity.status = FAILED; await repository.update(entity); raise`.
    The `except` writes the caller-visible state and **re-raises**. (c) After the store write, below — the
    `try/except Exception` around a side effect of a command already committed, which stops the effect's
    failure instead of re-raising it. Follow `python-logging` for logging and `exception-catalog` for

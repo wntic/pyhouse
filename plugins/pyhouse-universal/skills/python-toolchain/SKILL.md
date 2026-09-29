@@ -34,7 +34,7 @@ no family needs only this skill.
 ## Template — ruff, mypy, pytest, hatchling (pyproject.toml)
 
 `uv init --package --build-backend hatch myapp` lays the src layout — plain `uv init` lays a single
-module that matches nothing here. Then `uv add <lib>` for a runtime dependency and `uv add --dev <lib>`
+module that matches nothing here. Then `uv add <library>` for a runtime dependency and `uv add --dev <library>`
 for a development one; `uv lock` writes the pins.
 
 ```toml
