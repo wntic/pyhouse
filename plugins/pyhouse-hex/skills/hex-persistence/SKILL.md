@@ -36,7 +36,8 @@ instead. The store profile decides which applies (`hex-conventions` block B).
   declares → `python-settings`; lifetimes, declaration order and the base they merge into → `hex-wiring`.
 - The engine and session factories the binding calls → `REPOSITORY.md`, beside the settings class.
 - A command writing two or more repositories that must commit together — the unit-of-work protocol, its
-  implementation and binding, and the handler form that opens it → `UNIT_OF_WORK.md`.
+  implementation and binding, and the handler form that opens it — and what the relay delivering an
+  outbox row owes → `UNIT_OF_WORK.md`.
 - An external write undone when a later store write fails (compensation) → `hex-application`.
 - The exception classes the translator raises → `exception-catalog`.
 - The integration test that drives this adapter against a real database → `hex-test-repository-contract`.
@@ -74,9 +75,9 @@ loaded automatically:
   translation and mapping rules, the shared-mapper extraction threshold, and the store's settings class
   with its engine factories and container binding.
 - **`REVISION.md`** — the revision template, the drift check and the downgrade rule.
-- **`UNIT_OF_WORK.md`** — only where a command writes two or more repositories atomically: the
-  protocol in `domain/uow/`, its implementation beside the repositories, its binding, and the handler
-  form that opens it.
+- **`UNIT_OF_WORK.md`** — only where a command writes two or more repositories atomically, or an outbox
+  row is relayed: the protocol in `domain/uow/`, its implementation beside the repositories, its
+  binding, the handler form that opens it, and the relay's delivery obligations.
 
 ## Other bindings
 
