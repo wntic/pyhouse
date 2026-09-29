@@ -72,27 +72,27 @@ class FooRepository:
     async def get_by_name(self, name: str) -> Foo | None:
         try:
             async with self._session_factory() as session:
-                stmt = select(foos_table).where(foos_table.c.name == name)
-                row = (await session.execute(stmt)).mappings().one_or_none()
+                statement = select(foos_table).where(foos_table.c.name == name)
+                row = (await session.execute(statement)).mappings().one_or_none()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {"name": name}) from exc
         return _row_to_entity(row) if row is not None else None
 
     async def list(self, *, filter: FooListFilter) -> Sequence[Foo]:
-        stmt = _apply_filter(select(foos_table), filter).order_by(_SORT_COLUMNS[filter.sort], foos_table.c.id)
-        stmt = stmt.limit(filter.limit).offset(filter.offset)
+        statement = _apply_filter(select(foos_table), filter).order_by(_SORT_COLUMNS[filter.sort], foos_table.c.id)
+        statement = statement.limit(filter.limit).offset(filter.offset)
         try:
             async with self._session_factory() as session:
-                rows = (await session.execute(stmt)).mappings().all()
+                rows = (await session.execute(statement)).mappings().all()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
         return [_row_to_entity(r) for r in rows]
 
     async def count(self, *, filter: FooListFilter) -> int:
-        stmt = _apply_filter(select(func.count()).select_from(foos_table), filter)
+        statement = _apply_filter(select(func.count()).select_from(foos_table), filter)
         try:
             async with self._session_factory() as session:
-                total: int = (await session.execute(stmt)).scalar_one()
+                total: int = (await session.execute(statement)).scalar_one()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
         return total
@@ -162,10 +162,10 @@ def _map_integrity_error(exc: IntegrityError) -> Exception:
     )
 
 
-def _apply_filter[S: Select[Any]](stmt: S, filter: FooListFilter) -> S:
+def _apply_filter[S: Select[Any]](statement: S, filter: FooListFilter) -> S:
     if filter.name is not None:
-        stmt = stmt.where(foos_table.c.name == filter.name)
-    return stmt
+        statement = statement.where(foos_table.c.name == filter.name)
+    return statement
 ```
 
 ## Template — unit-of-work-managed form
@@ -208,7 +208,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
    tiebreaker, so every page is a total order (`persistence` rule 18). Never hardcode one default order
    that ignores the caller's chosen sort.
 6. `count(*, filter)` returns `int` from `select(func.count()).select_from(table)`.
-7. Multi-field filter logic extracts to a module-level `_apply_filter(stmt, filter)`, generic over the
+7. Multi-field filter logic extracts to a module-level `_apply_filter(statement, filter)`, generic over the
    statement type so the list query and the count query each keep their own `Select` type.
 
 ## Rules — mutations
