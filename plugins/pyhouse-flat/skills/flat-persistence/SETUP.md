@@ -1,6 +1,6 @@
 # flat-persistence — the shared plumbing
 
-Topic file of `flat-persistence`. The mechanism-free obligations are rules 6, 7, 8 and 9 in
+Topic file of `flat-persistence`. The mechanism-free obligations are rules 3, 4, 5 and 6 in
 `SKILL.md`, and `persistence` rules 7, 19 and 20; what follows is the **SQLAlchemy Core + asyncpg +
 Alembic** binding that satisfies them.
 
@@ -69,8 +69,8 @@ is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the pr
 `postgres` is a reserved segment there (`naming`); where the package is shared between distributions its
 prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
 changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
-adds its fields to this one (rule 8). The process definition constructs `PostgresSettings()`, unwraps
-`dsn` and hands the value to the engine factory (`flat-layered` rule 6, and rule 6 in `SKILL.md`); the
+adds its fields to this one (rule 5). The process definition constructs `PostgresSettings()`, unwraps
+`dsn` and hands the value to the engine factory (`flat-layered` rule 6, and rule 3 in `SKILL.md`); the
 migration environment is the migration run's process definition and does the same
 (`flat-project-setup`).
 
@@ -106,8 +106,8 @@ uses — a container of the suite's image, upgraded first — and `alembic upgra
 database only as the deploy step.
 
 Both run from the directory holding `alembic.ini` — the distribution's own root, or the owning library's
-where several distributions share the store (rule 7) — so whatever applies the history carries
-`alembic.ini` beside `migrations/` (rule 9). Alembic takes no lock of its own, so `persistence`
+where several distributions share the store (rule 4) — so whatever applies the history carries
+`alembic.ini` beside `migrations/` (rule 6). Alembic takes no lock of its own, so `persistence`
 rule 19's one job per deploy is the exclusion. The revision lands in `migrations/postgres/versions/`.
 Autogenerate compares
 tables, columns, types, nullability, indexes, unique and foreign-key constraints; it does not compare a
@@ -115,5 +115,5 @@ tables, columns, types, nullability, indexes, unique and foreign-key constraints
 
 Where a second store's schema is versioned too, its history sits beside this one in
 `migrations/<store>/`, in whatever format that store's migration tool reads, and is applied by that tool
-as its own deploy step (rule 9). It never goes into
+as its own deploy step (rule 6). It never goes into
 `migrations/postgres/`, and never into the package under `src/`.

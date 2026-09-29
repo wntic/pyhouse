@@ -1,6 +1,6 @@
 # flat-persistence — the table
 
-Topic file of `flat-persistence`. The mechanism-free obligations are rule 5 in `SKILL.md`, and
+Topic file of `flat-persistence`. The mechanism-free obligations are rule 2 in `SKILL.md`, and
 `persistence` rules 7, 9 and 13; what follows is the **SQLAlchemy Core on Postgres** binding that
 satisfies them.
 

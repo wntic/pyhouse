@@ -67,14 +67,14 @@ too. The counts in every heading are the number of directories on disk.
 ### Flat core (4)
 
 - `flat-layered` — Four role kinds carry the rules and each package, at the package root, is named for a role the service actually has — the skeleton holds only what most flat services have; a configured component is a package with its own settings class, built by the process definition, whose contents are `python-settings`'s, and a client holds one pooled transport; one distribution on its own is the default.
-- `flat-persistence` — Confine each store's statements and connections to one package named for its technology, binding `persistence`'s store-generic rules with no port in front — batched writes chunked from the driver's cap, application-minted time-ordered keys, one migration directory per store — and a store another project owns gets no migrations.
+- `flat-persistence` — Confine each store's statements and connections to one package named for its technology, binding `persistence`'s store-generic rules with no port in front — a single-row upsert, application-minted time-ordered keys, one migration directory per store — and a store another project owns gets no migrations.
 - `flat-entrypoint` — Changing the trigger — one run per process by default, a loop, a stream, a thin HTTP wrapper or durable execution — calls the same dependency-injected function without rewriting its work; only a process that outlives one run contains a run's failure, a contained unit is redelivered to a limit and then dead-lettered, and a workflow engine is earned, never assumed.
 - `flat-project-setup` — Lay a flat service down once — which libraries each role brings with the floors this family's templates rely on, and the migration bootstrap with no empty greenfield baseline; the toolchain itself is `python-toolchain`'s, per-change revisions `flat-persistence`'s.
 
 ### Flat tests (4)
 
 - `flat-test-integration-setup` — The suite starts its own datastore container; choose the isolation fixture from the callable's declared transaction owner: rollback where it accepts a connection, wipe where it opens one.
-- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, an ordering-stamp guard from both directions, the translated exception, a paged read's page edge — and atomicity only where one write spans statements.
+- `flat-test-persistence` — Pin the data-access package's behavior against the real datastore — the generated constraint name, the update set from both sides, an ordering-stamp guard from both directions, the translated exception, what each read returns, a paged read's page edge — and atomicity only where one write spans statements.
 - `flat-test-service-client` — HTTP transport substitution needs no client Protocol; vendor SDK clients require their own backend or supplied test double.
 - `flat-test-run-function` — Test the body end to end, the containment only where a process outlives one run, and the wrapper that invokes it; the orchestration level above them only where a durable-execution engine was earned.
 

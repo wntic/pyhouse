@@ -160,7 +160,7 @@ auth and never loads it.
 | Skill | Owns |
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with a skeleton of only what most flat services have — packages at the package root, each named for a role the service has; a package and settings class per configured component, a directory written for another reader included, built by the process definition, and the one-implementation client over one pooled transport with a refreshable credential |
-| `flat-persistence` | One package per store, named for its technology, owning a service's data access and binding `persistence`'s store-generic rules to SQLAlchemy Core — chunked multi-row writes, read-back of resolved keys, time-ordered keys, the component's settings class and engine factory, one migration directory per store, and none for a store another project owns |
+| `flat-persistence` | One package per store, named for its technology, owning a service's data access and binding `persistence`'s store-generic rules to SQLAlchemy Core — a single-row upsert, time-ordered keys, the component's settings class and engine factory, one migration directory per store, and none for a store another project owns |
 | `flat-entrypoint` | Trigger choice — one run per process by default, a loop, a stream or queue consumer, a thin HTTP wrapper receiving a body, or durable execution — and the framework-free function every trigger calls: bounded memory, progress markers after their data, atomic writes of files another reader collects, containment only in a process that outlives one run, bounded redelivery with a dead letter, fan-out failure containment, and the obligations an engine adds once one is earned |
 | `flat-project-setup` | The one-time project setup — which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap under `migrations/postgres/` with a baseline only over an existing schema; the toolchain is `python-toolchain`'s, per-change revisions `flat-persistence`'s |
 
@@ -169,7 +169,7 @@ auth and never loads it.
 | Skill | Owns |
 |---|---|
 | `flat-test-integration-setup` | The suite-owned container, the safety guard any database the suite did not start must pass, and the isolation fixture each declared transaction owner needs |
-| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, an ordering-stamp guard from both directions, chunk boundary, translated exception, a cursor page edge where a run pages, same-key collapse, and atomicity only where a write spans statements |
+| `flat-test-persistence` | The data-access package's contract against a real datastore — constraint name, update set, an ordering-stamp guard from both directions, translated exception, what each read returns, a cursor page edge where a run pages, and atomicity only where a write spans statements |
 | `flat-test-service-client` | One client class's test |
 | `flat-test-run-function` | What a trigger runs — the body end to end with an idempotence test wherever a run can repeat, the containment test only where a process outlives one run, the wrapper that invokes it, and the orchestration level above them where an engine was earned |
 
