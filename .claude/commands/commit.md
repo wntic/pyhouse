@@ -121,6 +121,14 @@ git commit -F - <<'EOF'
 EOF
 ```
 
+**A correction to a commit already on this branch** is not a new message: commit it with
+`git commit --fixup=<sha>`, and before the branch is merged fold every fixup into the commit it
+corrects with `git -c sequence.editor=: rebase -i --autosquash main` — or against the
+`integration/<name>` branch it lands in. On an `integration/<name>` branch itself, add
+`--rebase-merges` so the merges it combined survive, and fold there only while no branch has been
+started from it. `git-branching` rule 4 is why, and rule 5 is why this rewrites only a branch no one
+else has built on.
+
 Output the commit hash to the user after committing:
 
 ```
