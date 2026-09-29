@@ -86,7 +86,8 @@ schema gets there, and what the disposability marker is set by.
 - **One pytest plugin module several hexagonal members load** (`python-workspace`; `test-principles`,
   *Where tests and fixtures sit* rules 3–4). The session half — containers, guard, migration run,
   engine, each add-on's container — moves into it; each member keeps its isolation handles and
-  `container` (with `real_app` where it has a REST entrypoint), and migrates its own directory.
+  `container` (with `real_app` where it has a REST entrypoint); the migration run executes from the
+  schema-owning library's directory (`python-workspace` rules 3–4).
 
 ## Rules
 

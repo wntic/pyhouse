@@ -80,12 +80,10 @@ members = ["packages/*", "services/*"]
 # python-toolchain's keys, except `pythonpath`, which lists only what this root loads (below), and:
 testpaths = ["tests"]
 
-[dependency-groups]
-dev = ["ruff", "mypy", "pytest"]
+# [dependency-groups]: python-toolchain's dev group, whole, written here once
 ```
 
-The test configuration is whole here and nowhere else (rule 6): `python-toolchain`'s block, whose
-import mode is what lets two members each keep a `test_exceptions.py` without a collision, with
+The test configuration is whole here and nowhere else (rule 6): `python-toolchain`'s block, with
 `testpaths` naming each run's own `tests/`. **Each member's suite runs from that member's directory, with
 the member as the runner's root** (rule 10), and the root's own `tests/` runs from the root — the `test`
 target below does both. A member's tests import their own support (`tests.unit.fakes`, `tests.helpers`)
@@ -192,9 +190,9 @@ fixtures live in a pytest plugin module beside that library's own tests —
 `packages/myschema/tests/myschema_testing.py` — loaded by `-p myschema_testing` in `addopts` and
 `packages/myschema/tests` in the root block's `pythonpath`, which resolves against the root file and so
 holds in every member's run. Every member loads that one module rather than a copy, and each member's
-run starts its container once. What goes inside that module, and the test dependencies and
-event-loop scopes it needs, are the member family's integration-setup skill's; this root owns only the
-two settings that load it. Infrastructure with its own schema owner — a workflow engine, a metrics store
+run starts its container once. What goes inside that module is the member family's integration-setup
+skill's, and the loop-scope lines it needs are `python-toolchain`'s; this root owns only the two settings
+that load it. Infrastructure with its own schema owner — a workflow engine, a metrics store
 — gets its own datastore and its own named volume, never the members' database.
 
 ## Other bindings

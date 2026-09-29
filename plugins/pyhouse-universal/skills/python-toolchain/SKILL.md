@@ -193,8 +193,8 @@ there. Either is compliant once written; the setting drives the formatter as wel
     tool-specific table. A distributed package's optional integration is an extra its consumers opt
     into, not a runtime dependency all of them install. A package nothing imports is removed.
 11. **The test runner's configuration is one block in the same file.** It lets two test modules share
-    a basename in different directories, puts the tree root on the runner's path so a test imports
-    shared test support by package rather than by path, and holds what `test-principles` requires of
+    a basename in different directories, lets a test import shared test support by package rather than
+    by path, resolving to its own distribution's tree (in a workspace, `python-workspace` rule 10), and holds what `test-principles` requires of
     the run — a warning failing it; where the suite has async tests, async-ness declared once; and where
     it holds a session-scoped async resource, one session loop.
 

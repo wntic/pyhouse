@@ -180,7 +180,7 @@ wide table is not a function to split; every other bound stays on for revisions.
 ## Other bindings
 
 - **Another package manager.** poetry or pdm replace `uv add`; the substrate by role, the SDK riding
-  with its adapter and the two floors with their APIs are unchanged. The rest is `python-toolchain`'s.
+  with its adapter and the floor with its API are unchanged. The rest is `python-toolchain`'s.
 - **Another migration tool.** The config file, the revision template and the autogenerate command all
   change; the environment logging through the service's one configuration, a greenfield chain rooted at
   its first real revision, a write-once baseline of hand-frozen DDL only over a database that already
@@ -194,7 +194,7 @@ wide table is not a function to split; every other bound stays on for revisions.
    entrypoint calls the service's one logging setup, `myapp.logging.configure_logging`, written once
    where the service has none, before anything logs.
 2. Write a floor — an SDK's or a substrate library's — only at the documented breaking boundary the
-   project's code relies on, under `python-toolchain` rule 9; block A's two are this family's.
+   project's code relies on, under `python-toolchain` rule 9; block A's one is this family's.
 3. Take everything else in the project file from `python-toolchain` — the src layout, the development
    group, the linter and type-checker configuration with its written bounds and sanctioned
    suppressions, the line length — and the interpreter floor from `python-style`.
