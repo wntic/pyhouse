@@ -66,7 +66,7 @@ not its identity. A project in neither family has the same layers and writes the
 | Collaborator unit | every out-of-process collaborator, by an in-memory double the subject already accepts, or by the runtime's own test environment | the subject's own orchestration | orchestration and step dispatch, branch selection, partial-update semantics, normalization, retry and continuation policy, exception propagation, compensating undo | < 50 ms, or < 2 s where the double is a runtime's test environment | `hex-test-application-handler`, `flat-test-run-function` (orchestration level) |
 | Boundary unit | only the transport beneath one dependency — the socket, never the dependency's own code | the client's request building, response parsing and error translation | request shape, response parsing, library-error → catalog translation, timeouts | < 100 ms | `flat-test-service-client`, `hex-test-capability-adapter` |
 | Wiring smoke | nothing, but nothing out-of-process is reached either | the object graph, constructed the way the entrypoint constructs it | construct-time wiring and framework dependencies the type, lint and unit layers all miss; a generated schema's build, where the entrypoint generates one | < 100 ms | `hex-test-app-invariants` (in `pyhouse-hex`); elsewhere the project writes it where its entrypoint builds an object graph |
-| Datastore contract | nothing — a real store, started and disposed by the suite | the driver, the schema, the statements | constraint behaviour and generated constraint names, conflict and upsert semantics, cascades, returned and auto-updated values, driver-error translation, chunking | < 500 ms | `hex-test-repository-contract`, `flat-test-persistence` |
+| Datastore contract | nothing — a real store, started and disposed by the suite | the driver, the schema, the statements | constraint behaviour and generated constraint names, conflict and upsert semantics, cascades, returned and auto-updated values, driver-error translation, chunking where a write batches | < 500 ms | `hex-test-repository-contract`, `flat-test-persistence` |
 | Entrypoint | nothing, or only the transport beneath a remote dependency | the entrypoint driven the way a caller drives it, with its real dependencies | dispatch and routing, dependency wiring, input and output validation, the run wired end to end; where the entrypoint authenticates, role gating and tenancy scoping | < 1 s, or < 2 s with a real datastore behind it | `hex-test-restapi-endpoint` (with `hex-test-restapi-auth`), `flat-test-run-function` |
 | Surface invariant | nothing — the surface is enumerated from the running program | the program's own declared surface | global properties no single test owns — every error code the published contract advertises carrying the program's one error shape, every protected route refusing an anonymous caller, cross-origin and request-size policy | < 500 ms | `hex-test-app-invariants` |
 | Architecture | everything — nothing runs | the source tree, read as text | static "no X in layer Y" invariants | < 100 ms | `test-architecture-rule` |
@@ -308,9 +308,13 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
 6. **Where writes for one key can arrive out of order, a test writes the newer record and then the
    older, with stamps that differ, and asserts the newer's values remain** (`persistence` rule 16); a
    builder that fixes the stamp makes every write equally new and pins nothing.
-7. **Where a write takes a batch, one call carries two inputs sharing a key**, and one record holding
-   the input the collapse keeps is asserted (`persistence` rule 17); under an ordering guard the newer
-   stamp goes first, so a collapse that keeps the last input fails.
+7. **Where a write takes a batch, one call crosses a chunk edge and one carries two inputs sharing a
+   key.** The first sets the chunk size deliberately small with an uneven last chunk — five rows in
+   chunks of two cross two edges and end on a short chunk — and asserts every row landed, since an
+   off-by-one in the slice shows only at an edge and production-sized input costs thousands of rows a
+   run (`persistence` rule 21). The second asserts one record holding the input the collapse keeps (`persistence`
+   rule 17); under an ordering guard the newer stamp goes first, so a collapse that keeps the last input
+   fails.
 8. **Where the program owns the schema, the suite establishes it by the project's own schema path** —
    its migrations, or the schema creation production runs — once per session, or per store where the
    store is created per test, never by tables the suite writes by hand, so a schema change that was
