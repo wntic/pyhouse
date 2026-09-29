@@ -140,7 +140,7 @@ one of them in:
 
 | profile | resource param / attr | resource type | resource import | relational |
 |---|---|---|---|---|
-| **relational** — reached through the shared engine bootstrap | `session_factory` / `sf` | `async_sessionmaker[AsyncSession]` | the engine library's session types | **yes** |
+| **relational** — reached through the shared engine bootstrap | `session_factory` / `session_factory` | `async_sessionmaker[AsyncSession]` | the engine library's session types | **yes** |
 | **client-style** — reached through an injected SDK client | `client` / `client` | the SDK's own async client class | that SDK's client import | no |
 | *(kind not yet profiled)* | `client` / `client` | `object` | — | no |
 

@@ -18,7 +18,7 @@ suite — and all of it exists **only for an app that declares auth**
 ## When to use vs. neighbours
 
 - Any other capability adapter's test — containerized, HTTP-gateway with `respx`, or another pure-CPU one → `hex-test-capability-adapter`, which owns the three flavors; the verifier test in `UNIT.md` is its pure-CPU flavor bound to auth.
-- The containers, the engine, the rollback `sf`, `container` and `real_app` itself →
+- The containers, the engine, the rollback `session_factory`, `container` and `real_app` itself →
   `hex-test-integration-setup` (one-shot; both are defined there and every integration file here consumes
   `real_app`).
 - A per-endpoint test's non-auth half — success body, advertised error codes, per-resource fixtures →

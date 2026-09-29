@@ -57,11 +57,11 @@ _SORT_COLUMNS = {
 
 class FooRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        self._sf = session_factory
+        self._session_factory = session_factory
 
     async def get_by_id(self, id: UUID) -> Foo:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 row = (await session.execute(select(foos_table).where(foos_table.c.id == id))).mappings().one_or_none()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {"id": str(id)}) from exc
@@ -71,7 +71,7 @@ class FooRepository:
 
     async def get_by_name(self, name: str) -> Foo | None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 stmt = select(foos_table).where(foos_table.c.name == name)
                 row = (await session.execute(stmt)).mappings().one_or_none()
         except _DRIVER_ERRORS as exc:
@@ -82,7 +82,7 @@ class FooRepository:
         stmt = _apply_filter(select(foos_table), filter).order_by(_SORT_COLUMNS[filter.sort], foos_table.c.id)
         stmt = stmt.limit(filter.limit).offset(filter.offset)
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 rows = (await session.execute(stmt)).mappings().all()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
@@ -91,7 +91,7 @@ class FooRepository:
     async def count(self, *, filter: FooListFilter) -> int:
         stmt = _apply_filter(select(func.count()).select_from(foos_table), filter)
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 total: int = (await session.execute(stmt)).scalar_one()
         except _DRIVER_ERRORS as exc:
             raise _translate(exc, {}) from exc
@@ -99,7 +99,7 @@ class FooRepository:
 
     async def create(self, foo: Foo) -> None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 await session.execute(foos_table.insert().values(id=foo.id, name=foo.name, note=foo.note))
                 await session.commit()
         except _DRIVER_ERRORS as exc:
@@ -107,7 +107,7 @@ class FooRepository:
 
     async def update(self, foo: Foo) -> None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 result = cast(  # execute() is typed Result[Any], which has no rowcount
                     CursorResult[object],
                     await session.execute(
@@ -124,7 +124,7 @@ class FooRepository:
 
     async def delete(self, id: UUID) -> None:
         try:
-            async with self._sf() as session:
+            async with self._session_factory() as session:
                 result = cast(
                     CursorResult[object],
                     await session.execute(foos_table.delete().where(foos_table.c.id == id)),

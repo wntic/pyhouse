@@ -1,6 +1,6 @@
 ---
 name: hex-test-repository-contract
-description: Use when testing an aggregate's repository adapter — an `IFooRepository` implementation — against the real backend rather than a fake, in both halves of that contract, relational over Postgres through the `sf` rollback fixture (constraints on insert and on update, cascades, the pinned constraint name) and client-store (key-value, document) isolated by a fresh per-test namespace. Not a flat-layered service's storage-package write path, which is `flat-test-persistence`, in the `pyhouse-flat` plugin, not a capability port's adapter, which is `hex-test-capability-adapter`, and not the fixtures it consumes — containers, the migration run and `sf` are `hex-test-integration-setup`'s.
+description: Use when testing an aggregate's repository adapter — an `IFooRepository` implementation — against the real backend rather than a fake, in both halves of that contract, relational over Postgres through the `session_factory` rollback fixture (constraints on insert and on update, cascades, the pinned constraint name) and client-store (key-value, document) isolated by a fresh per-test namespace. Not a flat-layered service's storage-package write path, which is `flat-test-persistence`, in the `pyhouse-flat` plugin, not a capability port's adapter, which is `hex-test-capability-adapter`, and not the fixtures it consumes — containers, the migration run and `session_factory` are `hex-test-integration-setup`'s.
 ---
 
 # Hex Test — Repository Contract
@@ -15,15 +15,15 @@ what unit coverage cannot.
 - A repository adapter on a relational store, under `infrastructure/postgres/repositories/` → the **relational** half of this skill.
 - A repository adapter on a client-style store (key-value, document), under `infrastructure/<store-kind>/repositories/` → the **client-style** half of this skill.
 - An adapter behind an `ICan<Verb>` capability port rather than an `IFooRepository` → `hex-test-capability-adapter`, not this skill — even when it is driven against a container.
-- Schema-only checks (an index exists, a migration carries data correctly) → separate flat files under `tests/integration/postgres/` (`test_indexes.py`, `test_<NNNN>_migration.py`) that take the `run_alembic` fixture (`hex-test-integration-setup`), not `sf`.
+- Schema-only checks (an index exists, a migration carries data correctly) → separate flat files under `tests/integration/postgres/` (`test_indexes.py`, `test_<NNNN>_migration.py`) that take the `run_alembic` fixture (`hex-test-integration-setup`), not `session_factory`.
 - HTTP-layer integration (route, OpenAPI) → `hex-test-restapi-endpoint`; the authenticated and role-gated variants of those tests → `hex-test-restapi-auth`.
-- The rollback `conftest.py`, the session containers and the migration run themselves — including "add a testcontainer fixture for Postgres" → `hex-test-integration-setup`. This skill consumes `sf`; it never defines it.
+- The rollback `conftest.py`, the session containers and the migration run themselves — including "add a testcontainer fixture for Postgres" → `hex-test-integration-setup`. This skill consumes `session_factory`; it never defines it.
 - A pure domain test, with no backend at all → `hex-test-domain`.
 - The repository being tested → `hex-persistence` (relational, with `REPOSITORY.md` and `TABLE.md`) or `hex-store-repository` (client store).
 - An in-memory fake of the same protocol, for handler unit tests → `hex-test-application-handler`.
 - The exceptions the adapter translates integrity errors and SDK errors into → `exception-catalog`.
 - Speed targets, fixture placement and the substitution ladder → `test-principles`.
-- The write path is a flat-layered service's own data-access package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `sf`.
+- The write path is a flat-layered service's own data-access package rather than a hexagonal `IFooRepository` adapter → `flat-test-persistence`, in the `pyhouse-flat` plugin; it consumes `flat-test-integration-setup`'s fixtures there, not `session_factory`.
 
 ## Template(s) — pytest, testcontainers, SQLAlchemy async over Postgres, redis-py
 
@@ -40,11 +40,11 @@ first thing to get right.
 
 ### Isolation — the one thing that differs
 
-**Relational: transaction rollback.** Every test takes `sf: async_sessionmaker[AsyncSession]`, the fixture from
+**Relational: transaction rollback.** Every test takes `session_factory: async_sessionmaker[AsyncSession]`, the fixture from
 `hex-test-integration-setup`. The database is empty at test start and everything the test wrote is
 discarded at teardown. No marker, no other DB fixture.
 
-**Client-style: a fresh namespace.** A client store has no nested transaction, so the `sf`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** (rule 14), created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
+**Client-style: a fresh namespace.** A client store has no nested transaction, so the `session_factory`-rollback model does not apply (the rollback fixture is relational-only). **Each test owns a namespace** (rule 14), created or emptied in a fixture and dropped or emptied at teardown. Which conftest holds that fixture and which holds the session-scoped container is `hex-test-integration-setup`'s scope split, not this skill's.
 
 ### Relational
 
@@ -89,8 +89,8 @@ def _foo(*, name: str = "alpha") -> Foo:
     return Foo(id=uuid.uuid4(), name=name, note="a note")
 
 
-async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_create_then_get_returns_every_field(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     foo = _foo()
 
     await repository.create(foo)
@@ -98,8 +98,8 @@ async def test_create_then_get_returns_every_field(sf: async_sessionmaker[AsyncS
     assert asdict(await repository.get_by_id(foo.id)) == asdict(foo)
 
 
-async def test_get_by_id_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_get_by_id_of_absent_row_raises_not_found(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc:
@@ -109,8 +109,8 @@ async def test_get_by_id_of_absent_row_raises_not_found(sf: async_sessionmaker[A
 
 
 # only where the port declares update
-async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_update_persists_the_new_values(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     foo = _foo(name="alpha")
     await repository.create(foo)
     foo.name = "beta"
@@ -122,8 +122,8 @@ async def test_update_persists_the_new_values(sf: async_sessionmaker[AsyncSessio
 
 
 # only where the port declares update
-async def test_update_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_update_of_absent_row_raises_not_found(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     foo = _foo()
 
     with pytest.raises(NotFoundError) as exc:
@@ -133,8 +133,8 @@ async def test_update_of_absent_row_raises_not_found(sf: async_sessionmaker[Asyn
 
 
 # only where the port declares delete
-async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_delete_removes_the_row(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     foo = _foo()
     await repository.create(foo)
 
@@ -147,8 +147,8 @@ async def test_delete_removes_the_row(sf: async_sessionmaker[AsyncSession]) -> N
 
 
 # only where the port declares delete
-async def test_delete_of_absent_row_raises_not_found(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_delete_of_absent_row_raises_not_found(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc:
@@ -174,8 +174,8 @@ async def test_read_and_write_against_unreachable_store_raise_upstream_error() -
 
 
 # only where Foo has a natural key
-async def test_duplicate_name_on_insert_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_duplicate_name_on_insert_raises_conflict(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     await repository.create(_foo(name="alpha"))
 
     with pytest.raises(FooConflictError) as exc:
@@ -185,8 +185,8 @@ async def test_duplicate_name_on_insert_raises_conflict(sf: async_sessionmaker[A
 
 
 # only where Foo has a natural key and the port declares update
-async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_duplicate_name_on_update_raises_conflict(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     await repository.create(_foo(name="alpha"))
     second = _foo(name="beta")
     await repository.create(second)
@@ -199,18 +199,18 @@ async def test_duplicate_name_on_update_raises_conflict(sf: async_sessionmaker[A
 
 
 # only where the port declares update
-async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_update_writes_updated_at(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     foo = _foo()
     await repository.create(foo)
-    async with sf() as session:
+    async with session_factory() as session:
         await session.execute(update(foos_table).where(foos_table.c.id == foo.id).values(updated_at=_PLANTED))
         await session.commit()
     foo.name = "beta"
 
     await repository.update(foo)
 
-    async with sf() as session:
+    async with session_factory() as session:
         written: dt.datetime = (
             await session.execute(select(foos_table.c.updated_at).where(foos_table.c.id == foo.id))
         ).scalar_one()
@@ -218,8 +218,8 @@ async def test_update_writes_updated_at(sf: async_sessionmaker[AsyncSession]) ->
 
 
 # only where the port declares a lookup by a natural key
-async def test_get_by_name_returns_match(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_get_by_name_returns_match(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     await repository.create(_foo(name="alpha"))
 
     loaded = await repository.get_by_name("alpha")
@@ -229,16 +229,16 @@ async def test_get_by_name_returns_match(sf: async_sessionmaker[AsyncSession]) -
 
 # only where the port declares a lookup by a natural key
 async def test_get_by_name_returns_none_when_absent(
-    sf: async_sessionmaker[AsyncSession],
+    session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    repository = FooRepository(session_factory=sf)
+    repository = FooRepository(session_factory=session_factory)
 
     assert await repository.get_by_name("alpha") is None
 
 
 # only where the port declares a paged, sorted list
-async def test_list_respects_pagination_and_sort(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_list_respects_pagination_and_sort(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     await repository.create(_foo(name="c"))
     await repository.create(_foo(name="a"))
     await repository.create(_foo(name="b"))
@@ -248,8 +248,8 @@ async def test_list_respects_pagination_and_sort(sf: async_sessionmaker[AsyncSes
 
 
 # only where the port declares a paged, sorted list
-async def test_count_applies_the_filter(sf: async_sessionmaker[AsyncSession]) -> None:
-    repository = FooRepository(session_factory=sf)
+async def test_count_applies_the_filter(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    repository = FooRepository(session_factory=session_factory)
     await repository.create(_foo(name="a"))
     await repository.create(_foo(name="b"))
 
@@ -440,7 +440,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 
 ### Relational
 
-2. **Every test takes the rollback-scoped handle the integration setup provides — `sf` under this binding (`hex-test-integration-setup`) — and opens nothing of its own** (`test-principles` reliability rule 6). The one exception is a handle to a store nothing listens on, which writes nothing (rule 4's forced error).
+2. **Every test takes the rollback-scoped handle the integration setup provides — `session_factory` under this binding (`hex-test-integration-setup`) — and opens nothing of its own** (`test-principles` reliability rule 6). The one exception is a handle to a store nothing listens on, which writes nothing (rule 4's forced error).
 3. Follow `test-principles` for the `_<aggregate>()` builder form. Defaults must be valid; no-override construction succeeds.
 4. Every conflict pins its constraint's name on the translated exception → `test-principles`, *Datastore contract* rule 2; here `assert exc.value.context["constraint"] == "<constraint_name>"` on the `ConflictError` subclass the translator raises for it (`FooConflictError` for `uq_foos_name`). A forced driver error on a write and a read → *Datastore contract* rule 4.
 5. Insert and update paths for every unique field → `test-principles`, *Datastore contract* rule 3.
@@ -450,12 +450,12 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 9. Seed data on the table under test goes through the repository's own `create`, never a raw INSERT, and a row `Foo` only references is seeded raw → `test-principles`, *Datastore contract* rule 5; the ban binds only a test of the repository under test.
 10. **No web framework, no HTTP client, no DI container in this file.** The test imports the repository class, takes the session factory, calls methods and asserts. Reaching the adapter through a route tests the route as well, and a failure no longer says which of the two is broken; the HTTP surface is `hex-test-restapi-endpoint`'s.
 11. **A test that moves the schema takes the migration runner (`run_alembic`, `hex-test-integration-setup`), never the fixture that assumes head**, and lives in its own flat file (`tests/integration/postgres/test_<NNNN>_migration.py`); a downgrade underneath an ordinary repository test takes the rest of its file with it. The round trip `persistence` rule 20 requires is one of those files, always present.
-12. **Where the store has a unit of work, its implementation gets one test over `sf`**: an exception inside the block leaves nothing from any member, read back through a fresh session; the session-injected form is tested through the unit of work, never with a hand-opened session.
+12. **Where the store has a unit of work, its implementation gets one test over `session_factory`**: an exception inside the block leaves nothing from any member, read back through a fresh session; the session-injected form is tested through the unit of work, never with a hand-opened session.
 
 ### Client-style store
 
 13. Each test runs against the real store, never a fake or a mock → `test-principles`, *Datastore contract* rule 1; as in the relational half, the file holds no web framework, HTTP client or DI container (rule 10).
-14. **Isolate by a per-test namespace, not rollback** (`test-principles` reliability rule 2) — the suite's own container emptied after each test (`redis_client`'s teardown) where the adapter fixes its namespace in code. There is no transaction to roll back, so no `sf` here.
+14. **Isolate by a per-test namespace, not rollback** (`test-principles` reliability rule 2) — the suite's own container emptied after each test (`redis_client`'s teardown) where the adapter fixes its namespace in code. There is no transaction to roll back, so no `session_factory` here.
 15. **The container is session-scoped; the namespace is function-scoped** — `test-principles`, *Fixture scope rules*. A store the environment supplies instead is opted into as `test-principles` reliability rules 1 and 6 state.
 16. **Assert the entity↔record mapping round-trips.** What was written comes back as the same entity — every field the record carries, compared field by field, since entity equality is by id. A compound return asserts every element it carries, not just the entity.
 17. A forced store failure is asserted on the catalogue's upstream class and the `context` the adapter sets — a write and a read (`test-principles`, *Datastore contract* rule 4) — and an absent record on the not-found class (`exception-catalog`); a store with no constraints has no rule-4 constraint pin.
@@ -464,7 +464,7 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 ## Inlined typing / import rules
 
 - No `myapp.application.*`, no `myapp.restapi.*`.
-- Full annotations on every test signature including `sf: async_sessionmaker[AsyncSession]`.
+- Full annotations on every test signature including `session_factory: async_sessionmaker[AsyncSession]`.
 - Builder `_<aggregate>()` returns the entity type; overrides keyword-only.
 - No `from __future__ import annotations`.
 
@@ -474,6 +474,6 @@ annotated with its own type — never a bare tuple (`python-style`) — and a yi
 
 ## Hard stops
 
-- A relational test and nothing up-tree provides a session handle whose writes are discarded when the test ends (`sf` under this catalogue's binding), or a client-store test and nothing up-tree provides the store client emptied per test → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
+- A relational test and nothing up-tree provides a session handle whose writes are discarded when the test ends (`session_factory` under this catalogue's binding), or a client-store test and nothing up-tree provides the store client emptied per test → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
 - A test references FastAPI, `httpx` or the DI container → stop, use `hex-test-restapi-endpoint`.
 - Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.

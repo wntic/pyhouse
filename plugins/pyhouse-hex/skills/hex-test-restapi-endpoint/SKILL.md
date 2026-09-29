@@ -71,7 +71,7 @@ never a fixed download shape.
 
 ### Per-resource `conftest.py` — relational seed factory, SQLAlchemy
 
-A raw `INSERT` is legitimate setup here: `hex-test-repository-contract` rule 9 bans it only in a test of the repository under test, where seeding behind the subject would prove nothing. An endpoint test's subject is the route, so the fastest honest way to put a row in front of it is to write one. The `make_foo` factory below seeds via a raw SQL `INSERT` through `sf` — that is the **relational-store** variant, valid when the resource is backed by a relational store. A resource backed by a client-style store (redis / a document store / …) has no `sf` and no SQL table: seed it either by **POSTing through the API** (drive the create endpoint, then test against the result) or via the **store's own client** in the fixture. Pick the path from the resource's datastore kind; don't reach for `INSERT INTO` when there is no SQL table.
+A raw `INSERT` is legitimate setup here: `hex-test-repository-contract` rule 9 bans it only in a test of the repository under test, where seeding behind the subject would prove nothing. An endpoint test's subject is the route, so the fastest honest way to put a row in front of it is to write one. The `make_foo` factory below seeds via a raw SQL `INSERT` through `session_factory` — that is the **relational-store** variant, valid when the resource is backed by a relational store. A resource backed by a client-style store (redis / a document store / …) has no `session_factory` and no SQL table: seed it either by **POSTing through the API** (drive the create endpoint, then test against the result) or via the **store's own client** in the fixture. Pick the path from the resource's datastore kind; don't reach for `INSERT INTO` when there is no SQL table.
 
 ```python
 import uuid
@@ -83,10 +83,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture
-def make_foo(sf: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
+def make_foo(session_factory: async_sessionmaker[AsyncSession]) -> Callable[..., Awaitable[uuid.UUID]]:
     async def _make(*, name: str | None = None) -> uuid.UUID:
         fid = uuid.uuid4()
-        async with sf() as session:
+        async with session_factory() as session:
             await session.execute(
                 text("INSERT INTO foos(id, name) VALUES(:id, :name)"),
                 {"id": str(fid), "name": name or f"foo-{fid}"},

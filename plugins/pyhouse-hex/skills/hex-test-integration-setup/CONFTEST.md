@@ -107,7 +107,7 @@ async def _outer_connection(_engine: AsyncEngine) -> AsyncIterator[AsyncConnecti
 
 
 @pytest.fixture
-def sf(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
+def session_factory(_outer_connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
     """The one sanctioned session factory; every session joins the test's outer transaction."""
     return async_sessionmaker(
         bind=_outer_connection,
@@ -125,11 +125,11 @@ class TestInfraProvider(Provider):
     def __init__(
         self,
         db_settings: DbSettings,
-        sf: async_sessionmaker[AsyncSession],
+        session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         super().__init__()
         self._db_settings = db_settings
-        self._sf = sf
+        self._session_factory = session_factory
 
     @provide(override=True)
     def db_settings(self) -> DbSettings:
@@ -137,19 +137,19 @@ class TestInfraProvider(Provider):
 
     @provide(override=True)
     def session_factory(self) -> async_sessionmaker[AsyncSession]:
-        return self._sf
+        return self._session_factory
 
 
 @pytest.fixture
 async def container(
-    sf: async_sessionmaker[AsyncSession],
+    session_factory: async_sessionmaker[AsyncSession],
     db_settings: DbSettings,
 ) -> AsyncIterator[AsyncContainer]:
     """The real composition root with the per-test infrastructure bindings in place."""
     from myapp.containers import create_container
 
     container = create_container(
-        TestInfraProvider(db_settings=db_settings, sf=sf),
+        TestInfraProvider(db_settings=db_settings, session_factory=session_factory),
     )
     try:
         yield container
@@ -257,6 +257,6 @@ The runner's configuration belongs in the root `pyproject.toml` — `python-tool
 
 ## How this binding spells them — SQLAlchemy savepoints, dishka
 
-1. **`sf` binds the per-test outer connection with `join_transaction_mode="create_savepoint"`, and neither is negotiable.** Bound to the engine instead, it bypasses the rollback and every row a test commits survives into the next; without the savepoint mode, the handler's `session.commit()` either commits to disk (defeating rollback) or raises `InvalidRequestError`. With both, commit() releases a SAVEPOINT inside the outer transaction — exactly what the test needs. Rollback alone isolates; a truncate teardown beside it is the fallback for stores without nested transactions and only slows the suite.
+1. **`session_factory` binds the per-test outer connection with `join_transaction_mode="create_savepoint"`, and neither is negotiable.** Bound to the engine instead, it bypasses the rollback and every row a test commits survives into the next; without the savepoint mode, the handler's `session.commit()` either commits to disk (defeating rollback) or raises `InvalidRequestError`. With both, commit() releases a SAVEPOINT inside the outer transaction — exactly what the test needs. Rollback alone isolates; a truncate teardown beside it is the fallback for stores without nested transactions and only slows the suite.
 2. **`expire_on_commit=False`** keeps loaded entities usable after a savepoint release. With `True`, every commit detaches attributes; tests asserting on returned entities then trigger lazy loads against a closed session.
-3. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._sf` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.
+3. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._session_factory` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.
