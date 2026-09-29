@@ -73,30 +73,34 @@ fetched: no framework import, every dependency a parameter, the module named for
 ```python
 from datetime import UTC, datetime
 
-from myapp.foo_api import FooClient
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooPayload, FooReference, RunResult
+from myapp.qux import QuxClient
+from myapp.schemas import Foo, FooExternalId, FooPayload, FooSyncResult
 
-__all__ = ["run_once", "to_foo"]
-
-
-def to_foo(payload: FooPayload, observed_at: datetime) -> Foo:
-    return Foo(reference=FooReference(payload.ref), name=payload.name, observed_at=observed_at)
+__all__ = ["build_foo", "sync_foos"]
 
 
-async def run_once(client: FooClient, repository: FooRepository) -> RunResult:
+def build_foo(payload: FooPayload, as_of: datetime) -> Foo:
+    return Foo(external_id=FooExternalId(payload.id), name=payload.name, as_of=as_of)
+
+
+async def sync_foos(client: QuxClient, repository: FooRepository) -> FooSyncResult:
     payloads = await client.fetch_foos()
-    observed_at = datetime.now(UTC)
+    fetched_at = datetime.now(UTC)
     for payload in payloads:
-        await repository.record(to_foo(payload, observed_at))
-    return RunResult(recorded=len(payloads))
+        await repository.upsert(build_foo(payload, fetched_at))
+    return FooSyncResult(fetched_count=len(payloads))
 ```
 
-`to_foo` is the mapping as one pure step, so a test covers it without a datastore; a filter the run
+`build_foo` is the mapping as one pure step, so a test covers it without a datastore; a filter the run
 needs belongs in the same pure step. The body writes what one call returns, a record at a time: each
 record commits on its own, and a rerun completes a partial run because the write is idempotent by its
 key. A batched write is earned by the volume, not assumed (`persistence` rule 21), and a source whose
 size the service does not control is read in bounded slices instead (rule 10).
+
+Where the source stamps its records, that stamp is `as_of` — an `updated_at` is mapped inside
+`build_foo`, and the run's clock goes. The fetch instant is the stamp only for a source that stamps
+nothing (`persistence` rule 16).
 
 **The work opens no transaction.** The repository class owns its own (`persistence` rule 1); a
 body that opens a connection has moved data access out of the one package allowed it.
@@ -113,18 +117,20 @@ import asyncio
 
 import httpx  # only with an upstream
 
-from myapp.foo_api import FooApiSettings, FooClient  # only with an upstream
-from myapp.foo_sync import run_once
+from myapp.foo_sync import sync_foos
 from myapp.logging import configure_logging
-from myapp.postgres import FooRepository, PostgresSettings, get_engine  # only with a store
+from myapp.postgres import FooRepository, PostgresSettings, create_engine  # only with a store
+from myapp.qux import QuxClient, QuxSettings  # only with an upstream
 
 
 async def _run() -> None:
-    api = FooApiSettings()  # only with an upstream, as is the block below; without one the run moves out of it
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store (so are try/finally, repository)
+    qux_settings = QuxSettings()  # only with an upstream, as is the block below; without one the run moves out of it
+    # only with a store (so are try/finally, repository)
+    engine = create_engine(PostgresSettings().dsn.get_secret_value())
     try:
-        async with httpx.AsyncClient(base_url=api.url, timeout=api.timeout_seconds) as http:  # only with an upstream
-            await run_once(FooClient(http), FooRepository(engine))
+        # only with an upstream
+        async with httpx.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:
+            await sync_foos(QuxClient(http), FooRepository(engine))
     finally:
         await engine.dispose()
 
@@ -161,22 +167,22 @@ what it needs as parameters, so a test calls it without driving the loop; `log` 
 (`python-logging`):
 
 ```python
-async def sync_foos(client: FooClient, repository: FooRepository) -> None:
+async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> None:
     try:
-        await run_once(client, repository)
+        await sync_foos(client, repository)
     except Exception:
         log.exception("foo_sync_failed")
 ```
 
 A loop sleeps between runs on an interval read from the process's settings — a required field with no
-default (rule 16). These lines replace the `await run_once(...)` line in `_run`, after
+default (rule 16). These lines replace the `await sync_foos(...)` line in `_run`, after
 `settings = Settings()`, the process's `Settings` declaring `poll_interval_seconds: float` with no
 default:
 
 ```python
-client, repository = FooClient(http), FooRepository(engine)
+client, repository = QuxClient(http), FooRepository(engine)
 while True:
-    await sync_foos(client, repository)
+    await sync_foos_contained(client, repository)
     await asyncio.sleep(settings.poll_interval_seconds)
 ```
 
@@ -269,9 +275,9 @@ for rule 9.
    loop the next run is the retry and the interval its backoff; under any trigger that offers a retry
    policy it is declared at the call site. Work that sleeps and counts its own attempts has two retry
    policies and the outer one no longer bounds it.
-5. **Return aggregates, not lists of items.** The work returns frozen dataclasses of counters or
-   timestamps, so what a trigger reports, logs or stores stays bounded; the items themselves live in the
-   datastore; a trigger's report is not a data bus. A read served over HTTP is the one exception by
+5. **Return aggregates, not lists of items.** Where the work has something to report, it returns frozen
+   dataclasses of counters or timestamps, so what a trigger reports, logs or stores stays bounded; the
+   items themselves live in the datastore; a trigger's report is not a data bus. A read served over HTTP is the one exception by
    construction — it returns the single record it was asked for, never the items a run processed.
 6. **The routing name a run is addressed to has exactly one source, and every participant reads it from
    that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is

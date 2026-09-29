@@ -48,25 +48,25 @@ import httpx
 import pytest
 import respx
 
-from myapp.foo_api import FooClient
+from myapp.qux import QuxClient
 
-_FOO_API_URL = "https://foo.test"
+_QUX_URL = "https://qux.test"
 _TIMEOUT_SECONDS = 1.0
 
 
 @pytest.fixture
-def foo_api() -> Iterator[respx.MockRouter]:
-    with respx.mock(base_url=_FOO_API_URL, assert_all_called=False) as router:
+def qux_stub() -> Iterator[respx.MockRouter]:
+    with respx.mock(base_url=_QUX_URL, assert_all_called=False) as router:
         yield router
 
 
 @pytest.fixture
-async def foo_client(foo_api: respx.MockRouter) -> AsyncIterator[FooClient]:
-    async with httpx.AsyncClient(base_url=_FOO_API_URL, timeout=_TIMEOUT_SECONDS) as http:
-        yield FooClient(http)
+async def qux_client(qux_stub: respx.MockRouter) -> AsyncIterator[QuxClient]:
+    async with httpx.AsyncClient(base_url=_QUX_URL, timeout=_TIMEOUT_SECONDS) as http:
+        yield QuxClient(http)
 ```
 
-`tests/unit/test_foo_client.py`:
+`tests/unit/test_qux_client.py`:
 
 ```python
 import httpx
@@ -74,39 +74,39 @@ import pydantic
 import pytest
 import respx
 
-from myapp.exceptions import FooClientError
-from myapp.foo_api import FooClient
+from myapp.exceptions import QuxRequestFailedError
+from myapp.qux import QuxClient
 from myapp.schemas import FooPayload
 
 
-async def test_fetch_foos_returns_the_parsed_payloads(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    route = foo_api.get("/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"ref": "f1", "name": "alpha"}]})
+async def test_fetch_foos_returns_the_parsed_payloads(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
+    route = qux_stub.get("/foos").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "f1", "name": "alpha"}]})
     )
 
-    result = await foo_client.fetch_foos()
+    result = await qux_client.fetch_foos()
 
     assert route.called
-    assert result == (FooPayload(ref="f1", name="alpha"),)
+    assert result == (FooPayload(id="f1", name="alpha"),)
 
 
 @pytest.mark.parametrize("status", [400, 404, 500, 503])
-async def test_non_2xx_becomes_a_foo_client_error(
-    foo_api: respx.MockRouter, foo_client: FooClient, status: int
+async def test_non_2xx_becomes_a_qux_request_failed_error(
+    qux_stub: respx.MockRouter, qux_client: QuxClient, status: int
 ) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(status))
+    qux_stub.get("/foos").mock(return_value=httpx.Response(status))
 
-    with pytest.raises(FooClientError) as exc_info:
-        await foo_client.fetch_foos()
+    with pytest.raises(QuxRequestFailedError) as exc_info:
+        await qux_client.fetch_foos()
 
     assert isinstance(exc_info.value.__cause__, httpx.HTTPStatusError)
 
 
-async def test_a_timeout_becomes_a_foo_client_error(foo_api: respx.MockRouter, foo_client: FooClient) -> None:
-    foo_api.get("/foos").mock(side_effect=httpx.ConnectTimeout("timed out"))
+async def test_a_timeout_becomes_a_qux_request_failed_error(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
+    qux_stub.get("/foos").mock(side_effect=httpx.ConnectTimeout("timed out"))
 
-    with pytest.raises(FooClientError) as exc_info:
-        await foo_client.fetch_foos()
+    with pytest.raises(QuxRequestFailedError) as exc_info:
+        await qux_client.fetch_foos()
 
     assert isinstance(exc_info.value.__cause__, httpx.TimeoutException)
 
@@ -116,13 +116,13 @@ async def test_a_timeout_becomes_a_foo_client_error(foo_api: respx.MockRouter, f
     [b"<html>not json</html>", b'{"items": [{"name": "alpha"}]}'],
     ids=["not-json", "missing-field"],
 )
-async def test_a_200_with_a_malformed_body_becomes_a_foo_client_error(
-    foo_api: respx.MockRouter, foo_client: FooClient, body: bytes
+async def test_a_200_with_a_malformed_body_becomes_a_qux_request_failed_error(
+    qux_stub: respx.MockRouter, qux_client: QuxClient, body: bytes
 ) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(200, content=body))
+    qux_stub.get("/foos").mock(return_value=httpx.Response(200, content=body))
 
-    with pytest.raises(FooClientError) as exc_info:
-        await foo_client.fetch_foos()
+    with pytest.raises(QuxRequestFailedError) as exc_info:
+        await qux_client.fetch_foos()
 
     assert isinstance(exc_info.value.__cause__, pydantic.ValidationError)
 ```
@@ -169,7 +169,7 @@ A caller's test makes this client fail at its transport (`flat-test-run-function
 
 1. **The transport is stubbed, never the client** (`test-principles`, the substitution ladder, rung 2),
    and no `Protocol` is extracted for it (`flat-layered` rule 3). A test that patches
-   `FooClient.fetch_foos` is testing nothing; the parsing and translation under test live inside it.
+   `QuxClient.fetch_foos` is testing nothing; the parsing and translation under test live inside it.
 2. **Assert the translation, not just the type** — `test-principles`, *Assert strength* recipe 6: the
    catalogue class, its `context` keys where the call takes an input (`exception-catalog` rule 11), and
    the translated failure as its cause, never the message.

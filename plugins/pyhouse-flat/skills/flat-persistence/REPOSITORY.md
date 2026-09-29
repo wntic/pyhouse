@@ -15,7 +15,8 @@ this class's declared half of `persistence` rule 1, and it builds the statements
 
 ```python
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import DBAPIError, TimeoutError as PoolTimeoutError
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from myapp.exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
@@ -33,14 +34,16 @@ class FooRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
-    async def record(self, foo: Foo) -> None:
-        statement = insert(foo_table).values(reference=foo.reference, name=foo.name, observed_at=foo.observed_at)
+    async def upsert(self, foo: Foo) -> None:
+        statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, as_of=foo.as_of)
         try:
             async with self._engine.begin() as conn:
                 await conn.execute(
                     statement.on_conflict_do_update(
-                        index_elements=[foo_table.c.reference],
-                        set_={"name": statement.excluded.name, "observed_at": statement.excluded.observed_at},
+                        index_elements=[foo_table.c.external_id],
+                        set_={"name": statement.excluded.name, "as_of": statement.excluded.as_of},
+                        # only where writes for one key can arrive out of order
+                        where=foo_table.c.as_of < statement.excluded.as_of,
                     )
                 )
         except _DRIVER_ERRORS as exc:
@@ -68,16 +71,15 @@ test can point it at a container without touching the environment.
 The conflict clause is derived from the statement's own `excluded` row, so the update set names the
 incoming values of the row that conflicted (`persistence` rule 15). The set is declared here, per
 write, and never holds the key matched on; a write with nothing to update on conflict says
-`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. Where
-writes for one reference can arrive out of order, the conflict clause is guarded on the stamp —
-`where=foo_table.c.observed_at < statement.excluded.observed_at` (`persistence` rule 16).
+`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. The
+marked `where=` is `persistence` rule 16's guard on the stamp.
 
-`record` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
-own conflict clause, never by asking whether its reference exists before writing.
+`upsert` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
+own conflict clause, never by asking whether its external id exists before writing.
 
 **A method that takes a batch** is written to `persistence` rule 21 against asyncpg's cap of 32,767
 bind parameters per statement, divided by `len(foo_table.columns)` — the table's width, since the
-client-side key default binds a value per row too — and collapses inputs sharing a reference before
+client-side key default binds a value per row too — and collapses inputs sharing an external id before
 each statement (`persistence` rule 17), because Postgres refuses an `ON CONFLICT DO UPDATE` that touches one row twice
 (SQLSTATE `21000`) and the translator would report that as the store being unavailable.
 
@@ -112,5 +114,5 @@ the caller catches, with the offending field and that name in its `context` (`pe
 SQLSTATE classes and the final two returns move into `errors.py`, exposing a public translator each
 class calls after checking its own constraints.
 
-Where the class reads, every read maps its rows through one **pure function** (`_to_foo`,
+Where the class reads, every read maps its rows through one **pure function** (`_row_to_foo`,
 `persistence` rule 8), so one unit test pins it and nothing above this package sees a column name.

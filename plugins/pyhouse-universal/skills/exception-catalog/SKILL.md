@@ -163,10 +163,10 @@ matches, the boundary **still raises a catalogue class** — the generic upstrea
 by what the failure is rather than by what was matched:
 
 ```python
-except FooSdkError as exc:
+except QuxSdkError as exc:
     if exc.status == 404:
         raise NotFoundError("foo not found", {"foo_id": str(foo_id)}) from exc
-    raise UpstreamError("foo service failed", {"foo_id": str(foo_id), "status": exc.status}) from exc
+    raise UpstreamError("qux service failed", {"foo_id": str(foo_id), "status": exc.status}) from exc
 ```
 
 Never return the raw exception, never re-raise it unchanged, and never swallow it with `pass` or a bare

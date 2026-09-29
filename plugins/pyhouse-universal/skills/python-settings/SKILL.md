@@ -34,21 +34,23 @@ handed it.
 The settings module of the component it configures — one component, one class:
 
 ```python
+# only where the system takes a credential
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["FooSettings"]
+__all__ = ["QuxSettings"]
 
 
-class FooSettings(BaseSettings):
+class QuxSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="MYAPP_FOO_",
+        env_prefix="MYAPP_QUX_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
         hide_input_in_errors=True,
     )
 
     url: str
+    # only where the system takes a credential
     api_key: SecretStr
     timeout_seconds: float
 ```
@@ -60,7 +62,7 @@ build from printing the values it was given, a secret among them (rule 7). `url`
 required and have no default (rules 4 and 8); `timeout_seconds` is a tunable and has none either (rule 5). `SecretStr` is
 this binding's secret type and `.get_secret_value()` its unwrap (rules 7 and 9); a derived value is a
 `@property` on the class (rule 10), a validator a `@field_validator` (rule 12). The module builds
-nothing: the composition root calls the class — `settings = FooSettings()` inside `main()`, or in the
+nothing: the composition root calls the class — `settings = QuxSettings()` inside `main()`, or in the
 container's provider method — and a missing required variable fails there (rule 13).
 
 ## Other bindings

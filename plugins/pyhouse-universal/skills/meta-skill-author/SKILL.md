@@ -276,9 +276,8 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
    constants, version floors and comments alike — so a comment in a template is one that is true in the
    reader's file; the API a version floor relies on qualifies, because it stays true there. Why the
    template itself looks this way (why this example, why a driver raises what it raises) goes in prose
-   or `## Rules`, never in a `#` line. Use the placeholders the sibling `CONVENTIONS.md`
-   defines — `Foo`, `Bar`, `myapp`, `myschema`, `myrepo`, `myframework` — and read that file for the
-   full set rather than guessing at it.
+   or `## Rules`, never in a `#` line. Use the placeholders rule 8 names, and read the sibling
+   `CONVENTIONS.md` for the full set rather than guessing at it.
 5. **One artifact kind per skill, or one set that always arrives together.** Two unrelated artifact
    types means two skills. Producing 2–3 tightly-coupled files (command + handler; protocol + adapter)
    is fine, and so is one skill covering several artifacts a single change always adds at once.
@@ -292,7 +291,8 @@ placeholder's work. **The fix for a hedge is a placeholder or a deletion, never 
    better wording moving into the rule first. Every plausible wrong-skill case is one, with a
    redirect. A hard stop keeps its *reason*; softening "X → stop, use `Y`" into advice deletes the
    rule.
-8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `myapp` for
+8. **Use placeholder vocabulary.** `Foo` for the primary aggregate, `Bar` for the secondary, `Baz` for a
+   third held by a different kind of store, `Qux` for an external system the service calls, `myapp` for
    a distribution's own root package, `myschema` for a library several distributions share, `myrepo`
    for the repository root, `myframework` for a framework a rule is about wrapping. Never name a real
    aggregate, role, tenant, bucket or service from the application at hand. The banned vocabulary is

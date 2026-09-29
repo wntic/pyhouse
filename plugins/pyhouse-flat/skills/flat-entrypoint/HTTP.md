@@ -22,9 +22,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from myapp.exceptions import InvalidPayloadError, MyappError
-from myapp.foo_record import record_foo
+from myapp.foo_recording import record_foo
 from myapp.postgres import FooRepository
-from myapp.schemas import FooDelivery, RunResult
+from myapp.schemas import FooChangePayload
 
 __all__ = ["build_app"]
 
@@ -71,9 +71,9 @@ def build_app(repository: FooRepository) -> FastAPI:
         fields = sorted({".".join(map(str, error["loc"])) for error in exc.errors()})
         return _log_and_render(InvalidPayloadError("the request is invalid", {"fields": fields}))
 
-    @app.post("/foos")
-    async def receive_foo(delivery: FooDelivery) -> RunResult:
-        return await record_foo(repository, delivery)
+    @app.post("/foos", status_code=204)
+    async def receive_foo(delivery: FooChangePayload) -> None:
+        await record_foo(repository, delivery)
 
     return app
 ```
@@ -93,27 +93,27 @@ is for a caller the network already trusts.
 
 ## The work the route calls
 
-`src/myapp/foo_record.py` — framework-free, named for its work, writing through the repository's
-single-row `record` (`flat-persistence`, `REPOSITORY.md`). `FooDelivery`, in `schemas/`, is
-`FooPayload` plus the `changed_at: AwareDatetime` the sender assigned to the change, the same on every
-redelivery of it; the work writes that instant, never the clock, so a redelivery writes what the row
-already holds (rule 9):
+`src/myapp/foo_recording.py` — framework-free, named for its work, writing through the repository's
+single-row `upsert` (`flat-persistence`, `REPOSITORY.md`). `FooChangePayload`, in
+`schemas/foo_change_payload.py`, is `FooPayload` plus the `changed_at: AwareDatetime` the sender
+assigned to the change, the same on every redelivery of it; the work writes that instant, never the
+clock, so a redelivery writes what the row already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooDelivery, FooReference, RunResult
+from myapp.schemas import Foo, FooChangePayload, FooExternalId
 
 __all__ = ["record_foo"]
 
 
-async def record_foo(repository: FooRepository, delivery: FooDelivery) -> RunResult:
-    foo = Foo(reference=FooReference(delivery.ref), name=delivery.name, observed_at=delivery.changed_at)
-    await repository.record(foo)
-    return RunResult(recorded=1)
+async def record_foo(repository: FooRepository, delivery: FooChangePayload) -> None:
+    foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, as_of=delivery.changed_at)
+    await repository.upsert(foo)
 ```
 
-Where an older delivery can arrive after a newer one for the same reference, keeping the newer is the
-data-access package's job (`persistence` rules 16 and 17).
+Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the
+data-access package's job — the marked `where=` in `flat-persistence`'s `REPOSITORY.md` (`persistence`
+rules 16 and 17).
 
 ## The process definition — uvicorn
 
@@ -127,14 +127,14 @@ import asyncio
 import uvicorn
 
 from myapp.logging import configure_logging
-from myapp.postgres import FooRepository, PostgresSettings, get_engine
+from myapp.postgres import FooRepository, PostgresSettings, create_engine
 from myapp.settings import Settings
 from myapp.web import build_app
 
 
 async def _serve() -> None:
     settings = Settings()
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())
+    engine = create_engine(PostgresSettings().dsn.get_secret_value())
     try:
         app = build_app(FooRepository(engine))
         config = uvicorn.Config(app, host=settings.http_host, port=settings.http_port, log_config=None)

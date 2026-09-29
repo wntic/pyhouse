@@ -28,7 +28,7 @@ earned).
   transactions, so it takes the whole-schema wipe.
 - Writing the work, its containment or the trigger, rather than testing it →
   `flat-entrypoint`.
-- The pure mapping step the body calls (`to_foo`) → a unit test with no fixtures; it does not belong
+- The pure mapping step the body calls (`build_foo`) → a unit test with no fixtures; it does not belong
   here.
 - The static check that a schedule's routing name matches one a process actually serves →
   `test-architecture-rule`, pinning `flat-entrypoint` rule 6.
@@ -37,8 +37,8 @@ earned).
 
 ## Template — the work end to end (pytest, `respx` over `httpx`, real Postgres)
 
-`tests/integration/test_foo_sync.py` — the upstream stub `foo_api` and the client over it,
-`foo_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
+`tests/integration/test_foo_sync.py` — the upstream stub `qux_stub` and the client over it,
+`qux_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
 its trigger's input — a delivery, a message — is called with a built input and takes neither fixture:
 
 ```python
@@ -47,56 +47,56 @@ import respx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.foo_api import FooClient
-from myapp.foo_sync import run_once
+from myapp.foo_sync import sync_foos
 from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
-from myapp.schemas import RunResult
+from myapp.qux import QuxClient
+from myapp.schemas import FooSyncResult
 
-_TWO_FOOS = {"items": [{"ref": "alpha", "name": "a"}, {"ref": "beta", "name": "b"}]}
+_TWO_FOOS = {"items": [{"id": "alpha", "name": "a"}, {"id": "beta", "name": "b"}]}
 
 
 async def test_a_run_records_what_it_fetched(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    await run_once(foo_client, FooRepository(engine))
+    await sync_foos(qux_client, FooRepository(engine))
 
-    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await conn.execute(query)).all()
     assert route.called
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine, conn: AsyncConnection
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, conn: AsyncConnection
 ) -> None:
-    foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
-    await run_once(foo_client, FooRepository(engine))
+    qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    await sync_foos(qux_client, FooRepository(engine))
 
-    await run_once(foo_client, FooRepository(engine))
+    await sync_foos(qux_client, FooRepository(engine))
 
-    query = select(foo_table.c.reference, foo_table.c.name).order_by(foo_table.c.reference)
+    query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await conn.execute(query)).all()
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
-async def test_a_run_reports_what_it_recorded(
-    foo_api: respx.MockRouter, foo_client: FooClient, engine: AsyncEngine
+async def test_a_run_reports_what_it_fetched(
+    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine
 ) -> None:
-    route = foo_api.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
 
-    result = await run_once(foo_client, FooRepository(engine))
+    result = await sync_foos(qux_client, FooRepository(engine))
 
     assert route.called
-    assert result == RunResult(recorded=2)
+    assert result == FooSyncResult(fetched_count=2)
 ```
 
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
 mostly repeats has "the second run over the same batch adds no row" as its central behaviour, and it
 is the one a wrong conflict-column list breaks. It compares the values the input determines, not a
-count, so a second run that rewrites one fails too. A run's own observation instant is not among them —
+count, so a second run that rewrites one fails too. A run's own fetch instant is not among them —
 each run stamps a new one — but a stamp the input carries, a delivery's `changed_at`, is.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
@@ -143,10 +143,10 @@ connections to it.
    with neither, the same requests the first run sent, which is all a run that keeps no state can
    promise. A run whose input is consumed once, or that is by construction never repeated, has nothing
    to pin and the test would assert a coincidence.
-3. **Assert on the run's effect and on the returned aggregate**, never on log lines (`test-principles`).
-   The effect is what the run leaves behind: the rows it wrote; the file it produced, read back from a
-   per-test directory handed to the run as a parameter (`tmp_path` here); or, with neither, the requests
-   its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail. Rows the run
+3. **Assert on the run's effect and on the aggregate it returns, where it returns one**, never on log
+   lines (`test-principles`). The effect is what the run leaves behind: the rows it wrote; the file it
+   produced, read back from a per-test directory handed to the run as a parameter (`tmp_path` here); or,
+   with neither, the requests its stubbed transports recorded. A run that logged `"ok"` and left nothing must fail. Rows the run
    reads, or a record it must meet already stored, are arranged committed before it runs
    (`flat-test-integration-setup`, `conn`). Rows arranged on `conn` are invisible to a run that opens
    its own connection, and a write by the run to the same key waits on their lock until teardown.

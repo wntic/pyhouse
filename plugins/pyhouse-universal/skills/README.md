@@ -4,7 +4,7 @@
 (11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
-Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar` (with `Baz` where an example needs a third aggregate). The directory names
+Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar` (with `Baz` where an example needs a third aggregate, and `Qux` for an external system). The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
 **Adapting to a project**.
 Technology names (`postgres`, `redis`, `jwt`, `s3`) stay concrete, because the
@@ -220,8 +220,9 @@ Three kinds of name appear in these skills, with different rules for adapting ea
 
 **Placeholders — always replace.** `myapp` (a distribution's own root package), `myschema` (a shared
 library several distributions depend on), `myrepo` (the repository root), `myframework` (a framework a
-rule is about wrapping), `foos`/`bars`, and `Foo`/`Bar`. These stand in for whatever the project
-actually calls things, and the environment prefixes `MYAPP_` and `MYSCHEMA_` follow their packages.
+rule is about wrapping), `foos`/`bars`, `Foo`/`Bar`/`Baz` (aggregates) and `Qux` (an external system the
+service calls). These stand in for whatever the project actually calls things, and the environment
+prefixes `MYAPP_`, `MYSCHEMA_` and `MYAPP_QUX_` follow the package or system they name.
 None of them asserts a repository shape — one distribution and no `myschema` is the ordinary case.
 
 **Structural names — keep the style's own.** The hexagonal layer names — `domain/`, `application/`,
