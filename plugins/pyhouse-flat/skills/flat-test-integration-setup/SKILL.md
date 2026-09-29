@@ -146,11 +146,6 @@ all of which reach code that commits. Autouse is also what orders it: pytest set
 the test requests by name and so finalizes it last, after `conn`'s transaction has rolled back and its
 connection returned to the pool — which `TRUNCATE`'s `ACCESS EXCLUSIVE` lock needs (rule 7).
 
-The pytest configuration is `python-toolchain`'s `[tool.pytest.ini_options]` block, in the
-distribution's own `pyproject.toml` — or, where several distributions share one repository, in the
-root `pyproject.toml` that `python-workspace` lays, since pytest reads one configuration per run. Both
-of its loop-scope lines are load-bearing here (rule 8).
-
 No placeholder connection string is set for collection: nothing in the service builds settings or an
 engine at import (`flat-persistence` rule 6), so an unset variable fails only the code that reads it.
 

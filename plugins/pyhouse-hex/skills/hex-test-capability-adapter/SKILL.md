@@ -31,7 +31,7 @@ The test file mirrors the adapter's module (`test-principles`, *Test naming*).
 ### Pick the flavor
 
 - **Containerized backend.** Adapter speaks to a service that runs in a Testcontainer (an object store, a broker, a cache). Drives the real client against the real container; consumes the resource fixtures from the integration conftest. **Lives under `tests/integration/<adapter>/`.**
-- **HTTP gateway with `respx`.** Adapter speaks `httpx` to a third-party HTTP API. Wraps the real `httpx.AsyncClient` with `respx.mock` and asserts the request shape on the way out (rule 13) and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
+- **HTTP gateway with `respx`.** Adapter speaks `httpx` to a third-party HTTP API. Wraps the real `httpx.AsyncClient` with `respx.mock` and asserts the request shape on the way out (`test-principles`, *Intercepting HTTP* rule 5) and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
 - **Pure-CPU.** Adapter does no IO — a parser, a renderer over in-memory bytes, a verifier. Stdlib + the real parsing / crypto library. No fixtures, no containers. **Lives under `tests/unit/infrastructure/<adapter>/`.**
 
 The flavor mirrors the adapter's form in `hex-capability-adapter` — an SDK client, an HTTP gateway (the one it templates) or sync pure CPU. If two flavors are asked for in one file, split — one file per adapter, but `integration/` for a test that needs a running backend and `unit/` for everything else means a containerized adapter and a gateway or CPU adapter live in different roots regardless.
@@ -168,7 +168,7 @@ async def test_classify_read_timeout_raises_upstream(client: httpx.AsyncClient) 
 Both halves of parsing are one parametrized test — a `200` whose body is not JSON, and one carrying a
 value the domain type refuses: without the adapter's translation around the parse, the decode error or
 the `ValueError` escapes and the test reds. Where the adapter sends a credential, the happy-path test
-also asserts the header carrying it against the literal test value (rule 13) — the one assertion that reds on a secret sent masked or not at all. Where one class and
+also asserts the header carrying it against the literal test value (`test-principles`, *Intercepting HTTP* rule 5) — the one assertion that reds on a secret sent masked or not at all. Where one class and
 one `context` cover several arms, the test tells them apart by the part of the message each sets
 (`test-principles`, *Assert strength* recipe 6).
 
@@ -222,7 +222,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ### HTTP-gateway flavor specifics
 
-13. **The interception follows `test-principles`, *Intercepting HTTP* rules 1–7**; rule 8 names the two transport cases this flavor needs.
+13. **The interception follows `test-principles`, *Intercepting HTTP* rules 1–7**; this skill's rule 8 names the two transport cases this flavor needs.
 
 ### CPU flavor specifics
 

@@ -21,6 +21,7 @@ One-shot per project, and everything else in the integration suite depends on it
 - The route-side auth dependencies themselves → `hex-restapi-auth`.
 - Per-resource row factories (`make_foo`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.
 - Which scope a fixture takes, which conftest level it belongs at, builders versus fixtures → `test-principles`, the constitution. This skill is the hexagonal artifact that implements it.
+- The runner's configuration block → `python-toolchain`.
 - The same fixtures for a flat-layered service → `flat-test-integration-setup`, in the `pyhouse-flat` plugin. Several hexagonal members of one workspace sharing these fixtures → this skill, under `## Other bindings`.
 - The composition root has no `session_factory` binding, or no way to pass extra providers into it → `hex-wiring` first; the substitution seam is `create_container`'s parameter, not something a test can bolt on.
 - Turning "the sanctioned handle is the only one opened under `tests/integration/`" into a static grep firewall → `test-architecture-rule`, which owns the firewall mechanism. The obligation itself is `test-principles`' (reliability rule 6); no firewall for it ships with the catalogue, so a project that wants it machine-checked writes one.
@@ -97,8 +98,6 @@ Consult `test-principles` for the testing constitution.
   per-test `container`; `real_app` joins them only with a REST entrypoint. A service without one —
   queue-driven, RPC — has a base conftest that ends at `container` and imports no web framework: a
   framework import there fails every collection of a service that does not install it.
-  The contract: every integration test starts with an empty database, and rows the test (and its handler)
-  commit are rolled back at teardown.
 - **The autouse pair is the disposable-database guard and the migration run**, both session-scoped and
   both in the base conftest, for a relational app — the closed autouse set `test-principles` allows.
   Everything else, `sf`, `container` and `real_app` included, is requested by name.
