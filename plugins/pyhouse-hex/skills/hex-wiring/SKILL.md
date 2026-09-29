@@ -134,12 +134,12 @@ and forecloses any future per-request session. **Repositories are per-operation.
 
 Group bindings in dependency order and keep them in that order:
 
-1. **Settings first** — everything else may depend on them.
-2. **Long-lived infrastructure** — engine, session factory, verifiers.
-3. **Cross-cutting helpers** — capability adapters needed by several subdomains.
-4. **Per-subdomain block:** repository → services that use it → handlers that use them.
-5. **Cross-subdomain dependencies come first.** If subdomain A's repository is consumed by subdomain B's
-   handlers, declare it before B's block.
+- **Settings first** — everything else may depend on them.
+- **Long-lived infrastructure** — engine, session factory, verifiers.
+- **Cross-cutting helpers** — capability adapters needed by several subdomains.
+- **Per-subdomain block:** repository → services that use it → handlers that use them.
+- **Cross-subdomain dependencies come first.** If subdomain A's repository is consumed by subdomain B's
+  handlers, declare it before B's block.
 
 Where the mechanism evaluates the composition root top to bottom, this ordering is **load-bearing** — a
 binding may only reference an earlier one. Where the mechanism resolves by type it is the reading order
