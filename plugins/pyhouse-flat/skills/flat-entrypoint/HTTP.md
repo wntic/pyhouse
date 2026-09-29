@@ -126,14 +126,14 @@ import asyncio
 import uvicorn
 
 from myapp.logging import configure_logging
-from myapp.postgres import FooRepository, PostgresSettings, get_engine
+from myapp.postgres import FooRepository, PostgresSettings, create_engine
 from myapp.settings import Settings
 from myapp.web import build_app
 
 
 async def _serve() -> None:
     settings = Settings()
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())
+    engine = create_engine(PostgresSettings().dsn.get_secret_value())
     try:
         app = build_app(FooRepository(engine))
         config = uvicorn.Config(app, host=settings.http_host, port=settings.http_port, log_config=None)

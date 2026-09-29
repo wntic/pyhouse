@@ -77,10 +77,10 @@ from myapp.postgres import FooRepository
 from myapp.qux import QuxClient
 from myapp.schemas import Foo, FooExternalId, FooPayload, FooSyncResult
 
-__all__ = ["sync_foos", "to_foo"]
+__all__ = ["build_foo", "sync_foos"]
 
 
-def to_foo(payload: FooPayload, as_of: datetime) -> Foo:
+def build_foo(payload: FooPayload, as_of: datetime) -> Foo:
     return Foo(external_id=FooExternalId(payload.id), name=payload.name, as_of=as_of)
 
 
@@ -88,11 +88,11 @@ async def sync_foos(client: QuxClient, repository: FooRepository) -> FooSyncResu
     payloads = await client.fetch_foos()
     fetched_at = datetime.now(UTC)
     for payload in payloads:
-        await repository.record(to_foo(payload, fetched_at))
+        await repository.record(build_foo(payload, fetched_at))
     return FooSyncResult(fetched_count=len(payloads))
 ```
 
-`to_foo` is the mapping as one pure step, so a test covers it without a datastore; a filter the run
+`build_foo` is the mapping as one pure step, so a test covers it without a datastore; a filter the run
 needs belongs in the same pure step. The body writes what one call returns, a record at a time: each
 record commits on its own, and a rerun completes a partial run because the write is idempotent by its
 key. A batched write is earned by the volume, not assumed (`persistence` rule 21), and a source whose
@@ -115,13 +115,14 @@ import httpx  # only with an upstream
 
 from myapp.foo_sync import sync_foos
 from myapp.logging import configure_logging
-from myapp.postgres import FooRepository, PostgresSettings, get_engine  # only with a store
+from myapp.postgres import FooRepository, PostgresSettings, create_engine  # only with a store
 from myapp.qux import QuxClient, QuxSettings  # only with an upstream
 
 
 async def _run() -> None:
     qux_settings = QuxSettings()  # only with an upstream, as is the block below; without one the run moves out of it
-    engine = get_engine(PostgresSettings().dsn.get_secret_value())  # only with a store (so are try/finally, repository)
+    # only with a store (so are try/finally, repository)
+    engine = create_engine(PostgresSettings().dsn.get_secret_value())
     try:
         # only with an upstream
         async with httpx.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:

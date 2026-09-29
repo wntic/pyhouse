@@ -28,7 +28,7 @@ earned).
   transactions, so it takes the whole-schema wipe.
 - Writing the work, its containment or the trigger, rather than testing it →
   `flat-entrypoint`.
-- The pure mapping step the body calls (`to_foo`) → a unit test with no fixtures; it does not belong
+- The pure mapping step the body calls (`build_foo`) → a unit test with no fixtures; it does not belong
   here.
 - The static check that a schedule's routing name matches one a process actually serves →
   `test-architecture-rule`, pinning `flat-entrypoint` rule 6.

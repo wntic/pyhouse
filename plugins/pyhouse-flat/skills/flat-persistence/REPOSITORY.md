@@ -112,5 +112,5 @@ the caller catches, with the offending field and that name in its `context` (`pe
 SQLSTATE classes and the final two returns move into `errors.py`, exposing a public translator each
 class calls after checking its own constraints.
 
-Where the class reads, every read maps its rows through one **pure function** (`_to_foo`,
+Where the class reads, every read maps its rows through one **pure function** (`_row_to_foo`,
 `persistence` rule 8), so one unit test pins it and nothing above this package sees a column name.

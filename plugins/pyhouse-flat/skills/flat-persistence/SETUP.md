@@ -85,10 +85,10 @@ rule 8).
 ```python
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-__all__ = ["get_engine"]
+__all__ = ["create_engine"]
 
 
-def get_engine(dsn: str) -> AsyncEngine:
+def create_engine(dsn: str) -> AsyncEngine:
     return create_async_engine(dsn, pool_pre_ping=True)
 ```
 
