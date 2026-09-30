@@ -258,6 +258,8 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 reads. It follows `python-settings`:
 
 ```python
+from urllib.parse import quote
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -269,6 +271,7 @@ class PostgresSettings(BaseSettings):
         env_prefix="MYAPP_POSTGRES_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     host: str
@@ -279,13 +282,14 @@ class PostgresSettings(BaseSettings):
 
     @property
     def dsn(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
-        )
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 ```
 
 `dsn` is the derived value every consumer reads and the one place the password is unwrapped
-(`python-settings` rules 9 and 10); `port` defaults to the driver's well-known port. The class carries no
+(`python-settings` rules 9 and 10), each credential percent-encoded so a password carrying URL
+delimiters still connects; `port` defaults to the driver's well-known port. The class carries no
 pool-sizing field, because a deployment's number never ships as a default: pool-sizing fields are added,
 required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory passes
 `pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
