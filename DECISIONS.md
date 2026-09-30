@@ -2283,3 +2283,23 @@ names (`exc.orig.pgcode`, `op`, `sa`, `cwd=`, JWT claims). `naming` now allows a
 Renames change no obligation, so they are `refactor`, as item 42's were.
 **Reverse by:** from the parent of the commits that added this entry, reverting the rename commits and
 restoring `naming`'s single-letter and Python-style clauses.
+
+### D148 — A store's settings class is named for its technology, and holds its credentials apart
+Taken by the maintainer (backlog items 48 and 49, 2026-10-01), after a four-lens review. The two families
+used two words for one concept: flat's `PostgresSettings` under `MYAPP_POSTGRES_`, hex's `DbSettings` under
+`MYAPP_DB_` — beside hex's own `RedisSettings`. In a real service a second relational store arrived next to
+`DbSettings` and there was no telling which store "Db" was. Hex's class, module, prefix and fixtures become
+`PostgresSettings`, `postgres_settings.py`, `MYAPP_POSTGRES_` and `postgres_settings`, and `naming` says once
+that a store's settings class takes its technology's name, never `DbSettings`, and that two stores on one
+technology each put the store's own name in front. The two classes also had two
+shapes; both now take hex's: one field per credential (`host`, `port`, `user`, `password`, `name`) and a
+derived `dsn`, the one place the password is unwrapped, which percent-encodes each credential (hex's
+did not, and broke on a password carrying a URL delimiter) and hides input in validation errors — flat's single secret `dsn` field and its
+scheme-normalizing validator are gone, and its migration environment and test suite set the five variables.
+A platform that injects one URL is left as backlog item 50.
+Flat's engine factory still takes the string (`flat-layered` rule 6). Separately, `flat-entrypoint`'s loop
+fragment named a `MyappSettings` object nothing built; the fragment now carries its import and its
+construction, and the one-run template stays without them. Renames and a template's reshaping change no
+obligation, so they are `refactor`, as D147's were; the encoding and the loop fragment are `fix`, and the
+naming clause is `feat`.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
