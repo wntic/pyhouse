@@ -182,7 +182,7 @@ stem (`MYSCHEMA_`); a library published for importers the project does not know 
 all — its importer hands it values. Two components sharing one prefix read each other's variables: a field added
 for one silently changes the other's configuration, and neither owner sees it in their own file.
 **A nested prefix collides the same way** once the outer class declares a field beginning with the inner
-segment — `postgres_dsn` under `MYAPP_` and `dsn` under `MYAPP_POSTGRES_` are one variable. Keep the stems
+segment — `postgres_host` under `MYAPP_` and `host` under `MYAPP_POSTGRES_` are one variable. Keep the stems
 disjoint, or treat each inner segment as reserved in the outer class. A deployed prefix is a frozen
 external contract — see **Renaming**.
 
@@ -241,17 +241,19 @@ subject in front of it says which one, so the name passes the six tests. The rol
 | `Error` | an exception class (`exception-catalog`) |
 
 `CreateFooHandler`, `FooPayload`, `ImportResult`, `FooUniquenessService` and `FooRepository` pass as
-written. Two conditions keep the carve-out from swallowing the rule: **the subject is still there** —
-a role suffix alone (`Handler`, `Result`, `Settings`, `Service`) names nothing, so a distribution's own
-settings class takes the distribution's name (`MyappSettings`) — and **the class actually plays that
-role** in this architecture. A `FooResult` that no handler or run returns, a `FooService` that is a
-client, a `FooHandler` that is not a use case's handler is the vague noun it looks like, and the table
-above applies to it. Conversely, `FooStorage`, `FooStore` or `FooDao` on the class that owns a
-record's data access is a second word for the concept `Repository` already names — one concept, one
-word (**Porting names in from another project**). The ban stops there: a class that is not a repository
-but an adapter for one external capability takes the role noun of what that capability does — under
-hexagonal, an adapter implementing a port for storing blobs (`ICanStoreFoos`) is named for the storing —
-its technology token plus `FooStorage` — and owns no record's data access.
+written. Two conditions keep the carve-out from swallowing the rule: **the subject is still there** — a
+role suffix alone (`Handler`, `Result`, `Settings`, `Service`) names nothing, so a distribution's own
+settings class takes the distribution's name (`MyappSettings`), and a store's takes its technology
+(`PostgresSettings`, `RedisSettings`, never `DbSettings`, which names nothing once a second store
+arrives; two stores on one technology each put the store's own name in front, `FooPostgresSettings`)
+— and **the class actually plays that role** in this architecture. A `FooResult` that no handler or run
+returns, a `FooService` that is a client, a `FooHandler` that is not a use case's handler is the vague
+noun it looks like, and the table above applies to it. Conversely, `FooStorage`, `FooStore` or `FooDao` on
+the class that owns a record's data access is a second word for the concept `Repository` already names —
+one concept, one word (**Porting names in from another project**). The ban stops there: a class that is
+not a repository but an adapter for one external capability takes the role noun of what that capability
+does — under hexagonal, an adapter implementing a port for storing blobs (`ICanStoreFoos`) is named for
+the storing — its technology token plus `FooStorage` — and owns no record's data access.
 
 ### Other exceptions
 

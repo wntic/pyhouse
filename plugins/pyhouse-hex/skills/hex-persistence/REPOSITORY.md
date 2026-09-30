@@ -254,21 +254,24 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 ## The store's settings, engine and binding — pydantic-settings, SQLAlchemy, dishka
 
-`src/myapp/infrastructure/postgres/db_settings.py` — the settings class the engine factory below reads. It
-follows `python-settings`:
+`src/myapp/infrastructure/postgres/postgres_settings.py` — the settings class the engine factory below
+reads. It follows `python-settings`:
 
 ```python
+from urllib.parse import quote
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["DbSettings"]
+__all__ = ["PostgresSettings"]
 
 
-class DbSettings(BaseSettings):
+class PostgresSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="MYAPP_DB_",
+        env_prefix="MYAPP_POSTGRES_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     host: str
@@ -279,13 +282,14 @@ class DbSettings(BaseSettings):
 
     @property
     def dsn(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
-        )
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 ```
 
 `dsn` is the derived value every consumer reads and the one place the password is unwrapped
-(`python-settings` rules 9 and 10); `port` defaults to the driver's well-known port. The class carries no
+(`python-settings` rules 9 and 10), each credential percent-encoded so a password carrying URL
+delimiters still connects; `port` defaults to the driver's well-known port. The class carries no
 pool-sizing field, because a deployment's number never ships as a default: pool-sizing fields are added,
 required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory passes
 `pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
@@ -302,12 +306,12 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .db_settings import DbSettings
+from .postgres_settings import PostgresSettings
 
 __all__ = ["create_engine", "create_session_factory"]
 
 
-def create_engine(settings: DbSettings) -> AsyncEngine:
+def create_engine(settings: PostgresSettings) -> AsyncEngine:
     return create_async_engine(settings.dsn, pool_pre_ping=True)
 
 
@@ -332,7 +336,7 @@ from dishka import Provider, Scope, provide
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from myapp.domain.foos import IFooRepository
-from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
+from myapp.infrastructure.postgres import PostgresSettings, create_engine, create_session_factory
 from myapp.infrastructure.postgres.repositories import FooRepository
 
 
@@ -340,15 +344,15 @@ class SettingsProvider(Provider):
     scope = Scope.APP
 
     @provide
-    def db_settings(self) -> DbSettings:
-        return DbSettings()
+    def postgres_settings(self) -> PostgresSettings:
+        return PostgresSettings()
 
 
 class InfrastructureProvider(Provider):
     scope = Scope.APP
 
     @provide
-    async def engine(self, settings: DbSettings) -> AsyncIterator[AsyncEngine]:
+    async def engine(self, settings: PostgresSettings) -> AsyncIterator[AsyncEngine]:
         engine = create_engine(settings=settings)
         yield engine
         await engine.dispose()

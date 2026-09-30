@@ -105,7 +105,7 @@ from alembic import context
 from sqlalchemy import Connection
 
 import myapp.infrastructure.postgres.tables  # noqa: F401
-from myapp.infrastructure.postgres import DbSettings, create_engine
+from myapp.infrastructure.postgres import PostgresSettings, create_engine
 from myapp.infrastructure.postgres.metadata import metadata
 from myapp.logging import configure_logging
 
@@ -119,7 +119,7 @@ def _run(connection: Connection) -> None:
 
 
 async def _run_online() -> None:
-    engine = create_engine(DbSettings())
+    engine = create_engine(PostgresSettings())
     try:
         async with engine.connect() as connection:
             await connection.run_sync(_run)

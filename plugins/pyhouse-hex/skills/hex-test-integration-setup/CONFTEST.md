@@ -24,18 +24,18 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from myapp.infrastructure.postgres import DbSettings, create_engine
+from myapp.infrastructure.postgres import PostgresSettings, create_engine
 
 
 @pytest.fixture(scope="session")
-def db_settings() -> Iterator[DbSettings]:
+def postgres_settings() -> Iterator[PostgresSettings]:
     from testcontainers.community.postgres import PostgresContainer
 
     # An exact, deliberately bumped tag (e.g. `17-alpine`) — never `:latest`.
     with PostgresContainer("postgres:<pinned-tag>") as postgres:
         # Only the fixture that created the database may declare it disposable.
         os.environ["MYAPP_TEST_DISPOSABLE_DB"] = "1"
-        yield DbSettings(
+        yield PostgresSettings(
             host=postgres.get_container_host_ip(),
             port=int(postgres.get_exposed_port(5432)),
             user=postgres.username,
@@ -45,25 +45,25 @@ def db_settings() -> Iterator[DbSettings]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _guard_against_real_db(db_settings: DbSettings) -> None:
+def _guard_against_real_db(postgres_settings: PostgresSettings) -> None:
     """Refuse to run unless whatever provisioned the database declared it disposable."""
     if os.getenv("MYAPP_TEST_DISPOSABLE_DB") != "1":
         raise RuntimeError(
             f"Integration tests refuse to run against "
-            f"{db_settings.host}:{db_settings.port}/{db_settings.name}: "
+            f"{postgres_settings.host}:{postgres_settings.port}/{postgres_settings.name}: "
             "MYAPP_TEST_DISPOSABLE_DB is not set. Set it only where the database "
             "is created for the test run and destroyed with it."
         )
 
 
-def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedProcess[str]:
+def _run_alembic(postgres_settings: PostgresSettings, *args: str) -> subprocess.CompletedProcess[str]:
     environment = {
         **os.environ,
-        "MYAPP_DB_HOST": db_settings.host,
-        "MYAPP_DB_PORT": str(db_settings.port),
-        "MYAPP_DB_USER": db_settings.user,
-        "MYAPP_DB_PASSWORD": db_settings.password.get_secret_value(),
-        "MYAPP_DB_NAME": db_settings.name,
+        "MYAPP_POSTGRES_HOST": postgres_settings.host,
+        "MYAPP_POSTGRES_PORT": str(postgres_settings.port),
+        "MYAPP_POSTGRES_USER": postgres_settings.user,
+        "MYAPP_POSTGRES_PASSWORD": postgres_settings.password.get_secret_value(),
+        "MYAPP_POSTGRES_NAME": postgres_settings.name,
     }
     return subprocess.run(
         [sys.executable, "-m", "alembic", *args],
@@ -74,20 +74,20 @@ def _run_alembic(db_settings: DbSettings, *args: str) -> subprocess.CompletedPro
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _migrated_db(_guard_against_real_db: None, db_settings: DbSettings) -> DbSettings:
-    result = _run_alembic(db_settings, "upgrade", "head")
+def _migrated_db(_guard_against_real_db: None, postgres_settings: PostgresSettings) -> PostgresSettings:
+    result = _run_alembic(postgres_settings, "upgrade", "head")
     assert result.returncode == 0, result.stderr
-    return db_settings
+    return postgres_settings
 
 
 @pytest.fixture(scope="session")
-def run_alembic(_migrated_db: DbSettings) -> Callable[..., subprocess.CompletedProcess[str]]:
+def run_alembic(_migrated_db: PostgresSettings) -> Callable[..., subprocess.CompletedProcess[str]]:
     """The migration runner, for tests that move the schema themselves."""
     return partial(_run_alembic, _migrated_db)
 
 
 @pytest.fixture(scope="session")
-async def _engine(_migrated_db: DbSettings) -> AsyncIterator[AsyncEngine]:
+async def _engine(_migrated_db: PostgresSettings) -> AsyncIterator[AsyncEngine]:
     engine = create_engine(_migrated_db)
     try:
         yield engine
@@ -124,16 +124,16 @@ class TestInfrastructureProvider(Provider):
 
     def __init__(
         self,
-        db_settings: DbSettings,
+        postgres_settings: PostgresSettings,
         session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         super().__init__()
-        self._db_settings = db_settings
+        self._postgres_settings = postgres_settings
         self._session_factory = session_factory
 
     @provide(override=True)
-    def db_settings(self) -> DbSettings:
-        return self._db_settings
+    def postgres_settings(self) -> PostgresSettings:
+        return self._postgres_settings
 
     @provide(override=True)
     def session_factory(self) -> async_sessionmaker[AsyncSession]:
@@ -143,13 +143,13 @@ class TestInfrastructureProvider(Provider):
 @pytest.fixture
 async def container(
     session_factory: async_sessionmaker[AsyncSession],
-    db_settings: DbSettings,
+    postgres_settings: PostgresSettings,
 ) -> AsyncIterator[AsyncContainer]:
     """The real composition root with the per-test infrastructure bindings in place."""
     from myapp.containers import create_container
 
     container = create_container(
-        TestInfrastructureProvider(db_settings=db_settings, session_factory=session_factory),
+        TestInfrastructureProvider(postgres_settings=postgres_settings, session_factory=session_factory),
     )
     try:
         yield container
@@ -259,4 +259,4 @@ The runner's configuration belongs in the root `pyproject.toml` — `python-tool
 
 1. **`session_factory` binds the per-test outer connection with `join_transaction_mode="create_savepoint"`, and neither is negotiable.** Bound to the engine instead, it bypasses the rollback and every row a test commits survives into the next; without the savepoint mode, the handler's `session.commit()` either commits to disk (defeating rollback) or raises `InvalidRequestError`. With both, commit() releases a SAVEPOINT inside the outer transaction — exactly what the test needs. Rollback alone isolates; a truncate teardown beside it is the fallback for stores without nested transactions and only slows the suite.
 2. **`expire_on_commit=False`** keeps loaded entities usable after a savepoint release. With `True`, every commit detaches attributes; tests asserting on returned entities then trigger lazy loads against a closed session.
-3. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._session_factory` — the fixture object is returned as-is, with no wrapper. Same for `db_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.
+3. **A substituting factory returns the plain fixture value.** `def session_factory(self) -> async_sessionmaker[AsyncSession]: return self._session_factory` — the fixture object is returned as-is, with no wrapper. Same for `postgres_settings`, and for each add-on's binding (`redis_client`). The return annotation is what binds it, so it must be the exact type the production factory binds.

@@ -137,7 +137,7 @@ from myapp.web import build_app
 
 async def _serve() -> None:
     settings = MyappSettings()
-    engine = create_engine(PostgresSettings().dsn.get_secret_value())
+    engine = create_engine(PostgresSettings().dsn)
     try:
         app = build_app(FooRepository(engine))
         config = uvicorn.Config(app, host=settings.http_host, port=settings.http_port, log_config=None)

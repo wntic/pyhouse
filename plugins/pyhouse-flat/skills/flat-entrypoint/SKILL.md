@@ -126,7 +126,7 @@ from myapp.qux import QuxClient, QuxSettings  # only with an upstream
 async def _run() -> None:
     qux_settings = QuxSettings()  # only with an upstream, as is the block below; without one the run moves out of it
     # only with a store (so are try/finally, repository)
-    engine = create_engine(PostgresSettings().dsn.get_secret_value())
+    engine = create_engine(PostgresSettings().dsn)
     try:
         # only with an upstream
         async with httpx.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:
@@ -174,12 +174,16 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
         log.exception("foo_sync_failed")
 ```
 
-A loop sleeps between runs on an interval read from the process's settings — a required field with no
-default (rule 16). These lines replace the `await sync_foos(...)` line in `_run`, after
-`settings = MyappSettings()`, the process's `MyappSettings` declaring `poll_interval_seconds: float` with no
-default:
+A loop sleeps between runs on an interval read from the process's settings — `MyappSettings` declaring
+`poll_interval_seconds: float`, a required field with no default (rule 16). Each piece below goes where
+its comment says:
 
 ```python
+from myapp.myapp_settings import MyappSettings  # with the other imports
+
+settings = MyappSettings()  # the first line of _run
+
+# in place of await sync_foos(...)
 client, repository = QuxClient(http), FooRepository(engine)
 while True:
     await sync_foos_contained(client, repository)

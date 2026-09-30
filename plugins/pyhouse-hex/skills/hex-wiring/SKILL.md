@@ -9,8 +9,8 @@ paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi
 Handing objects to whoever needs them, from one composition root. Settings are among those objects:
 what a settings class declares is `python-settings`, and this skill says where, in a hexagonal service,
 it is constructed and bound — at a composition root and nowhere else (`python-settings` rule 13). Each
-settings class is shown beside the adapter that reads it: the relational store's `DbSettings` in
-`hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`, `RedisSettings` in
+settings class is shown beside the adapter that reads it: the relational store's `PostgresSettings`
+in `hex-persistence`, `FooClassifierSettings` in `hex-capability-adapter`, `RedisSettings` in
 `hex-store-repository`, `JwtSettings` in `hex-restapi-auth`. The composition roots of that rule are,
 in this catalogue's layout, `src/myapp/containers.py` (the process's container), `migrations/env.py`
 (the migration environment, `hex-project-setup`) and `TestInfrastructureProvider` with its fixtures in
@@ -174,11 +174,11 @@ adding a binding, find the right section and insert it after the latest declarat
 
 - Settings field typing and imports → `python-settings`.
 
-- **A factory's return annotation is the binding's type**, and it is the whole contract: `-> DbSettings`
-  binds `DbSettings`, `-> AsyncIterator[AsyncEngine]` binds `AsyncEngine` with a teardown. Use
-  `provides=<Protocol>` when the class-attribute form binds an adapter to its port. An unannotated or
-  loosely annotated factory binds the wrong type or fails at container construction, not at the call
-  site.
+- **A factory's return annotation is the binding's type**, and it is the whole contract:
+  `-> PostgresSettings` binds `PostgresSettings`, `-> AsyncIterator[AsyncEngine]` binds `AsyncEngine`
+  with a teardown. Use `provides=<Protocol>` when the class-attribute form binds an adapter to its port.
+  An unannotated or loosely annotated factory binds the wrong type or fails at container construction,
+  not at the call site.
 
 - **Import each class from the package that DIRECTLY re-exports it — one `from .module import *` hop —
   never a grandparent** (`python-packaging`). This bites the nested infrastructure layout: a repository class lives in
