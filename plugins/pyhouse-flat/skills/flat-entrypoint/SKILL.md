@@ -126,7 +126,7 @@ from myapp.qux import QuxClient, QuxSettings  # only with an upstream
 async def _run() -> None:
     qux_settings = QuxSettings()  # only with an upstream, as is the block below; without one the run moves out of it
     # only with a store (so are try/finally, repository)
-    engine = create_engine(PostgresSettings().dsn.get_secret_value())
+    engine = create_engine(PostgresSettings().dsn)
     try:
         # only with an upstream
         async with httpx.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:

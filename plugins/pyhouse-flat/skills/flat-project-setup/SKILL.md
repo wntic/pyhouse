@@ -97,10 +97,9 @@ generated.
 the service's own entrypoints that builds the data-access component's settings. `env.py` is changed so
 that:
 
-- the engine comes from the data-access package's engine factory, given the connection string read
-  through that component's own settings class — the variable it owns (`MYAPP_POSTGRES_DSN`), unwrapped
-  where the engine is built (`flat-layered` rules 6 and 7), in place of the generated engine built from
-  the ini section;
+- the engine comes from the data-access package's engine factory, given the `dsn` that component's own
+  settings class derives (`flat-persistence`; `flat-layered` rules 6 and 7), in place of the generated
+  engine built from the ini section;
 - the engine is disposed however the run ends, not only after a clean one;
 - `target_metadata` is the data-access package's one `MetaData`; left at the generated `None`,
   autogenerate refuses to run;
@@ -174,8 +173,8 @@ through it; a fresh one — the integration suite's — runs it like any revisio
    sanctioned here, and only where block B is laid.
 5. **The migration environment reads the connection string through the data-access component's own
    settings class, and only there among migration files.** It is the migration run's process
-   definition; the migration config names no database, the variable the environment reads is the one
-   the integration suite sets for it, and the engine it builds is disposed however the run ends.
+   definition; the migration config names no database, the variables the environment reads are the
+   ones the integration suite sets for it, and the engine it builds is disposed however the run ends.
 6. **The migration environment sees the whole schema**: its target is the data-access package's one
    metadata, every table module is imported by it, and a new table module adds its import in the same
    change.

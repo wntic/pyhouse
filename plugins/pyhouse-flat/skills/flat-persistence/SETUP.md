@@ -40,7 +40,9 @@ than borrowing a field from the service's class (`flat-layered` rule 7).
 `src/myapp/postgres/postgres_settings.py`:
 
 ```python
-from pydantic import SecretStr, field_validator
+from urllib.parse import quote
+
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["PostgresSettings"]
@@ -51,28 +53,33 @@ class PostgresSettings(BaseSettings):
         env_prefix="MYAPP_POSTGRES_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
-    dsn: SecretStr
+    host: str
+    port: int = 5432
+    user: str
+    password: SecretStr
+    name: str
 
-    @field_validator("dsn")
-    @classmethod
-    def _use_async_driver(cls, dsn: SecretStr) -> SecretStr:
-        scheme, separator, rest = dsn.get_secret_value().partition("://")
-        return SecretStr(f"postgresql+asyncpg{separator}{rest}") if scheme in {"postgres", "postgresql"} else dsn
+    @property
+    def dsn(self) -> str:
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 ```
 
-The variable holds the platform's connection string; the class normalizes its scheme to the async
-driver's (`postgresql+asyncpg://`) in a validator (`python-settings` rule 12), so the deployment never
-spells a driver. The connection string carries the password, so it is secret-typed and unwrapped only where the engine
-is built (`python-settings` rules 7 and 9). `MYAPP_POSTGRES_` nests under the process's `MYAPP_`, so
-`postgres` is a reserved segment there (`naming`); where the package is shared between distributions its
-prefix is the shared package's own, and the `## Other bindings` bullet in `SKILL.md` says what else
-changes. A second store's package declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never
-adds its fields to this one (rule 5). The process definition constructs `PostgresSettings()`, unwraps
-`dsn` and hands the value to the engine factory (`flat-layered` rule 6, and rule 3 in `SKILL.md`); the
-migration environment is the migration run's process definition and does the same
-(`flat-project-setup`).
+Each credential is its own variable and the connection string is derived from them: `dsn` is the one
+value every consumer reads and the one place the password is unwrapped (`python-settings` rules 9 and
+10), so no consumer reassembles the string, and each credential is percent-encoded, so a password
+carrying URL delimiters still connects. `port` defaults to the driver's well-known port.
+`MYAPP_POSTGRES_` nests under the process's `MYAPP_`, so `postgres` is a reserved segment there
+(`naming`); where the package is shared between distributions its prefix is the shared package's own,
+and the `## Other bindings` bullet in `SKILL.md` says what else changes. A second store's package
+declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never adds its fields to this one (rule
+5). The process definition constructs `PostgresSettings()` and hands its `dsn` to the engine factory
+(`flat-layered` rule 6, and rule 3 in `SKILL.md`); the migration environment is the migration run's
+process definition and does the same (`flat-project-setup`).
 
 ## Engine factory — SQLAlchemy async, asyncpg
 

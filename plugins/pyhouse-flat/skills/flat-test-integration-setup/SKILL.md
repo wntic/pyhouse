@@ -59,8 +59,11 @@ from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
+from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+
+from myapp.postgres import PostgresSettings
 
 _CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
 _DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
@@ -71,36 +74,50 @@ _SCHEMA_TABLES = text(
 
 
 @pytest.fixture(scope="session")
-def db_dsn() -> Iterator[str]:
+def postgres_settings() -> Iterator[PostgresSettings]:
     from testcontainers.community.postgres import PostgresContainer
 
-    with PostgresContainer(_CONTAINER_IMAGE, driver="asyncpg") as postgres:
-        yield postgres.get_connection_url()
+    with PostgresContainer(_CONTAINER_IMAGE) as postgres:
+        yield PostgresSettings(
+            host=postgres.get_container_host_ip(),
+            port=int(postgres.get_exposed_port(5432)),
+            user=postgres.username,
+            password=SecretStr(postgres.password),
+            name=postgres.dbname,
+        )
 
 
-def _alembic(dsn: str, *args: str) -> None:
+def _alembic(settings: PostgresSettings, *args: str) -> None:
+    environment = {
+        **os.environ,
+        "MYAPP_POSTGRES_HOST": settings.host,
+        "MYAPP_POSTGRES_PORT": str(settings.port),
+        "MYAPP_POSTGRES_USER": settings.user,
+        "MYAPP_POSTGRES_PASSWORD": settings.password.get_secret_value(),
+        "MYAPP_POSTGRES_NAME": settings.name,
+    }
     result = subprocess.run(
         [sys.executable, "-m", "alembic", *args],
         capture_output=True,
         text=True,
         cwd=_DISTRIBUTION_ROOT,
-        env={**os.environ, "MYAPP_POSTGRES_DSN": dsn},
+        env=environment,
     )
     assert result.returncode == 0, result.stderr
 
 
 @pytest.fixture(scope="session")
-def _migrated_db(db_dsn: str) -> str:
+def _migrated_db(postgres_settings: PostgresSettings) -> PostgresSettings:
     """Up, down to the base and up again, so every downgrade() runs once per session."""
-    _alembic(db_dsn, "upgrade", "head")
-    _alembic(db_dsn, "downgrade", "base")
-    _alembic(db_dsn, "upgrade", "head")
-    return db_dsn
+    _alembic(postgres_settings, "upgrade", "head")
+    _alembic(postgres_settings, "downgrade", "base")
+    _alembic(postgres_settings, "upgrade", "head")
+    return postgres_settings
 
 
 @pytest.fixture(scope="session")
-async def engine(_migrated_db: str) -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine(_migrated_db)
+async def engine(_migrated_db: PostgresSettings) -> AsyncIterator[AsyncEngine]:
+    engine = create_async_engine(_migrated_db.dsn)
     try:
         yield engine
     finally:
@@ -128,8 +145,8 @@ async def truncate_all(engine: AsyncEngine) -> AsyncIterator[None]:
             await cleanup.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 ```
 
-**`db_dsn` yields only the container the suite started**, so nothing it can reach holds data anyone
-else wants. Pointing the suite at a database it did not start is a mode of its own, and it arrives with
+**`postgres_settings` yields only the container the suite started**, so nothing it can reach holds data
+anyone else wants. Pointing the suite at a database it did not start is a mode of its own, and it arrives with
 its guard (`## Other bindings`, rules 2 and 3).
 
 The image tag is a named constant because **the container runs the major version production
@@ -139,8 +156,9 @@ floating tag moves the schema under the suite between runs.
 **The migration history runs up, down to the base, and up again, once per session.** That round trip is
 what proves every revision's `downgrade()` reverses its `upgrade()` (`persistence` rule 20), and the suite
 then runs against the schema the history produces. The subprocess runs from the distribution root, where
-`alembic.ini` sits, and hands the container's DSN to the migration environment under the variable that
-environment reads — the data-access component's own, `MYAPP_POSTGRES_DSN` (`flat-project-setup`).
+`alembic.ini` sits, and hands the container's connection details to the migration environment under the
+variables that environment reads — the data-access component's own `MYAPP_POSTGRES_` ones
+(`flat-project-setup`). The engine reads the settings object's derived `dsn` (`python-settings` rule 10).
 
 `truncate_all` is autouse **here** because this conftest is scoped to one directory of integration tests,
 all of which reach code that commits. Autouse is also what orders it: pytest sets it up before any fixture
@@ -154,8 +172,9 @@ the revision it was migrated to. Rows a revision seeds are wiped with the rest; 
 migrations own is spared by name beside the version table, or a test arranges the rows it needs. A
 history that creates tables in a further schema lists that schema beside `current_schema()`.
 
-No placeholder connection string is set for collection: nothing in the service builds settings or an
-engine at import (`flat-persistence` rule 3), so an unset variable fails only the code that reads it.
+No placeholder `MYAPP_POSTGRES_` variables are set for collection: nothing in the service builds
+settings or an engine at import (`flat-persistence` rule 3), so an unset variable fails only the code
+that reads it.
 
 The container library is imported **inside** the fixture that needs it, not at module scope, so a
 pure-unit collection pays nothing for it.
@@ -173,8 +192,8 @@ pure-unit collection pays nothing for it.
   but loses `autouse=True` and each member whose code commits turns it on for its own tests in a
   one-line wrapper fixture.
 - **A pre-provisioned throwaway database** — a compose service, a CI service container, one issued per
-  branch. `db_dsn` gains a branch behind a dedicated opt-in flag, carrying rules 2 and 3; the migration run,
-  the engine scope and both isolation fixtures are unchanged.
+  branch. `postgres_settings` gains a branch behind a dedicated opt-in flag, carrying rules 2 and 3; the
+  migration run, the engine scope and both isolation fixtures are unchanged.
 - **An in-process or file-backed engine** (SQLite through an async driver). Cheapest to start, and it
   costs what this level buys: upsert semantics, generated constraint names and transaction behaviour are
   no longer production's, so `flat-test-persistence`'s constraint-name and conflict-path assertions stop
