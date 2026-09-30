@@ -174,12 +174,16 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
         log.exception("foo_sync_failed")
 ```
 
-A loop sleeps between runs on an interval read from the process's settings — a required field with no
-default (rule 16). These lines replace the `await sync_foos(...)` line in `_run`, after
-`settings = MyappSettings()`, the process's `MyappSettings` declaring `poll_interval_seconds: float` with no
-default:
+A loop sleeps between runs on an interval read from the process's settings — `MyappSettings` declaring
+`poll_interval_seconds: float`, a required field with no default (rule 16). Each piece below goes where
+its comment says:
 
 ```python
+from myapp.myapp_settings import MyappSettings  # with the other imports
+
+settings = MyappSettings()  # the first line of _run
+
+# in place of await sync_foos(...)
 client, repository = QuxClient(http), FooRepository(engine)
 while True:
     await sync_foos_contained(client, repository)
