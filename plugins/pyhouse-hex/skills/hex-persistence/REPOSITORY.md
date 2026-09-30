@@ -254,19 +254,19 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 ## The store's settings, engine and binding — pydantic-settings, SQLAlchemy, dishka
 
-`src/myapp/infrastructure/postgres/db_settings.py` — the settings class the engine factory below reads. It
-follows `python-settings`:
+`src/myapp/infrastructure/postgres/postgres_settings.py` — the settings class the engine factory below
+reads. It follows `python-settings`:
 
 ```python
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["DbSettings"]
+__all__ = ["PostgresSettings"]
 
 
-class DbSettings(BaseSettings):
+class PostgresSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="MYAPP_DB_",
+        env_prefix="MYAPP_POSTGRES_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
     )
@@ -302,12 +302,12 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .db_settings import DbSettings
+from .postgres_settings import PostgresSettings
 
 __all__ = ["create_engine", "create_session_factory"]
 
 
-def create_engine(settings: DbSettings) -> AsyncEngine:
+def create_engine(settings: PostgresSettings) -> AsyncEngine:
     return create_async_engine(settings.dsn, pool_pre_ping=True)
 
 
@@ -332,7 +332,7 @@ from dishka import Provider, Scope, provide
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from myapp.domain.foos import IFooRepository
-from myapp.infrastructure.postgres import DbSettings, create_engine, create_session_factory
+from myapp.infrastructure.postgres import PostgresSettings, create_engine, create_session_factory
 from myapp.infrastructure.postgres.repositories import FooRepository
 
 
@@ -340,15 +340,15 @@ class SettingsProvider(Provider):
     scope = Scope.APP
 
     @provide
-    def db_settings(self) -> DbSettings:
-        return DbSettings()
+    def postgres_settings(self) -> PostgresSettings:
+        return PostgresSettings()
 
 
 class InfrastructureProvider(Provider):
     scope = Scope.APP
 
     @provide
-    async def engine(self, settings: DbSettings) -> AsyncIterator[AsyncEngine]:
+    async def engine(self, settings: PostgresSettings) -> AsyncIterator[AsyncEngine]:
         engine = create_engine(settings=settings)
         yield engine
         await engine.dispose()
