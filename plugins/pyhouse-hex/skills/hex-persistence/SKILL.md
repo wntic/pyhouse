@@ -96,7 +96,7 @@ loaded automatically:
   `url` field in place of the five connection fields. A validator on the raw input, before the secret type
   wraps it, normalizes the URL to what the async driver accepts — its scheme, and the query parameters it
   spells differently (`sslmode` becomes asyncpg's `ssl`, or the first connection fails) (`python-settings`
-  rule 12); `dsn` unwraps it, so no consumer changes. The deployment maps the platform's `DATABASE_URL`
+  rule 12); `dsn` returns it, so no consumer changes. The deployment maps the platform's `DATABASE_URL`
   onto `MYAPP_POSTGRES_URL`, in its own declaration where the repository holds one (`python-settings`
   rule 2).
 

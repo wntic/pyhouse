@@ -281,20 +281,20 @@ class PostgresSettings(BaseSettings):
     name: str
 
     @property
-    def dsn(self) -> str:
+    def dsn(self) -> SecretStr:
         user = quote(self.user, safe="")
         password = quote(self.password.get_secret_value(), safe="")
-        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
+        return SecretStr(f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}")
 ```
 
-`dsn` is the derived value every consumer reads and the one place the password is unwrapped
-(`python-settings` rules 9 and 10), each credential percent-encoded so a password carrying URL delimiters
-still connects; `port` defaults to the driver's well-known port. These fields are this store's; another
-store's settings class declares what its own client takes (`python-settings` rules 1 and 10). The class
-carries no pool-sizing field, because a deployment's number never ships as a default: pool-sizing fields
-are added, required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory
-passes `pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
-closed underneath the pool.
+`dsn` is the derived value every consumer reads, secret-typed like the password in it and unwrapped only
+where the engine is built (`python-settings` rules 7, 9 and 10), each credential percent-encoded so a
+password carrying URL delimiters still connects; `port` defaults to the driver's well-known port. These
+fields are this store's; another store's settings class declares what its own client takes
+(`python-settings` rules 1 and 10). The class carries no pool-sizing field, because a deployment's number
+never ships as a default: pool-sizing fields are added, required, when the deployment sizes the pool.
+Pre-ping is not a setting — the engine factory passes `pool_pre_ping=True` literally, since one cheap
+round trip buys immunity to connections the server closed underneath the pool.
 
 `src/myapp/infrastructure/postgres/engine.py` — the engine and session factories, complete glue: they
 carry no judgment, so they are written in full, never left as a stub (`hex-conventions` rule 7).
@@ -313,7 +313,7 @@ __all__ = ["create_engine", "create_session_factory"]
 
 
 def create_engine(settings: PostgresSettings) -> AsyncEngine:
-    return create_async_engine(settings.dsn, pool_pre_ping=True)
+    return create_async_engine(settings.dsn.get_secret_value(), pool_pre_ping=True)
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
