@@ -2330,3 +2330,14 @@ integration engine fixture, which builds its own engine (backlog item 51). Rule 
 now reads "a request URL", since a connection string kept secret-typed to the engine is not one. Chosen
 over returning SQLAlchemy's password-masking `URL`, which would tie every settings class to one library.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D151 — The suite's engine fixture builds through the production factory
+Taken by the maintainer (backlog item 51, 2026-10-01), after a four-lens review. `flat-test-integration-setup`
+rule 5 forbade anything under `tests/` from calling the production engine factory, because that factory
+once read a placeholder connection string; it has long taken its connection string as an argument and
+reads nothing. `test-principles` reliability rule 6 binds a test, not the suite's shared fixture, and
+hex's `_engine` fixture already called `create_engine`. So the flat session fixture now builds its engine
+through the data-access package's factory — the suite runs the engine production runs, `pool_pre_ping`
+included, and the factory stays the one place the connection string is unwrapped (D150) — while a test
+still never builds a pool or calls the factory itself.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

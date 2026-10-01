@@ -61,9 +61,9 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from myapp.postgres import PostgresSettings
+from myapp.postgres import PostgresSettings, create_engine
 
 _CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
 _DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
@@ -117,7 +117,7 @@ def _migrated_db(postgres_settings: PostgresSettings) -> PostgresSettings:
 
 @pytest.fixture(scope="session")
 async def engine(_migrated_db: PostgresSettings) -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine(_migrated_db.dsn.get_secret_value())
+    engine = create_engine(_migrated_db.dsn)
     try:
         yield engine
     finally:
@@ -158,7 +158,8 @@ what proves every revision's `downgrade()` reverses its `upgrade()` (`persistenc
 then runs against the schema the history produces. The subprocess runs from the distribution root, where
 `alembic.ini` sits, and hands the container's connection details to the migration environment under the
 variables that environment reads — the data-access component's own `MYAPP_POSTGRES_` ones
-(`flat-project-setup`). The engine reads the settings object's derived `dsn` (`python-settings` rule 10).
+(`flat-project-setup`). The engine comes from the data-access package's own factory, given the settings
+object's derived `dsn` (`python-settings` rule 10; rule 5 below).
 
 `truncate_all` is autouse **here** because this conftest is scoped to one directory of integration tests,
 all of which reach code that commits. Autouse is also what orders it: pytest sets it up before any fixture
@@ -222,9 +223,10 @@ pure-unit collection pays nothing for it.
    reliability rules 1 and 6); raise a named error listing every missing variable.
 4. **One pool per run, one transaction per test** — the scopes `test-principles` *Fixture scope rules*
    set. A session-scoped connection would serialize the suite onto one connection.
-5. **Nothing under `tests/` builds its own pool or calls the production engine factory**
-   (`test-principles` reliability rule 6, and its one exception). Tests take the shared fixture and pass
-   it explicitly to whatever needs one.
+5. **A test never builds its own pool or calls the engine factory** (`test-principles` reliability rule 6,
+   and its one exception). The one session engine is built by the suite's fixture through the data-access
+   package's factory — so the suite runs the engine production runs. Tests take the shared fixture and
+   pass it explicitly to whatever needs one.
 6. **The whole-schema wipe has one body, and it runs after the test rather than before.** Cleaning up
    afterwards means a failing test leaves the datastore inspectable under a debugger, and the next test
    still starts empty. One body wherever it is defined — a second copy is two behaviours waiting to

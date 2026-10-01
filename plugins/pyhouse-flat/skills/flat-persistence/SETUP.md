@@ -101,8 +101,8 @@ def create_engine(dsn: SecretStr) -> AsyncEngine:
     return create_async_engine(dsn.get_secret_value(), pool_pre_ping=True)
 ```
 
-Callers hand it `dsn` as the settings object derives it, and it is unwrapped only where an engine is built
-— here for every process, and in the integration suite's own engine fixture (`python-settings` rule 9).
+Callers hand it `dsn` as the settings object derives it, and this factory is the one place it is unwrapped
+(`python-settings` rule 9), for every process and the integration suite alike.
 
 No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the test that disposes it
 (`python-packaging` rule 8).
