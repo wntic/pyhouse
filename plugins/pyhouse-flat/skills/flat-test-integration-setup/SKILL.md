@@ -117,7 +117,7 @@ def _migrated_db(postgres_settings: PostgresSettings) -> PostgresSettings:
 
 @pytest.fixture(scope="session")
 async def engine(_migrated_db: PostgresSettings) -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine(_migrated_db.dsn)
+    engine = create_async_engine(_migrated_db.dsn.get_secret_value())
     try:
         yield engine
     finally:

@@ -2317,3 +2317,16 @@ it; rule 2, a variable a platform names is mapped onto the component's own name 
 by an alias in code. A first draft put "the form the consumer takes" in rule 10; review found it
 contradicts the Postgres template, whose engine takes one string from five supplied fields.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D150 — A derived connection string stays secret-typed until the engine is built
+Taken by the maintainer (2026-10-01), after a four-lens review. `python-settings` rule 7 makes a
+connection string with a password in it secret-typed; rule 9 let the derived value that assembles one
+unwrap it, and both `PostgresSettings` templates returned a bare `str` that then travelled through the
+process definition to the engine, printable by any log field or traceback with locals. Rule 9 now says
+the derived value unwraps its parts only to build the string and returns it secret-typed again; the
+unwrap happens where the engine, adapter or client is built. Both `dsn` properties return `SecretStr`;
+hex's `create_engine(settings)` and flat's `create_engine(dsn: SecretStr)` unwrap it, and so does flat's
+integration engine fixture, which builds its own engine (backlog item 51). Rule 9's "never in the URL"
+now reads "a request URL", since a connection string kept secret-typed to the engine is not one. Chosen
+over returning SQLAlchemy's password-masking `URL`, which would tie every settings class to one library.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

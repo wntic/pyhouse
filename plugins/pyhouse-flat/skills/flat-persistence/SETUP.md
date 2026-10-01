@@ -63,24 +63,24 @@ class PostgresSettings(BaseSettings):
     name: str
 
     @property
-    def dsn(self) -> str:
+    def dsn(self) -> SecretStr:
         user = quote(self.user, safe="")
         password = quote(self.password.get_secret_value(), safe="")
-        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
+        return SecretStr(f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}")
 ```
 
-Each credential is its own variable and the connection string is derived from them: `dsn` is the one
-value every consumer reads and the one place the password is unwrapped (`python-settings` rules 9 and
-10), so no consumer reassembles the string, and each credential is percent-encoded, so a password
-carrying URL delimiters still connects. `port` defaults to the driver's well-known port.
-`MYAPP_POSTGRES_` nests under the process's `MYAPP_`, so `postgres` is a reserved segment there
-(`naming`); where the package is shared between distributions its prefix is the shared package's own,
-and the `## Other bindings` bullet in `SKILL.md` says what else changes. A second store's package
-declares its own `<Store>Settings` under `MYAPP_<STORE>_`, with the fields its own client takes rather
-than these five (`python-settings` rules 1 and 10), and never adds its fields to this one (rule 5).
-The process definition constructs `PostgresSettings()` and hands its `dsn` to the engine factory
-(`flat-layered` rule 6, and rule 3 in `SKILL.md`); the migration environment is the migration run's
-process definition and does the same (`flat-project-setup`).
+Each credential is its own variable and the connection string is derived from them: `dsn` is the one value
+every consumer reads, secret-typed like the password in it (`python-settings` rules 7 and 10), so no
+consumer reassembles the string, and each credential is percent-encoded, so a password carrying URL
+delimiters still connects. `port` defaults to the driver's well-known port. `MYAPP_POSTGRES_` nests under
+the process's `MYAPP_`, so `postgres` is a reserved segment there (`naming`); where the package is shared
+between distributions its prefix is the shared package's own, and the `## Other bindings` bullet in
+`SKILL.md` says what else changes. A second store's package declares its own `<Store>Settings` under
+`MYAPP_<STORE>_`, with the fields its own client takes rather than these five (`python-settings` rules 1
+and 10), and never adds its fields to this one (rule 5). The process definition constructs
+`PostgresSettings()` and hands its `dsn` to the engine factory (`flat-layered` rule 6, and rule 3 in
+`SKILL.md`); the migration environment is the migration run's process definition and does the same
+(`flat-project-setup`).
 
 ## Engine factory — SQLAlchemy async, asyncpg
 
@@ -91,14 +91,18 @@ rule 8).
 `src/myapp/postgres/engine.py`:
 
 ```python
+from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 __all__ = ["create_engine"]
 
 
-def create_engine(dsn: str) -> AsyncEngine:
-    return create_async_engine(dsn, pool_pre_ping=True)
+def create_engine(dsn: SecretStr) -> AsyncEngine:
+    return create_async_engine(dsn.get_secret_value(), pool_pre_ping=True)
 ```
+
+Callers hand it `dsn` as the settings object derives it, and it is unwrapped only where an engine is built
+— here for every process, and in the integration suite's own engine fixture (`python-settings` rule 9).
 
 No `@lru_cache` on it: a memoised engine pins a pool past shutdown and past the test that disposes it
 (`python-packaging` rule 8).
