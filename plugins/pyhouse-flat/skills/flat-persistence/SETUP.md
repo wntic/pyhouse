@@ -76,8 +76,9 @@ carrying URL delimiters still connects. `port` defaults to the driver's well-kno
 `MYAPP_POSTGRES_` nests under the process's `MYAPP_`, so `postgres` is a reserved segment there
 (`naming`); where the package is shared between distributions its prefix is the shared package's own,
 and the `## Other bindings` bullet in `SKILL.md` says what else changes. A second store's package
-declares its own `<Store>Settings` under `MYAPP_<STORE>_` and never adds its fields to this one (rule
-5). The process definition constructs `PostgresSettings()` and hands its `dsn` to the engine factory
+declares its own `<Store>Settings` under `MYAPP_<STORE>_`, with the fields its own client takes rather
+than these five (`python-settings` rules 1 and 10), and never adds its fields to this one (rule 5).
+The process definition constructs `PostgresSettings()` and hands its `dsn` to the engine factory
 (`flat-layered` rule 6, and rule 3 in `SKILL.md`); the migration environment is the migration run's
 process definition and does the same (`flat-project-setup`).
 

@@ -2303,3 +2303,17 @@ construction, and the one-run template stays without them. Renames and a templat
 obligation, so they are `refactor`, as D147's were; the encoding and the loop fragment are `fix`, and the
 naming clause is `feat`.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D149 — A platform's one connection URL is a binding; settings take the form the deployment supplies
+Taken by the maintainer (backlog item 50, 2026-10-01), after a four-lens review. D148 left a deployment
+whose platform injects one database URL with no line saying how to read it. `flat-persistence` and
+`hex-persistence` each gain an `## Other bindings` bullet: the class holds one secret-typed `url` in place
+of the five connection fields, a validator on the raw input normalizes it to what asyncpg accepts — its
+scheme and `sslmode`, which SQLAlchemy would hand asyncpg as an argument it rejects — and `dsn` unwraps it.
+The maintainer also asked that the five fields be read as Postgres's, not every store's: a client that
+takes host, port and credentials apart gets no `dsn` at all. `python-settings` now says it once — rule 1,
+fields take the form the deployment supplies; rule 10, a derived value exists only where a consumer reads
+it; rule 2, a variable a platform names is mapped onto the component's own name by the deployment, never
+by an alias in code. A first draft put "the form the consumer takes" in rule 10; review found it
+contradicts the Postgres template, whose engine takes one string from five supplied fields.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

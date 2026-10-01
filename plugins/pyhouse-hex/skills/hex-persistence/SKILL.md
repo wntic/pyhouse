@@ -92,6 +92,13 @@ loaded automatically:
   types, the SQLSTATE codes and the attribute path the translator reads the constraint name through all
   change together. The skill states that coupling where it bites (`REPOSITORY.md`), because it is the
   one place a driver swap is not mechanical.
+- **A platform that supplies one connection URL.** The class in `REPOSITORY.md` holds one secret-typed
+  `url` field in place of the five connection fields. A validator on the raw input, before the secret type
+  wraps it, normalizes the URL to what the async driver accepts — its scheme, and the query parameters it
+  spells differently (`sslmode` becomes asyncpg's `ssl`, or the first connection fails) (`python-settings`
+  rule 12); `dsn` unwraps it, so no consumer changes. The deployment maps the platform's `DATABASE_URL`
+  onto `MYAPP_POSTGRES_URL`, in its own declaration where the repository holds one (`python-settings`
+  rule 2).
 
 ## Rules
 

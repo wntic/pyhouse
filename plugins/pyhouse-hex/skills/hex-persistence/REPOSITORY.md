@@ -288,11 +288,12 @@ class PostgresSettings(BaseSettings):
 ```
 
 `dsn` is the derived value every consumer reads and the one place the password is unwrapped
-(`python-settings` rules 9 and 10), each credential percent-encoded so a password carrying URL
-delimiters still connects; `port` defaults to the driver's well-known port. The class carries no
-pool-sizing field, because a deployment's number never ships as a default: pool-sizing fields are added,
-required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory passes
-`pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
+(`python-settings` rules 9 and 10), each credential percent-encoded so a password carrying URL delimiters
+still connects; `port` defaults to the driver's well-known port. These fields are this store's; another
+store's settings class declares what its own client takes (`python-settings` rules 1 and 10). The class
+carries no pool-sizing field, because a deployment's number never ships as a default: pool-sizing fields
+are added, required, when the deployment sizes the pool. Pre-ping is not a setting — the engine factory
+passes `pool_pre_ping=True` literally, since one cheap round trip buys immunity to connections the server
 closed underneath the pool.
 
 `src/myapp/infrastructure/postgres/engine.py` — the engine and session factories, complete glue: they
