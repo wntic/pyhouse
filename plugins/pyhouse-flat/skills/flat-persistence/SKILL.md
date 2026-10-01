@@ -111,6 +111,13 @@ layout. Only this file is loaded automatically, so open the one you need:
   (`MYSCHEMA_POSTGRES_`), because every dependant now reads the same variables and none of them owns the
   component. It also gains its own migration command run from its own directory, and a standing
   restriction that the distributions importing it define no table of their own (`python-workspace`).
+- **A platform that supplies one connection URL.** The class in `SETUP.md` holds one secret-typed `url`
+  field in place of the five connection fields. A validator on the raw input, before the secret type wraps
+  it, normalizes the URL to what the async driver accepts — its scheme, and the query parameters it spells
+  differently (`sslmode` becomes asyncpg's `ssl`, or the first connection fails) (`python-settings`
+  rule 12); `dsn` unwraps it, so no consumer changes. The deployment maps the platform's `DATABASE_URL`
+  onto `MYAPP_POSTGRES_URL`, in its own declaration where the repository holds one (`python-settings`
+  rule 2).
 
 ## Rules
 
