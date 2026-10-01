@@ -82,7 +82,8 @@ container's provider method — and a missing required variable fails there (rul
 1. **One settings class per configured component.** An external system, a store, and the process's own
    knobs are three components and three classes; one class holding several components' fields is
    forbidden. A component with nothing to configure has no class. It declares the fields its consumer
-   reads and no others; a field copied from another component's class is dead configuration.
+   reads, in the form the deployment supplies them, and no others; a field copied from another
+   component's class is dead configuration.
 2. **Each class reads its own environment namespace, and the namespace is non-strict.** Every field is
    read under the component's own prefix — its name, and keeping it disjoint from every other prefix, are
    `naming`'s rule 7. A variable inside the namespace that the class does not declare never fails
@@ -90,7 +91,9 @@ container's provider method — and a missing required variable fails there (rul
    so strictness turns an unrelated variable into an outage. Where the project keeps a local dotenv file
    for development, the class reads it when it is present and the real environment when it is not, so
    one class serves both without a branch. A program run from arbitrary directories — a CLI tool —
-   reads no dotenv file, because whichever one sits in the working directory is not its own.
+   reads no dotenv file, because whichever one sits in the working directory is not its own. A variable
+   whose name a platform fixes is mapped onto the component's own name by the deployment, never read by
+   an alias in code that reaches outside the namespace.
 3. **Only a settings class reads the environment.** No other module reads an environment variable; code
    that needs a configured value is handed it.
 4. **A required field has no default.** A missing value fails loudly when the settings object is built,
@@ -119,7 +122,9 @@ container's provider method — and a missing required variable fails there (rul
    below the level the program emits.
 10. **A value assembled from other fields is computed on the settings object, never reassembled by its
     consumers** — a connection string, a composite URL, a normalized form. One place decides how the
-    parts go together, so changing the recipe is one edit rather than a search.
+    parts go together, so changing the recipe is one edit rather than a search. It exists only where a
+    consumer reads it: a client taking host, port and credentials as separate arguments gets those fields
+    and no assembled string.
 11. **Two components do not share fields by importing one settings class from another.** Each is
     self-contained; copy the field if both genuinely need it.
 12. **Field validation only normalizes or rejects.** Normalization accepts an environment-friendly form
