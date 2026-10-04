@@ -32,8 +32,8 @@ this is the first commit. It necessarily lands on the mainline, because it is wh
 and the practice reading in step 4, and say so.
 
 **Check the branch.** On the mainline, in a repository whose changes land through requests → say so
-and offer to branch first; a commit made there bypasses the checks every other change passes
-(`git-branching`).
+and offer to branch first, named as `git-branching` rule 3 says; a commit made there bypasses the checks every other change passes
+(`git-branching` rules 1 and 3).
 
 **Check the existing convention.** Run `git log --oneline -15`. If that history is *not* in
 Conventional Commits form, say so and ask before introducing it — a repository with one convention is
@@ -56,7 +56,10 @@ one copy to keep right.
 The skill defers two things to the repository, and this command finds both out before writing:
 
 - **Its existing practice.** Read `git log --oneline -20` for the scopes and casing in use, and
-  `git log -5` for whether bodies and trailers appear. The skill follows what is there.
+  `git log -5` and the contributing guide for whether bodies and footers appear and whether a sign-off
+  is required. The skill follows what is there — except a line saying which tool, model or agent
+  wrote the change, which it never adds whatever the history carries, and a sign-off, which it asks
+  the author for (rule 8).
 - **Its merge strategy**, when this commit will land on a branch. The skill's rule 9 says how to read
   it where nothing records it, and when to ask — it puts the convention on the request title under one
   strategy and on every commit under the other, so the answer changes what is being written.

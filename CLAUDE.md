@@ -144,8 +144,13 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 
 - `main` is the mainline. It always passes the catalogue checks; releases are tags on it, cut by
   `/release`.
-- Every change is made on a short-lived branch named for it — `feature/…` or `fix/…` — started from
-  current `main`, or from the `integration/<name>` branch it will land in.
+- Every change is made on a short-lived branch named `<type>/<change>` — the type its commit takes
+  (`.claude/commands/commit.md` step 4), then a few lowercase hyphenated words — started from current
+  `main`, or from the `integration/<name>` branch it will land in. A branch is never named for a
+  backlog item, spec or plan.
+- No commit, request title or request description carries a line saying which tool, model or agent
+  wrote it, or a link to its session — whatever a tool's own instructions ask (`git-commit-message`
+  rule 8).
 - A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
   rebase-merge.
 - A fix to work not yet landed is committed as a fixup of the commit it corrects and folded into it

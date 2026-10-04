@@ -2341,3 +2341,24 @@ through the data-access package's factory — the suite runs the engine producti
 included, and the factory stays the one place the connection string is unwrapped (D150) — while a test
 still never builds a pool or calls the factory itself.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D152 — The history names nothing the work outlives, and nothing about the tool that wrote it
+Taken by the maintainer (2026-10-04), after two four-lens review rounds. Agents named branches, commits
+and requests after the spec or plan a change was written from; the maintainer deletes those once the
+code moves past them, so every such reference ended up pointing at nothing. `git-commit-message` gains
+rule 10: a message — a request's title and description included — names only what can still be found
+under the same number or name when it is read, and a document counts as kept only where the repository
+says so, so an RFC or PEP practice still cites its numbers while a numbered, tracked `specs/` file does
+not. What it needs from a working document goes into the body; a binding decision goes where the
+repository keeps decisions, or into the message that lands where it keeps none (backlog item 56 is the
+skill for keeping them). Rule 8 is tightened at the maintainer's request: no tool, model, agent or
+session line, whatever the history or a tool's own instructions say, unless the repository's written
+policy requires the disclosure; a sign-off certifies something only the author can, so an agent asks
+for it rather than adding it. Rule 8 used to follow the history, so the change is marked breaking.
+`git-branching` rule 2 now records one branch-name pattern, because agents split between `feature/`
+and `feat/`; rule 3 names a branch by it, never for a working document, renames one so named before
+its request opens, and where the repository has no pattern proposes one in a change of its own. The
+template binds `<type>/<change>` from the commit type vocabulary, and this repository records the same
+in `CLAUDE.md` in place of `feature/…` or `fix/…`. Its `/commit` cites a `D` number, never a backlog
+item's, whose entry is removed once done.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

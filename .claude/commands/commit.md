@@ -101,12 +101,15 @@ changed — anything that breaks a project already carrying the catalogue.
 feat(python-versioning):    fix(hex-wiring):    docs(catalogue):    chore(universal):
 ```
 
+**A message cites a decision by its `D` number, never a backlog item by its number.** `DECISIONS.md`
+keeps every entry; `.claude/backlog.md` removes an entry in the change that does it, so its number
+names nothing once the commit lands — `git-commit-message` rule 10.
+
 A skill and the index entries it forces are **one** commit and take the skill's type — `feat`, never
 `docs`. `docs` is for a documentation change that stands alone.
 
-**No trailers.** This repository uses none: no `Co-Authored-By`, no generator lines, no
-`Signed-off-by`. The shipped skill's rule 8 adds a trailer only where the repository already carries
-one or the author asked for it, and this repository carries none.
+**No trailers.** This repository requires none, so none goes in — no `Co-Authored-By`, no generator
+or session lines, no `Signed-off-by` (`git-commit-message` rule 8).
 
 ### 5. Commit
 

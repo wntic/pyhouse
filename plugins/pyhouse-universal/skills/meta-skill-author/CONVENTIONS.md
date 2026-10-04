@@ -80,8 +80,8 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Git (2)
 
-- `git-commit-message` — The type records which release a change earns and is picked by what the change is, never its size; a commit that is not a release never touches the version.
-- `git-branching` — One mainline, one merge method recorded per repository, short-lived one-change branches; a fix to unlanded work is folded, and history someone else built on is never rewritten.
+- `git-commit-message` — The type records which release a change earns and is picked by what the change is, never its size; a commit that is not a release never touches the version; a message cites only what outlives the work, and nothing about the tool that wrote it.
+- `git-branching` — One mainline, one merge method and branch-name pattern recorded per repository, short-lived one-change branches; a fix to unlanded work is folded, and history someone else built on is never rewritten.
 
 ## Packaging — which plugin a skill ships in
 
