@@ -179,7 +179,7 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
 
 | Skill | Owns |
 |---|---|
-| `git-commit-message` | The commit message — its shape, the type as the record of which release a change earns, the break marker, and where the convention has to hold under a squash or a merge |
+| `git-commit-message` | The commit message and a request's title and description — their shape, the type as the record of which release a change earns, the break marker, references only to what outlives the work — never a working document — and where the convention has to hold under a squash or a merge |
 | `git-branching` | How a change reaches the mainline — the one mainline releases are cut from, the merge method recorded once, the short-lived one-change branch, history made true before it lands and never rewritten after, and when a released version earns a maintenance branch |
 
 ## Conventions across both sets

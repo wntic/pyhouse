@@ -1,7 +1,7 @@
 ---
 name: git-commit-message
-description: Use when writing a commit message, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`.
-when_to_use: Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a squash-merge request title should say, or whether a feature commit should bump the version.
+description: Use when writing a commit message or a merge or pull request's title or description, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, why it refers only to what outlives the work, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`.
+when_to_use: Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a merge or pull request's title and description should say, whether a feature commit should bump the version, or whether to cite a spec, plan or ticket in a commit or a request.
 ---
 
 # Git — Commit Message
@@ -109,6 +109,22 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    lands, and single-parent commits whose subjects end in a request number mean squashing; anything
    else, ask. The merge commit git writes itself is not a message anyone composed and is exempt, so a
    tool reading the history skips it.
+
+10. **A message refers only to what will outlive it.** The history is permanent and read long after
+    the work that produced it, so whatever a message names — in its description, body or footers —
+    must still be found, under the same number or name, when it is read: an issue in the repository's
+    tracker, an entry in a decisions record, a numbered proposal the repository keeps, another commit
+    on the mainline. A document counts as kept only where the repository says so — a decisions record,
+    a proposal index, an instructions file naming the directory permanent. Any other document — a spec,
+    a plan, a design draft, a to-do list whose entries are removed when done, an agent's scratch file —
+    is a working one, numbered and tracked or not: it is rewritten as the work moves and deleted once it
+    is over, so a message citing it, by number or by name, sends the reader to something gone or no
+    longer true. What the reader needs from it goes into the body in the message's own words (rule 5).
+    A decision meant to bind later changes is recorded where the repository keeps decisions, if it
+    keeps them, and the message cites that; where it keeps none, the body of the message that lands is
+    the record — under a squash, the request's description. The rule holds wherever a message survives
+    — a request's title and description, which outlive the branch and under a squash become the commit
+    (rule 9).
 
 ## Hard stops
 

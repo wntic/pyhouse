@@ -166,6 +166,8 @@ takes the diff, which you have and it does not:
   in the subject (rule 6);
 - a scope, casing or trailer the practice does not already use (rules 7, 8). Dropping a trailer is never
   a finding: rule 8 forbids adding one by habit and requires keeping none.
+- a message, or a request's title or description, citing a working document by number or name — a
+  spec, plan or to-do entry the repository does not say it keeps (rule 10).
 
 A commit finding is cited and filtered like a code finding — "survives the swap" means a repository
 whose kind lives in a changelog fragment is held to the obligations, not to Conventional Commits'
