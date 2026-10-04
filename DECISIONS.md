@@ -2362,3 +2362,18 @@ template binds `<type>/<change>` from the commit type vocabulary, and this repos
 in `CLAUDE.md` in place of `feature/…` or `fix/…`. Its `/commit` cites a `D` number, never a backlog
 item's, whose entry is removed once done.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D153 — A version written by hand is read from its source, never recalled
+Taken by the maintainer (2026-10-04), after a four-lens review. Agents pinned base images, compose
+services, CI actions and hook revisions from memory — often two years stale, out of support or carrying
+known vulnerabilities — and no skill said where a version comes from. `python-toolchain`, which owns
+dependency declarations and floors, gains rule 12 and the one trigger reaching past `pyproject.toml`:
+writing any file that names a version by hand. A dependency's version stays the package manager's; a
+floor stays chosen by its own rule (rule 9, `python-style`'s interpreter floor) and is only confirmed in
+its changelog — a first draft applied "the newest supported release" to floors too, which every review
+lens found would raise a library's consumer contract and override the house interpreter floor. Every
+other version is chosen for its reason — the line the project runs, the floor a job tests, else the
+newest supported — and spelled from its registry. Unverifiable, it is reported as such to whoever
+asked, never marked in the file. The catalogue's own remembered tags left with it: the flat suite's
+`postgres:17-alpine` became `<pinned-tag>`, as hex's already was, and hex's `e.g.` tags went.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
