@@ -188,11 +188,12 @@ directory the checker runs from — and it is passed explicitly, so the member's
 never taken for it. The loop passes `tests` only where the member has Python files under it.
 
 **Where members share a store, add what serves it — and nothing above changes.** The compose file gains
-the datastore as a service whose `profiles` name every runnable member that uses it, on a named volume.
-The Makefile gains a `migrate` target, the only sanctioned way schema changes reach a database, which
-`cd`s into the owning library before running the migration tool (rules 3 and 4). The store's test
-fixtures live in a pytest plugin module beside that library's own tests —
-`packages/myschema/tests/myschema_testing.py` — loaded by `-p myschema_testing` in `addopts` and
+the datastore as a service whose `profiles` name every runnable member that uses it, on a named volume,
+its image pinned per `python-toolchain` rule 12. The Makefile gains a `migrate` target, the only
+sanctioned way schema changes reach a database, which `cd`s into the owning library before running
+the migration tool (rules 3 and 4). The store's test fixtures live in a pytest plugin module beside
+that library's own tests — `packages/myschema/tests/myschema_testing.py` — loaded by
+`-p myschema_testing` in `addopts` and
 `packages/myschema/tests` in the root block's `pythonpath`, which resolves against the root file and so
 holds in every member's run. Every member loads that one module rather than a copy, and each member's
 run starts its container once. What goes inside that module is the member family's integration-setup

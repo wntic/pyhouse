@@ -1,14 +1,15 @@
 ---
 name: python-toolchain
-description: Use when laying down or changing the configuration every Python distribution carries once in `pyproject.toml` — the src layout, the linter's rule selection and its written function-size and complexity thresholds, the few sanctioned lint suppressions, strict type checking, the line length, the test runner's configuration block, development dependencies grouped by role, and whether a dependency this project consumes may carry a version floor. Holds alike for a service of either architecture family, a CLI tool and a library. The interpreter floor and the type-ignore policy are `python-style`'s; which runtime libraries a service's roles bring and its migration bootstrap belong to the architecture family's setup skill; the version this distribution itself declares is `python-versioning`.
-when_to_use: Also when asked to configure ruff or mypy, why a complexity or too-many-arguments rule fired, whether a `noqa` is allowed, which line length to use, how to start a new package, library or CLI tool, where dev dependencies go, or whether to pin or floor a dependency.
+description: Use when laying down or changing the configuration every Python distribution carries once in `pyproject.toml` — the src layout, the linter's rule selection and its written function-size and complexity thresholds, the few sanctioned lint suppressions, strict type checking, the line length, the test runner's configuration block, development dependencies grouped by role, and whether a dependency this project consumes may carry a version floor — and when writing any file that names a version by hand, a Dockerfile, a compose file, a CI workflow or a hook configuration, whose versions are read from their source, never recalled. Holds alike for a service of either architecture family, a CLI tool and a library. The interpreter floor and the type-ignore policy are `python-style`'s; which runtime libraries a service's roles bring and its migration bootstrap belong to the architecture family's setup skill; the version this distribution itself declares is `python-versioning`.
+when_to_use: Also when asked to configure ruff or mypy, why a complexity or too-many-arguments rule fired, whether a `noqa` is allowed, which line length to use, how to start a new package, library or CLI tool, where dev dependencies go, whether to pin or floor a dependency, or which version of a container image, CI action or hook to write.
 ---
 
 # Python Toolchain — layout, lint, type-check and dependency declarations
 
 The configuration a Python distribution carries **once**, whatever it is and whatever its internal
 layout: where the package sits, what the linter and the type checker enforce, and how dependencies are
-declared. None of it recurs per feature. **Which** libraries a program depends on is not here — a
+declared — and, the one rule reaching past `pyproject.toml`, where any other version written by hand
+comes from. None of it recurs per feature. **Which** libraries a program depends on is not here — a
 service's roles decide that, under its architecture family's setup skill; a library or a CLI tool with
 no family needs only this skill.
 
@@ -197,6 +198,19 @@ there. Either is compliant once written; the setting drives the formatter as wel
     by path, resolving to its own distribution's tree (in a workspace, `python-workspace` rule 10), and holds what `test-principles` requires of
     the run — a warning failing it; where the suite has async tests, async-ness declared once; and where
     it holds a session-scoped async resource, one session loop.
+12. **A version written by hand is read from its source when it is written, never recalled.** A
+    remembered version is the one current when it was learned — often years old and out of support. A
+    dependency's version is the package manager's to write, into the lock file. What a floor names is
+    chosen by its own rule — the interpreter's by `python-style`, a dependency's by rule 9 — and this
+    distribution's own version by `python-versioning`; this rule asks only that the release they name
+    be confirmed in its changelog. Every other version — a container image tag, a CI action, a hook
+    revision, the interpreter an image or a job installs — is chosen for its reason: the line the
+    project already runs where it runs one, the floor where a job exists to test it, otherwise the
+    newest supported release; its exact spelling is read from the registry or release page that
+    publishes it, at the precision the project pins. Where a source cannot be read, the version is
+    written and reported to whoever asked as unverified — never presented as current, and never marked
+    in the file. A version in an example, this catalogue's included, says nothing about what is
+    current.
 
 ## Hard stops
 

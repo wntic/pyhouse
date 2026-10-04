@@ -358,7 +358,7 @@ A rule lives in exactly one skill. Every other skill points at it.
 | The interpreter floor, and the three settings that name it | `python-style` |
 | One class per module, `__all__`, `__init__.py` re-exports, imports | `python-packaging` |
 | Settings from the environment | `python-settings` |
-| Lint, type-check and test-runner configuration, the src layout, dependency declarations and floors | `python-toolchain` |
+| Lint, type-check and test-runner configuration, the src layout, dependency declarations and floors, where any other hand-written version comes from | `python-toolchain` |
 | The error catalogue and boundary translation | `exception-catalog` |
 | Store-generic data access — which rules bind given the store, transaction ownership, where a driver error is translated (the translation itself is `exception-catalog`'s), constraint and table names, row mapping, stored types, conflicts, ordering and deduplication, paged reads, migrations as a deploy step, data-access code logging nothing | `persistence` |
 | What the version promises, and the change that moves it | `python-versioning` |

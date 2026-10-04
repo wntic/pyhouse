@@ -65,7 +65,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from myapp.postgres import PostgresSettings, create_engine
 
-_CONTAINER_IMAGE = "postgres:17-alpine"  # the major production runs, pinned
+_CONTAINER_IMAGE = "postgres:<pinned-tag>"  # the major production runs
 _DISTRIBUTION_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_TABLES = text(
     "SELECT string_agg(quote_ident(tablename), ', ') FROM pg_tables"
@@ -151,7 +151,8 @@ its guard (`## Other bindings`, rules 2 and 3).
 
 The image tag is a named constant because **the container runs the major version production
 runs**, pinned to it, so the suite exercises the planner and DDL surface the migrations will meet. A
-floating tag moves the schema under the suite between runs.
+floating tag moves the schema under the suite between runs. The exact tag is read from the registry
+when it is written (`python-toolchain` rule 12).
 
 **The migration history runs up, down to the base, and up again, once per session.** That round trip is
 what proves every revision's `downgrade()` reverses its `upgrade()` (`persistence` rule 20), and the suite

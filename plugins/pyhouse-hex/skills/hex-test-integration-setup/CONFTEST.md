@@ -31,7 +31,7 @@ from myapp.infrastructure.postgres import PostgresSettings, create_engine
 def postgres_settings() -> Iterator[PostgresSettings]:
     from testcontainers.community.postgres import PostgresContainer
 
-    # An exact, deliberately bumped tag (e.g. `17-alpine`) — never `:latest`.
+    # The major production runs, exact — never `:latest`.
     with PostgresContainer("postgres:<pinned-tag>") as postgres:
         # Only the fixture that created the database may declare it disposable.
         os.environ["MYAPP_TEST_DISPOSABLE_DB"] = "1"
@@ -163,7 +163,8 @@ app carries adds its own fixtures to this file — each add-on's fixtures (the k
 worked one) — and a REST entrypoint adds `real_app`. Each store add-on, and in an app that declares
 auth the verifier settings (`hex-test-restapi-auth`), adds one parameter, field and factory to
 `TestInfrastructureProvider` and one parameter to `container`. With no relational store the base's Postgres
-fixtures go, and `TestInfrastructureProvider` and `container` keep only the add-on parameters.
+fixtures go, and `TestInfrastructureProvider` and `container` keep only the add-on parameters. Each
+`<pinned-tag>` is read from the registry when it is written (`python-toolchain` rule 12).
 
 ## Client-store fixtures — redis-py
 
@@ -183,7 +184,7 @@ from redis.asyncio import Redis
 def redis_url() -> Iterator[str]:
     from testcontainers.community.redis import RedisContainer
 
-    # Same pin rule as the relational image (e.g. `7.4-alpine`) — never `:latest`.
+    # Same pin rule as the relational image — never `:latest`.
     with RedisContainer("redis:<pinned-tag>") as redis:
         yield f"redis://{redis.get_container_host_ip()}:{redis.get_exposed_port(6379)}/0"
 
