@@ -1,7 +1,7 @@
 ---
 name: git-commit-message
-description: Use when writing a commit message or a merge or pull request's title or description, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, why it refers only to what outlives the work, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`.
-when_to_use: Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a merge or pull request's title and description should say, whether a feature commit should bump the version, or whether to cite a spec, plan or ticket in a commit or a request.
+description: Use when writing a commit message or a merge or pull request's title or description, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, why a message says nothing about the tool or agent that wrote it, why it refers only to what outlives the work, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`.
+when_to_use: Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a merge or pull request's title and description should say, whether a feature commit should bump the version, whether to cite a spec, plan or ticket in a commit or a request, or whether an agent may add a trailer or a session link.
 ---
 
 # Git — Commit Message
@@ -96,9 +96,17 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    before the first message written there. Invent no scope vocabulary in one commit; where the
    repository uses none, omit the scope. Where it has no settled casing, lowercase. Keep the subject
    line, type and scope included, within 72 characters unless the repository sets another limit.
-8. **Add no trailer by habit.** An authorship line, a sign-off or a tool advertisement goes in only when
-   the repository already carries it or the author asked for it in this commit. A trailer asserting
-   authorship or sign-off makes a claim the author did not make.
+8. **A message says nothing about how it was written.** No trailer, footer or line in a commit, or in
+   a request's title or description, says which tool, model or agent produced the change, links the
+   session it was produced in, or advertises anything — whatever the history already carries, and
+   whoever's tooling asks for it — unless the repository's written contribution policy requires that
+   disclosure, which then goes in exactly the form the policy prescribes. Such a line describes the
+   author's tooling rather than the change. Where agents work in the repository, state this in the
+   file they read their instructions from: a tool's own instruction outranks a skill and yields only
+   to the repository's. A trailer asserting authorship or sign-off — a person who co-wrote the change,
+   a certificate of origin — goes in only when the author asked for it in this commit; where the
+   repository requires one the author has not given, say so and ask rather than add it: it makes a
+   claim only the author can make.
 9. **The convention holds wherever the surviving message is written.** Under a squash merge the
    request's title replaces every commit on the branch, so the title is what must be conventional —
    fixed before merging, never after — and one request is one logical change. Under a merge commit
@@ -109,7 +117,6 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    lands, and single-parent commits whose subjects end in a request number mean squashing; anything
    else, ask. The merge commit git writes itself is not a message anyone composed and is exempt, so a
    tool reading the history skips it.
-
 10. **A message refers only to what will outlive it.** The history is permanent and read long after
     the work that produced it, so whatever a message names — in its description, body or footers —
     must still be found, under the same number or name, when it is read: an issue in the repository's

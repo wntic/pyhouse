@@ -164,8 +164,9 @@ takes the diff, which you have and it does not:
 - a diff that breaks a declared surface under a message with no break marker (rule 3);
 - a diff holding two changes either of which would stand alone — read from the diff, not from an "and"
   in the subject (rule 6);
-- a scope, casing or trailer the practice does not already use (rules 7, 8). Dropping a trailer is never
-  a finding: rule 8 forbids adding one by habit and requires keeping none.
+- a scope or casing the practice does not already use (rule 7);
+- a line saying which tool, model or agent wrote the change, or linking its session, whatever the
+  history carries and unless the repository's written policy requires it (rule 8);
 - a message, or a request's title or description, citing a working document by number or name — a
   spec, plan or to-do entry the repository does not say it keeps (rule 10).
 

@@ -104,9 +104,8 @@ feat(python-versioning):    fix(hex-wiring):    docs(catalogue):    chore(univer
 A skill and the index entries it forces are **one** commit and take the skill's type — `feat`, never
 `docs`. `docs` is for a documentation change that stands alone.
 
-**No trailers.** This repository uses none: no `Co-Authored-By`, no generator lines, no
-`Signed-off-by`. The shipped skill's rule 8 adds a trailer only where the repository already carries
-one or the author asked for it, and this repository carries none.
+**No trailers.** This repository requires none, so none goes in — no `Co-Authored-By`, no generator
+or session lines, no `Signed-off-by` (`git-commit-message` rule 8).
 
 ### 5. Commit
 
