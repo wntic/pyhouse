@@ -32,8 +32,8 @@ this is the first commit. It necessarily lands on the mainline, because it is wh
 and the practice reading in step 4, and say so.
 
 **Check the branch.** On the mainline, in a repository whose changes land through requests → say so
-and offer to branch first; a commit made there bypasses the checks every other change passes
-(`git-branching`).
+and offer to branch first, named as `git-branching` rule 3 says; a commit made there bypasses the checks every other change passes
+(`git-branching` rules 1 and 3).
 
 **Check the existing convention.** Run `git log --oneline -15`. If that history is *not* in
 Conventional Commits form, say so and ask before introducing it — a repository with one convention is

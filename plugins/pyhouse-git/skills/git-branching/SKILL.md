@@ -1,6 +1,6 @@
 ---
 name: git-branching
-description: Use when starting a branch, deciding how a change reaches the mainline, cleaning a branch's history before it lands, or choosing whether a repository needs more than one long-lived branch — in a repository of any language. Owns the one mainline releases are cut from, recording the branching and merge method once per repository, the short-lived one-change branch, folding a fix to unlanded work into the commit it fixes, never rewriting history someone else may have built on, and when a released version earns a maintenance branch. What each commit's message says is `git-commit-message`; computing and cutting the release is `/release`.
+description: Use when starting a branch, deciding how a change reaches the mainline, cleaning a branch's history before it lands, or choosing whether a repository needs more than one long-lived branch — in a repository of any language. Owns the one mainline releases are cut from, recording the branching and merge method and the branch-name pattern once per repository, the short-lived one-change branch, folding a fix to unlanded work into the commit it fixes, never rewriting history someone else may have built on, and when a released version earns a maintenance branch. What each commit's message says is `git-commit-message`; computing and cutting the release is `/release`.
 when_to_use: Also when asked about GitHub Flow, GitFlow or trunk-based development, a develop or release branch, squash versus merge commit versus rebase merging, force-pushing, rebasing a branch, fixup commits, cleaning up work-in-progress commits, branch names, deleting a merged branch, or hotfixing a released version.
 ---
 
@@ -32,8 +32,8 @@ One depends on the answer:
 ## Template — short-lived branches off one mainline, every commit kept
 
 What the repository records, where contributors read — a `CONTRIBUTING` file, an agent instructions
-file — writing its own default branch for `main`, and its forge's word (merge request, pull request)
-for "request", where they differ:
+file — writing its own default branch for `main`, its forge's word (merge request, pull request) for
+"request", and the pattern its branches already share, if they share one, for `<type>/<change>`:
 
 ```markdown
 ## Branching
@@ -43,6 +43,8 @@ for "request", where they differ:
 - A request lands with a merge commit, keeping every commit, so each is cleaned up before it lands —
   fixups folded, work in progress reworded. Squash and rebase merging are off.
 - A branch carries one change, starts from current `main`, and is deleted once it lands.
+- A branch is named `<type>/<change>` — the commit type its change takes, then a few lowercase
+  hyphenated words: `feat/foo-export`, `fix/bar-timeout`.
 ```
 
 The forge enforces the block with three repository settings, made once (rule 2): merge commits only,
@@ -78,10 +80,18 @@ fixups land as they are.
    reaches the mainline, and the merge method a request lands with, are one decision — not a choice
    per request, because `git-commit-message` puts the convention's check in a different place under
    each method. Every request lands the recorded way. Enforce it in the forge's settings where the
-   forge allows it. Changing it later is a recorded decision too.
+   forge allows it. The branch-name pattern is recorded with it, so every contributor, person or agent,
+   names a branch the same way. Changing either later is a recorded decision too.
 3. **A branch carries one logical change, starts from the current mainline, and lives until that change
    lands.** A long-lived branch drifts from what it will merge into, and its conflicts arrive all at
-   once, late. Name it for the change, in the pattern the repository already uses. Where changes land
+   once, late. Name it for the change, in the pattern the repository records (rule 2), or, where it
+   records none, the one its branches share — two prefixes for one kind of change count as none; then
+   name it by the template's pattern and propose recording one in a change of its own, since a pattern
+   is the repository's decision, never made inside an unrelated request. Never name it for the spec or
+   plan it was planned in, even where a tool created it so: a merge commit or the request records the
+   name, so it names only what `git-commit-message` rule 10 lets a message name, and a branch so named
+   is renamed before its request opens, which rules 5 and 6 allow while only its author has used it.
+   Where changes land
    through requests, nothing is committed straight onto the mainline — except the repository's first
    commit, which creates the mainline and has nothing to branch from.
 4. **Before a branch lands under a keep-every-commit method, its history is made true.** A fix to a
