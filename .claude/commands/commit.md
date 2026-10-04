@@ -101,6 +101,10 @@ changed — anything that breaks a project already carrying the catalogue.
 feat(python-versioning):    fix(hex-wiring):    docs(catalogue):    chore(universal):
 ```
 
+**A message cites a decision by its `D` number, never a backlog item by its number.** `DECISIONS.md`
+keeps every entry; `.claude/backlog.md` removes an entry in the change that does it, so its number
+names nothing once the commit lands — `git-commit-message` rule 10.
+
 A skill and the index entries it forces are **one** commit and take the skill's type — `feat`, never
 `docs`. `docs` is for a documentation change that stands alone.
 
