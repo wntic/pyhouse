@@ -29,6 +29,8 @@ no family needs only this skill.
   block, and the fixtures it loads are the family's integration-setup skill's.
 - Several distributions in one repository → `python-workspace`, which writes these values once at the
   root; what they are is still this skill's.
+- The image a runnable program ships in — its stages, its user, its build context →
+  `python-container-image`; the tags it names are read under rule 12 here.
 - How large a module may grow → the architecture's one-responsibility rule, held in review; the linter
   has no module-length rule.
 

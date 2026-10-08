@@ -38,6 +38,8 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
   data-access role — neither assumes anything above the distribution.
 - Whether a proposed member is a boundary at all — its encapsulated knowledge and change vectors →
   `coupling`.
+- What goes inside a runnable member's `Dockerfile`, and the build context it admits →
+  `python-container-image`; this root places the file and runs it from compose.
 - The repository-wide grep firewall in `tests/test_architecture.py` → `test-architecture-rule`.
 
 ## Template — uv workspace, Docker Compose and Make
@@ -139,6 +141,9 @@ services:
 **Pin `name:` explicitly.** Without it compose names the project after the directory holding the
 file — `docker/` — and every volume is recreated under a new prefix the first time someone runs it
 from a different path.
+
+A runnable member's `Dockerfile` sits in that member's directory and builds with the repository root
+as its context, which is what `context: ..` above names.
 
 **One compose profile per runnable member**, named after the member, and each such profile also pulls in
 the datastores it depends on. That is what makes `--profile myapp` bring up exactly what one member needs
