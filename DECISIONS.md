@@ -2433,3 +2433,14 @@ was more than that earned. What stays is the defect the review of it found in a 
 a stop request while the run in flight does not, and its snippet keeps the binding.
 `python-container-image` and `hex-wiring` lose their pointers, and the indexes and counts return to 49.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D157 — A comment or a docstring names only what outlives it
+Taken by the maintainer (2026-10-08, backlog item 57), after a review through all four lenses.
+`git-commit-message` rule 10 keeps working documents out of the history (D152); the same reference
+reaches code as a comment or docstring citing a spec, a plan or a requirement or task number taken
+from one, and points at nothing once the document is gone. `python-style`, which owns comments, now
+states it under `## Comments` and in rule 10, worded to agree with its git counterpart: what the
+repository keeps under a stable number or name may be cited, and a spec or plan committed beside the
+code is still a working one, numbered and tracked or not — the line the first draft missed. Test
+names stay out: `test-principles` already names a test for the rule it pins.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

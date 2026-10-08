@@ -285,6 +285,16 @@ never *what*, never a multi-line block. The scope of that rule is not uniform ac
 Structural labels are not comments worth writing: no `# Arrange` / `# Act` / `# Assert`, no `# imports`,
 no `# helpers`.
 
+**A comment or a docstring names only what outlives it.** The code stays long after the work that
+produced it, so a spec, a plan, a design draft, a task list — or a requirement or task number taken from
+one — is not cited: such documents are rewritten as the work moves and deleted once it is over, and the
+reference then points at nothing. What the reader needs from one is said in the comment's own words, or
+not at all. What the repository keeps under a stable number or name may be cited — an issue in its tracker, an
+entry in its decisions record, a published standard — and a document counts as kept only where the
+repository says so: a spec or a plan committed beside the code is still a working one, numbered and
+tracked or not. History is held to the same test by
+`git-commit-message` rule 10, in the `pyhouse-git` plugin.
+
 A template's optional-line marker — `# only with …`, `# only where …` — is addressed to whoever copies
 the template, not to the project's reader: the line it marks is kept or dropped, and the marker itself
 never lands in the project's file.
@@ -320,7 +330,8 @@ never lands in the project's file.
 10. **A comment is a single short line of non-obvious *why*** — never *what*, never a structural label
     (`# Arrange`, `# helpers`) — applied by location under **Comments**, preserving its
     revision-docstring and test-banner allowances and their stated limits; a test banner says what the
-    group pins, never what the tests do.
+    group pins, never what the tests do. A comment or a docstring names only what outlives it — never a
+    spec, a plan or a number taken from one, numbered and tracked or not — under the same section.
 11. **A type error is fixed, not silenced; an inline type-ignore is the last resort, names its error
     code and gives its reason**, and a missing stub is silenced only by a per-package configuration
     override. `cast` narrows only after a runtime guard the checker cannot follow; it never silences
