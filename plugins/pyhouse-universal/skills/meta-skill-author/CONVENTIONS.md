@@ -5,13 +5,13 @@ Shared vocabulary, index and skill shapes for the catalogue. The authoritative f
 
 ## Index
 
-The 50 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 49 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
 too. The counts in every heading are the number of directories on disk.
 
-### Universal (16)
+### Universal (15)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
@@ -23,7 +23,6 @@ too. The counts in every heading are the number of directories on disk.
 - `python-toolchain` — The configuration every distribution carries once, whatever its family — the src layout, a narrow lint selection with every size and complexity threshold written, strict type checking over `src` and `tests` alike, the sanctioned suppressions, one line length, the test runner's block, a floor only at a named break, and a hand-written version read from its source, never recalled; which libraries a service's roles bring stays with the family's setup skill.
 - `python-workspace` — Establish workspace ownership before adding shared libraries or runnable members; it governs members only, never what is inside one, and a lone distribution needs none of it.
 - `python-container-image` — Only for a program that ships as an image — a library or a package-installed CLI tool has none; the runtime stage carries only the installed environment, built from exactly what the lock pins, runs as a numeric non-root user with no secret in any layer, and stops on a signal the process acts on; what it does after the signal is its entrypoint's.
-- `python-process-stop` — Only for a process that outlives one run — a one-run process and one an HTTP server runs install nothing; a stop ends the wait, never the run in flight, and exits cleanly; delivering the signal into a container is `python-container-image`'s.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
 - `persistence` — The store-generic data-access obligations whatever the family, and which of them lapse for a store without transactions, named constraints, a conditional write, a schema of its own, migrations or two versions running at once; it binds no library and writes no file, leaves the identity scheme to the family, and points at `exception-catalog` for the translation itself.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; a failure after a committed write is stopped, never re-raised; transport rendering, and the status a transport maps a class to, stay at the boundary.
@@ -95,7 +94,7 @@ skill only as an example and must read correctly in a repository with no Python 
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 16 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 15 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, and the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/install-commit-hook`, the `commit-msg` hook | — |

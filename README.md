@@ -2,7 +2,7 @@
 
 House-style rules for writing Python services, as Claude Code skills.
 
-Forty-eight skills covering naming, packaging, settings, the toolchain, versioning, errors and tests — plus two mutually exclusive service
+Forty-seven skills covering naming, packaging, settings, the toolchain, versioning, errors and tests — plus two mutually exclusive service
 architectures. They are project-neutral: worked examples use `myapp` and `Foo`, never a real service
 name. The skills are plain `SKILL.md` files, so Claude Code, opencode and Codex all read them.
 
@@ -19,7 +19,7 @@ language-level rules, or before you have picked an architecture.
 
 | Plugin | Skills | What it covers |
 |---|---|---|
-| `pyhouse-universal` | 17 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, how a long-lived process stops, the architecture chooser, and the reviewer that applies all of it to code that already exists. |
+| `pyhouse-universal` | 16 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, the architecture chooser, and the reviewer that applies all of it to code that already exists. |
 | `pyhouse-hex` | 23 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: reviews what is about to be staged, then writes a Conventional Commits message whose type carries the release the change earns. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. Depends on nothing; install it on its own. |
 | `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the one-time project setup, one package per store owning a service's data access, trigger choice from loop to durable execution, four test families. |

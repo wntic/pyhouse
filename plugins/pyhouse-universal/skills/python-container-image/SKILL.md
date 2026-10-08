@@ -8,9 +8,8 @@ when_to_use: Also when asked to containerize or dockerize a service, write a Doc
 
 The image a runnable Python program ships in, written **once** per program: what goes into it, what
 stays out, who the process runs as and how it is told to stop. None of it recurs per feature. What the
-program does once it starts is not this skill's, and what it does once told to stop is
-`python-process-stop`'s; where a member's image sits among several, and the compose file that runs
-them, is `python-workspace`.
+program does once it starts, and once it is told to stop, is not this skill's; where a member's image
+sits among several, and the compose file that runs them, is `python-workspace`.
 
 ## When to use vs. neighbours
 
@@ -23,8 +22,7 @@ them, is `python-workspace`.
   credential → `python-settings`.
 - Where log events go, and a program whose stdout is its result → `python-logging`.
 - One console script per command or process → `python-toolchain`; the image runs one of them.
-- What the process does once the stop signal arrives → `python-process-stop`; this skill only delivers
-  the signal.
+- What the process does once the stop signal arrives → not this skill, which only delivers the signal.
 - A library, or a CLI tool its users install as a package → not this skill; it ships as a
   distribution, released under `python-versioning`.
 
@@ -85,10 +83,9 @@ stay root's, so the process cannot rewrite its own code (rule 4).
 
 The last line is the program's own command, in exec form (rule 9): `python -m myapp` only where the
 program has a `__main__` module, a console script where it declares one, a server's own command where
-an HTTP server runs it — a server that handles SIGTERM itself, as most do, and a process that handles
-it under `python-process-stop`, drop `STOPSIGNAL`. A program run with arguments, a CLI tool, names its
-command as `ENTRYPOINT ["myapp"]` instead of `CMD`, so that `docker run <image> <arguments>` appends
-them rather than replacing the program (rule 12).
+an HTTP server runs it — a server or a loop that handles SIGTERM itself drops `STOPSIGNAL`. A program
+run with arguments, a CLI tool, names its command as `ENTRYPOINT ["myapp"]` instead of `CMD`, so that
+`docker run <image> <arguments>` appends them rather than replacing the program (rule 12).
 
 **In a workspace**, the build context is the repository root and the `Dockerfile` sits in the member's
 directory. Both syncs take `--package myapp`, and the first, which sees only the root's `pyproject.toml`
@@ -172,5 +169,5 @@ whole, which holds that member's dotenv file.
   none; it ships as a distribution, released under `python-versioning`.
 - Asked for a compose file or a profile across several members of one repository → stop, use
   `python-workspace`. A single distribution's compose file is no skill's in this catalogue.
-- Asked how the program drains work or exits once told to stop → stop, use `python-process-stop`;
-  this skill only delivers the signal.
+- Asked how the program drains work or exits once told to stop → stop, not this skill; it only
+  delivers the signal.
