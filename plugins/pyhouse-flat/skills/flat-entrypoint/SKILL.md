@@ -35,8 +35,6 @@ nothing here assumes a sibling distribution or a repository above it.
 - The service answers HTTP but has business invariants, or several entrypoints share its rules → not
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
-- What a loop or a consumer does when the process is asked to stop → `python-process-stop`; the loop
-  snippet below binds it for a loop, and a consumer's wait is spelled by its SDK.
 - Testing any of it — the work, the loop's containment, the wrapper, the orchestration above them
   → `flat-test-run-function`.
 
@@ -178,7 +176,7 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
 
 A loop waits between runs on an interval read from the process's settings — `MyappSettings` declaring
 `poll_interval_seconds: float`, a required field with no default (rule 16) — and stops when asked, after
-the run in flight, as `python-process-stop` requires. Each piece below goes where its comment says:
+the run in flight (rule 16). Each piece below goes where its comment says:
 
 ```python
 import contextlib  # with the other imports
@@ -367,6 +365,9 @@ for rule 9.
 16. **A process that waits between runs waits for an interval its settings declare, required and with
     no default** (`python-settings` rule 5) — never a constant in the code, which only a redeploy can
     change. A consumer that never waits, taking its next unit as soon as one arrives, declares none.
+    **The wait ends when the process is asked to stop; the run in flight does not.** Both the termination
+    and the interrupt signal set one stop request, installed before anything is built and checked before
+    each run, so a stop finishes the current run and exits 0 with one event rather than a traceback.
 
 ### Once a durable-execution engine is earned
 

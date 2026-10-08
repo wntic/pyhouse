@@ -2420,3 +2420,16 @@ the families own, and leaving a consumer's blocking receive outside the stop; ea
 to a pointer. `flat-entrypoint`'s loop snippet now binds the skill, and `hex-wiring` and
 `python-container-image` point at it.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D156 — `python-process-stop` is withdrawn before it ships; the flat loop keeps its stop
+Taken by the maintainer (2026-10-08), reversing the skill D155 added before any release carried it. The
+skill answered no defect seen in a generated service: it grew out of designing the container image,
+whose real problem — a first process ignoring the termination signal — `python-container-image` already
+solves with its stop signal. What a process does once signalled holds outside containers too, and an
+agent's usual loop, cut by the interrupt signal, costs a traceback and a redone run, which the rules on
+acknowledgement after success, idempotent writes and atomic files already contain. A skill of its own
+was more than that earned. What stays is the defect the review of it found in a template agents copy:
+`flat-entrypoint`'s loop ran `while True` around a sleep, so its rule 16 now also says the wait ends on
+a stop request while the run in flight does not, and its snippet keeps the binding.
+`python-container-image` and `hex-wiring` lose their pointers, and the indexes and counts return to 49.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
