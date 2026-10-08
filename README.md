@@ -19,10 +19,19 @@ language-level rules, or before you have picked an architecture.
 
 | Plugin | Skills | What it covers |
 |---|---|---|
-| `pyhouse-universal` | 16 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, the architecture chooser, and the reviewer that applies all of it to code that already exists. |
+| `pyhouse-universal` | 16 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, the architecture chooser, `/pyhouse-universal:adopt`, which tells a repository's agents which skill governs each kind of Python work, and the reviewer that applies all of it to code that already exists. |
 | `pyhouse-hex` | 23 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
-| `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: reviews what is about to be staged, then writes a Conventional Commits message whose type carries the release the change earns. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. Depends on nothing; install it on its own. |
+| `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: reviews what is about to be staged, then writes a Conventional Commits message whose type carries the release the change earns. `/pyhouse-git:adopt` records in the repository's agent instructions how its changes branch, land and are committed, and turns off the agent's own authorship line. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. Depends on nothing; install it on its own. |
 | `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the one-time project setup, one package per store owning a service's data access, trigger choice from loop to durable execution, four test families. |
+
+## Using it in a project
+
+Installing the plugins makes the skills available; it does not make an agent use them. Run
+`/pyhouse-universal:adopt` and `/pyhouse-git:adopt` once in the repository, new or existing, and commit
+what they write: a short section in the file its agents read — `CLAUDE.md`, or `AGENTS.md` where that is
+the one it keeps — naming the skill to load before each kind of work, the repository's branching
+decisions, and, for Claude Code, a project setting that drops the agent's own authorship line. Neither
+command picks an architecture family.
 
 ## Which family?
 

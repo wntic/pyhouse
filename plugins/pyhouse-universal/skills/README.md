@@ -15,15 +15,15 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 15 universal + `meta-skill-author`, the `/choose-architecture` and `/pyhouse-universal:code-review` commands |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 15 universal + `meta-skill-author`, the `/choose-architecture`, `/pyhouse-universal:code-review` and `/pyhouse-universal:adopt` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
-| `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release` and `/install-commit-hook` commands |
+| `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release`, `/pyhouse-git:adopt` and `/install-commit-hook` commands |
 
 Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
 into a project's `.claude/skills/` or into `~/.claude/skills/`; copying carries the skills only, not
-`/choose-architecture`, `/pyhouse-universal:code-review` or the reviewer subagent. **This index ships inside `pyhouse-universal`, so every install has it** — and
+`/choose-architecture`, `/pyhouse-universal:code-review`, `/pyhouse-universal:adopt` or the reviewer subagent. **This index ships inside `pyhouse-universal`, so every install has it** — and
 it lists the whole catalogue, including the skills of a family plugin that is not installed.
 
 ## How the catalogue fits together
