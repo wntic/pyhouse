@@ -2401,3 +2401,22 @@ existed; it now admits every member's `pyproject.toml` and only the source of th
 The template was built and run for one distribution, for a workspace member beside an unrelated one,
 and as a CLI with `ENTRYPOINT`.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D155 — A process that outlives one run stops after the run it holds
+Taken by the maintainer (2026-10-08, backlog item 58), after a four-lens review. `python-container-image`
+delivers the platform's stop signal, but no skill said what a loop or a consumer does with it, and the
+flat loop template was `while True` around a sleep, which only a kill ends. The rule is the same in both
+families and in any long-lived worker, so it is a universal skill, `python-process-stop`, not a rule
+per family: a stop request installed first at the entry point for both the termination and the
+interrupt signal, no new work once requested, a wait — a blocking receive included — ended at once and
+a run in flight never cut, no deadline of the process's own, the longest run within the grace period,
+the usual release on the way out, and a clean exit with one event. A one-run process installs nothing —
+a run cut short is a failed run the next start makes whole — and so does a process whose server handles
+the signal; a server that does not, `grpc.aio`, is a long-lived process like any other. Measured in a
+container with Docker 29 on the asyncio template: SIGTERM during a run let the run finish and exited 0;
+during the wait it exited 0 at once. The review found the first draft justifying the one-run exemption
+with a transaction rule `persistence` does not state, restating the acknowledgement and release rules
+the families own, and leaving a consumer's blocking receive outside the stop; each is fixed or reduced
+to a pointer. `flat-entrypoint`'s loop snippet now binds the skill, and `hex-wiring` and
+`python-container-image` point at it.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
