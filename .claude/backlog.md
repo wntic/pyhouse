@@ -5,31 +5,9 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-### 59. Adopting the catalogue in a project, so agents keep to it
-A project that installs the plugins still gets code and history that ignore them. A `CLAUDE.md` line
-saying "follow pyhouse" is not enough in practice: agents skip the skills, and even with the line in
-place they branch and commit without `pyhouse-git` — the wrong branch name, a message off the type
-table. Decide what a project adds, once, so the skills are used rather than merely installed, for a
-new repository and an existing one alike. Candidate directions, not yet weighed against each other:
-- a command that adopts the catalogue in a project and writes what the repository must carry: the
-  branch-name pattern and merge method `git-branching` rule 2 records, the commit-msg hook
-  `/install-commit-hook` installs, and a short `CLAUDE.md` section. It settles no architecture family:
-  an existing project already has its shape, and on a greenfield one the author need not ask an agent to
-  choose, so adoption works with no family recorded and leaves the choice to `architecture-choice` when
-  someone does ask;
-- what that section says, so an agent acts on it — naming the skill to load for each kind of task
-  (writing code, a commit, a branch, a release) rather than the catalogue as a whole, since a general
-  instruction is the one already shown not to hold;
-- enforcement that does not depend on the agent remembering — a hook that refuses a branch name off
-  the recorded pattern the way the commit-msg hook refuses a message, or one that reminds the agent
-  which skill applies when it is about to commit, branch or write a module;
-- an adoption section in the top-level `README.md`.
-Before choosing, find out which of these actually changes what an agent does: run the same short
-prompts in a project with and without each, as the catalogue's purpose asks for.
-
 ## Agreed
 
-Items 55 and 56, agreed on 2026-10-04, remain. Every other agreed item has landed (D130–D156).
+Items 55 and 56, agreed on 2026-10-04, remain. Every other agreed item has landed (D130–D158).
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an

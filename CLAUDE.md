@@ -152,7 +152,7 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
   wrote it, or a link to its session — whatever a tool's own instructions ask (`git-commit-message`
   rule 8).
 - A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
-  rebase-merge.
+  rebase-merge. It lands when the maintainer asks for it (`git-branching` rule 9).
 - A fix to work not yet landed is committed as a fixup of the commit it corrects and folded into it
   before the branch lands (`git-branching` rule 4; the commands are in `.claude/commands/commit.md`
   step 5). The merge then keeps every commit and none of them fixes another, so `/release` never
@@ -173,10 +173,11 @@ tools/check_template_imports.py          resolves every import in every template
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
 .claude/backlog.md                       catalogue edits agreed or proposed, not yet made
 plugins/pyhouse-universal/               16 skills (15 universal + meta-skill-author),
-                                         /choose-architecture, /code-review, agents/pyhouse-reviewer
+                                         /choose-architecture, /code-review, /pyhouse-universal:adopt,
+                                         agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     23 hex-* skills
 plugins/pyhouse-flat/                    8 flat-* skills
-plugins/pyhouse-git/                     2 git-* skills, /commit, /release,
+plugins/pyhouse-git/                     2 git-* skills, /commit, /release, /pyhouse-git:adopt,
                                          /install-commit-hook and the commit-msg hook it
                                          installs — no dependency
 ```

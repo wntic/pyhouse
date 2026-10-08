@@ -2444,3 +2444,31 @@ repository keeps under a stable number or name may be cited, and a spec or plan 
 code is still a working one, numbered and tracked or not — the line the first draft missed. Test
 names stay out: `test-principles` already names a test for the rule it pins.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D158 — A repository adopts the catalogue by writing it into its agents' instructions file
+Taken autonomously on the maintainer's instruction (2026-10-09, backlog item 59), from 78 headless
+Claude Code runs and an end-to-end check, after a four-lens review. Installed plugins alone were not
+used: on a new service agents committed straight to the mainline (0/6 on a branch), loaded a git skill
+in 3 of 16 runs, and the smallest model added its tool's authorship trailer every time and wrote the
+service as a handful of ad-hoc modules. A one-line "follow the skills" instruction helped only partly
+(14/16; a commit asked for in a second prompt loaded no git skill on the smallest model). A table naming
+the skill to load before each kind of work, with the branching decisions recorded beside it, loaded the
+git skills 16/16 and branched 6/6. A hook refusing a commit, a branch or a Python write until the skill
+was loaded never fired once the table was there, and is not shipped. The trailer survived the table
+(5/6) and went only with an explicit line in the instructions file (0/4) — which `git-commit-message`
+rule 8 already requires — or with Claude Code's `attribution` setting (0/6). The smallest model also
+merged its own branch into the mainline unasked (4/4), so `git-branching` gains rule 9: a change lands
+when someone decides it should, never as the last step of making it, with the template line that
+carries it into the instructions file (0/2 merges after).
+Two commands write it, one per plugin, because `pyhouse-git` depends on nothing and `pyhouse-universal`
+must install alone: `/pyhouse-git:adopt` records the mainline, merge method and branch pattern as
+`git-branching`'s template block, found by that skill's and `git-commit-message`'s own rules and
+confirmed by the person, plus the skill table and the no-authorship line, and sets `attribution` for
+Claude Code; `/pyhouse-universal:adopt` writes the table for Python work. Neither chooses an
+architecture family; the family's layout skill is named only where the person states the family. Both
+write the file the repository's agents already read — `AGENTS.md` where that is the shared one — and
+leave it uncommitted. End to end, the commands followed by the scenarios gave 11/11 runs with both git
+skills loaded, the work on a branch and no trailer; on a repository whose own file already recorded
+squash merging, the command proposed recording that and asked before replacing it. Not covered: agents
+other than Claude Code, and sessions longer than two prompts.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
