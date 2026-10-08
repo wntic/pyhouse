@@ -5,12 +5,6 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Proposed
 
-### 57. Code refers only to what outlives it
-`git-commit-message` rule 10 keeps a spec or plan out of the history. The same reference appears in
-code — a comment or docstring citing "spec 012" or a requirement ID taken from one, a test named for
-it — and fails the same way once the spec is deleted. Decide whether `python-style`, which owns
-comments, states it.
-
 ### 59. Adopting the catalogue in a project, so agents keep to it
 A project that installs the plugins still gets code and history that ignore them. A `CLAUDE.md` line
 saying "follow pyhouse" is not enough in practice: agents skip the skills, and even with the line in
