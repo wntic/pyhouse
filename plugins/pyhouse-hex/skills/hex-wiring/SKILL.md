@@ -24,6 +24,8 @@ constructs settings with explicit values (`test-principles`).
 - The class being wired must already exist — a handler, repository, service, adapter → `hex-application`, `hex-persistence`, `hex-store-repository`, `hex-domain-service`, `hex-capability-adapter`.
 - A frozen domain-shaped view of settings values the domain consults → the tunable variant in `hex-domain-model`; its provider reads the single field off a settings class and passes it.
 - Attaching the composition root to the HTTP app, running its settings check at startup and closing it at shutdown, which runs every declared teardown → `hex-restapi-app`.
+- What a consumer's or worker's launcher does when the process is asked to stop → `python-process-stop`;
+  the root is closed once its loop ends, by a stop or by a failure.
 - Resolving a bound object inside a route → `hex-restapi-endpoint`.
 - The token-verifier port, its adapter and the route dependencies that consume the resolved caller → `hex-restapi-auth`.
 - Substituting a binding for a test → `hex-test-integration-setup`.
