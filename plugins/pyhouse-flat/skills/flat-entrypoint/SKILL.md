@@ -35,6 +35,8 @@ nothing here assumes a sibling distribution or a repository above it.
 - The service answers HTTP but has business invariants, or several entrypoints share its rules → not
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
+- What a loop or a consumer does when the process is asked to stop → `python-process-stop`; the loop
+  snippet below binds it for a loop, and a consumer's wait is spelled by its SDK.
 - Testing any of it — the work, the loop's containment, the wrapper, the orchestration above them
   → `flat-test-run-function`.
 
@@ -174,20 +176,30 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
         log.exception("foo_sync_failed")
 ```
 
-A loop sleeps between runs on an interval read from the process's settings — `MyappSettings` declaring
-`poll_interval_seconds: float`, a required field with no default (rule 16). Each piece below goes where
-its comment says:
+A loop waits between runs on an interval read from the process's settings — `MyappSettings` declaring
+`poll_interval_seconds: float`, a required field with no default (rule 16) — and stops when asked, after
+the run in flight, as `python-process-stop` requires. Each piece below goes where its comment says:
 
 ```python
+import contextlib  # with the other imports
+import signal  # with the other imports
+
 from myapp.myapp_settings import MyappSettings  # with the other imports
 
-settings = MyappSettings()  # the first line of _run
+# the first lines of _run
+stopping = asyncio.Event()
+loop = asyncio.get_running_loop()
+for signum in (signal.SIGTERM, signal.SIGINT):
+    loop.add_signal_handler(signum, stopping.set)
+settings = MyappSettings()
 
 # in place of await sync_foos(...)
 client, repository = QuxClient(http), FooRepository(engine)
-while True:
+while not stopping.is_set():
     await sync_foos_contained(client, repository)
-    await asyncio.sleep(settings.poll_interval_seconds)
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(stopping.wait(), settings.poll_interval_seconds)
+log.info("process_stopped")
 ```
 
 ## Shape 2 — durable execution, once it is earned
