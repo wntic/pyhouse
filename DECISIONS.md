@@ -2377,3 +2377,27 @@ newest supported — and spelled from its registry. Unverifiable, it is reported
 asked, never marked in the file. The catalogue's own remembered tags left with it: the flat suite's
 `postgres:17-alpine` became `<pinned-tag>`, as hex's already was, and hex's `e.g.` tags went.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D154 — A program that ships as an image gets it from one universal skill
+Taken by the maintainer (2026-10-08, backlog item 53), after a four-lens review. Agents containerizing
+a service wrote a single-stage image running as root, resolving dependencies afresh and copying the
+whole tree, dotenv file included. `python-container-image` joins `pyhouse-universal`: it applies only to
+a program that ships as an image — a library and a CLI tool installed as a package have none — and owns
+a runtime stage holding only the installed program, an install of exactly what the lock pins that fails
+on drift, one interpreter at one path across both stages, a numeric non-root user with one configured
+writable directory, no secret in any layer, an allow-list build context, one image per runnable
+distribution and for every environment, unbuffered output, a server listening beyond loopback, a CLI's
+arguments appended rather than replacing it, and a stop signal the process acts on. Tags stay
+`python-toolchain` rule 12's and compose across members `python-workspace`'s, which now says where a
+member's `Dockerfile` sits. Running migrations and a health check are deliberately not stated; what a
+process does once signalled is backlog item 58, so the skill names no owner for it yet. The stop signal
+is the interrupt one, not a bundled init: measured with Docker 29 on a `python -m` program blocked in
+`asyncio.run`, `docker stop` under the default SIGTERM left the process running until it was killed
+(exit 137), because the first process in a container ignores a signal it has no handler for; with
+`STOPSIGNAL SIGINT` it cancelled the main task and exited at once (exit 130). The line is marked
+optional, since a server that handles SIGTERM itself — gunicorn shuts down gracefully only on it — drops
+it. The review also caught the workspace variant failing `--locked` as soon as a second runnable member
+existed; it now admits every member's `pyproject.toml` and only the source of the members it builds.
+The template was built and run for one distribution, for a workspace member beside an unrelated one,
+and as a CLI with `ENTRYPOINT`.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
