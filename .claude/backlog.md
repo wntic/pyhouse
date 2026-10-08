@@ -17,9 +17,12 @@ saying "follow pyhouse" is not enough in practice: agents skip the skills, and e
 place they branch and commit without `pyhouse-git` — the wrong branch name, a message off the type
 table. Decide what a project adds, once, so the skills are used rather than merely installed, for a
 new repository and an existing one alike. Candidate directions, not yet weighed against each other:
-- a command that adopts the catalogue in a project — settles the family (`architecture-choice`), and
-  writes what the repository must carry: the branch-name pattern and merge method `git-branching` rule 2
-  records, the commit-msg hook `/install-commit-hook` installs, and a short `CLAUDE.md` section;
+- a command that adopts the catalogue in a project and writes what the repository must carry: the
+  branch-name pattern and merge method `git-branching` rule 2 records, the commit-msg hook
+  `/install-commit-hook` installs, and a short `CLAUDE.md` section. It settles no architecture family:
+  an existing project already has its shape, and on a greenfield one the author need not ask an agent to
+  choose, so adoption works with no family recorded and leaves the choice to `architecture-choice` when
+  someone does ask;
 - what that section says, so an agent acts on it — naming the skill to load for each kind of task
   (writing code, a commit, a branch, a release) rather than the catalogue as a whole, since a general
   instruction is the one already shown not to hold;
