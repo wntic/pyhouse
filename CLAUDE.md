@@ -152,7 +152,7 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
   wrote it, or a link to its session — whatever a tool's own instructions ask (`git-commit-message`
   rule 8).
 - A branch lands with a merge commit (`--no-ff`), keeping every commit. Never squash, never
-  rebase-merge. It lands when the maintainer asks for it (`git-branching` rule 9).
+  rebase-merge.
 - A fix to work not yet landed is committed as a fixup of the commit it corrects and folded into it
   before the branch lands (`git-branching` rule 4; the commands are in `.claude/commands/commit.md`
   step 5). The merge then keeps every commit and none of them fixes another, so `/release` never

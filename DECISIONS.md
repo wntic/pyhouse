@@ -2472,3 +2472,13 @@ skills loaded, the work on a branch and no trailer; on a repository whose own fi
 squash merging, the command proposed recording that and asked before replacing it. Not covered: agents
 other than Claude Code, and sessions longer than two prompts.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D159 — `git-branching` rule 9 is withdrawn before it ships
+Taken by the maintainer (2026-10-09), reversing the part of D158 that added it before any release
+carried it. The defect behind the rule — an agent merging its own branch into the mainline when asked
+only to commit — was seen only on the smallest model, which the maintainer does not use for writing
+code; Opus and Sonnet never merged unasked. A rule with no defect on the models in use is a rule
+written ahead of need. The template line that carried it into instructions files goes with it, so
+`/pyhouse-git:adopt` no longer writes it, and this repository's `CLAUDE.md` drops its citation. The
+rest of D158 stands.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.
