@@ -1,6 +1,6 @@
 ---
 name: git-branching
-description: Use when starting a branch, deciding how a change reaches the mainline, cleaning a branch's history before it lands, or choosing whether a repository needs more than one long-lived branch — in a repository of any language. Owns the one mainline releases are cut from, recording the branching and merge method and the branch-name pattern once per repository, the short-lived one-change branch, folding a fix to unlanded work into the commit it fixes, a change landing only when someone decides it should, never rewriting history someone else may have built on, and when a released version earns a maintenance branch. What each commit's message says is `git-commit-message`; computing and cutting the release is `/release`.
+description: Use when starting a branch, deciding how a change reaches the mainline, cleaning a branch's history before it lands, or choosing whether a repository needs more than one long-lived branch — in a repository of any language. Owns the one mainline releases are cut from, recording the branching and merge method and the branch-name pattern once per repository, the short-lived one-change branch, folding a fix to unlanded work into the commit it fixes, never rewriting history someone else may have built on, and when a released version earns a maintenance branch. What each commit's message says is `git-commit-message`; computing and cutting the release is `/release`.
 when_to_use: Also when asked about GitHub Flow, GitFlow or trunk-based development, a develop or release branch, squash versus merge commit versus rebase merging, force-pushing, rebasing a branch, fixup commits, cleaning up work-in-progress commits, branch names, deleting a merged branch, or hotfixing a released version.
 ---
 
@@ -43,7 +43,6 @@ file — writing its own default branch for `main`, its forge's word (merge requ
 - A request lands with a merge commit, keeping every commit, so each is cleaned up before it lands —
   fixups folded, work in progress reworded. Squash and rebase merging are off.
 - A branch carries one change, starts from current `main`, and is deleted once it lands.
-- A change lands when someone asks for it; making it ends at its last commit on the branch.
 - A branch is named `<type>/<change>` — the commit type its change takes, then a few lowercase
   hyphenated words: `feat/foo-export`, `fix/bar-timeout`.
 ```
@@ -118,12 +117,6 @@ fixups land as they are.
    still runs that version and cannot take the latest.** Only then is a maintenance branch cut from
    its tag, the fix landed there and on the mainline, and the maintenance release tagged from that
    branch. Precondition: something runs or depends on a version other than the latest.
-9. **A change lands when someone decides it should, never as the last step of making it.** Landing
-   publishes the change to everyone who builds on the mainline, and rule 5 makes that permanent, so
-   making a change ends at its last commit on the branch — pushed, or opened as a request, where that
-   was asked. It lands when the person who owns it says so, or through the forge once the request's
-   checks and review pass. An agent asked to commit commits; it merges or pushes to the mainline only
-   when asked to.
 
 ## Hard stops
 
