@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.21.0 — 2026-10-10
+
+Plugin versions in this release: `pyhouse-git` 0.7.0 (from 0.6.0). `pyhouse-universal` (0.18.0),
+`pyhouse-hex` (0.11.1) and `pyhouse-flat` (0.11.0) are unchanged. Nothing in this release breaks a
+project already carrying the catalogue.
+
+### Added
+
+- **`/pyhouse-git:release-notes`** — drafts the release note a user reads before upgrading: what
+  changed for them, what a break asks of them, what is deprecated. Run it after `/release` has cut the
+  tag. It reads the commits with their bodies, the diff of what users touch and the decisions record,
+  takes every version number from the manifests, and writes a draft for you to approve into the
+  changelog the repository keeps — `CHANGELOG.md` where it keeps none. Where a release tool such as
+  release-please or git-cliff owns the notes, it writes no file and hands you the text instead.
+
+### Changed
+
+- **`/pyhouse-git:release` and `git-commit-message` route a release note to the new command**, instead
+  of only saying to write one by hand.
+- **`/pyhouse-git:adopt` adds a release-note row** to the table it writes, where the repository keeps
+  release notes and no tool writes them.
+
 ## 0.20.0 — 2026-10-09
 
 Plugin versions in this release: `pyhouse-universal` 0.18.0 (from 0.17.0), `pyhouse-git` 0.6.0 (from
