@@ -29,8 +29,9 @@ binding below; every rule above it holds under another.
 - What a version number promises, and what counts as breaking for a Python distribution →
   `python-versioning`, in the `pyhouse-universal` plugin. This skill records which release a change
   earns; that one decides what the number means.
-- A release note a consumer reads before upgrading → written for that reader, never generated from
-  these messages. The history says what changed; a release note says whether to upgrade.
+- A release note a consumer reads before upgrading → `/release-notes`, which writes it for that reader
+  from the changes themselves, never from these messages. The history says what changed; a release
+  note says whether to upgrade.
 
 ## Template — Conventional Commits 1.0.0
 
@@ -139,5 +140,6 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
   → stop, use `git-branching`.
 - Asked what the next version is, or to cut a release → stop, use `/release`.
 - Asked to enforce the convention at commit time → stop, use `/install-commit-hook`.
-- Asked for release notes → stop, write them for the consumer, never generated from these messages
-  (for a Python distribution, `python-versioning`, in the `pyhouse-universal` plugin).
+- Asked for release notes → stop, use `/release-notes`; they are written for the consumer, never
+  generated from these messages (for a Python distribution, `python-versioning`, in the
+  `pyhouse-universal` plugin).

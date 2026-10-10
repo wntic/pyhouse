@@ -149,8 +149,8 @@ EOF
 
 **Write a release note.** A consumer reads one to decide whether to upgrade, and a commit log does not
 answer that question, so a note generated from these subjects is the wrong document with the right
-name. The tag annotation is not a release note. If the repository keeps release notes, say so and leave
-them to the author.
+name. The tag annotation is not a release note; `/release-notes` drafts one from the changes themselves, for
+the person to approve.
 
 **Publish.** Building an artifact and uploading it to an index is the repository's pipeline, usually
 run by CI on the pushed tag.

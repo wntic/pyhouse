@@ -53,6 +53,7 @@ earlier in the session still counts.
 | create a branch, or decide how a change reaches `main` | `pyhouse-git:git-branching` |
 | write a commit message, or a request's title or description | `pyhouse-git:git-commit-message` |
 | cut a release | `/pyhouse-git:release` |
+| write a release note | `/pyhouse-git:release-notes` |
 
 <the Branching block of `git-branching`'s template, with the settled values>
 
@@ -64,7 +65,8 @@ earlier in the session still counts.
 The middle line stands for `git-branching`'s template block, written with the settled mainline, merge
 method and pattern in place of the template's — under squash merging or straight-to-mainline
 committing, that skill's binding for the method. The release row is written only where releases are
-tagged by hand; where a tool or a CI job cuts them, the row names that instead or is left out. The last
+tagged by hand; where a tool or a CI job cuts them, the row names that instead or is left out. The
+release-note row is written only where the repository keeps release notes and no tool writes them. The last
 line is left out only where the repository's written contribution policy requires the disclosure
 (`git-commit-message` rule 8), and that policy is named instead. Where the file is `AGENTS.md`, skills
 and commands are named bare — `git-branching`, `release` — since the plugin-qualified form is Claude
