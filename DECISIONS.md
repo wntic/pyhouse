@@ -2502,3 +2502,15 @@ nothing-visible cases. `/release` and `git-commit-message` now route a release n
 and `CLAUDE.md` records the note's content as the third rule `pyhouse-git` and `python-versioning`
 both state.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D161 — No decisions-record skill: agents already keep one well
+Taken by the maintainer (2026-10-10), closing backlog item 56 without a skill. The item asked how a
+repository keeps the decisions `git-commit-message` rule 10 sends binding choices to; the problem
+behind rule 10 — references to specs and plans that are later deleted — was already closed by D152 and
+D157. Before writing anything, Opus was run in an adopted repository on a change that makes a binding
+decision (six runs). Where a decisions file existed and the instructions file named it, every run added
+a new numbered entry in the file's own format marking the old one superseded, and edited no accepted
+entry — including the two runs whose prompt never mentioned a decision, which noticed on their own that
+the change reversed a recorded one. Where none existed, both runs recorded the binding choice in the
+agents' instructions file. A skill would have stated what the model already does.
+**Reverse by:** reopening the backlog item, with a run that shows the defect.
