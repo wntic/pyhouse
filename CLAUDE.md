@@ -167,6 +167,8 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 ```
 .claude-plugin/marketplace.json          lists the four plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
+CHANGELOG.md                             what each release changed for the plugins' users, drafted by
+                                         /release-notes after the tag
 tools/check_template_imports.py          resolves every import in every template (see above)
 .claude/review/QUESTIONS.md              the questions a review of a skill answers
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
