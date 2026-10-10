@@ -7,7 +7,7 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Items 55 and 56, agreed on 2026-10-04, remain. Every other agreed item has landed (D130–D158).
+Item 55, agreed on 2026-10-04, remains. Every other agreed item has landed or was closed (D130–D161).
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an
@@ -18,12 +18,3 @@ no query per item in a loop, filtering and paging in the store rather than in Py
 and rows used, and every filter of a hot query backed by an index. Only what is expensive to retrofit
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
-
-### 56. A decisions-record skill
-`git-commit-message` rule 10 sends a decision meant to bind later changes to wherever the repository
-keeps decisions, and lets the body be the record where it keeps none. A skill says how a repository
-keeps them, once it decides to: an architecture decision record — one numbered, dated entry per
-decision with its context, the choice, its consequences and how to reverse it, never edited after it
-is accepted, only superseded by a later one. `DECISIONS.md` in this repository is one. Language-
-independent, so its plugin is decided first: `pyhouse-git` is the only one installed in a repository
-of any language, but a decisions record is not about git.
