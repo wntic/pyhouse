@@ -1,6 +1,6 @@
 # House-style skills
 
-49 skills: 47 project-neutral Python skills in seven families — Universal (15), Meta (1), Hex core
+50 skills: 48 project-neutral Python skills in seven families — Universal (16), Meta (1), Hex core
 (11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
 Git skills.
 
@@ -15,7 +15,7 @@ repository:
 
 | Plugin | Directory | Skills |
 |---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 15 universal + `meta-skill-author`, the `/choose-architecture`, `/pyhouse-universal:code-review` and `/pyhouse-universal:adopt` commands |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 16 universal + `meta-skill-author`, the `/choose-architecture`, `/pyhouse-universal:code-review` and `/pyhouse-universal:adopt` commands |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt` and `/install-commit-hook` commands |
@@ -50,7 +50,7 @@ character cap: `description` has no documented maximum, `description` + `when_to
 **1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
 rewritten as complete sentences to fit, never truncated.
 
-## Universal (15) — always in play
+## Universal (16) — always in play
 
 These skills bind in **every** project in this style, whichever architecture it uses. They are
 unprefixed because they belong to neither architecture family. `architecture-choice` is the one read
@@ -71,6 +71,7 @@ once rather than throughout — before the family is known:
 | `python-versioning` | **What the version promises and what changes it** — whether it is a compatibility claim or only a label, the single declaration, which change forces which segment, what `0.y.z` withholds, the tag and the note |
 | `persistence` | **The store-generic data-access obligations**, whatever the family — which of them bind given the store's properties, one declared transaction owner and none across two stores, one authoritative store per record, driver errors translated at the data-access edge by one shared translator, the field and the full constraint name in the context, one constraint-naming convention and one table-name rule, the pure row mapping, stored types, closed sets and indexes, no schema created at runtime, explicit conflicts, an older write never replacing a newer one, deduplication left to the store, a batched write one statement per chunk sized under the store's limit, paged reads over a total order, migrations that run once before the new code and reverse, a chain rooted at its first real revision with a baseline only over an existing schema, and no logging |
 | `exception-catalog` | The single error-catalog file, translation of library exceptions at the boundary, swallowing versus stopping a failure, best-effort compensation, and a failure after a committed write stopped rather than re-raised |
+| `at-least-once-delivery` | **What a program owes a unit someone else delivers until it is acknowledged** — acknowledged only once its effect is committed and returned when its run fails, redelivery bounded by the delivery mechanism's own configuration and then a dead letter the operator reads, never a counter in the process, a redelivery that changes nothing because identity and values come from the unit, arrival order never taken for the record's, and a third party's signature verified over the raw body before parsing |
 | `test-principles` | The testing constitution for any Python project — layer budgets, where tests and fixtures sit and the closed autouse set, fixture versus builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, HTTP interception, the datastore contract, reliability |
 | `test-architecture-rule` | Static structural invariants and the grep firewall, with standalone and multi-member path scaffolds |
 
@@ -162,7 +163,7 @@ auth and never loads it.
 |---|---|
 | `flat-layered` | The four role kinds and the import contract between them, with a skeleton of only what most flat services have — packages at the package root, each named for a role the service has; a package and settings class per configured component, a directory written for another reader included and each file in it written atomically, built by the process definition, and the one-implementation client over one pooled transport with a refreshable credential |
 | `flat-persistence` | One package per store, named for its technology, owning a service's data access and binding `persistence`'s store-generic rules to SQLAlchemy Core — a single-row upsert, time-ordered keys, the component's settings class and engine factory, one migration directory per store, and none for a store another project owns |
-| `flat-entrypoint` | Trigger choice — one run per process by default, a loop, a stream or queue consumer, a thin HTTP wrapper receiving a body, or durable execution — and the framework-free function every trigger calls: bounded memory, progress markers after their data, containment only in a process that outlives one run, bounded redelivery with a dead letter, fan-out failure containment, and the obligations an engine adds once one is earned |
+| `flat-entrypoint` | Trigger choice — one run per process by default, a loop, a stream or queue consumer, a thin HTTP wrapper receiving a body, or durable execution — and the framework-free function every trigger calls: bounded memory, progress markers after their data, containment only in a process that outlives one run, a consumer's wrapper acknowledging or returning its unit under `at-least-once-delivery`, fan-out failure containment, and the obligations an engine adds once one is earned |
 | `flat-project-setup` | The one-time project setup — which libraries each role brings, with the floors this family's templates rely on, and the migration bootstrap under `migrations/postgres/` with a baseline only over an existing schema; the toolchain is `python-toolchain`'s, per-change revisions `flat-persistence`'s |
 
 ## Flat tests (4)

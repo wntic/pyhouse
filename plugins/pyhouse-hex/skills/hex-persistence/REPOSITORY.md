@@ -213,7 +213,10 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 
 ## Rules — mutations
 
-8. `create(entity)` returns `None`; the handler generated the id.
+8. `create(entity)` returns `None`; the handler generated the id, or took it from the command. Where a
+   create is driven by a delivered unit, it does nothing on a conflict on `id` — the dialect's insert
+   with `on_conflict_do_nothing(index_elements=["id"])` — while every other unique constraint still
+   refuses (`at-least-once-delivery` rule 3); a create driven by a request keeps the refusing insert.
 9. `update(entity)` returns `None`. `rowcount == 0` → `NotFoundError`. Use `func.now()` for
    `updated_at`.
 10. `delete(id)` returns `None`. `rowcount == 0` → `NotFoundError`. Where another table references this

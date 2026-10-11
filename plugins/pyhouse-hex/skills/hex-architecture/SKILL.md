@@ -32,6 +32,8 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
 - Choosing an annotation form or a collection type → `python-style`; the level and fields of a log
   event → `python-logging`; which layer logs is below.
 - The error catalog → `exception-catalog`.
+- What a queue consumer or a webhook route owes the unit delivered to it → `at-least-once-delivery`;
+  where the entrypoint does it is below.
 - Deriving a concrete path or class name from an identifier → `hex-conventions`.
 - Library substrate and the migration bootstrap → `hex-project-setup`; toolchain config → `python-toolchain`.
 - A table, a relational repository, a migration → `hex-persistence`.
@@ -121,10 +123,19 @@ defect. Siblings are `cli/` and `worker/`.
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
 - Opens one per-operation scope per request, message or call, and closes it when the operation ends.
 - Has one scope that catches what propagates, logs it once and turns it into that transport's outcome —
-  a status, an exit code, a retry or a dead-letter — mapped from its class here and never stored on it in
+  a status, an exit code, the unit returned or rejected (`at-least-once-delivery` rule 2) — mapped from
+  its class here and never stored on it in
   `domain/`, with any body read off the exception's own attributes (`exception-catalog` rules 6 and 13).
-- Acknowledges a message only after its handler returns. Where delivery is at-least-once, a create is
-  safe to repeat — its identity comes from the message, not a mint per delivery.
+- Acknowledges a message only after its handler returns, and returns it when the handler raises. A
+  create it drives carries the identity the message supplies (`hex-application`, command handler rule
+  6), so a redelivery finds what the first delivery wrote. A redelivered create that meets the record
+  its first delivery wrote, under the same identity, is acknowledged as done, never mapped to a
+  conflict or a dead letter (`at-least-once-delivery` rule 3): a create a delivered unit drives is
+  written to resolve a conflict on its own identity as nothing to do (`persistence` rule 15), the
+  statement being `hex-persistence`'s, so no conflict reaches the scope. The
+  rest of what a delivered unit is owed —
+  bounded redelivery to a dead letter, a redelivery that changes nothing, a sender's signature — is
+  `at-least-once-delivery`'s.
 
 ### Who logs, by layer
 

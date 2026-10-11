@@ -5,13 +5,13 @@ Shared vocabulary, index and skill shapes for the catalogue. The authoritative f
 
 ## Index
 
-The 49 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 50 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
 too. The counts in every heading are the number of directories on disk.
 
-### Universal (15)
+### Universal (16)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
@@ -26,6 +26,7 @@ too. The counts in every heading are the number of directories on disk.
 - `python-versioning` — Decide whether the version is a compatibility promise or only a label before bumping it; owns which change forces which segment, and what 0.y.z deliberately withholds.
 - `persistence` — The store-generic data-access obligations whatever the family, and which of them lapse for a store without transactions, named constraints, a conditional write, a schema of its own, migrations or two versions running at once; it binds no library and writes no file, leaves the identity scheme to the family, and points at `exception-catalog` for the translation itself.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; a failure after a committed write is stopped, never re-raised; transport rendering, and the status a transport maps a class to, stay at the boundary.
+- `at-least-once-delivery` — A unit a broker, a stream or a third-party sender delivers until it is acknowledged is acknowledged only once its effect is committed and returned when it fails, redelivered to a limit the delivery mechanism holds and then dead-lettered, and changed by no redelivery; a third party's signature is checked over the raw body first; the consumer or route that spells it is the family's, and ordering at the store is `persistence`'s.
 - `test-principles` — The testing constitution for any Python project, and it wins wherever an artifact-specific test skill contradicts it — where tests and fixtures sit and the closed autouse set, one substitution ladder, assert strength with literal expected values, HTTP interception asserted on the exercised route's own call record and pinning what the route does not match on, and a datastore contract that reads the store back and forces translated driver errors.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
@@ -69,7 +70,7 @@ too. The counts in every heading are the number of directories on disk.
 
 - `flat-layered` — Four role kinds carry the rules and each package, at the package root, is named for a role the service actually has — the skeleton holds only what most flat services have; a configured component is a package with its own settings class, built by the process definition, whose contents are `python-settings`'s, and a client holds one pooled transport; one distribution on its own is the default.
 - `flat-persistence` — Confine each store's statements and connections to one package named for its technology, binding `persistence`'s store-generic rules with no port in front — a single-row upsert, application-minted time-ordered keys, one migration directory per store — and a store another project owns gets no migrations.
-- `flat-entrypoint` — Changing the trigger — one run per process by default, a loop, a stream, a thin HTTP wrapper or durable execution — calls the same dependency-injected function without rewriting its work; only a process that outlives one run contains a run's failure, a contained unit is redelivered to a limit and then dead-lettered, and a workflow engine is earned, never assumed.
+- `flat-entrypoint` — Changing the trigger — one run per process by default, a loop, a stream, a thin HTTP wrapper or durable execution — calls the same dependency-injected function without rewriting its work; only a process that outlives one run contains a run's failure, a consumer's wrapper acknowledges or returns its unit as `at-least-once-delivery` states, and a workflow engine is earned, never assumed.
 - `flat-project-setup` — Lay a flat service down once — which libraries each role brings with the floors this family's templates rely on, and the migration bootstrap with no empty greenfield baseline; the toolchain itself is `python-toolchain`'s, per-change revisions `flat-persistence`'s.
 
 ### Flat tests (4)
@@ -94,7 +95,7 @@ skill only as an example and must read correctly in a repository with no Python 
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 15 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it, and `/pyhouse-universal:adopt` | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 16 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it, and `/pyhouse-universal:adopt` | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
