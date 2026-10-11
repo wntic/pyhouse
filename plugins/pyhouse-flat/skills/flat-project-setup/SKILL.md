@@ -26,7 +26,8 @@ change looks like after the bootstrap is `flat-persistence`.
   `flat-persistence`.
 - The packages inside `src/myapp/`, the settings class each component owns, and the entry point →
   `flat-layered`.
-- The pytest configuration block and the fixtures it loads → `flat-test-integration-setup`.
+- The pytest configuration block → `python-toolchain`; the fixtures it loads →
+  `flat-test-integration-setup`.
 - Which version the distribution itself declares, and what changes it → `python-versioning`.
 - The interpreter floor, annotation forms, and the comment rules migrations follow → `python-style`.
 - `__init__.py` re-exports and import forms → `python-packaging`.
@@ -50,7 +51,7 @@ the role that needs them and not before:
 
 | Role present | Runtime dependencies it brings | Development dependencies it brings |
 |---|---|---|
-| any | `pydantic`, `pydantic-settings`, `structlog` | `pytest`, `ruff`, `mypy` |
+| any | `pydantic`, `pydantic-settings`, `structlog` | `python-toolchain`'s development group, as written |
 | a client over HTTP | `httpx` | `respx` |
 | data access on a relational store | `sqlalchemy[asyncio]>=2` (2.0: inline type annotations under mypy `--strict`), `asyncpg` | `testcontainers[postgres]>=4.15` (4.15: `testcontainers.community`) |
 | a relational store whose schema this service owns | `alembic` | — |

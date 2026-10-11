@@ -21,10 +21,11 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from myapp.exceptions import InvalidPayloadError, MyappError
-from myapp.foo_recording import record_foo
 from myapp.postgres import FooRepository
 from myapp.schemas import FooPayload
+
+from ..exceptions import InvalidPayloadError, MyappError
+from ..foo_recording import record_foo
 
 __all__ = ["build_app"]
 
@@ -86,7 +87,8 @@ carries no status; this module maps one from the class (`exception-catalog` rule
 error renders as itself, the framework's validation failure as `InvalidPayloadError` (`422`), anything
 else as the catalogue root, and `context` is encoded for JSON first, so an identifier in it cannot turn
 the answer into a crash. The level follows the status (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
-bare `Exception` re-raises to the server, which logs it a second time.
+bare `Exception` re-raises to the server, which logs it a second time. `InvalidPayloadError` is a bare
+subclass of the catalogue's root `MyappError` (`exception-catalog`).
 
 **The app is built by a factory the process definition calls**, never as a module-level `app`, which
 would build its dependencies at import (rule 3) and could not be handed a test container's engine. An
@@ -113,8 +115,8 @@ async def record_foo(repository: FooRepository, payload: FooPayload) -> None:
 
 ## The process definition — uvicorn
 
-`src/myapp/__main__.py`, or a module in `entrypoints/` beside others without its last two lines. The
-process's `MyappSettings` declares `http_host: str` and `http_port: int`, required like every tunable
+`src/myapp/__main__.py`, or a module in `entrypoints/` beside others without its last two lines, its
+imports of the package root's own modules written `..`. The process's `MyappSettings` declares `http_host: str` and `http_port: int`, required like every tunable
 (`flat-layered` rule 9):
 
 ```python
@@ -122,10 +124,11 @@ import asyncio
 
 import uvicorn
 
-from myapp.logging import configure_logging
-from myapp.myapp_settings import MyappSettings
 from myapp.postgres import FooRepository, PostgresSettings, create_engine
 from myapp.web import build_app
+
+from .logging import configure_logging
+from .myapp_settings import MyappSettings
 
 
 async def _serve() -> None:

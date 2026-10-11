@@ -19,9 +19,9 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from myapp.exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
 from myapp.schemas import Foo
 
+from ..exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
 from .foo_table import foo_table
 
 __all__ = ["FooRepository"]
@@ -104,7 +104,8 @@ a write. It matches on the SQLSTATE and the constraint name the driver reports â
 text, and never on SQLAlchemy's subclass, which its asyncpg adapter assigns to only some SQLSTATEs â€” and
 puts them, not the stringified error, into `context`. SQLAlchemy wraps the asyncpg exception in an
 adapter, and the adapter chains asyncpg's own exception as its `__cause__`, so both are read off that.
-The classes are the service's own, declared in its one catalogue (`exception-catalog`). **Where a caller
+The classes are the service's own, declared in its one catalogue: `StorageWriteRejectedError` is a
+bare subclass of the root `MyappError`, and so is `StorageUnavailableError` (`exception-catalog`). **Where a caller
 acts on one particular constraint, that constraint gets a branch of its own ahead of the SQLSTATE-class
 check, matched on the full generated constraint name (`persistence` rule 7)** and returning the class
 the caller catches, with the offending field and that name in its `context` (`persistence` rule 6).

@@ -42,7 +42,7 @@ nothing here assumes a sibling distribution or a repository above it.
 
 | The work is… | Shape | Lives in |
 |---|---|---|
-| Anything on a schedule, as the starting assumption — a poll, a periodic pass, a nightly job | **One run per process**, started by an external scheduler or repeated by a loop around it | the process definition |
+| Anything on a schedule, as the starting assumption — a poll, a periodic pass, a nightly job — or a run started by hand from the command line | **One run per process**, started by an external scheduler, by hand, or repeated by a loop around it | the process definition |
 | Scheduled work that must *also* survive a restart mid-run, retry across process death, or orchestrate steps over hours or days | **Durable execution** — a workflow engine | a framework-wrapper package plus its serving process |
 | A never-ending stream — a log or change feed, a queue consumer, a websocket feed | **Standalone stream process**, watched by an external liveness check | a process definition of its own |
 | A request someone else sends — a webhook, an internal CRUD or proxy endpoint, on a service with no invariants of its own | **HTTP trigger** — a thin web-framework wrapper | a framework-wrapper package plus its server process |
@@ -110,10 +110,11 @@ import asyncio
 
 import httpx  # only with an upstream
 
-from myapp.foo_sync import sync_foos
-from myapp.logging import configure_logging
 from myapp.postgres import FooRepository, PostgresSettings, create_engine  # only with a store
 from myapp.qux import QuxClient, QuxSettings  # only with an upstream
+
+from .foo_sync import sync_foos
+from .logging import configure_logging
 
 
 async def _run() -> None:
@@ -140,12 +141,14 @@ if __name__ == "__main__":
 **Logging is configured once, first** (`python-logging` rule 3). **The run is not contained:** a failure
 propagates out of `main()` to a non-zero exit, which is how the scheduler that started the process
 sees it. `python -m myapp` runs the one process; a service with several defines each as a module in
-`entrypoints/` — the same module without its last two lines — declares one console script per module in
-`[project.scripts]` (`python-toolchain`), and has no `__main__.py`.
+`entrypoints/` — the same module without its last two lines, its imports of the package root's own
+modules written `..` — declares one console script per module in
+`[project.scripts]` (`python-toolchain`), and has no `__main__.py`. A run started by hand from the
+command line is this process: its entry function is the composition root, and a value its caller picks
+per invocation is an argument parsed there, never a setting (`python-settings` rules 13 and 15).
 
 **The process definition builds every settings object and hands concrete values down** — it is
-this family's composition root, so the rule is `python-settings` rule 13 and its flat spelling
-`flat-layered` rule 6.
+this family's composition root, so the rule is `python-settings` rule 13.
 
 **The transport and the engine are built once and wrap the whole run.** One pooled `httpx.AsyncClient`
 and one engine exist before the run starts and are closed when it ends, the engine disposed even when
@@ -154,8 +157,8 @@ things takes them from one builder rather than a copy (rule 14).
 
 ### A process that outlives one run
 
-A loop or a consumer catches each run's failure around that one run, logs it once and goes on to the
-next (rule 8). The catch sits in a function of the process definition that performs one run and takes
+A loop catches each run's failure around that one run, logs it once and goes on to the next (rule 8).
+The catch sits in a function of the process definition that performs one run and takes
 what it needs as parameters, so a test calls it without driving the loop; `log` is the module's logger
 (`python-logging`):
 
@@ -167,24 +170,38 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
         log.exception("foo_sync_failed")
 ```
 
+This function is the loop's. A consumer contains a unit's failure too, but never by swallowing it: the
+failed unit is returned to the broker for redelivery, never acknowledged (rule 15).
+
 A loop waits between runs on an interval read from the process's settings — `MyappSettings` declaring
 `poll_interval_seconds: float`, a required field with no default (rule 16) — and stops when asked, after
-the run in flight (rule 16). Each piece below goes where its comment says:
+the run in flight (rule 16). These imports join the module's own, with the module's logger bound
+below them:
 
 ```python
-import contextlib  # with the other imports
-import signal  # with the other imports
+import contextlib
+import signal
 
-from myapp.myapp_settings import MyappSettings  # with the other imports
+import structlog
 
-# the first lines of _run
+from .myapp_settings import MyappSettings
+
+log = structlog.get_logger()
+```
+
+The first lines of `_run` install the stop request and build the process's settings:
+
+```python
 stopping = asyncio.Event()
 loop = asyncio.get_running_loop()
 for signum in (signal.SIGTERM, signal.SIGINT):
     loop.add_signal_handler(signum, stopping.set)
 settings = MyappSettings()
+```
 
-# in place of await sync_foos(...)
+And the loop takes the place of the single `await sync_foos(...)` inside the transport block:
+
+```python
 client, repository = QuxClient(http), FooRepository(engine)
 while not stopping.is_set():
     await sync_foos_contained(client, repository)
@@ -217,7 +234,8 @@ probe, or a scraped freshness metric with an alert rule.
 
 A service that runs a stream beside scheduled work therefore has two processes, each a module in
 `entrypoints/` with a console script of its own (`flat-layered`); the stream is the one that holds state
-of its own between observations (rule 12), and it contains each unit's failure like any process that
+of its own between observations, written atomically where it is kept in a file (`flat-layered` rule 14),
+and it contains each unit's failure like any process that
 outlives one run (rule 8).
 
 Never park the stream in one long-lived unit of work or make each item a workflow (rule 7): a workflow
@@ -329,12 +347,7 @@ for rule 9.
     markers are written independently, because one unit's marker then confirms rows another unit's
     failure loses. A message acknowledgement is a progress marker too — sent only after the unit's
     effect is durable. A marker ahead of its data is data lost with a record saying it was kept.
-12. **A file the process writes for another reader is written atomically.** A report, an export, or a
-    position kept for the next start is written under a temporary name and moved over the final one in
-    one atomic step (`os.replace` in the standard library), never written in place — a crash mid-write
-    otherwise leaves a file its reader cannot parse, or reads half of. Where a process keeps local state
-    between starts, it reads it at startup and an unreadable value stops the process, never a
-    contained run.
+12. **A file the process writes for another reader is written atomically** — `flat-layered` rule 14.
 13. **A run that fans out over independent units contains each unit's failure and fails as a whole
     afterwards.** With bounded parallelism, one unit's failure neither cancels nor orphans the others:
     every unit is awaited to completion, each failure is recorded with the unit it belongs to, and a

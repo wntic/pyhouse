@@ -175,7 +175,7 @@ migrations own is spared by name beside the version table, or a test arranges th
 history that creates tables in a further schema lists that schema beside `current_schema()`.
 
 No placeholder `MYAPP_POSTGRES_` variables are set for collection: nothing in the service builds
-settings or an engine at import (`flat-persistence` rule 3), so an unset variable fails only the code
+settings or an engine at import (`python-packaging` rule 8), so an unset variable fails only the code
 that reads it.
 
 The container library is imported **inside** the fixture that needs it, not at module scope, so a
