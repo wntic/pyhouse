@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.24.0 — 2026-10-11
+
+Plugin versions in this release: `pyhouse-universal` 0.21.0 (from 0.20.0), `pyhouse-hex` 0.14.0 (from
+0.13.0); `pyhouse-flat` 0.13.0 and `pyhouse-git` 0.8.1 are unchanged. Nothing is removed or reversed.
+
+### Added
+
+- **`at-least-once-delivery` says which delivery guarantee its rules bind.** At least once is what they
+  bind, and a client default that acknowledges before the effect — a task queue acknowledging before the
+  task runs, offsets committed on a timer — gives less; rule 1 is what corrects it. At most once is a
+  choice only where losing a unit costs nothing, made and recorded as that choice, and rules 4 and 5
+  still bind it. A broker's exactly-once holds inside the broker and removes no rule: an effect applied
+  once is at-least-once delivery with an idempotent effect. If your consumer relies on a client's
+  default acknowledgement, check it against rule 1.
+- **A hex service driven by a queue now tests its redelivered create.** `hex-test-application-handler`
+  gains a coverage group for a handler a consumer calls: the same command handled twice returns the
+  unit's id, raises nothing and leaves one entity, and the create test asserts the command's id. Its fake
+  repository's `create` does nothing when the id is already stored, checked before any natural key, as
+  the real insert does. `hex-test-repository-contract` pins that a second entity under the first's id
+  changes nothing while a natural-key conflict still raises. A review will ask for these tests on a hex
+  consumer; a service whose creates come only from requests is unaffected.
+
 ## 0.23.0 — 2026-10-11
 
 Plugin versions in this release: `pyhouse-universal` 0.20.0 (from 0.19.0), `pyhouse-hex` 0.13.0 (from
