@@ -20,7 +20,7 @@ into the classes `exception-catalog` owns.
 - The catalogue exception classes the SDK's own errors are translated into → `exception-catalog`.
 - The undo a compensating handler calls on this adapter (`delete` beside `upload`) → an ordinary method that raises on failure, declared on a port by `hex-domain-ports`; the handler-side guard that tolerates its failure is `hex-application`'s (Compensation).
 - An in-memory test stand-in for this capability (the `Fake<Capability>` flavor) → `hex-test-application-handler`.
-- Testing the real adapter — containerized backend, `respx`-intercepted HTTP, or pure CPU → `hex-test-capability-adapter`.
+- Testing the real adapter — containerized backend, HTTP over a stub transport, or pure CPU → `hex-test-capability-adapter`.
 - A token verifier — its port, its adapter and the dependency that resolves it → `hex-restapi-auth`; it is a pure-CPU adapter in this skill's sense, bound there.
 - The `infrastructure/<technology>/` folder, the module name and the class name → `hex-conventions` and `naming`.
 

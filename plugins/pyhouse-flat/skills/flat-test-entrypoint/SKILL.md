@@ -34,14 +34,15 @@ earned).
 - The shared groundwork — the substitution ladder, reliability rules, never waiting out real time →
   `test-principles`.
 
-## Template — the work end to end (pytest, `respx` through `pytest-httpx2` over `httpx2`, real Postgres)
+## Template — the work end to end (pytest, `httpx2.MockTransport` under a real `httpx2` client, real Postgres)
 
-`tests/integration/test_foo_sync.py` — the upstream stub `qux_stub` and the client over it,
-`qux_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
-its trigger's input — a delivery, a message — is called with a built input and takes neither fixture:
+`tests/integration/test_foo_sync.py` — the upstream stub's record `qux_requests`, its queued answers
+`qux_answers` and the client over it, `qux_client`, are the shared fixtures in `tests/conftest.py`
+(`flat-test-service-client`). A run fed by
+its trigger's input — a delivery, a message — is called with a built input and takes none of them:
 
 ```python
-import respx
+import httpx2
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
@@ -55,22 +56,29 @@ _TWO_FOOS = {"items": [{"id": "alpha", "name": "a"}, {"id": "beta", "name": "b"}
 
 
 async def test_a_run_records_what_it_fetched(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, connection: AsyncConnection
+    qux_requests: list[httpx2.Request],
+    qux_answers: list[httpx2.Response | httpx2.TransportError],
+    qux_client: QuxClient,
+    engine: AsyncEngine,
+    connection: AsyncConnection,
 ) -> None:
-    route = qux_stub.get("/foos").respond(200, json=_TWO_FOOS)
+    qux_answers.append(httpx2.Response(200, json=_TWO_FOOS))
 
     await sync_foos(qux_client, FooRepository(engine))
 
     query = select(foo_table.c.external_id, foo_table.c.name).order_by(foo_table.c.external_id)
     rows = (await connection.execute(query)).all()
-    assert route.called
+    assert [(request.method, request.url.path) for request in qux_requests] == [("GET", "/foos")]
     assert [tuple(row) for row in rows] == [("alpha", "a"), ("beta", "b")]
 
 
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, connection: AsyncConnection
+    qux_answers: list[httpx2.Response | httpx2.TransportError],
+    qux_client: QuxClient,
+    engine: AsyncEngine,
+    connection: AsyncConnection,
 ) -> None:
-    qux_stub.get("/foos").respond(200, json=_TWO_FOOS)
+    qux_answers.extend([httpx2.Response(200, json=_TWO_FOOS), httpx2.Response(200, json=_TWO_FOOS)])
     await sync_foos(qux_client, FooRepository(engine))
 
     await sync_foos(qux_client, FooRepository(engine))
@@ -81,13 +89,16 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 
 
 async def test_a_run_reports_what_it_fetched(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine
+    qux_requests: list[httpx2.Request],
+    qux_answers: list[httpx2.Response | httpx2.TransportError],
+    qux_client: QuxClient,
+    engine: AsyncEngine,
 ) -> None:
-    route = qux_stub.get("/foos").respond(200, json=_TWO_FOOS)
+    qux_answers.append(httpx2.Response(200, json=_TWO_FOOS))
 
     result = await sync_foos(qux_client, FooRepository(engine))
 
-    assert route.called
+    assert [(request.method, request.url.path) for request in qux_requests] == [("GET", "/foos")]
     assert result == FooSyncResult(fetched_count=2)
 ```
 
@@ -110,8 +121,8 @@ connections to it.
 
 ## Other bindings
 
-- **A different upstream-stub mechanism** — a transport handed to the client, a local stub server, a
-  recorded cassette (`flat-test-service-client` names the trade-offs). Only how the upstream is pinned
+- **A different upstream-stub mechanism** — `respx` where the project already uses it, a local stub
+  server, a recorded cassette (`flat-test-service-client` names the trade-offs). Only how the upstream is pinned
   changes; rule 1's asymmetry — upstream substituted, datastore not — is the thing that must survive,
   because it is what makes this level catch wiring at all.
 - **Another web framework's harness under an HTTP trigger** — Starlette's, Litestar's or aiohttp's own
@@ -159,8 +170,8 @@ connections to it.
    asserting that the other units' effect (rule 3) — and markers, where units write them — landed and
    that the run's failure names the failed unit (`flat-entrypoint` rules 11 and 13).
 6. **A process that outlives one run is tested through the function that performs one contained run,
-   never by driving the loop** (`flat-entrypoint` rule 8). Call it with the transport failing — it
-   returns without raising — then call it again with the transport answering and assert on that run's
+   never by driving the loop** (`flat-entrypoint` rule 8). Call it with the transport failing — a
+   transport error queued as its answer, never an empty queue — it returns without raising — then call it again with the transport answering and assert on that run's
    effect (rule 3). A broker's consumer is tested through the function that handles one delivered
    unit, never the loop's contained run (`flat-entrypoint` rule 15): with the work failing, the unit is
    asserted returned and never acknowledged; with it answering, acknowledged after the effect. The

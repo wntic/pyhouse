@@ -2848,6 +2848,7 @@ consumer, outcome and neighbour lines, `exception-catalog` rule 15, `persistence
 plugin's description and the backlog's proposed entry.
 
 ### D176 — The HTTP binding is httpx2, stubbed by respx through pytest-httpx2
+**The stub choice, and the floor left unwritten, reversed by D181.**
 Taken during the 2026-10-11 run, the maintainer away. httpx is stalled — last stable 0.28.1 on
 2024-12-06, only `1.0.devN` since, and its transport httpcore last released 1.0.9 on 2025-04-24 with
 open defects in a long-lived pooled `AsyncClient` and in cancellation, the two things the templates do.
@@ -3069,3 +3070,73 @@ statement's import for every service.
 **Reverse by:** removing the coverage group, the Fakes rule 6 sentence, the fake's id check and the
 rule 5 sentence.
 
+### D181 — The HTTP stubs are httpx2's own `MockTransport`; httpx2 takes a floor
+Taken by the maintainer (2026-10-11), reversing D176's stub choice. D176 refused `httpx2.MockTransport`
+because it needs the transport injected into every client a process definition builds. It does not: in
+every test template the test itself builds the `httpx2.AsyncClient` and hands it to the code under test
+— the client and the adapter are handed their transport and never build one — so `transport=` goes into
+that fixture and no production line changes. What the respx binding cost is gone with it: a third-party
+plugin with one release, a mocker that patched httpcore2 only when that plugin was loaded (so the flat
+conftest had to load it by name, and the fixture order mattered), respx's own response type in place of
+httpx2's, a call record of `httpx.Request`s, and httpx and httpcore installed test-only beside httpx2.
+
+**The shape, one style in all three templates** (`hex-test-capability-adapter`,
+`flat-test-service-client` with its conftest, `flat-test-entrypoint`). Two function-scoped fixtures — a
+list the stub records each `httpx2.Request` into, and a list of answers the test queues — and the client
+fixture, whose handler records the request and answers with the next queued item: an `httpx2.Response`,
+or a transport error it raises, which httpx2 hands on with `.request` set. A sequence, such as a 429
+and then a 200 for an adapter that retries, is two answers queued in order. A request with no answer
+left calls `pytest.fail`, a `BaseException`, so the test reds even under a caller that catches every
+exception; `flat-test-entrypoint` rule 6's failing transport is therefore a queued transport error,
+never an empty queue. An auth flow handed to the transport logs in through the same stub, so a refresh
+test queues its answers in the order the flow sends — the login's token, the 401, the second login's
+token, the success — and reads the record back as that sequence, the last request carrying the renewed
+credential; the second-rejection test's record ends on the resource request, so the rejection is the
+resource's and not a failed login. The maintainer's
+sketch had each test write its own handler; queued answers were taken instead so the shared flat
+fixture keeps building the client exactly as the process definition does, and each test arranges its
+upstream in one line. The happy path pins method and URL from the record (`[request] = ...` in hex, a
+list of method and path in flat) and reads the body and headers from the same request. The routing
+assertions respx's routes made implicitly are now explicit on the record. No template needs a second
+endpoint; where one does, the handler answers by method and path, which `test-principles` rule 2 says.
+
+**`test-principles`, *Intercepting HTTP*, covers both forms; the seven obligations stand.** Rung 2's
+example is `httpx2.MockTransport`. Rule 1 stays the obligation — the stub covers every request the
+subject makes from before the first one — and says what it takes in each form: a transport stub covers
+only the client it is, so the subject is handed that client; a patching library covers only from when
+it is entered, so it is active for the whole test and a fixture that issues requests requests it. The
+`## Other bindings` bullet naming respx among the patching libraries points at that clause. Rule 2 pins
+every request's method and URL from the stub's record, on each call's happy path and on any sequence,
+and a stub serving several endpoints either answers each by method and path or answers in queued order
+the test pins. Rule 3 asserts the request reached the stub and keeps its sentence against requiring
+every queued answer or route to be used. `flat-test-service-client` rule 6 points at the record instead
+of `assert_all_called=False`. Rules 4 and 5 read the stub's record, and `CONVENTIONS.md`'s index line
+for `test-principles` says so.
+
+Checked by laying each template verbatim beside minimal `myapp` stand-ins (the adapter and client
+templates copied from `hex-capability-adapter` and `flat-layered`) and running pytest 9.1.1 under
+`python -I` with httpx2 2.13.1, `-p no:pytest_httpx2 -p no:respx`, warnings as errors: hex 7 passed,
+flat 11 passed (the entrypoint test's store replaced by an in-memory stand-in, Postgres being out of
+reach; its stub lines ran as written). A refresh tree — the flat conftest with an `httpx2.Auth` flow
+written to `flat-layered`'s description handed to the transport — passed three tests: a renewal read
+back as token, resource, token, resource with the second token sent, a second rejection ending on the
+resource request, and a failed login, each translated. An unqueued request under a test that catches
+`Exception` still failed. Ten mutations each turned a test red — wrong path, wrong method, wrong body,
+a masked credential, the transport arm dropped in each family, an extra request, a client swallowing
+every exception, and a second run with no second answer. `mypy --strict` passed on all three trees.
+
+**The binding stays httpx2, and takes a floor.** Starlette 1.7.0's `starlette.testclient` imports
+httpx2 and falls back to httpx with `StarletteDeprecationWarning: Using httpx with
+starlette.testclient is deprecated; install httpx2 instead`, so the in-process test client is moving
+to the same library. `flat-project-setup`'s client-over-HTTP row (and its HTTP-trigger row's test
+client) and `hex-project-setup`'s HTTP adapter and HTTP test client now read `httpx2>=2`, the reason beside it as
+`python-toolchain` rule 9 asks: 2.0.0 is the first release carrying the client API, and the only earlier
+one is an empty 0.0.0 placeholder. D176 wrote none because no resolver picks 0.0.0 unconstrained; the
+maintainer chose to state the boundary rather than rely on that. Both setup skills drop `respx` and
+`pytest-httpx2`, and `CLAUDE.md`'s import-checker install list drops them, since no template imports
+either. A project already on respx keeps it: one bullet in each test skill's `## Other bindings`, and
+the httpx-predecessor bullets now say `httpx.MockTransport` is the same stub under the old import, with
+aiohttp keeping `aioresponses`.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it; the D176 marker goes
+with it.
