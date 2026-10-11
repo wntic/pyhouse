@@ -6,9 +6,9 @@ paths: ["**/infrastructure/**"]
 
 # Hex — Store Repository
 
-Produces one repository class that adapts a domain repository protocol to a client-style datastore — any store reached through an injected SDK client rather than the shared relational bootstrap. That sentence is the whole selection rule: **the store profile, not the vendor, decides that this skill applies.** The adapter does not inherit from the protocol — structural subtyping at the DI injection site is the contract.
+Produces one repository class that adapts a domain repository protocol to a client-style datastore — any store reached through an injected SDK client rather than the shared relational bootstrap. That sentence is the whole selection rule: **the store profile, not the vendor, decides that this skill applies.**
 
-**A new vendor is a store-profile row plus its package — never a fork of this skill** (Rule 12). The pattern is fixed here (client injection, a fixed container token, record↔entity mapping, boundary translation via `exception-catalog`); the vendor rides in through three things and nothing else: the injected client type, the store's settings class and connection factory, and the SDK semantics that store documents. Key-value, document and wide-column stores are all one profile under that rule, and so is an index kept beside the authoritative store, which is why one skill serves them.
+**A new vendor is its own `infrastructure/<kind>/` package under this skill — never a fork of it** (Rule 12). The pattern is fixed here (client injection, a fixed container token, record↔entity mapping, boundary translation via `exception-catalog`); the vendor rides in through three things and nothing else: the injected client type, the store's settings class and connection factory, and the SDK semantics that store documents. Key-value, document and wide-column stores are all one profile under that rule, and so is an index kept beside the authoritative store, which is why one skill serves them.
 
 ## When to use vs. neighbours
 
@@ -50,47 +50,50 @@ __all__ = ["BazRepository"]
 _KEY_PREFIX = "bazs"
 
 
+def _key(id: UUID) -> str:
+    return f"{_KEY_PREFIX}:{id}"
+
+
+def _entity_to_record(baz: Baz) -> dict[str, str]:
+    return {"id": str(baz.id), "name": baz.name}
+
+
+def _record_to_entity(record: dict[str, str]) -> Baz:
+    return Baz(id=UUID(record["id"]), name=record["name"])
+
+
 class BazRepository:
     def __init__(self, client: Redis) -> None:
         self._client = client
 
-    def _key(self, id: UUID) -> str:
-        return f"{_KEY_PREFIX}:{id}"
-
-    def _entity_to_record(self, baz: Baz) -> dict[str, str]:
-        return {"id": str(baz.id), "name": baz.name}
-
-    def _record_to_entity(self, record: dict[str, str]) -> Baz:
-        return Baz(id=UUID(record["id"]), name=record["name"])
-
     async def create(self, baz: Baz) -> None:
         try:
-            await self._client.set(self._key(baz.id), json.dumps(self._entity_to_record(baz)))
+            await self._client.set(_key(baz.id), json.dumps(_entity_to_record(baz)))
         except RedisError as exc:
             raise UpstreamError(
                 "store write failed",
-                {"key": self._key(baz.id)},
+                {"key": _key(baz.id)},
             ) from exc
 
     async def get_by_id(self, id: UUID) -> Baz:
         try:
-            raw = await self._client.get(self._key(id))
+            raw = await self._client.get(_key(id))
         except RedisError as exc:
             raise UpstreamError(
                 "store read failed",
-                {"key": self._key(id)},
+                {"key": _key(id)},
             ) from exc
         if raw is None:
             raise NotFoundError("Baz not found", {"id": str(id)})
-        return self._record_to_entity(json.loads(raw))
+        return _record_to_entity(json.loads(raw))
 
     async def delete(self, id: UUID) -> None:
         try:
-            removed = await self._client.delete(self._key(id))
+            removed = await self._client.delete(_key(id))
         except RedisError as exc:
             raise UpstreamError(
                 "store delete failed",
-                {"key": self._key(id)},
+                {"key": _key(id)},
             ) from exc
         if removed == 0:
             raise NotFoundError("Baz not found", {"id": str(id)})
@@ -112,6 +115,7 @@ class RedisSettings(BaseSettings):
         env_prefix="MYAPP_REDIS_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     url: SecretStr
@@ -195,7 +199,7 @@ different SDK names. What changes, and what does not:
   is usually a single-action capability rather than an aggregate's collection, so check
   `hex-capability-adapter` first.
 
-Each of these is one store-profile row and one `infrastructure/<kind>/` package. None of them is a
+Each of these is one `infrastructure/<kind>/` package under the client-style profile (`hex-conventions`). None of them is a
 second copy of this skill.
 
 ## Rules
@@ -215,7 +219,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infrastr
 ### Form
 
 1. **Names and module structure** follow `naming` and `python-packaging`; technology placement follows `hex-architecture` and `hex-conventions`. An aggregate has exactly one **authoritative** store, the one its writes go to (`persistence` rule 3) — unlike a capability port that several vendors may implement. A derived projection of the same aggregate on a second store (an index over `Foo`, see `## Other bindings`) sits behind its own narrower port, which is why the repository file stem is protocol-derived for client stores; see `hex-conventions`.
-2. **No explicit `(IFooRepository)` inheritance.** Structural subtyping.
+2. **The adapter satisfies its protocol structurally** (`hex-architecture` rule 7).
 3. **Method signatures match the protocol exactly**, including async mode, keyword-only markers, and compound return shapes — a compound return is returned whole, never reduced to the entity with the rest discarded.
 
 ### Client & settings
@@ -225,7 +229,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infrastr
 
 ### Records ↔ entities
 
-6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`; pure by `persistence` rule 8). IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore is `python-style`'s last resort, for code the checker is wrong about that cannot be restated (its type suppressions); an adapter is the one place the vendor type is allowed, so the code can always be restated and there is nothing to silence.
+6. **Private, pure mapping helpers** (`_record_to_entity` / `_entity_to_record`, and the key builder beside them; module functions by `python-packaging` rule 2, pure by `persistence` rule 8). Where rule 5 makes the prefix a setting, the key builder takes it as a parameter. IDs serialize as strings unless the SDK is UUID-native. **Annotate the SDK's own record type on the parameter and narrow with `isinstance` or `typing.cast`** — never `object` plus a row of `# type: ignore[attr-defined]`. An inline ignore is `python-style`'s last resort, for code the checker is wrong about that cannot be restated (its type suppressions); an adapter is the one place the vendor type is allowed, so the code can always be restated and there is nothing to silence.
 7. **The record shape is `persistence` rule 10's**; the aggregate's access patterns and the store's semantics guide it.
 8. **An entity is reconstructed from its own stored data.** Never substitute query-side values for stored ones (e.g. an entity rebuilt from a record is built from the record's fields, never patched with the key or the arguments the caller looked it up by); when the read path doesn't consume a stored field, omit it explicitly rather than faking it.
 
@@ -237,14 +241,14 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infrastr
 
 ### Vendor & semantics
 
-12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching (its limit; the obligation is `persistence` rule 21), consistency options — read them from the SDK's own documentation. A **new vendor is a store-profile row plus its package — never a fork of this skill** (the same way `hex-capability-adapter` serves every vendor with one skill).
+12. **Vendor semantics come from the SDK, not from this skill.** Query API, filter DSL, batching (its limit; the obligation is `persistence` rule 21), consistency options — read them from the SDK's own documentation. A **new vendor is its own package under this skill — never a fork of it** (the same way `hex-capability-adapter` serves every vendor with one skill).
 13. **No provisioning** (`persistence` rule 14) — a bucket included.
 14. **Ordering is explicit** (`persistence` rule 18) — an explicit sort key, or the store's documented result order.
 15. **No retries, no caching, no domain reasoning, no logging.** Same thinness contract as every adapter (see `hex-capability-adapter`'s adapters-are-thin rules); a repository never logs by `persistence` rule 22, and which layer does is `hex-architecture`'s.
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.bazs import Baz`); a sibling module of the store's package relative (`from ..redis_settings import RedisSettings`, where rule 5 puts a value there). **Never import the protocol the adapter satisfies** — structural subtyping needs no import (Rule 2); importing it is a dead F401.
+- Domain imports absolute (`from myapp.domain.bazs import Baz`); a sibling module of the store's package relative (`from ..redis_settings import RedisSettings`, where rule 5 puts a value there). **Never import the protocol the adapter satisfies** (`hex-architecture` rule 7).
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - Raw SDK payloads may be `dict[str, Any]` / `object` at the immediate boundary — convert to the domain type in the mapping helper, never return them.
 - No `from __future__ import annotations`. Full annotations on every method.

@@ -199,7 +199,7 @@ needing a rule is a function; two needing the same rule is a domain with nowhere
 
 Move incrementally rather than rewriting: extract the rule, then the protocol it needs, then the
 orchestration above it, leaving the concrete clients in place as adapters. The step-by-step procedure
-is `hex-architecture`'s `### When moving code between layers`, which arrives with `pyhouse-hex`; the
+is `hex-architecture`'s `## Moving code between layers`, which arrives with `pyhouse-hex`; the
 signal above is what this skill owns, and it is enough to know that the migration is due. Do not take the structure before the rule arrives — flat → hexagonal is additive,
 which is exactly what makes waiting cheap.
 

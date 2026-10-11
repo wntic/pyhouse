@@ -102,9 +102,8 @@ loaded automatically:
 
 ## Rules
 
-1. **The adapter satisfies the port structurally and never inherits it.** Signatures match the protocol
-   exactly — keyword-only markers and async/sync mode included — and the module does not import the
-   protocol, which would leave a dead unused import.
+1. **The adapter satisfies the port structurally** (`hex-architecture` rule 7). Signatures match the
+   protocol exactly — keyword-only markers and async/sync mode included.
 2. **Each of `persistence` rule 1's two forms is its own class.** A standalone adapter opens its own
    session and commits only on a mutation; a unit-of-work-managed one receives the unit of work's live
    session and never commits or rolls back. A class that would need both call styles is two adapters.
@@ -139,8 +138,8 @@ Table module:
 Repository module:
 
 - Domain imports absolute (`from myapp.domain.foos import Foo`); the table relative
-  (`from ..tables.foos import foos_table`). **Never import the protocol the adapter satisfies** — a dead
-  unused import, and structural subtyping needs none.
+  (`from ..tables.foos import foos_table`). **Never import the protocol the adapter satisfies**
+  (`hex-architecture` rule 7).
 - Import only the domain exceptions this repository actually raises, not the whole catalogue.
 - Type the driver's row so the mapper needs no ignore comment. Under the primary binding that is
   `.mappings()` → `RowMapping` accessed by key (`row["id"]`); never type a row as `object` with attribute
@@ -175,6 +174,6 @@ environment import it from its module (`from ..metadata import metadata`,
 - A unit of work is asked to span two backends (a table plus object storage or a cache) → stop, that is
   compensation in `hex-application`, not a unit of work.
 - Asked to mint an id inside the repository → stop, use `hex-application`, which owns the identity
-  scheme (Command handler rule 8) and its one store-minted exception.
+  scheme (Command handler rule 6) and its one store-minted exception.
 - The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
   file; this skill covers DDL only.

@@ -137,43 +137,6 @@ All verified against the current files.
   split a package or module" row because the tree looked hexagonal; say outright that without an
   argument naming the family the row is left out, whatever the layout looks like.
 
-### 71. `pyhouse-hex` fixes from the 2026-10-11 review
-All verified against the current files. The at-least-once create (review item 3b) is item 66's.
-- `hex-application` rule 1 (`:326-330`) against `hex-restapi-auth/ROUTES.md:14`: `caller_id` is the
-  first field of a command and of a query scoped by the caller, not of every query; the route that binds
-  `_` passes nothing, and the query's construction raised `TypeError`.
-- `hex-application:334-355,440-443`: merge the three DTO subsections and handler rules 1–2.
-- `hex-application:35-48`: one line under the tree — the CRUD set is not a default; only the operations
-  the service has.
-- `hex-architecture:44-62` ("Is this the right style at all?"): one pointer to `architecture-choice` and
-  `coupling`. `:265-275`: "How to apply" reduced, "When moving code" above `## Rules`.
-- `hex-architecture:4` `when_to_use`: add a queue consumer and a CLI entrypoint.
-- "An adapter does not import its port" is stated in five skills (`hex-domain-ports:152`,
-  `hex-persistence:105,142`, `hex-capability-adapter:181,240`, `hex-store-repository:9,218,247`); the
-  owner is `hex-architecture` rule 7, the rest keep a short pointer beside the templates.
-- `hex-conventions:132-174`, rule 6 (`:229-230`): the store-profile block specifies a generator that does
-  not exist, and its fallback sends an unknown store to a `NotImplementedError` stub that fails at build;
-  reduce to the two profiles and the file stem each gets. With it `hex-store-repository:11,198,240`.
-- `hex-domain-model:206-218`: the entity/read-model predicate in one sentence.
-- `hex-domain-model` enum and filter rules: Enum rule 1's StrEnum/Enum choice points at `python-style`
-  rule 12; Enum rule 5 and Filter rule 2 stay (not in `python-style`); Filter rule 2's reason ("one object
-  every filter mutates") is false for a `frozenset` — correct it.
-- `hex-domain-model:71,75,140,143`: three templates declare `Foo`; rename to `FooQuota` and `FooStatus`
-  as `hex-test-domain:89,107` already do, and align the enum members (`ALPHA`/`BETA` vs `A`/`B`/`C`).
-- `hex-persistence/REVISION.md:13-31`: the `alembic check` manual in two sentences.
-- `hex-persistence/REVISION.md:9-10`: "hand-edit seed data" into a DDL revision contradicts "DDL only";
-  fix the line, keep the hard stop at `SKILL.md:179-180`.
-- `hex-persistence/REPOSITORY.md:197-198`: "every public method is async" → a method takes the port's
-  mode, async under this binding.
-- `hex-restapi-auth:358-360`: the JWKS cache in the adapter contradicts the hard stop at `:450`.
-- `hex-store-repository:57-64`: `_key` and the mappers become module functions; adjust rule 6 (`:228`).
-- `hex-test-repository-contract:449`: drop the second sentence (the mixed-case test, a logic case).
-- `hide_input_in_errors=True` on the settings classes carrying a secret: `hex-store-repository:110-115`,
-  `hex-capability-adapter:98-103`, `hex-restapi-auth:163-168` (`python-settings` rule 7, D140).
-- `hex-capability-adapter:243` justifies a `cast` by `hex-restapi-auth`, whose primary binding says no
-  cast (`:422-425`); the cast exists only in its dependency-injector binding — correct the citation.
-- `hex-wiring:52-54`: delete the three lines of library-choice history.
-
 ### 72. `pyhouse-flat` fixes from the 2026-10-11 review
 All verified against the current files. The webhook signature (review item 5), `HTTP.md:117-119` and
 Shape 3's "ordering them by the stamp" are item 65's.

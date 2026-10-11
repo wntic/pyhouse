@@ -2614,3 +2614,30 @@ the `except` records the failure on the aggregate through its repository and re-
 "the caller re-reads through the matching query" without the example.
 **Reverse by:** from the parent of the commit that added this entry, restoring rules 3 and 5 of
 `hex-application`'s Command handler section.
+
+### D168 — `pyhouse-hex` corrections from the verified review of 2026-10-11
+Taken under the verified full review of 2026-10-11; the at-least-once create stays with the universal
+delivery item. `hex-conventions` block B specified a generator that does not exist — a resource
+parameter, type and import per kind, an appendix the project fills in, and a fallback sending an
+unknown kind to an `object` client whose factory was a `NotImplementedError` stub, the very stub its own
+rule 7 says crashes at app construct. Block B is now the two profiles, what each lays and the file stem
+each gets; rule 6 places a new kind under one of them, the fallback is gone, and `hex-store-repository`
+speaks of a vendor's package rather than a profile row. "An adapter neither inherits nor imports its
+port" was stated in full in six places; `hex-architecture` rule 7 owns it and `hex-domain-ports`,
+`hex-persistence`, `hex-capability-adapter`, `hex-store-repository` and `hex-restapi-auth` point at it.
+`hex-application`: `caller_id` is the first field of every command and of a query the caller scopes,
+not of every query; `hex-restapi-auth`'s `ROUTES.md` decision table now agrees — `_` only for a read
+whose result does not depend on the caller, `user` for a command or a read the caller scopes; the three DTO subsections and the two handlers' shared rules 1–2 are one subsection, so
+Command handler rules 3–8 become 1–6 and Query handler rules 3–7 become 1–5, and the citations in
+`hex-conventions`, `hex-persistence` and `UNIT_OF_WORK.md` move with them; the CRUD tree is marked an
+illustration. `hex-architecture` leaves `architecture-choice` and `coupling` to its neighbour list instead of
+restating them (`architecture-choice`'s citation of the moved section follows it), and its placement walkthrough is one paragraph above `## Rules`. `hex-domain-model`'s value-object
+and enum templates no longer redeclare `Foo` (`FooQuota`, `FooStatus`, as `hex-test-domain` already
+had); Enum rule 1's `StrEnum`/`Enum` choice points at `python-style` rule 12; Filter rule 2's reason
+was false for an immutable default and is corrected. The JWKS binding in `hex-restapi-auth` puts the
+key cache in a client the adapter is built on, since an adapter does not cache. Every hex settings
+class carrying a secret sets `hide_input_in_errors` (D140). Smaller: `REVISION.md`'s `alembic check`
+passage is two sentences and no longer suggests seed data in a DDL revision; a relational repository's
+methods take the port's mode; `hex-store-repository`'s key builder and mappers are module functions;
+the mixed-case repository test and `hex-wiring`'s library-choice history are gone.
+**Reverse by:** from the parent of the commit that added this entry, reverting it.

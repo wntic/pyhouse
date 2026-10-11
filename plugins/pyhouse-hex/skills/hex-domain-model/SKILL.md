@@ -68,11 +68,11 @@ from dataclasses import dataclass
 
 from ..exceptions import ValidationError
 
-__all__ = ["Foo"]
+__all__ = ["FooQuota"]
 
 
 @dataclass(frozen=True)
-class Foo:
+class FooQuota:
     field_a: str
     field_b: int
 
@@ -137,20 +137,19 @@ ordinary value object.
 ```python
 from enum import StrEnum
 
-__all__ = ["Foo"]
+__all__ = ["FooStatus"]
 
 
-class Foo(StrEnum):
-    A = "A"
-    B = "B"
-    C = "C"
+class FooStatus(StrEnum):
+    ALPHA = "ALPHA"
+    BETA = "BETA"
 ```
 
 An enum may carry a pure method over its own values — ordering, ranking, membership — with no IO and
 no other aggregate; the rank-ordered `Role` in `hex-restapi-auth` is the worked one, its self-reference
 quoted because the catalogue bans `from __future__ import annotations`.
 
-A set whose values are genuinely numeric is a plain `Enum` of the same form (Enum rule 1).
+A set whose values are genuinely numeric is a plain `Enum` of the same form (`python-style` rule 12).
 
 ### Filter sort enum
 
@@ -203,19 +202,10 @@ Inside this skill, pick by what the thing *is*:
 - An environment-tunable threshold the domain consumes (max rows, retention days, quotas) → the **tunable
   variant** of a value object, not a service and not a settings class.
 
-One case is neither a shape here nor a neighbour's:
-
-- A predicate over a field carried by **both** the entity and a read-model of the same aggregate →
-  a **module-level function in the aggregate's package**, taking the field values as parameters and
-  called by whoever holds either type. Not the same method written twice, once per type: two copies of
-  one rule drift, and only the rewritten path's criterion notices. Not a shared base class — the rules
-  below forbid inheritance on both the entity and the value object, and the read-model is a frozen
-  dataclass of its own, so there is no base to hang it on (`hex-application` carries the read/write split).
-  Not a domain service either: the entity rules hand a service the rules an entity *cannot* see, and
-  this one reads one field of one aggregate.
-
-  The shape recurs by convention rather than by accident — row timestamps are never entity fields, so
-  a read that needs them comes back as a read-model, and the field then sits on two types.
+A predicate over a field carried by **both** the entity and a read-model of the same aggregate is a
+**module-level function in the aggregate's package**, taking the field values as parameters — never the
+same method written once per type, which drifts, nor a shared base, which the entity and value-object
+rules forbid.
 
 ### Entity
 
@@ -261,10 +251,9 @@ One case is neither a shape here nor a neighbour's:
 
 ### Enum
 
-1. **A member's value is the value that leaves the process.** A string-valued set uses `StrEnum` so the
-   member compares and serializes as that string without a conversion step at every boundary; a set whose
-   values are genuinely numeric uses a plain `Enum`. Never an integer enum for codes that are really
-   strings — the mismatch surfaces in the database and on the wire, not here.
+1. **A member's value is the value that leaves the process**; whether the set is a `StrEnum` or a plain
+   `Enum` is `python-style` rule 12. Never an integer enum for codes that are really strings — the
+   mismatch surfaces in the database and on the wire, not here.
 2. **Member names follow `naming`.** For a `StrEnum` the value is usually identical to the
    name; do not invent lowercased values unless the wire format requires them.
 3. **Module boundaries follow `python-packaging`; module names follow `naming`.**
@@ -276,9 +265,10 @@ One case is neither a shape here nor a neighbour's:
 ### Filter record
 
 1. **Frozen dataclass, value equality.** Generated `__eq__` / `__hash__` — never override.
-2. **A collection-valued filter field defaults to a fresh empty immutable collection**, built per
-   instance (`field(default_factory=frozenset)`), never to a shared mutable default — see `python-style`
-   for the collection types. One shared default is one object every filter in the process mutates.
+2. **A collection-valued filter field defaults to an empty immutable collection, never to a mutable
+   one** — see `python-style` for the collection types. A mutable default would be one object every
+   filter in the process shares and can change; an immutable default — `frozenset()` — cannot change,
+   so it is safe to share.
 3. **Absence of a constraint is expressed as `None`**, never a sentinel value such as `""` or `-1`,
    which the adapter cannot distinguish from a caller who meant it. Annotation forms follow
    `python-style`.

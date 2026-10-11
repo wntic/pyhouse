@@ -47,6 +47,9 @@ src/myapp/application/foos/
 └── list_foos_result.py     # ListFoosResult  (only when the read returns more than one entity)
 ```
 
+The CRUD set is an illustration, not a default: a subdomain carries only the operations its service
+has, and each operation is its DTO and its handler, plus a `*Result` where a read returns one.
+
 ### Command DTO
 
 The caller's identity and scope, where the caller is authenticated, are fields the entrypoint adds —
@@ -283,7 +286,7 @@ class ListFoosResult:
   the single expression that mints the id. What does not is that the id exists before the write and that
   the command returns it; a store-minted key is the one case that moves the mint into the repository, and
   the handler then returns what the write handed back. Pick one scheme and apply it to every template at
-  once (Command handler rule 8).
+  once (Command handler rule 6).
 
 ## Rules
 
@@ -299,7 +302,7 @@ Artifact names follow `naming`; module boundaries follow `python-packaging`.
 - The mutation performs an external IO step before the DB write and must undo it on failure → still a
   command, whose body follows Compensation, below.
 - Two or more repositories must commit atomically → still a command, opening a unit of work
-  (Command handler rule 7).
+  (Command handler rule 5).
 - A handler never returns a transport model. The use case must be callable from a second entrypoint —
   a CLI, a consumer — which has no web framework in it.
 
@@ -324,46 +327,38 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 ### Caller-derived fields
 
 1. **Where the caller is authenticated, the entrypoint sets `caller_id: str` — the issuer's opaque
-   subject — as the first field of the command or query, from whatever authenticated the caller, never
-   from caller input; a tenant or scope field likewise, and the handler scopes every repository call by
-   it, so a row outside the caller's scope is not found — the not-found error, never a forbidden one.** An unauthenticated caller has
-   neither field; how the HTTP binding supplies them is `hex-restapi-auth`.
+   subject — as the first field of every command and of a query the caller scopes, from whatever
+   authenticated the caller, never from caller input; a tenant or scope field likewise, and the handler
+   scopes every repository call by it, so a row outside the caller's scope is not found — the not-found
+   error, never a forbidden one.** A query whose result does not depend on the caller carries neither
+   field, and neither does any DTO of an unauthenticated caller; how the HTTP binding supplies them is
+   `hex-restapi-auth`.
 2. **`caller_id` is logged on the success event; it is persisted, or used to scope reads, only where the
    aggregate records who owns or acted on it** — then it is an entity field and a column like any other.
 
-### Command DTO
+### DTOs and the handler surface
 
-1. **`@dataclass(frozen=True)`.** Always frozen.
-2. **No methods, no behaviour.** Just data.
-3. **Optional fields:** follow `python-style`.
-
-### Query DTO
-
-1. **`@dataclass(frozen=True)`.** Always frozen.
-2. **No methods.** Just data.
-3. **Domain filter records are passed by reference, not flattened.** Carry `filter: FooListFilter`, not
-   its fields copied loose onto the query.
-
-### Result DTO (when present)
-
-1. **`@dataclass(frozen=True)`, no methods.**
-2. **Holds domain types only** — never a transport model, never a row object from the persistence
-   library. Either one hands the entrypoint's or the store's vocabulary to every caller of the use case.
-3. **Read-only collection typing:** follow `python-style`. Pagination metadata (`total`, `next_cursor`) lives here
-   too.
+1. **Every DTO — command, query, `*Result` — is `@dataclass(frozen=True)` with no methods.** Just data;
+   optional fields follow `python-style`.
+2. **A query passes a domain filter record by reference, not flattened.** Carry `filter: FooListFilter`,
+   not its fields copied loose onto the query.
+3. **A `*Result`, where the read returns one, holds domain types only** — never a transport model, never
+   a row object from the persistence library; either one hands the entrypoint's or the store's
+   vocabulary to every caller of the use case. Read-only collection typing follows `python-style`, and
+   pagination metadata (`total`, `next_cursor`) lives here too.
 4. **A `*Result` that grows past about three fields and starts reading as a concept of its own is
    modelled as a domain value object or a read-model, and the query returns that instead.**
+5. **A handler, command or query, has one public method,**
+   `async def execute(self, <dto>: <DtoClass>) -> <ReturnType>`. Nothing else public — a second public
+   method is a second use case, reachable in a half-finished state.
+6. **Its constructor takes only ports and domain services — and, for a command, a unit-of-work factory
+   or tunable value objects.** A concrete infrastructure handle in the signature — a database session,
+   an HTTP client — means the handler cannot run in a test or under a second entrypoint without that
+   infrastructure present. Follow `python-style` for annotations.
 
 ### Command handler
 
-1. **One public method.**
-   `async def execute(self, command: <CommandClass>) -> <ReturnType>`. Nothing else public — a second public
-   method is a second use case, reachable in a half-finished state.
-2. **Constructor takes only ports, domain services, a unit-of-work factory, or tunable value objects.** A
-   concrete infrastructure handle in the signature — a database session, an HTTP client — means the
-   handler cannot run in a test or under a second entrypoint without that infrastructure present. Follow
-   `python-style` for annotations.
-3. **Return type:** the created aggregate's **identity** for a create, `None` for everything else.
+1. **Return type:** the created aggregate's **identity** for a create, `None` for everything else.
    `UUID` when that identity is surrogate — the common case, and what the templates show. When the
    aggregate's key is **natural** — a code, a slug, a handle minted by the domain or supplied by the
    client, with no surrogate column in the schema — the handler returns that key, typed as the key is
@@ -371,26 +366,26 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    satisfy the letter of this rule. Never return the entity, a list or a `*Result`. A "do the work, then
    show the result" use case is still a command returning the affected id — the caller re-reads through
    the matching query. One mutate-and-return-a-view operation would straddle the command/query split.
-4. **No business logic in the handler.** Build and mutate domain entities; let `__post_init__` and domain
+2. **No business logic in the handler.** Build and mutate domain entities; let `__post_init__` and domain
    services enforce the rules. The handler orchestrates: load, mutate, call the repository.
    **Normalization — strip, lowercase, reformat — is a domain concern** living in the entity's
    `__post_init__` or a value object. Pass `command.name`, not `command.name.strip()`.
-5. **No `try/except`, with three sanctioned exceptions.** (a) Compensation, below — its `try/except
+3. **No `try/except`, with three sanctioned exceptions.** (a) Compensation, below — its `try/except
    Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: where the
    contract requires a later read to see that the operation failed, the `except` records the failure on
    the aggregate through its repository and **re-raises**. (c) After the store write, below — the
    `try/except Exception` around a side effect of a command already committed, which stops the effect's
    failure instead of re-raising it. Follow `python-logging` for logging and `exception-catalog` for
    exception propagation and boundary translation. Anything beyond these three stays forbidden.
-6. **Command success logging:** the application layer logs successes only, after the write
-   (`hex-architecture`), in `python-logging`'s event shape, apart from the one failure each of rule 5's
+4. **Command success logging:** the application layer logs successes only, after the write
+   (`hex-architecture`), in `python-logging`'s event shape, apart from the one failure each of rule 3's
    (a) and (c) stops; include the caller's identity **only when the command carries one**.
-7. **No transaction management inside the handler — the default.** A handler that writes through one
+5. **No transaction management inside the handler — the default.** A handler that writes through one
    repository leaves the transaction to it: the standalone repository form opens and commits its own
    (`hex-persistence`). The one earned exception is a handler that writes through **two or more**
    repositories atomically: it opens a unit of work itself, one per `execute`, from an injected factory —
    `hex-persistence` owns that form (`UNIT_OF_WORK.md`).
-8. **Entity ids are `uuid.uuid4()`, minted by the handler before the write, unless the command carries
+6. **Entity ids are `uuid.uuid4()`, minted by the handler before the write, unless the command carries
    an identity its caller supplied** — one scheme across every
    template, production and test alike. Stdlib only, on the interpreter floor `python-style` sets;
    `uuid.uuid7()` is standard library only from **Python 3.14**. Time-ordered v7 ids index better when
@@ -434,23 +429,19 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
 
 ### Query handler
 
-1. **One public method.**
-   `async def execute(self, query: <QueryClass>) -> <ReturnType>`.
-2. **Constructor takes only ports and domain services** — no concrete infrastructure handle, for the
-   same reason as a command handler's.
-3. **Return type follows the read shape:**
+1. **Return type follows the read shape:**
    - a single entity → the entity; the repository fails when missing, using `exception-catalog` for the error.
    - an optional single entity → `Entity | None`; the repository returns `None` when missing.
    - more than one entity, or entities plus pagination metadata → the `*Result` DTO.
    - fields the entity does not carry → a read-model (see above).
-4. **No business logic.** A read passes parameters to the repository, optionally consults a domain
+2. **No business logic.** A read passes parameters to the repository, optionally consults a domain
    service for "can this caller see this?", and returns.
-5. **Reads never log business events and never mutate** — a mutation is a command handler of its own. A read is not an event, and a log line per
+3. **Reads never log business events and never mutate** — a mutation is a command handler of its own. A read is not an event, and a log line per
    read buries the events that are. Who-read-what is a different concern with a different retention and
    a different reader, and it belongs to the entrypoint that served the request; this catalogue states
    no rule for it.
-6. **No `try/except`.** Follow `exception-catalog` for exception propagation.
-7. **No transaction management.** Reads do not open transactions.
+4. **No `try/except`.** Follow `exception-catalog` for exception propagation.
+5. **No transaction management.** Reads do not open transactions.
 
 ## Inlined typing / import rules
 

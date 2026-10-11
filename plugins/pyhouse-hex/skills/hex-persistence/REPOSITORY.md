@@ -195,7 +195,7 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
 ## Rules — form
 
 1. **One class per module.** File `<aggregate_snake>_repository.py`, class `<Aggregate>Repository`.
-   Every public method is `async`.
+   Every public method takes the port's mode (`hex-domain-ports`) — `async` under this binding.
 2. **A multi-statement read shares a single `async with` block** — never a session passed across methods
    or held on the instance (`persistence` rule 1).
 
