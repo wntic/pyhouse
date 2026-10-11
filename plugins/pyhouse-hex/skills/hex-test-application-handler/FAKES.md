@@ -63,6 +63,8 @@ class FakeFooRepository:
         return replace(match) if match is not None else None
 
     async def create(self, foo: Foo) -> None:
+        if foo.id in self._store:  # only where a delivered unit drives create
+            return
         # only where Foo has a natural key
         if any(stored.name == foo.name for stored in self._store.values()):
             raise FooConflictError(

@@ -443,7 +443,11 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 2. **Every test takes the rollback-scoped handle the integration setup provides — `session_factory` under this binding (`hex-test-integration-setup`) — and opens nothing of its own** (`test-principles` reliability rule 6). The one exception is a handle to a store nothing listens on, which writes nothing (rule 4's forced error).
 3. Follow `test-principles` for the `_<aggregate>()` builder form. Defaults must be valid; no-override construction succeeds.
 4. Every conflict pins its constraint's name on the translated exception → `test-principles`, *Datastore contract* rule 2; here `assert exc_info.value.context["constraint"] == "<constraint_name>"` on the `ConflictError` subclass the translator raises for it (`FooConflictError` for `uq_foos_name`). A forced driver error on a write and a read → *Datastore contract* rule 4.
-5. Insert and update paths for every unique field → `test-principles`, *Datastore contract* rule 3.
+5. Insert and update paths for every unique field → `test-principles`, *Datastore contract* rule 3. Where
+   a create a delivered unit drives does nothing on a conflict on `id` (`hex-persistence`
+   `REPOSITORY.md` rule 8), `test_create_with_an_existing_id_changes_nothing` creates a second entity
+   sharing the first's id and differing in every other field, and asserts no raise and the stored row
+   keeps the first's values, beside the natural-key conflict that still raises.
 6. **The update timestamp is not an entity field** (`hex-domain-model`, Entity rule 6), so it is read from the row through the test's own session handle, against a value planted before the act → `test-principles` reliability rule 4.
 7. **Every cascade gets its own test**, `test_cascade_delete_removes_<child>` (`test-principles`, *Test naming*). Test the count after parent-delete is zero — only this proves the schema's `ON DELETE CASCADE` works.
 8. **Every `get_by_<field>` gets both a found and a not-found test.**
