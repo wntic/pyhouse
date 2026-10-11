@@ -214,6 +214,22 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 - `test_duplicate_<unique_field>_raises_conflict` — for every uniqueness constraint enforced by the repository, assert the repository's conflict class (`FooConflictError`) on the second attempt with `exc_info.value.context["constraint"] == "<full_constraint_name>"` where the adapter is relational.
 - Field normalization (when applicable): assert the stored entity has the normalized form (`strip`, `upper`), not the raw input.
 
+#### `create` handler a delivered unit drives
+
+Only where a consumer or another inbound adapter calls the handler with a unit delivered at least once
+(`at-least-once-delivery`, rule 3; `hex-architecture`'s consumer line) — there the command carries the
+id (`hex-application` command handler rule 6), so `test_assigns_uuid_and_stores` becomes
+`test_stores_under_the_commands_id`, asserting the returned and stored id equal the command's:
+
+- `test_a_redelivered_create_changes_nothing` — handle the same command, carrying the unit's id, twice;
+  assert both calls return the unit's id, the second raises nothing, and `get_by_id(<the unit's id>)`
+  returns the entity the first wrote. The fake resolves a conflict on its own id as the real adapter
+  does (Fakes rule 6), so a fake that raises there, or a handler that mints its own id, reds.
+- The inbound adapter's own obligation — the unit acknowledged once the handler returns, returned
+  unacknowledged when it raises — is tested where the project tests that adapter, through the
+  adapter's function that handles one unit, never here (`at-least-once-delivery` rule 1;
+  `flat-test-entrypoint` rule 6, in the `pyhouse-flat` plugin, is an example).
+
 #### `update` handler
 
 - `test_partial_update_leaves_unspecified_fields_untouched` — set one field and leave another out; assert the one left out is **unchanged** and the one set is updated. This is the partial-update contract.
@@ -259,7 +275,7 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 4. **Every method is `async def`**, even when there's nothing to await — the protocol says async; the fake matches.
 5. **`list(*, filter: <FilterRecord>)` is keyword-only** and applies a deterministic sort matching the real repository's `ORDER BY`. Handler tests assert exact order — sort, don't return insertion order.
    - **A fake method MUST honour every filtering / scoping parameter it declares — never ignore one.** If the filter declares `name`, a status set or a parent id, the fake filters `_store` by it. A fake that accepts a parameter and ignores it makes that contract **uncatchable** — the assert for it can never be strong. The fake's filtering need not be efficient, just correct: a wrong body that ignores the same parameter must produce a different result against the fake.
-6. **The exception contract is copied verbatim from the real adapter.** Copy the class, message and `context` keys the real adapter sets — for a relational adapter that includes the constraint name — and no more. Where the aggregate has a natural key, the relational adapter (`hex-persistence`) raises `FooConflictError("foo name already exists", {"field": "name", "constraint": "uq_foos_name"})` — context carries `field` and `constraint` and nothing else, so the fake matches it exactly. Adding a key the real adapter never sets (e.g. `"value"`) is the silent drift this rule exists to prevent: a handler test asserting that key passes against the fake and fails against the real adapter.
+6. **The exception contract is copied verbatim from the real adapter.** Copy the class, message and `context` keys the real adapter sets — for a relational adapter that includes the constraint name — and no more. Where the aggregate has a natural key, the relational adapter (`hex-persistence`) raises `FooConflictError("foo name already exists", {"field": "name", "constraint": "uq_foos_name"})` — context carries `field` and `constraint` and nothing else, so the fake matches it exactly. Adding a key the real adapter never sets (e.g. `"value"`) is the silent drift this rule exists to prevent: a handler test asserting that key passes against the fake and fails against the real adapter. Where a create a delivered unit drives resolves a conflict on its own id as nothing to do (`hex-persistence` `REPOSITORY.md` rule 8), the fake's `create` returns without effect when the id is already stored, checked before any natural key, as the real adapter's insert does.
 7. **Cascades match the schema.** When the real schema has `ON DELETE CASCADE`, the fake removes the dependent rows: it holds the owned children in a second dict keyed by id, and its `delete` drops every child whose parent id matches before dropping the parent. Skipping the cascade in the fake produces a green unit test that a failing integration test then catches — defeats the point.
 8. **Default-happy-path only.** No `fail_next_create=True` flags or `_should_raise` knobs, and no failure the default fake cannot know about — an in-use rejection needs a cross-aggregate reference the in-memory fake does not model. A one-off failure is an inline subclass at the handler test's module scope (handler rule 6):
 
