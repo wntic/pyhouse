@@ -205,5 +205,5 @@ differs per tool.
 - Asked to add an error class for a command to raise → stop, use `exception-catalog`; the class carries
   no exit code, and its code joins the map here.
 - An option is given an environment-variable fallback, or a command reads the environment → stop, use
-  `python-settings`; only a settings class reads the environment (rule 3), and the command builds it
-  (rule 13).
+  `python-settings`; only a settings class reads the environment, and the command builds it
+  (`python-settings` rules 3 and 13).

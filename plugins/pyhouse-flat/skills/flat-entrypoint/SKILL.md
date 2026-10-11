@@ -249,7 +249,7 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, calls the work with it, and
 acknowledges the message once the run succeeds or returns it when the run fails (rule 15;
-`at-least-once-delivery` rules 3–4). A broker the service publishes to is an external
+`at-least-once-delivery` rules 1–4). A broker the service publishes to is an external
 system with a package of its own (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI

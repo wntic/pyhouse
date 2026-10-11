@@ -122,7 +122,7 @@ defect. Siblings are `cli/` and `worker/`; a command's own rules are `python-cli
 - Wires `containers.py` at startup, resolves handlers, translates transport ↔ application DTOs.
 - Opens one per-operation scope per request, message or call, and closes it when the operation ends.
 - Has one scope that catches what propagates, logs it once and turns it into that transport's outcome —
-  a status, an exit code, the unit returned or rejected (`at-least-once-delivery` rule 2) — mapped from
+  a status, an exit code, the unit returned or rejected (`at-least-once-delivery` rules 1 and 2) — mapped from
   its class here and never stored on it in
   `domain/`, with any body read off the exception's own attributes (`exception-catalog` rules 6 and 13).
 - Acknowledges a message only after its handler returns, and returns it when the handler raises. A
