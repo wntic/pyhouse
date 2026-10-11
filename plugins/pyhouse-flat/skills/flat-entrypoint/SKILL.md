@@ -71,8 +71,6 @@ fetched: no framework import, every dependency a parameter, the module named for
 (`flat-layered`).
 
 ```python
-from datetime import UTC, datetime
-
 from myapp.postgres import FooRepository
 from myapp.qux import QuxClient
 from myapp.schemas import Foo, FooExternalId, FooPayload, FooSyncResult
@@ -80,15 +78,14 @@ from myapp.schemas import Foo, FooExternalId, FooPayload, FooSyncResult
 __all__ = ["build_foo", "sync_foos"]
 
 
-def build_foo(payload: FooPayload, as_of: datetime) -> Foo:
-    return Foo(external_id=FooExternalId(payload.id), name=payload.name, as_of=as_of)
+def build_foo(payload: FooPayload) -> Foo:
+    return Foo(external_id=FooExternalId(payload.id), name=payload.name)
 
 
 async def sync_foos(client: QuxClient, repository: FooRepository) -> FooSyncResult:
     payloads = await client.fetch_foos()
-    fetched_at = datetime.now(UTC)
     for payload in payloads:
-        await repository.upsert(build_foo(payload, fetched_at))
+        await repository.upsert(build_foo(payload))
     return FooSyncResult(fetched_count=len(payloads))
 ```
 
@@ -97,10 +94,6 @@ needs belongs in the same pure step. The body writes what one call returns, a re
 record commits on its own, and a rerun completes a partial run because the write is idempotent by its
 key. A batched write is earned by the volume, not assumed (`persistence` rule 21), and a source whose
 size the service does not control is read in bounded slices instead (rule 10).
-
-Where the source stamps its records, that stamp is `as_of` — an `updated_at` is mapped inside
-`build_foo`, and the run's clock goes. The fetch instant is the stamp only for a source that stamps
-nothing (`persistence` rule 16).
 
 **The work opens no transaction.** The repository class owns its own (`persistence` rule 1); a
 body that opens a connection has moved data access out of the one package allowed it.
@@ -233,9 +226,9 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, calls the work with it, and
 acknowledges the message once the run succeeds or returns it when the run fails (rules 11, 15), the run
-writing values taken from the message, never the clock, and ordering them by the stamp `persistence`
-rule 16 names. A broker the service publishes to is an external system with a package of its own
-(`flat-layered` rule 14).
+writing values taken from the message, never the clock, and never letting an older message replace a
+newer one for the same key (`persistence` rule 16). A broker the service publishes to is an external
+system with a package of its own (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
 

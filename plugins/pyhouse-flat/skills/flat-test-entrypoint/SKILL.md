@@ -96,8 +96,7 @@ async def test_a_run_reports_what_it_fetched(
 The idempotence test is the one worth writing first. A service that runs on a schedule over a feed that
 mostly repeats has "the second run over the same batch adds no row" as its central behaviour, and it
 is the one a wrong conflict-column list breaks. It compares the values the input determines, not a
-count, so a second run that rewrites one fails too. A run's own fetch instant is not among them —
-each run stamps a new one — but a stamp the input carries, a delivery's `changed_at`, is.
+count, so a second run that rewrites one fails too.
 
 The aggregate test matters because that return value is what the trigger reports — a payload, a stored
 summary, or the loop's own log line: a body that writes the right rows while reporting the wrong counts

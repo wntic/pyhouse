@@ -153,7 +153,6 @@ type over `str` (`python-style`), wrapped where a value is mapped into the recor
 
 ```python
 from dataclasses import dataclass
-from datetime import datetime
 from typing import NewType
 
 __all__ = ["Foo", "FooExternalId"]
@@ -165,7 +164,6 @@ FooExternalId = NewType("FooExternalId", str)
 class Foo:
     external_id: FooExternalId
     name: str
-    as_of: datetime
 ```
 
 `src/myapp/schemas/foo_payload.py` — the wire record, parsed and validated where it arrives:

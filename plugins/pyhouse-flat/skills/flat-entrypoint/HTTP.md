@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from myapp.exceptions import InvalidPayloadError, MyappError
 from myapp.foo_recording import record_foo
 from myapp.postgres import FooRepository
-from myapp.schemas import FooChangePayload
+from myapp.schemas import FooPayload
 
 __all__ = ["build_app"]
 
@@ -75,8 +75,8 @@ def build_app(repository: FooRepository) -> FastAPI:
         return _log_and_render(InvalidPayloadError("the request is invalid", {"fields": fields}))
 
     @app.post("/foos", status_code=204)
-    async def receive_foo(delivery: FooChangePayload) -> None:
-        await record_foo(repository, delivery)
+    async def receive_foo(payload: FooPayload) -> None:
+        await record_foo(repository, payload)
 
     return app
 ```
@@ -97,26 +97,19 @@ is for a caller the network already trusts.
 ## The work the route calls
 
 `src/myapp/foo_recording.py` — framework-free, named for its work, writing through the repository's
-single-row `upsert` (`flat-persistence`, `REPOSITORY.md`). `FooChangePayload`, in
-`schemas/foo_change_payload.py`, is `FooPayload` plus the `changed_at: AwareDatetime` the sender
-assigned to the change, the same on every redelivery of it; the work writes that instant, never the
-clock, so a redelivery writes what the row already holds (rule 9):
+single-row `upsert` (`flat-persistence`, `REPOSITORY.md`). Every value it writes comes from the body,
+never the clock, so a redelivery writes what the row already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooChangePayload, FooExternalId
+from myapp.schemas import Foo, FooExternalId, FooPayload
 
 __all__ = ["record_foo"]
 
 
-async def record_foo(repository: FooRepository, delivery: FooChangePayload) -> None:
-    foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, as_of=delivery.changed_at)
-    await repository.upsert(foo)
+async def record_foo(repository: FooRepository, payload: FooPayload) -> None:
+    await repository.upsert(Foo(external_id=FooExternalId(payload.id), name=payload.name))
 ```
-
-Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the
-data-access package's job — the marked `where=` in `flat-persistence`'s `REPOSITORY.md` (`persistence`
-rules 16 and 17).
 
 ## The process definition — uvicorn
 
