@@ -3036,3 +3036,36 @@ checks the key is absent and the 1,536 cap.
 
 **Reverse by:** from the parent of the commit that added this entry, reverting it — each skill's
 `when_to_use` is the text after its description's last ` - ` join.
+
+### D179 — `at-least-once-delivery` says which delivery guarantee its rules bind
+Taken by the maintainer (2026-10-11), reviewing the run that added the skill (D175): why one skill for
+one guarantee rather than one on choosing among them. Because the choice is rarely the program's. At
+most once — acknowledging on receipt — is a legitimate choice only where losing a unit costs nothing,
+and its code needs no rules; exactly once, where a broker offers it, holds inside the broker (its
+transactions, a deduplication window over what is sent to it) and never reaches a write the program
+makes elsewhere, so an effect applied once is at-least-once delivery with rule 3's idempotent effect. A
+skill on choosing would be one rule this skill already has plus a broker reference. So the skill keeps
+its name and gains a short `## Which guarantee` section placing its rules: at least once is what they
+bind, and a client default that acknowledges before the effect (a task queue acking before the task, a
+timer-driven offset commit) is rule 1's defect; at most once is a recorded choice that leaves rules 4
+and 5 binding; a broker's exactly-once removes no rule. Its description gains the trigger phrase.
+
+**Reverse by:** removing the section and the phrase.
+
+### D180 — hex tests a create that a delivered unit drives
+Taken by the maintainer (2026-10-11): a hexagonal service driven by a queue had no test obligation for
+the redelivered create that D175 made it resolve rather than refuse, while flat tests a delivered unit
+in `flat-test-entrypoint`. `hex-test-application-handler` gains a conditional coverage group: the same
+command handled twice returns the unit's id, raises nothing and leaves the one entity, and its create
+test asserts the command's id. Its Fakes rule 6 and the fake template make `create` do nothing when the
+id is already stored, checked before any natural key, as the real insert does — without it the new test
+fails against a correct handler, which review reproduced. `hex-test-repository-contract` rule 5 pins
+that a second entity under the first's id changes nothing while the natural-key conflict still raises.
+The consumer's own acknowledge-or-return test stays with the adapter that handles one unit; hex has no
+consumer shell skill, so no template is added. The repository's `create` template keeps the refusing
+insert, and `REPOSITORY.md` rule 8 states the conditional form — a marked line would change the
+statement's import for every service.
+
+**Reverse by:** removing the coverage group, the Fakes rule 6 sentence, the fake's id check and the
+rule 5 sentence.
+
