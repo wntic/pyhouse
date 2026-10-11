@@ -148,7 +148,9 @@ sees it. `python -m myapp` runs the one process; a service with several defines 
 modules written `..` — declares one console script per module in
 `[project.scripts]` (`python-toolchain`), and has no `__main__.py`. A run started by hand from the
 command line is this process: its entry function is the composition root, and a value its caller picks
-per invocation is an argument parsed there, never a setting (`python-settings` rules 13 and 15).
+per invocation is an argument parsed there, never a setting (`python-settings` rules 13 and 15). Its
+command line is `python-cli`'s; where a run is started both by a command and by a scheduler, the
+scheduler runs that same command (`python-cli` rule 7).
 
 **The process definition builds every settings object and hands concrete values down** — it is
 this family's composition root, so the rule is `python-settings` rule 13.

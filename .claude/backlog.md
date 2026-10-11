@@ -19,13 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 82. The family skills point at `python-cli`
-`python-cli` rule 7 makes a command on a hex or flat service one more entrypoint under its rules, and
-nothing in either family names it yet. `flat-entrypoint`'s trigger row
-and `hex-architecture`'s entrypoint line each gain one pointer to `python-cli`, stating no rule of it.
-Where `flat-entrypoint` lets a run be started both by a scheduler and by a command, it says the
-scheduler runs the console script (`python-cli` rule 7).
-
 ### 70. Descriptions stay as they are; `when_to_use` folds into `description`
 Measured on 2026-10-11 (Opus, `claude -p`, a scratch hex project, the checkout's universal + hex + git
 loaded with `--plugin-dir`, user settings excluded). The listing budget is 30,000 characters (Opus and
