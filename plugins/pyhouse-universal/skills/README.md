@@ -193,8 +193,7 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
   — the observation that would retire the rule. Those are deliberate; do not strip them.
 - **Frontmatter follows `meta-skill-author`.** `name` and `description` are required; `when_to_use`
   and `paths` are valid, documented Claude Code fields and optional on any skill. Descriptions open
-  with **"Use when…"**, putting the trigger first and the content summary second, and each one must
-  stand alone — clients other than Claude Code read `description` and nothing else.
+  with **"Use when…"**, putting the trigger first and the content summary second.
 - **Never write a bare `: ` inside an unquoted description.** A colon-plus-space breaks the YAML
   parse and can leave the skill with empty metadata and no description to match. Use an em dash.
 - `name` is set on every skill and kept equal to its directory, so the listing and invocation agree.
@@ -209,9 +208,8 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
   `/pyhouse-hex:hex-persistence` — while one copied into `.claude/skills/` or `~/.claude/skills/`
   is typed bare, `/naming`. Inside a skill body, name the skill and never its slash form; it is
   the name that is stable across both install paths.
-- **Portability.** `paths` and `when_to_use` are Claude Code fields; other clients ignore them, which
-  is why `description` alone must identify a skill. Marketplace distribution via a GitHub repository and
-  `plugin.json` carries them fine; publishing to claude.ai or the Skills API does not — that channel
+- **Publishing.** Marketplace distribution via a GitHub repository and `plugin.json` carries `paths`
+  and `when_to_use` fine; publishing to claude.ai or the Skills API does not — that channel
   fails hard on any key outside `name`, `description`, `license`, `compatibility`, `metadata` and
   `allowed-tools`, so both fields are stripped on that path.
 
