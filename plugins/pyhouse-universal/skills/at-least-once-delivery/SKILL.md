@@ -1,6 +1,6 @@
 ---
 name: at-least-once-delivery
-description: Use when a program receives units of work another party delivers, and delivers again until they are acknowledged — a queue or stream consumer, a webhook receiver, any handler a broker or a third-party sender calls — in any project whatever its architecture. Owns when a unit is acknowledged and when it is returned, the bounded redelivery and the dead letter an operator reads, a redelivery that changes nothing — identity and values taken from the unit, never the clock or a per-delivery mint — and a third party's signature verified over the raw body before parsing. It binds no broker and writes no file; the consumer or route that applies it is the architecture family's, and an older write never replacing a newer one is `persistence`'s. Also when asked whether to acknowledge before or after the handler, why a message was lost or applied twice, where a failed message goes, or how to verify a webhook's signature.
+description: Use when a program receives units of work another party delivers, and delivers again until they are acknowledged — a queue or stream consumer, a webhook receiver, any handler a broker or a third-party sender calls — in any project whatever its architecture. Owns when a unit is acknowledged and when it is returned, the bounded redelivery and the dead letter an operator reads, a redelivery that changes nothing — identity and values taken from the unit, never the clock or a per-delivery mint — and a third party's signature verified over the raw body before parsing. It binds no broker and writes no file; the consumer or route that applies it is the architecture family's, and an older write never replacing a newer one is `persistence`'s. Also when asked whether a consumer needs at-most-once, at-least-once or exactly-once delivery, whether to acknowledge before or after the handler, why a message was lost or applied twice, where a failed message goes, or how to verify a webhook's signature.
 ---
 
 # At-least-once delivery — a unit someone else delivers
@@ -29,7 +29,24 @@ under the project's own entrypoint skill.
   the `pyhouse-hex` plugin, is an example of the relay.
 - Testing that a failed unit is returned and that a second delivery changes nothing → the family's
   entrypoint test skill (`flat-test-entrypoint` rules 2 and 6, in the `pyhouse-flat` plugin, is an
-  example).
+  example); in a hexagonal service the redelivered create is `hex-test-application-handler`'s, in the
+  `pyhouse-hex` plugin.
+
+## Which guarantee
+
+- **At least once** is what the rules below bind, and what a broker or a webhook sender gives once the
+  program acknowledges after the effect (rule 1). Several defaults give less — a task queue
+  acknowledging before the task runs, offsets committed on a timer — and rule 1 is what corrects them; a
+  transport that never redelivers (a fire-and-forget publish) is at most once whatever the program does,
+  and choosing it is the choice below.
+- **At most once** — the unit acknowledged on receipt, a crash losing it — is a choice only where losing
+  a unit costs nothing (a metric sample, a presence ping), and only made and recorded as that choice. Rules
+  1–3 do not bind a unit taken that way, and rules 4 and 5 still do; an early acknowledgement nobody
+  chose is rule 1's defect.
+- **Exactly once**, where a broker offers it, holds inside that broker — its transactions, a
+  deduplication window over what is sent to it — and never reaches a write the program makes elsewhere. An effect applied once
+  is at-least-once delivery with rule 3's idempotent effect, so a broker's exactly-once removes no rule
+  here.
 
 ## Which rules bind — who delivers
 
