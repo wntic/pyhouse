@@ -1,7 +1,6 @@
 ---
 name: hex-test-restapi-auth
-description: Use when testing a token verifier, or any other part of a REST service that authenticates its callers — the token-verifier adapter's unit test, the signing-key and token-minting fixtures, the `authenticated_client` factory, the DI override that makes minted tokens verify, the discovered probe that every operation not declared public refuses an anonymous or untrusted caller, and — where the app has them — the role and cross-tenant assertions on an endpoint. Not an endpoint's non-auth half — its success body and advertised error codes (`hex-test-restapi-endpoint`) — and not another capability adapter's test (`hex-test-capability-adapter`).
-when_to_use: Adding the auth fixtures to an integration suite, writing a 401 or 403 endpoint test, minting a JWT inside a test, or asserting that a protected route rejects an anonymous caller.
+description: Use when testing a token verifier, or any other part of a REST service that authenticates its callers — the token-verifier adapter's unit test, the signing-key and token-minting fixtures, the `authenticated_client` factory, the DI override that makes minted tokens verify, the discovered probe that every operation not declared public refuses an anonymous or untrusted caller, and — where the app has them — the role and cross-tenant assertions on an endpoint. Not an endpoint's non-auth half — its success body and advertised error codes (`hex-test-restapi-endpoint`) — and not another capability adapter's test (`hex-test-capability-adapter`). - Adding the auth fixtures to an integration suite, writing a 401 or 403 endpoint test, minting a JWT inside a test, or asserting that a protected route rejects an anonymous caller.
 ---
 
 # Hex Test — REST API Auth

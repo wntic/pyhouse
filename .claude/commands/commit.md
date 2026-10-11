@@ -33,10 +33,12 @@ for d in <resolved skill dirs>; do
   [ "$n" != "$got" ] && echo "name/dir mismatch: $n != $got"
 done
 grep -h '^description:' <resolved SKILL.md files> | grep ': .*: '   # bare ": " breaks the YAML parse
+grep -l '^when_to_use:' <resolved SKILL.md files>                  # the field is not used
 ```
 
-`name` must equal the directory name, `description` must open `Use when …` and contain no bare
-colon-plus-space, and a `paths:` glob must be prefixed `**/` and absent on universal skills.
+`name` must equal the directory name, `description` must open `Use when …`, contain no bare
+colon-plus-space and stay within 1,536 characters, no `when_to_use:` key appears, and a `paths:` glob
+must be prefixed `**/` and absent on universal skills.
 
 **If a skill was added, renamed or rescoped**, confirm all of these are in step — the counts go stale first:
 

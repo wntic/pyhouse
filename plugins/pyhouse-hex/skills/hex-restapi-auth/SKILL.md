@@ -1,7 +1,6 @@
 ---
 name: hex-restapi-auth
-description: Use when an HTTP entrypoint must authenticate its caller or gate a route on a role. Owns the caller identity, the token-verifier port and adapter, the `get_current_user` / `require_role` route dependencies, the role-rank gate, the RFC-7235 challenge, and the 401/403 codes a route advertises because of them — a route's other error codes are `hex-restapi-endpoint`'s.
-when_to_use: Adding auth to a REST service, choosing between an authenticated and a role-gated route, wiring a token verifier, or deciding what an authenticated route advertises in OpenAPI.
+description: Use when an HTTP entrypoint must authenticate its caller or gate a route on a role. Owns the caller identity, the token-verifier port and adapter, the `get_current_user` / `require_role` route dependencies, the role-rank gate, the RFC-7235 challenge, and the 401/403 codes a route advertises because of them — a route's other error codes are `hex-restapi-endpoint`'s. - Adding auth to a REST service, choosing between an authenticated and a role-gated route, wiring a token verifier, or deciding what an authenticated route advertises in OpenAPI.
 ---
 
 # Hex REST — Auth

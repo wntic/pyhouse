@@ -1,7 +1,6 @@
 ---
 name: coupling
-description: Use when asking whether something should be one module or two — splitting a package, extracting a service, merging two, or why a simple area keeps breaking. Weighs shared knowledge, distance and volatility to place a boundary — not which layer layout a service uses (`hex-architecture`, `flat-layered`), nor module and import mechanics (`python-packaging`).
-when_to_use: Should these two packages be one; do we need a contract here or can they share the model; how much structure does this component deserve; a change that keeps cascading into unrelated code; reviewing a diff for knowledge that leaked across a boundary.
+description: Use when asking whether something should be one module or two — splitting a package, extracting a service, merging two, or why a simple area keeps breaking. Weighs shared knowledge, distance and volatility to place a boundary — not which layer layout a service uses (`hex-architecture`, `flat-layered`), nor module and import mechanics (`python-packaging`). - Should these two packages be one; do we need a contract here or can they share the model; how much structure does this component deserve; a change that keeps cascading into unrelated code; reviewing a diff for knowledge that leaked across a boundary.
 ---
 
 # Coupling — where boundaries go and what may cross them

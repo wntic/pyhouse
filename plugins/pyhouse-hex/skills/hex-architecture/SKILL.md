@@ -1,7 +1,6 @@
 ---
 name: hex-architecture
-description: Use when the family is already settled as hexagonal and the question is where a module belongs or whether an import may cross a boundary — the four layers, inward-only dependencies, ports, adapters, the composition root. Not whether hexagonal is the right family at all (`architecture-choice`), not where a boundary goes in the first place (`coupling`).
-when_to_use: Which layer does this class go in; may infrastructure import application; a cycle between layers; where the DI container or composition root lives; where a queue consumer or a CLI entrypoint goes and what it may import; moving code between layers.
+description: Use when the family is already settled as hexagonal and the question is where a module belongs or whether an import may cross a boundary — the four layers, inward-only dependencies, ports, adapters, the composition root. Not whether hexagonal is the right family at all (`architecture-choice`), not where a boundary goes in the first place (`coupling`). - Which layer does this class go in; may infrastructure import application; a cycle between layers; where the DI container or composition root lives; where a queue consumer or a CLI entrypoint goes and what it may import; moving code between layers.
 paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 

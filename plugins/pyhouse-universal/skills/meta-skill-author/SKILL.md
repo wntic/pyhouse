@@ -42,14 +42,13 @@ sibling is reached by an explicit instruction to read it.
 
 ## Frontmatter
 
-Two fields are required. Two more are valid, documented and used deliberately. No other field;
+Two fields are required. One more is valid, documented and used deliberately. No other field;
 information that would need one goes in the body.
 
 ```yaml
 ---
 name: <skill-name>
 description: Use when <trigger>. <What it owns, second.>
-when_to_use: <optional — additional trigger phrasings>
 paths: <optional — activation globs>
 ---
 ```
@@ -57,10 +56,6 @@ paths: <optional — activation globs>
 - **`name`** — the skill's name. Keep it identical to the directory name.
 - **`description`** — what the skill covers and when to apply it. This is what gets matched to decide
   whether to load the skill, and it is read first, so it carries the trigger.
-- **`when_to_use`** — a valid, documented Claude Code field carrying additional invocation context.
-  Optional. It is appended to `description` in the skill listing and shares its length limit. Write it
-  when there are trigger phrasings worth adding beyond what `description` already carries. A skill
-  without it is not missing anything, and one with it is not a defect.
 - **`paths`** — a valid, documented Claude Code field carrying glob patterns that limit when a skill
   auto-activates. Optional, and not restricted to test skills. It **narrows** auto-activation, so a
   too-tight glob makes a skill unfindable in a project whose layout differs slightly. Glob the layer
@@ -71,16 +66,19 @@ paths: <optional — activation globs>
 
 `allowed-tools`, `metadata`, `license` and `compatibility` are valid and unused here. Deliberately
 **not** used: `user-invocable: false` (hides a skill from the `/` menu) and
-`disable-model-invocation: true` (blocks automatic loading *and* preloading — hand invocation only).
+`disable-model-invocation: true` (blocks automatic loading *and* preloading — hand invocation only),
+and `when_to_use` — Claude Code only appends it to `description`, under the same cap and listing
+budget, so trigger phrasings beyond the first sentence go at the end of `description` instead.
 
 ### Length
 
-- **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
-- **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing.
-- **The listing has a total budget, a fixed share of the context window.** Past it, the least-invoked
-  skills' descriptions are dropped and only their names kept. This catalogue's `description` +
-  `when_to_use` pairs come to ~38,200 characters, ~750 a skill, enough to pass it. Every character
-  added to one skill's listing is weighed against another skill's description being dropped.
+- **`description` truncates at 1,536 characters** in the skill listing. That is the ceiling; a
+  description is as long as its triggers and routing need, and no shorter cap applies.
+- **The listing has a total budget, a share of the context window** (1% by default,
+  `skillListingBudgetFraction`). Past it, the least-invoked skills' descriptions are dropped and only
+  their names kept. This catalogue's descriptions come to ~38,300 characters, ~750 a skill, enough to
+  pass it. Every character added to one skill's listing is weighed against another skill's description
+  being dropped.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
 
@@ -105,8 +103,8 @@ paths: <optional — activation globs>
 
 Claude Code ignores unknown frontmatter keys. **claude.ai and the Skills API** accept only `name`,
 `description`, `license`, `compatibility`, `metadata` and `allowed-tools` and **fail hard** on anything
-else, so `paths` and `when_to_use` are stripped before publishing there. Marketplace distribution —
-this catalogue's channel — is unaffected.
+else, so `paths` is stripped before publishing there. Marketplace distribution — this catalogue's
+channel — is unaffected.
 
 ## Body — the canonical sections
 
