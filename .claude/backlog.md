@@ -19,21 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 64. One authoritative store per record, stated in `persistence`
-`hex-store-repository` rule 1 carries a store-generic obligation — an aggregate has one authoritative
-store, the one its writes go to; a second store holds only a derived projection; two stores both
-accepting writes for one record is forbidden — and no flat or universal skill states it, so a flat
-service writing one record to a relational store and to a key-value store as two sources of truth is
-stopped by nothing. Add one sentence beside `persistence` rule 3, naming the derived copies as allowed
-so an agent does not read it as "never cache": a record has one authoritative store its writes go to; a
-cache or an index on another store holds only a copy that may be lost and rebuilt from it; two copies
-that both accept writes are not allowed. `hex-store-repository` rule 1 keeps its hex part — the
-projection behind its own narrower port, and so the protocol-derived file stem — and points at
-`persistence`; the four citations of rule 1 (`hex-store-repository` ×2, `hex-conventions`,
-`hex-wiring/CONTAINER.md`) stay valid. No caching pattern (invalidation, TTL, cache-aside) is written:
-that is logic, not structure. D145's "move once the second family earns it" concerned the outbox, a
-mechanism flat does not have; this is a property of any service with two stores.
-
 ### 65. The flat templates lose the ordering stamp; the obligations stay as rules
 Two things that are not the maintainer's grew into flat template lines. The record's stamp came from the
 application the family was first written from (`observed_at`, renamed `as_of` by D144). The webhook is

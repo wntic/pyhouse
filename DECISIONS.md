@@ -2583,3 +2583,21 @@ the rule too, and the setup skills' own rules point at their Alembic spelling ra
 paragraphs, rules and `## Other bindings` bullets, `persistence` rule 20, its `when_to_use` clause and
 its index line, and removing the superseded marker on
 D85.
+
+### D166 — One authoritative store per record, stated in `persistence`
+Taken by the maintainer (2026-10-11), after the full review of that day. `hex-store-repository` rule 1
+carried a store-generic obligation — one authoritative store per aggregate, a second store holding only
+a derived projection, two stores both accepting writes forbidden — that no flat or universal skill
+stated, so a flat service writing one record to two stores as two sources of truth was stopped by
+nothing. `persistence` rule 3 now says it for any record, naming a cache or an index on another store as
+allowed so it is not read as "never cache": such a copy may be lost and rebuilt from the authoritative
+store, and two copies that both accept writes are not allowed. `hex-store-repository` rule 1 keeps its
+hex part — the projection behind its own narrower port, and so the protocol-derived file stem — and
+points at `persistence` rule 3; its citations elsewhere stay valid. `persistence`'s `when_to_use` asks
+whether a cache may take writes. No caching pattern is written:
+invalidation and expiry are logic, not structure. D145's "move once a flat service earns it" concerned
+the outbox relay, a mechanism the flat family does not have; this is a property of any service with two
+stores.
+**Reverse by:** from the parent of the commit that added this entry, restoring `hex-store-repository`
+rule 1's last sentence and removing the sentence from `persistence` rule 3, its `when_to_use` clause and
+its index line.

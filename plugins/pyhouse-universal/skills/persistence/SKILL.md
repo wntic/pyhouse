@@ -1,7 +1,7 @@
 ---
 name: persistence
 description: Use when code reads or writes a datastore, written or reviewed, in any project whatever its architecture — beside the family's data-access skill whenever its templates are written, since the obligations they satisfy are stated here — who owns a transaction, where a driver error is translated and what its context carries, how constraint and table names are derived, how rows map back, which stored type a value gets, how a conflicting or older write is resolved, how a batched write is sized, how a paged read orders, how a schema change ships safely, and whether data-access code logs. Owns these store-generic rules and which of them bind given the store's properties; it binds no library and writes no file. The data-access files that satisfy them are the architecture family's — `flat-persistence` in the `pyhouse-flat` plugin, `hex-persistence` or `hex-store-repository` in the `pyhouse-hex` plugin — and the error classes, translation with the cause chained and its fallback are `exception-catalog`'s.
-when_to_use: Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, whether a repository should log, or how a migration chain starts.
+when_to_use: Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, whether a repository should log, how a migration chain starts, or whether a cache may take writes.
 ---
 
 # Persistence — the store-generic obligations
@@ -72,7 +72,9 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
    callable exists to close.
 3. **No transaction spans two stores.** A unit writing to both writes first the store the other refers
    to, and is made whole either by a retry that completes it — each write idempotent by its key — or by
-   compensation; which of the two is the family's.
+   compensation; which of the two is the family's. **A record has one authoritative store, the one its
+   writes go to**: a cache or an index on another store holds only a copy that may be lost and rebuilt
+   from it, and two copies of one record that both accept writes are not allowed.
 
 ### Driver errors and constraint names
 
