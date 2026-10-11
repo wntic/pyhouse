@@ -2980,7 +2980,7 @@ for a large command tree.
 - The plugin manifest's description names the skill.
 - `CLAUDE.md`'s checker install list gains `typer`, without which the template's imports go unchecked.
 
-The remaining family pointers are backlog item 82.
+The family pointers are one sentence each in `hex-architecture` and `flat-entrypoint`.
 
 **Reverse by:** from the parent of the commit that added this entry:
 - delete `plugins/pyhouse-universal/skills/python-cli/`;
@@ -2999,4 +2999,4 @@ The remaining family pointers are backlog item 82.
 - in `naming`, set "CLI commands and flags" back to "CLI flags";
 - restore `flat-project-setup`'s console-script sentence;
 - drop the plugin manifest's clause;
-- remove backlog item 82.
+- remove the `python-cli` sentences in `hex-architecture` and `flat-entrypoint`.

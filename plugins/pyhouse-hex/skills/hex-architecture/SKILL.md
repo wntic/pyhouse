@@ -113,7 +113,7 @@ other arrow is legal.
 **Entrypoint packages** — **one package per entrypoint kind, named for the kind**, so that dropping or
 adding a transport moves one directory. The catalogue spells the HTTP one `restapi/`; `api/`, `web/` and
 `http/` are equally good words and nothing depends on which, but two transports sharing a package is a
-defect. Siblings are `cli/` and `worker/`.
+defect. Siblings are `cli/` and `worker/`; a command's own rules are `python-cli`'s.
 
 - Allowed: everything. An entrypoint builds the composition root, `src/myapp/containers.py`, at
   startup, runs its settings check (`hex-wiring` rule 2) before it serves or takes work, and closes it at
