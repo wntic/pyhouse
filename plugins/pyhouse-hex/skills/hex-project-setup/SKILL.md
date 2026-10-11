@@ -55,8 +55,8 @@ each added with `uv add` or `uv add --dev`.
 - **Dev** (always present): the test runner and its async plugin, the linter and the type checker.
   Triggered alongside them: the container library, once an integration tier drives a real backing
   service, and a transport test client for each entrypoint the suite drives over its own transport — an
-  HTTP test client belongs to a project with HTTP routes to call — and an HTTP interception library with the
-  test-runner plugin that activates it (`respx`, `pytest-httpx2`) once an adapter calls an HTTP API
+  HTTP test client belongs to a project with HTTP routes to call. An adapter that calls an HTTP API
+  brings no interception library: its test stubs the transport with the HTTP client's own
   (`hex-test-capability-adapter`).
 - **Test-bootstrap extras** follow the same trigger rule as feature extras: a suite that mints
   asymmetric-signature tokens needs the crypto library that generates the keypair; a project verifying
@@ -65,9 +65,13 @@ each added with `uv add` or `uv add --dev`.
 - **SDK packages are not listed as substrate** — each rides along with the adapter that needs it.
 
 Every entry is a name; a floor is written only at a known breaking boundary with the API beside it
-(`python-toolchain` rule 9), and an adapter's SDK takes one on exactly the same terms. Under the
-bindings here that case is real once — the async test plugin's floor is `python-toolchain`'s. The
-FastAPI floor is written only where the app declares auth: the auth probe (`hex-test-restapi-auth`) walks the
+(`python-toolchain` rule 9), and an adapter's SDK takes one on exactly the same terms. The async test
+plugin's floor is `python-toolchain`'s.
+
+An adapter that calls an HTTP API, and the HTTP test client, bring `httpx2>=2` — 2.0 is the first
+release carrying the client API, and the only earlier one is an empty 0.0.0 placeholder.
+
+The FastAPI floor is written only where the app declares auth: the auth probe (`hex-test-restapi-auth`) walks the
 app's resolved operations through `fastapi.routing.iter_route_contexts`, which first ships in 0.137.2,
 and from 0.137.0 an included router is a single `_IncludedRouter` entry in `app.routes`, so a walk over
 `app.routes` alone no longer reaches the operations. Below 1.0 a release's minor is its breaking segment,

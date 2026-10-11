@@ -16,7 +16,7 @@ One-shot per project, and everything else in the integration suite depends on it
 - An API endpoint test → `hex-test-restapi-endpoint` (consumes `real_app`, the REST add-on, and the store's own fixture where it seeds rows).
 - The app-wide checks — the construct smoke, the error shape of every advertised code, CORS, the request-size limit → `hex-test-app-invariants`; they build the app themselves and take none of these fixtures.
 - A handler test that runs on in-memory fakes and needs no database at all → `hex-test-application-handler`; none of these fixtures apply to it.
-- A capability adapter's own assertions — the respx gateway, the SDK-error translation, the pure-CPU case → `hex-test-capability-adapter`. The session-scoped container its backend needs is still declared here.
+- A capability adapter's own assertions — the HTTP gateway over a stub transport, the SDK-error translation, the pure-CPU case → `hex-test-capability-adapter`. The session-scoped container its backend needs is still declared here.
 - The signing-key and token-minting fixtures, the authenticated client, and the `jwt_settings` override `container` grows in an auth app, where `container` then resolves only under `tests/integration/api/` → `hex-test-restapi-auth`. Only for an app that declares auth; this skill is complete without it.
 - The route-side auth dependencies themselves → `hex-restapi-auth`.
 - Per-resource row factories (`make_foo`, …) → not this skill; they live in `tests/integration/api/<resource>/conftest.py` next to the tests that use them.

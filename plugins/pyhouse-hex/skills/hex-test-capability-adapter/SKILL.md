@@ -1,6 +1,6 @@
 ---
 name: hex-test-capability-adapter
-description: Use when testing the infrastructure adapter behind an `ICan<Verb>` capability port in one of its three flavours — a containerized backend through testcontainers, an HTTP gateway intercepted with `respx` over real `httpx2`, or a pure-CPU parser, renderer or verifier — asserting the SDK-error to catalogue-exception translation row by row. Not a repository adapter, which is `hex-test-repository-contract`, and not a token verifier, which is `hex-test-restapi-auth`.
+description: Use when testing the infrastructure adapter behind an `ICan<Verb>` capability port in one of its three flavours — a containerized backend through testcontainers, an HTTP gateway driven over a real `httpx2` client whose transport is a stub, or a pure-CPU parser, renderer or verifier — asserting the SDK-error to catalogue-exception translation row by row. Not a repository adapter, which is `hex-test-repository-contract`, and not a token verifier, which is `hex-test-restapi-auth`.
 ---
 
 # Hex Test — Capability Adapter
@@ -22,16 +22,16 @@ Produces one test file per capability adapter. Catches what unit-level coverage 
 - The catalogue exception the translator raises, or a new row in it → `exception-catalog`.
 - Speed targets, the substitution ladder and marker rules → `test-principles`.
 - A pure domain entity, value object, enum or service, with no adapter and no IO → `hex-test-domain`.
-- A flat-layered service's `*_client.py` stubbed with `respx` → `flat-test-service-client`, in the `pyhouse-flat` plugin; this skill's HTTP-gateway flavor is for an adapter behind an `ICan<Verb>` port, not for a flat client class.
+- A flat-layered service's `*_client.py` tested over a stub transport → `flat-test-service-client`, in the `pyhouse-flat` plugin; this skill's HTTP-gateway flavor is for an adapter behind an `ICan<Verb>` port, not for a flat client class.
 
-## Template(s) — pytest, respx through pytest-httpx2 over httpx2
+## Template(s) — pytest, `httpx2.MockTransport` under a real `httpx2` client
 
 The test file mirrors the adapter's module (`test-principles`, *Test naming*).
 
 ### Pick the flavor
 
 - **Containerized backend.** Adapter speaks to a service that runs in a Testcontainer (an object store, a broker, a cache). Drives the real client against the real container; consumes the resource fixtures from the integration conftest. **Lives under `tests/integration/<adapter>/`.**
-- **HTTP gateway with `respx`.** Adapter speaks `httpx2` to a third-party HTTP API. Drives the real `httpx2.AsyncClient` under the `httpx2_mock` router and asserts the request shape on the way out (`test-principles`, *Intercepting HTTP* rule 5) and the translated response on the way back. The adapter code is real; only the network is intercepted. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
+- **HTTP gateway over a stub transport.** Adapter speaks `httpx2` to a third-party HTTP API. Drives a real `httpx2.AsyncClient` whose transport is the stub and asserts the request shape on the way out (`test-principles`, *Intercepting HTTP* rule 5) and the translated response on the way back. The adapter code is real; only the network is replaced. Nothing runs, so it is a boundary unit test (`test-principles`) and **lives under `tests/unit/infrastructure/<adapter>/`**, clear of the integration tree's container and migration fixtures.
 - **Pure-CPU.** Adapter does no IO — a parser, a renderer over in-memory bytes, a verifier. Stdlib + the real parsing / crypto library. No fixtures, no containers. **Lives under `tests/unit/infrastructure/<adapter>/`.**
 
 The flavor mirrors the adapter's form in `hex-capability-adapter` — an SDK client, an HTTP gateway (the one it templates) or sync pure CPU. If two flavors are asked for in one file, split — one file per adapter, but `integration/` for a test that needs a running backend and `unit/` for everything else means a containerized adapter and a gateway or CPU adapter live in different roots regardless.
@@ -47,7 +47,7 @@ backend refuses, or one pointed at no backend — landing on the upstream error 
 compensation path calls (a delete) pins success on a key that was never written, where the backend
 answers success for it, rather than a not-found it can never raise.
 
-### HTTP gateway with `respx`
+### HTTP gateway over a stub transport
 
 ```
 tests/unit/infrastructure/<adapter>/
@@ -61,7 +61,6 @@ from collections.abc import AsyncIterator
 
 import httpx2
 import pytest
-import respx
 from pydantic import SecretStr  # only where the upstream takes a credential
 
 from myapp.domain.exceptions import (
@@ -80,29 +79,54 @@ _SETTINGS = FooClassifierSettings(
 
 
 @pytest.fixture
-async def client() -> AsyncIterator[httpx2.AsyncClient]:
-    async with httpx2.AsyncClient() as http_client:
+def upstream_requests() -> list[httpx2.Request]:
+    return []
+
+
+@pytest.fixture
+def upstream_answers() -> list[httpx2.Response | httpx2.TransportError]:
+    return []
+
+
+@pytest.fixture
+async def client(
+    upstream_requests: list[httpx2.Request], upstream_answers: list[httpx2.Response | httpx2.TransportError]
+) -> AsyncIterator[httpx2.AsyncClient]:
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        upstream_requests.append(request)
+        if not upstream_answers:
+            pytest.fail(f"no answer queued for {request.method} {request.url}")
+        next_answer = upstream_answers.pop(0)
+        if isinstance(next_answer, httpx2.TransportError):
+            raise next_answer
+        return next_answer
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(answer)) as http_client:
         yield http_client
 
 
-async def test_classify_happy_path(httpx2_mock: respx.MockRouter, client: httpx2.AsyncClient) -> None:
-    route = httpx2_mock.post(f"{_BASE_URL}/classifications").respond(200, json={"kind": "B"})
+async def test_classify_happy_path(
+    upstream_requests: list[httpx2.Request],
+    upstream_answers: list[httpx2.Response | httpx2.TransportError],
+    client: httpx2.AsyncClient,
+) -> None:
+    upstream_answers.append(httpx2.Response(200, json={"kind": "B"}))
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
 
     kind = await adapter.classify(Foo(id=uuid.uuid4(), name="alpha"))
 
     assert kind == FooKind.B
-    assert route.called
-    request = route.calls.last.request
+    [request] = upstream_requests
+    assert (request.method, str(request.url)) == ("POST", f"{_BASE_URL}/classifications")
     assert json.loads(request.content) == {"name": "alpha"}
     assert request.headers["Authorization"] == "Bearer test-key"  # only where the upstream takes a credential
 
 
 @pytest.mark.parametrize("body", [b'{"kind": "UNKNOWN"}', b"not json"], ids=["unknown-kind", "not-json"])
 async def test_classify_unparseable_body_raises_upstream(
-    httpx2_mock: respx.MockRouter, client: httpx2.AsyncClient, body: bytes
+    upstream_answers: list[httpx2.Response | httpx2.TransportError], client: httpx2.AsyncClient, body: bytes
 ) -> None:
-    httpx2_mock.post(f"{_BASE_URL}/classifications").respond(200, content=body)
+    upstream_answers.append(httpx2.Response(200, content=body))
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
@@ -113,8 +137,10 @@ async def test_classify_unparseable_body_raises_upstream(
 
 
 # only where the upstream judges input the caller can correct
-async def test_classify_400_raises_validation(httpx2_mock: respx.MockRouter, client: httpx2.AsyncClient) -> None:
-    httpx2_mock.post(f"{_BASE_URL}/classifications").respond(400)
+async def test_classify_400_raises_validation(
+    upstream_answers: list[httpx2.Response | httpx2.TransportError], client: httpx2.AsyncClient
+) -> None:
+    upstream_answers.append(httpx2.Response(400))
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
@@ -124,8 +150,10 @@ async def test_classify_400_raises_validation(httpx2_mock: respx.MockRouter, cli
     assert exc_info.value.context == {"foo_id": str(foo.id), "status": 400}
 
 
-async def test_classify_503_raises_upstream(httpx2_mock: respx.MockRouter, client: httpx2.AsyncClient) -> None:
-    httpx2_mock.post(f"{_BASE_URL}/classifications").respond(503)
+async def test_classify_503_raises_upstream(
+    upstream_answers: list[httpx2.Response | httpx2.TransportError], client: httpx2.AsyncClient
+) -> None:
+    upstream_answers.append(httpx2.Response(503))
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
@@ -136,9 +164,9 @@ async def test_classify_503_raises_upstream(httpx2_mock: respx.MockRouter, clien
 
 
 async def test_classify_network_error_raises_upstream(
-    httpx2_mock: respx.MockRouter, client: httpx2.AsyncClient
+    upstream_answers: list[httpx2.Response | httpx2.TransportError], client: httpx2.AsyncClient
 ) -> None:
-    httpx2_mock.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx2.ConnectError("boom"))
+    upstream_answers.append(httpx2.ConnectError("boom"))
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
@@ -149,9 +177,9 @@ async def test_classify_network_error_raises_upstream(
 
 
 async def test_classify_read_timeout_raises_upstream(
-    httpx2_mock: respx.MockRouter, client: httpx2.AsyncClient
+    upstream_answers: list[httpx2.Response | httpx2.TransportError], client: httpx2.AsyncClient
 ) -> None:
-    httpx2_mock.post(f"{_BASE_URL}/classifications").mock(side_effect=httpx2.ReadTimeout("slow"))
+    upstream_answers.append(httpx2.ReadTimeout("slow"))
     adapter = HttpFooClassifier(client=client, settings=_SETTINGS)
     foo = Foo(id=uuid.uuid4(), name="alpha")
 
@@ -161,10 +189,13 @@ async def test_classify_read_timeout_raises_upstream(
     assert exc_info.value.context == {"foo_id": str(foo.id)}
 ```
 
-`httpx2_mock` is `pytest-httpx2`'s `respx` router over httpx2's transport. Every response handed to
-respx is respx's own — `.respond(...)` on a route, `respx.MockResponse` in a `side_effect` sequence or
-callable — and a transport failure is raised with `side_effect=`; respx refuses an `httpx2.Response`
-anywhere, and its call record holds `httpx.Request`s, so read it without annotating it as httpx2's.
+The stub is the client's transport, built in the `client` fixture: its handler records each request in
+`upstream_requests`, which a test reads back for what was sent (rules 2, 3 and 5 of `test-principles`'
+*Intercepting HTTP*), and answers it with the next of the `upstream_answers` the test queued — a response,
+or a transport error it raises, which the client hands the adapter carrying the request. A sequence, such
+as a 429 and then a 200 for an adapter that retries, is two answers queued in order. A request the test
+queued no answer for fails the test, even under a caller that catches every exception, so nothing the
+test did not expect is answered quietly.
 
 Both halves of parsing are one parametrized test — a `200` whose body is not JSON, and one carrying a
 value the domain type refuses: without the adapter's translation around the parse, the decode error or
@@ -185,14 +216,16 @@ in each test, real library calls, and one test per check, asserting its `context
 
 ## Other bindings
 
-- **Another interception mechanism, or none.** A stub server on a loopback port, recorded cassettes, or a
-  transport substituted into the real client all hold the adapter real while the socket is not, which is
-  all rules 8 and 13 ask for; what changes is how the interception is installed and how the outgoing
-  request is read back.
+- **Another stub mechanism.** A stub server on a loopback port, or recorded cassettes, hold the adapter
+  real while the socket is not, as the stub transport does, which is all rules 8 and 13 ask for; what
+  changes is how the stub is installed and how the outgoing request is read back.
+- **A project already on `respx`.** It keeps it — `respx` through `pytest-httpx2` over `httpx2`, routes
+  answered with `.respond(...)` and read back from each route's call record. The cases and rule 13 are
+  unchanged.
 - **An adapter on `httpx`, httpx2's predecessor, or on `aiohttp`.** Under `httpx` the API is the same
-  under the old import, and respx intercepts it unaided — `@respx.mock` or `respx.mock()` in place of
-  `httpx2_mock`, and no `pytest-httpx2`. Under `aiohttp`, `aioresponses` registers the routes. The
-  cases and rule 13 are unchanged.
+  under the old import, `httpx.MockTransport` included, so only the import changes. Under `aiohttp`,
+  which takes no transport of this kind, `aioresponses` registers the routes. The cases and rule 13 are
+  unchanged.
 - **A pre-provisioned backend instead of a disposable container.** Provisioning is
   `hex-test-integration-setup`'s (`## Other bindings`). The per-test namespace and its teardown (rule
   11) get *more* load-bearing, not less — a shared instance keeps whatever a test leaves behind.
@@ -236,7 +269,7 @@ Consult `test-principles` for the testing constitution and `exception-catalog` f
 
 ## Inlined typing / import rules
 
-- `pytest`, `respx` and `pytest-httpx2` (HTTP flavor; `pytest-httpx2` provides the fixture and is never imported), `httpx2`, the real parsing / crypto library (CPU flavor), the real SDK, `myapp.domain.*`, `myapp.infrastructure.<adapter>` — imported from the package, not its inner module (`python-packaging`). No `myapp.application.*`, no `myapp.restapi.*`.
+- `pytest`, `httpx2` (its `MockTransport` is the HTTP flavor's stub), the real parsing / crypto library (CPU flavor), the real SDK, `myapp.domain.*`, `myapp.infrastructure.<adapter>` — imported from the package, not its inner module (`python-packaging`). No `myapp.application.*`, no `myapp.restapi.*`.
 - Full annotations on every test signature, and a yielding fixture is annotated `AsyncIterator[T]` / `Iterator[T]`. Resource-fixture types (`Session`, `httpx2.AsyncClient`) come from the SDK / library, not the project.
 - No `from __future__ import annotations`.
 

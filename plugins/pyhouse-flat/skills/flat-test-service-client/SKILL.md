@@ -1,6 +1,6 @@
 ---
 name: flat-test-service-client
-description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `respx` over `httpx2`. A unit test needing no database and no container, unlike `flat-test-entrypoint`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
+description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `httpx2.MockTransport` under a real `httpx2` client. A unit test needing no database and no container, unlike `flat-test-entrypoint`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat-Layered Test — Service Client
@@ -8,17 +8,17 @@ description: Use when testing one external-service HTTP client class with its tr
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 One unit-test file per client class, under the distribution's own `tests/unit/`. No database, no
-container, no network — `respx`, through `pytest-httpx2`, intercepts at the `httpx2` transport layer,
+container, no network — the `httpx2.AsyncClient` the test hands the client has a stub as its transport,
 so everything the client itself does (URL assembly, headers, `raise_for_status`, JSON parsing, the
 `except httpx2.HTTPError` translation) runs unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a
 process boundary.
 
-The client has no `Protocol` and needs none. `respx` substitutes the transport, which is somebody else's
+The client has no `Protocol` and needs none. The test substitutes the transport, which is somebody else's
 boundary — not an abstraction invented to make the code mockable.
 
 ## When to use vs. neighbours
 
-- The client wraps a vendor SDK rather than raw `httpx2` (a cloud SDK, a database driver) → not `respx`;
+- The client wraps a vendor SDK rather than raw `httpx2` (a cloud SDK, a database driver) → not a stub transport;
   test it against the real thing in a container under this distribution's `tests/integration/`, or, where
   there is no container for it, against the SDK's own test double if it ships one.
 - The filter/normalize function the client's output feeds → a plain unit test with no fixtures; it is
@@ -33,38 +33,51 @@ boundary — not an abstraction invented to make the code mockable.
 - The shared groundwork — the substitution ladder, naming, AAA → `test-principles`.
 - The client is an adapter behind a hexagonal `ICan<Verb>` capability port rather than a flat
   `*_client.py` → `hex-test-capability-adapter`, in the `pyhouse-hex` plugin, whose HTTP-gateway flavor
-  is the same `respx` technique bound to a port.
+  is the same stub transport bound to a port.
 
-## Template — pytest, `respx` through `pytest-httpx2` over `httpx2`
+## Template — pytest, `httpx2.MockTransport` under a real `httpx2` client
 
 `tests/conftest.py` — the upstream stub and the client over it, in the one conftest above both `unit/`
 and `integration/`, because the tests of the work and of its wrapper use the same pair (`test-principles`,
 fixture versus builder):
 
 ```python
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 
 import httpx2
 import pytest
-import respx
 
 from myapp.qux import QuxClient
-
-pytest_plugins = ("pytest_httpx2",)
 
 _QUX_URL = "https://qux.test"
 _TIMEOUT_SECONDS = 1.0
 
 
 @pytest.fixture
-def qux_stub() -> Iterator[respx.MockRouter]:
-    with respx.mock(base_url=_QUX_URL, assert_all_called=False, using="httpcore2") as router:
-        yield router
+def qux_requests() -> list[httpx2.Request]:
+    return []
 
 
 @pytest.fixture
-async def qux_client(qux_stub: respx.MockRouter) -> AsyncIterator[QuxClient]:
-    async with httpx2.AsyncClient(base_url=_QUX_URL, timeout=_TIMEOUT_SECONDS) as http:
+def qux_answers() -> list[httpx2.Response | httpx2.TransportError]:
+    return []
+
+
+@pytest.fixture
+async def qux_client(
+    qux_requests: list[httpx2.Request], qux_answers: list[httpx2.Response | httpx2.TransportError]
+) -> AsyncIterator[QuxClient]:
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        qux_requests.append(request)
+        if not qux_answers:
+            pytest.fail(f"no answer queued for {request.method} {request.url}")
+        next_answer = qux_answers.pop(0)
+        if isinstance(next_answer, httpx2.TransportError):
+            raise next_answer
+        return next_answer
+
+    transport = httpx2.MockTransport(answer)
+    async with httpx2.AsyncClient(base_url=_QUX_URL, timeout=_TIMEOUT_SECONDS, transport=transport) as http:
         yield QuxClient(http)
 ```
 
@@ -74,27 +87,30 @@ async def qux_client(qux_stub: respx.MockRouter) -> AsyncIterator[QuxClient]:
 import httpx2
 import pydantic
 import pytest
-import respx
 
 from myapp.exceptions import QuxRequestFailedError
 from myapp.qux import QuxClient
 from myapp.schemas import FooPayload
 
 
-async def test_fetch_foos_returns_the_parsed_payloads(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
-    route = qux_stub.get("/foos").respond(200, json={"items": [{"id": "f1", "name": "alpha"}]})
+async def test_fetch_foos_returns_the_parsed_payloads(
+    qux_requests: list[httpx2.Request],
+    qux_answers: list[httpx2.Response | httpx2.TransportError],
+    qux_client: QuxClient,
+) -> None:
+    qux_answers.append(httpx2.Response(200, json={"items": [{"id": "f1", "name": "alpha"}]}))
 
     result = await qux_client.fetch_foos()
 
-    assert route.called
+    assert [(request.method, request.url.path) for request in qux_requests] == [("GET", "/foos")]
     assert result == (FooPayload(id="f1", name="alpha"),)
 
 
 @pytest.mark.parametrize("status", [400, 404, 500, 503])
 async def test_non_2xx_becomes_a_qux_request_failed_error(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, status: int
+    qux_answers: list[httpx2.Response | httpx2.TransportError], qux_client: QuxClient, status: int
 ) -> None:
-    qux_stub.get("/foos").respond(status)
+    qux_answers.append(httpx2.Response(status))
 
     with pytest.raises(QuxRequestFailedError) as exc_info:
         await qux_client.fetch_foos()
@@ -102,8 +118,10 @@ async def test_non_2xx_becomes_a_qux_request_failed_error(
     assert isinstance(exc_info.value.__cause__, httpx2.HTTPStatusError)
 
 
-async def test_a_timeout_becomes_a_qux_request_failed_error(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
-    qux_stub.get("/foos").mock(side_effect=httpx2.ConnectTimeout("timed out"))
+async def test_a_timeout_becomes_a_qux_request_failed_error(
+    qux_answers: list[httpx2.Response | httpx2.TransportError], qux_client: QuxClient
+) -> None:
+    qux_answers.append(httpx2.ConnectTimeout("timed out"))
 
     with pytest.raises(QuxRequestFailedError) as exc_info:
         await qux_client.fetch_foos()
@@ -117,9 +135,9 @@ async def test_a_timeout_becomes_a_qux_request_failed_error(qux_stub: respx.Mock
     ids=["not-json", "missing-field"],
 )
 async def test_a_200_with_a_malformed_body_becomes_a_qux_request_failed_error(
-    qux_stub: respx.MockRouter, qux_client: QuxClient, body: bytes
+    qux_answers: list[httpx2.Response | httpx2.TransportError], qux_client: QuxClient, body: bytes
 ) -> None:
-    qux_stub.get("/foos").respond(200, content=body)
+    qux_answers.append(httpx2.Response(200, content=body))
 
     with pytest.raises(QuxRequestFailedError) as exc_info:
         await qux_client.fetch_foos()
@@ -127,27 +145,26 @@ async def test_a_200_with_a_malformed_body_becomes_a_qux_request_failed_error(
     assert isinstance(exc_info.value.__cause__, pydantic.ValidationError)
 ```
 
-The stub and the client are fixtures, not module-level builders, because each has an end — the stub's
-interception is lifted and the transport closed at teardown — and they sit in `tests/conftest.py`
-rather than in each test module because three files at two levels take them. The client fixture builds
-its `httpx2.AsyncClient` exactly as the process definition does — base URL and timeout from constants in
-place of settings — and **requests the stub**, so no test can hold the client without the interception
-under it (rule 7). `assert_all_called=False` is rule 6, stated where the stub is made, and
-`using="httpcore2"` points respx at httpx2's transport through the mocker `pytest-httpx2` registers.
-Without that plugin no mocker is installed and every request goes to the real network, so the conftest
-loads it by name in `pytest_plugins`: the dependency is declared where it is used, it holds with plugin
-autoloading off, and a missing package fails the run at import rather than passing it over the network.
-Every response handed to respx is respx's own — `.respond(...)` on a route, `respx.MockResponse` in a
-`side_effect` sequence or callable; respx refuses an `httpx2.Response` anywhere, and its call record
-holds `httpx.Request`s, so read it without annotating it as httpx2's. Where the process
-definition hands the transport an auth flow (`flat-layered` rule 13), the fixture builds it the same
-way, and the tests pin the refresh: one rejected credential is renewed once and the request resent
-carrying the renewed credential, read back from the route's call record; a second rejection, and a
-credential request that itself fails, raise the catalogue error.
+The stub's record, its answers and the client over it are fixtures, not module-level builders, because
+the client has an end — its transport is closed at teardown — and the record and answers are fresh per
+test; they sit in `tests/conftest.py` rather than in each test module because three files at two levels
+take them. The client fixture builds its `httpx2.AsyncClient` exactly as the process definition does —
+base URL and timeout from constants in place of settings — with the stub as its transport, so no test
+can hold the client with anything but the stub under it (rule 7). The stub's handler records each request
+in `qux_requests` and answers it with the next of the `qux_answers` the test queued: a response, or a
+transport error it raises, which the client hands on carrying the request. A request the test queued no
+answer for fails the test, even under a caller that catches every exception, so nothing unexpected is
+answered quietly. Where the process definition hands the transport an auth flow (`flat-layered` rule
+13), the fixture builds it the same way, and its login requests go through the same stub, so the tests
+pin the refresh with answers queued in the order the flow sends its requests — the login's token, the
+401, the second login's token, the success — and read `qux_requests` back as that sequence of method
+and path, the last carrying the renewed credential. A second rejection raises the catalogue error with
+the record ending on the resource request, so the rejection is the resource's and not a failed login;
+a credential request that itself fails raises it too.
 
-`fetch_foos` sends nothing beyond its method and path, so the route being hit is its request pin
-(rule 3); a method that sends a query, a header or a body reads it back from
-`route.calls.last.request`.
+`fetch_foos` sends nothing beyond its method and path, so the recorded method and path are its request
+pin (rule 3); a method that sends a query, a header or a body reads it back from the request in
+`qux_requests`.
 
 The error tests assert the translated class and its chained cause. `fetch_foos` takes no input, so its
 `context` is empty; a method that takes one also asserts the `context` key set the raise site and its
@@ -158,13 +175,14 @@ A caller's test makes this client fail at its transport (`flat-test-entrypoint` 
 
 ## Other bindings
 
-- **A stub transport instead of a global patch** — `httpx2.MockTransport`, or a local ASGI app served
-  in-process, passed as `transport=` to the `httpx2.AsyncClient` the test hands the client. The client
-  already takes its transport pre-built, so nothing in it changes. What the tests assert — the
+- **A project already on `respx`.** It keeps it — `respx` through `pytest-httpx2` over `httpx2`, routes
+  answered with `.respond(...)` and read back from each route's call record. What the tests assert — the
   translation, the outgoing request, malformed bodies, timeouts — is unchanged, and so is the ban on
   extracting a `Protocol`.
-- **A client on `httpx`, httpx2's predecessor.** The same API under the old import; respx intercepts it
-  unaided, so `using="httpcore2"` and `pytest-httpx2` go and everything else stays.
+- **A local ASGI app served in-process** as the transport, where the stub must hold state across
+  requests. The client already takes its transport pre-built, so nothing in it changes.
+- **A client on `httpx`, httpx2's predecessor.** The same API under the old import, `httpx.MockTransport`
+  included, so only the import changes.
 - **A different HTTP library** — `aiohttp` with `aioresponses`, `requests` with `responses`. The
   interception point and the exception classes the client translates *from* change together; the
   catalogue exception it translates *to*, the cause-chaining requirement and every rule below are
@@ -182,16 +200,15 @@ A caller's test makes this client fail at its transport (`flat-test-entrypoint` 
 2. **Assert the translation, not just the type** — `test-principles`, *Assert strength* recipe 6: the
    catalogue class, its `context` keys where the call takes an input (`exception-catalog` rule 11), and
    the translated failure as its cause, never the message.
-3. **Pin what the client sent beyond its route** — `test-principles`, *Intercepting HTTP* rule 5
-   (`route.calls.last.request` here).
+3. **Pin what the client sent beyond its method and URL** — `test-principles`, *Intercepting HTTP* rule 5
+   (read back from `qux_requests` here).
 4. **A 200 the client cannot parse is part of its contract** — `test-principles`, *Intercepting HTTP*
    rule 6; the template's two malformed cases are its two halves.
 5. **The base URL is a constant beside the fixture that builds the client, and is passed in.** Never let
    the test depend on a settings value — hand the client an HTTP client built with an explicit
    `base_url`, which is why the client is handed its transport rather than building one.
-6. **Assert the route a test exercises, never that every stubbed route was called** —
-   `test-principles`, *Intercepting HTTP* rule 3. The shared router therefore turns its own
-   all-called check off (`assert_all_called=False` here).
+6. **Assert the request a test exercises reached the stub, on the stub's record** — `test-principles`,
+   *Intercepting HTTP* rules 2 and 3 (`qux_requests` here).
 7. **No test reaches a real host** (`test-principles`, *Intercepting HTTP* rule 1), and a stubbed body
    is copied from a documented or recorded response (*Intercepting HTTP* rule 7), never read live.
 
