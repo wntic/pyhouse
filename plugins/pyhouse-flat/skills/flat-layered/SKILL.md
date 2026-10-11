@@ -196,12 +196,12 @@ class FooSyncResult:
 
 `src/myapp/schemas/__init__.py` re-exports all three modules (`python-packaging`).
 
-### Template — an external-system client, on httpx
+### Template — an external-system client, on httpx2
 
 `src/myapp/qux/qux_client.py` — one concrete class, no Protocol:
 
 ```python
-import httpx
+import httpx2
 from pydantic import BaseModel, ValidationError
 
 from myapp.schemas import FooPayload
@@ -216,7 +216,7 @@ class _FooList(BaseModel):
 
 
 class QuxClient:
-    def __init__(self, http: httpx.AsyncClient) -> None:
+    def __init__(self, http: httpx2.AsyncClient) -> None:
         self._http = http
 
     async def fetch_foos(self) -> tuple[FooPayload, ...]:
@@ -224,7 +224,7 @@ class QuxClient:
             response = await self._http.get("/foos")
             response.raise_for_status()
             return _FooList.model_validate_json(response.content).items
-        except (httpx.HTTPError, ValidationError) as exc:
+        except (httpx2.HTTPError, ValidationError) as exc:
             raise QuxRequestFailedError("failed to fetch foos") from exc
 ```
 
@@ -245,13 +245,13 @@ re-exports the settings and client modules (`python-packaging`), so a caller wri
 class the same way (`flat-persistence`).
 
 **The client is handed its transport; it never builds one** (rule 12). The process-definition package
-builds the pooled HTTP client once from the system's settings — `httpx.AsyncClient(base_url=settings.url,
+builds the pooled HTTP client once from the system's settings — `httpx2.AsyncClient(base_url=settings.url,
 timeout=settings.timeout_seconds)`, entered with `async with` for the life of the process so it closes
 when the process ends (`flat-entrypoint`) — and passes it to `QuxClient`. A test
 builds the same client against a stub base URL and hands that in, without touching the environment.
 
-**An upstream that issues an expiring token keeps the refresh on the transport** (rule 13). Under httpx
-that is an `httpx.Auth` subclass overriding `auth_flow`, passed as `auth=` where the process definition
+**An upstream that issues an expiring token keeps the refresh on the transport** (rule 13). Under httpx2
+that is an `httpx2.Auth` subclass overriding `auth_flow`, passed as `auth=` where the process definition
 builds the transport: its flow logs in when it holds no token, and on a 401 logs in once and resends.
 The client's methods stay as above, and a second 401 leaves through `raise_for_status` as a
 `QuxRequestFailedError` like any other refusal.
@@ -269,7 +269,8 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
 - **A console-script entry point in place of `__main__.py`.** `[project.scripts]` in the packaging
   metadata gives the same one declared place a process starts from, as a named command. What must not
   change is the count: one declared entry point per runnable process.
-- **Another HTTP or SDK client in place of `httpx`.** `aiohttp`, `niquests`, a vendor SDK: the client
+- **Another HTTP or SDK client in place of `httpx2`.** `httpx`, the predecessor (the same API under the
+  old import), `aiohttp` (stubbed in tests with `aioresponses`), `niquests`, a vendor SDK: the client
   class keeps its shape — the session or SDK client built once by the process definition and handed to
   the constructor, the library's own exceptions caught and translated inside it, no `Protocol` above it.
   Only the call, the exception type and the hook a credential refresh attaches to change.

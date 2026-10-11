@@ -111,7 +111,7 @@ serializes the return value into a durable history makes this load-bearing rathe
 ```python
 import asyncio
 
-import httpx  # only with an upstream
+import httpx2  # only with an upstream
 
 from myapp.postgres import FooRepository, PostgresSettings, create_engine  # only with a store
 from myapp.qux import QuxClient, QuxSettings  # only with an upstream
@@ -126,7 +126,7 @@ async def _run() -> None:
     engine = create_engine(PostgresSettings().dsn)
     try:
         # only with an upstream
-        async with httpx.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:
+        async with httpx2.AsyncClient(base_url=qux_settings.url, timeout=qux_settings.timeout_seconds) as http:
             await sync_foos(QuxClient(http), FooRepository(engine))
     finally:
         await engine.dispose()
@@ -153,7 +153,7 @@ per invocation is an argument parsed there, never a setting (`python-settings` r
 **The process definition builds every settings object and hands concrete values down** — it is
 this family's composition root, so the rule is `python-settings` rule 13.
 
-**The transport and the engine are built once and wrap the whole run.** One pooled `httpx.AsyncClient`
+**The transport and the engine are built once and wrap the whole run.** One pooled `httpx2.AsyncClient`
 and one engine exist before the run starts and are closed when it ends, the engine disposed even when
 the run leaves by an exception (`flat-layered` rule 12). A second process definition building the same
 things takes them from one builder rather than a copy (rule 14).

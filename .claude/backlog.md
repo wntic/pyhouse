@@ -19,23 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 79. The templates move from httpx to httpx2
-httpx is stalled: last stable 0.28.1 on 2024-12-06, only `1.0.devN` since, the 1.0 PR (#3796) open, issues
-and discussions closed on 2026-02-27; its transport httpcore last released 1.0.9 on 2025-04-24 with open
-defects in exactly what the templates use — a long-lived pooled `AsyncClient` and cancellation (httpcore
-#1093, #1110; httpx #3782, #3728). httpx2 (Pydantic's fork, 2.13.1 on 2026-09-23) is the drop-in
-continuation: the import is renamed, httpcore vendored as `httpcore2`. Not aiohttp: httpx serves two roles
-here — the outbound client and the in-process FastAPI test client over `ASGITransport`
-(`hex-test-restapi-endpoint`, `hex-test-app-invariants`, `hex-test-restapi-auth`) — and aiohttp has no
-ASGI transport, so httpx would stay anyway, and its client API is not drop-in. At implementation, check:
-- httpx2 keeps `ASGITransport` and `MockTransport`.
-- Whether `respx` supports httpx2 by then (draft PR #317 on 0.23.1). If not, the stubs move to
-  `pytest-httpx2` or to the built-in `MockTransport`, which `flat-test-service-client` already uses and
-  which needs no stubbing library.
-- The rename across the 15 files: the setup skills' floors, `test-principles`' `respx` wording, the
-  package list `CLAUDE.md` gives `tools/check_template_imports.py`.
-The rules do not change; `## Other bindings` gains aiohttp with aioresponses.
-
 ### 80. A universal skill for a CLI tool
 Working name `cli-entrypoint`, final name from `naming`. Mostly rules; the universal skills already hold
 for a CLI and stay the owners — the entry function as composition root and per-invocation values as

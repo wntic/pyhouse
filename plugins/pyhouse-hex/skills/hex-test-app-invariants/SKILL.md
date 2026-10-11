@@ -19,7 +19,7 @@ One-shot per project. An HTTP app gets up to four files under `tests/unit/restap
 - A grep-firewall static rule → `test-architecture-rule` (compile-time, not runtime).
 - The testing constitution — markers, async mode, the mocking prohibition → `test-principles`.
 
-## Template(s) — pytest, FastAPI, httpx over an in-process ASGI transport
+## Template(s) — pytest, FastAPI, httpx2 over an in-process ASGI transport
 
 ```
 tests/unit/restapi/
@@ -90,7 +90,7 @@ def test_every_advertised_error_code_carries_the_error_schema(method: str, path:
 from typing import Any, cast
 
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from myapp.restapi.main import create_app
 
@@ -124,7 +124,7 @@ async def test_cors_preflight_echoes_a_configured_origin() -> None:
 from typing import Any, cast
 
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from myapp.restapi.main import create_app
 
@@ -195,7 +195,7 @@ Consult `test-principles` for the testing constitution.
 
 ## Inlined typing / import rules
 
-- `pytest`, `fastapi`, `httpx`, `myapp.restapi.main`.
+- `pytest`, `fastapi`, `httpx2`, `myapp.restapi.main`.
 - Full annotations on every helper.
 - No `from __future__ import annotations`.
 

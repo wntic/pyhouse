@@ -52,11 +52,11 @@ the role that needs them and not before:
 | Role present | Runtime dependencies it brings | Development dependencies it brings |
 |---|---|---|
 | any | `pydantic`, `pydantic-settings`, `structlog` | `python-toolchain`'s development group, as written |
-| a client over HTTP | `httpx` | `respx` |
+| a client over HTTP | `httpx2` | `respx`, `pytest-httpx2` |
 | data access on a relational store | `sqlalchemy[asyncio]>=2` (2.0: inline type annotations under mypy `--strict`), `asyncpg` | `testcontainers[postgres]>=4.15` (4.15: `testcontainers.community`) |
 | a relational store whose schema this service owns | `alembic` | — |
 | a service that mints row ids | `uuid6` | — |
-| an HTTP trigger | `fastapi`, `uvicorn` | — |
+| an HTTP trigger | `fastapi`, `uvicorn` | `httpx2`, the in-process test client, unless the client-over-HTTP row already brings it |
 | a durable-execution engine, once earned | the engine's SDK | the engine's test harness |
 | a vendor SDK client | that SDK, with the client that wraps it | whatever double the SDK ships |
 

@@ -1,7 +1,7 @@
 # hex-test-restapi-auth — the integration half
 
 Topic file of `hex-test-restapi-auth`. The obligations are rules 4–18 in `SKILL.md`; what follows is the
-**PyJWT + `cryptography` + httpx/ASGI + FastAPI + pytest** binding that satisfies them: the signer, the
+**PyJWT + `cryptography` + httpx2/ASGI + FastAPI + pytest** binding that satisfies them: the signer, the
 fixtures that make a minted token verify against the real app, the discovered probe, and the
 authenticated endpoint form.
 
@@ -65,7 +65,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
 from myapp.infrastructure.jwt import JwtSettings
@@ -168,7 +168,7 @@ import re
 import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from myapp.domain.exceptions import UnauthorizedError
 from myapp.infrastructure.jwt import JwtSettings
@@ -260,7 +260,7 @@ fixtures are `hex-test-restapi-endpoint`'s. This is the auth-carrying variant of
 ```python
 from collections.abc import Callable
 
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 
 async def test_create_foo_returns_the_created_foo(authenticated_client: Callable[..., AsyncClient]) -> None:
