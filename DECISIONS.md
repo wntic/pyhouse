@@ -2767,3 +2767,16 @@ rule stated in both `pyhouse-git` and `pyhouse-universal`, worded to agree, and 
 them names it.
 **Reverse by:** from the parent of the commit that added this entry, removing the sentences from rule
 13 and the fourth instance from `CLAUDE.md`.
+
+### D174 — "No comments" reaches every file the project writes by hand
+`python-style`'s **Comments** bound source, migrations and tests, and nothing bound the
+`pyproject.toml`, Dockerfiles, compose files, CI workflows, hook configurations and scripts an agent
+writes, which filled with comments. The rule stays owned by `python-style` rather than split across
+those files' owners: **Comments** gains a bullet and rule 10 a sentence — the source form holds in
+every file the project writes by hand, and a comment a tool generated (`alembic.ini` after
+`alembic init`) is not the project's writing. Because `python-style`'s description does not fire when
+such a file is written, `python-toolchain` and `python-container-image` each carry one pointer line to
+it. `python-workspace`'s root `pyproject.toml` template held three notes to the copier as comments,
+which would have landed verbatim; they are prose under the block. The `# only where …` optional-line
+markers stay: they mark a line, not a comment to copy.
+**Reverse by:** from the parent of the commit that added this entry, reverting it.

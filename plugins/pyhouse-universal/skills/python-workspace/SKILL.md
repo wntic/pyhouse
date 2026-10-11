@@ -65,7 +65,7 @@ that only wants the logging setup should not inherit a schema library's driver a
 second cross-cutting helper is the signal for a second `packages/` member, not a bigger first one; a
 repository whose members share nothing has no `packages/` at all.
 
-Root `pyproject.toml`:
+Root `pyproject.toml` — `python-toolchain`'s tables, written here once and whole, plus:
 
 ```toml
 [project]
@@ -76,14 +76,12 @@ requires-python = ">=3.13"
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
 
-# [tool.ruff*] and [tool.mypy]: python-toolchain's tables, whole, written here once
-
 [tool.pytest.ini_options]
-# python-toolchain's keys, except `pythonpath`, which lists only what this root loads (below), and:
 testpaths = ["tests"]
-
-# [dependency-groups]: python-toolchain's dev group, whole, written here once
 ```
+
+Its `pythonpath` lists only what this root loads (below), and `packages/*` is a member group only
+where members share a library.
 
 The test configuration is whole here and nowhere else (rule 6): `python-toolchain`'s block, with
 `testpaths` naming each run's own `tests/`. **Each member's suite runs from that member's directory, with
@@ -92,7 +90,7 @@ target below does both. A member's tests import their own support (`tests.unit.f
 under a name that resolves to that member's tree, and one run over the whole repository cannot give them
 that: with the root as the runner's root, `pythonpath = ["."]` makes `tests` the repository's own
 directory and no member's, and listing every member's directory instead lets the first one listed
-shadow every other member's `tests`. Under the import mode above the runner's root decides what `tests`
+shadow every other member's `tests`. Under `python-toolchain`'s `--import-mode=importlib` the runner's root decides what `tests`
 names, while a `pythonpath` entry resolves against this file, so the root block carries no `.`.
 
 The root project is a **workspace container plus shared tooling config, with no runtime code of its

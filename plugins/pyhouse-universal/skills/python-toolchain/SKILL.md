@@ -17,6 +17,8 @@ no family needs only this skill.
 
 - The interpreter floor, its house value and the three settings that name it → `python-style`; this
   skill writes them where it says.
+- A comment in `pyproject.toml`, a `Dockerfile`, a compose file, a CI workflow or a hook configuration
+  → `python-style`'s **Comments**, which holds in every file the project writes by hand.
 - An inline type-ignore, a `cast`, annotation coverage of tests → `python-style`, which owns the
   type-suppression policy; this skill owns only the per-package missing-stub override in the config.
 - The wildcard re-export in `__init__.py` and what a package root exports → `python-packaging`.

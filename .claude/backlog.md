@@ -42,21 +42,6 @@ restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; u
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 
-### 77. "No comments" reaches every file the project writes by hand
-`python-style` "Comments" (`:269-290`) binds source, migrations and tests; nothing binds the
-`pyproject.toml`, Dockerfiles, compose files, CI workflows, hook configurations and scripts an agent
-writes, and they fill with comments. The rule stays owned by `python-style`, not split across the files'
-owners. Three changes:
-- `python-style` "Comments": one bullet — the source form holds in every file the project writes by
-  hand, configuration and scripts included; comments a tool generated (`alembic.ini` after
-  `alembic init`) are not the project's writing and the rule does not reach them.
-- One pointer line to it in `python-toolchain` (where it names Dockerfiles, compose, CI and hook
-  configurations) and in `python-container-image`, since those fire when such a file is written and
-  `python-style`'s description does not.
-- `python-workspace:79,82,85`: the three `# …python-toolchain's tables, whole, written here once`-style
-  lines inside the root `pyproject.toml` block are notes to the copier that would land verbatim; move
-  them to prose under the block. `python-container-image`'s `# only where …` optional-line marker stays.
-
 ### 79. The templates move from httpx to httpx2
 httpx is stalled: last stable 0.28.1 on 2024-12-06, only `1.0.devN` since, the 1.0 PR (#3796) open, issues
 and discussions closed on 2026-02-27; its transport httpcore last released 1.0.9 on 2025-04-24 with open
