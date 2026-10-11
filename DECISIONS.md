@@ -2514,3 +2514,15 @@ entry — including the two runs whose prompt never mentioned a decision, which 
 the change reversed a recorded one. Where none existed, both runs recorded the binding choice in the
 agents' instructions file. A skill would have stated what the model already does.
 **Reverse by:** reopening the backlog item, with a run that shows the defect.
+
+### D162 — `flat-test-run-function` is renamed `flat-test-entrypoint`
+Taken by the maintainer (2026-10-11). D129 dropped "run function" as a term and kept the skill's name
+"for now"; the name was the term's last trace. The skill tests what `flat-entrypoint` writes — the work
+end to end, the containment of a process that outlives one run, the framework wrapper and an earned
+engine — so it takes that skill's mirror name, as `flat-persistence` is tested by
+`flat-test-persistence`. The skill's rules, description and templates are unchanged; every reference in
+the flat skills, `test-principles`, `meta-skill-author`, `CONVENTIONS.md`, the skills index and
+`CLAUDE.md` moves with it. Entries above this one keep the old name, since they record what was true
+when they were taken. A rename is a break for a project that names the skill, so `pyhouse-flat` takes a
+minor below 1.0.0.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

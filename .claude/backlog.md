@@ -7,7 +7,7 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Items 55, 60, 61 and 62 remain. Every other agreed item has landed or was closed (D130–D161).
+Items 55, 61 and 62 remain. Every other agreed item has landed or was closed (D130–D162).
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an
@@ -18,14 +18,6 @@ no query per item in a loop, filtering and paging in the store rather than in Py
 and rows used, and every filter of a hot query backed by an index. Only what is expensive to retrofit
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
-
-### 60. Rename `flat-test-run-function` to `flat-test-entrypoint`
-Agreed on 2026-10-11. D129 dropped "run function" as a term and left the skill's name "for now"; the
-name is the term's last trace. The skill tests what `flat-entrypoint` writes — the work, containment,
-the wrapper and an earned engine — so it takes the mirror name, as `flat-persistence` ↔
-`flat-test-persistence`. Every reference moves with it: the flat skills, `test-principles`,
-`meta-skill-author` and `CONVENTIONS.md`, `skills/README.md`, `CLAUDE.md`. A rename is a break
-(`refactor(flat-test-entrypoint)!`, a minor for `pyhouse-flat` below 1.0.0); record it as D162.
 
 ### 61. Drop the clearable-field case from the hex partial update
 Agreed on 2026-10-11; partly reverses D143. The catalogue holds an agent to the architecture, not to
