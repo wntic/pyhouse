@@ -1,6 +1,6 @@
 ---
 name: flat-test-persistence
-description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the generated constraint name where the translator branches on it, the catalogue exception a driver error is translated into on each write and read the class has, what each read returns, and each write's conditional contract where it has one — an upsert's update set from both sides, an ordering-stamp guard from both directions, an empty update set, a batch's chunk edge and same-key inputs, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-run-function`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
+description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the generated constraint name where the translator branches on it, the catalogue exception a driver error is translated into on each write and read the class has, what each read returns, and each write's conditional contract where it has one — an upsert's update set from both sides, an ordering-stamp guard from both directions, an empty update set, a batch's chunk edge and same-key inputs, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-entrypoint`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat Test — Data-Access Contract
@@ -30,7 +30,7 @@ opens its own — asserting through a fresh connection only where its own rollba
 - The container, migration and isolation fixtures themselves → `flat-test-integration-setup`; this skill
   consumes `connection`, `engine` and `truncate_all` and lays none of its own.
 - Writing the tables, repository class and migrations under test → `flat-persistence`.
-- The work a trigger calls reaching this write path as part of a run → `flat-test-run-function`; this skill tests
+- The work a trigger calls reaching this write path as part of a run → `flat-test-entrypoint`; this skill tests
   the write path, that one tests the wiring above it.
 - The client feeding these rows → `flat-test-service-client`.
 - A static "no package outside the data-access package constructs a statement" rule →

@@ -268,7 +268,7 @@ choice. If yes, but the shape changes, write the version that survives the swap.
 
 **The one instance is fully unwound.** Two skills in the flat family existed only because the
 originating source used a particular durable-execution engine. They are gone, and so is the engine:
-their obligations are stack-independent rules in `flat-entrypoint` and `flat-test-run-function`, each
+their obligations are stack-independent rules in `flat-entrypoint` and `flat-test-entrypoint`, each
 in a subsection of `## Rules` that applies only once an engine has been earned; no hard stop repeats
 them, since a rule governs each. The vendor's spelling of them survived for a while as a sibling binding
 file and no longer does — it was a vendor manual the model already knows, standing where the rules only
