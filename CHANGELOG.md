@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.22.0 — 2026-10-11
+
+Plugin versions in this release: `pyhouse-universal` 0.19.0 (from 0.18.0), `pyhouse-hex` 0.12.0 (from
+0.11.1), `pyhouse-flat` 0.12.0 (from 0.11.0), `pyhouse-git` 0.8.0 (from 0.7.0). Every plugin carries a
+break; below 1.0.0 each takes a minor. The catalogue is now written for Claude Code alone.
+
+### Breaking
+
+- **`flat-test-run-function` is renamed `flat-test-entrypoint`.** It is the test counterpart of
+  `flat-entrypoint`, as `flat-test-persistence` is of `flat-persistence`; what it says is unchanged.
+  Wherever your project names the skill — an instructions file, a command, a review setup — write the
+  new name.
+- **The adopt commands write `CLAUDE.md` only.** `/pyhouse-universal:adopt` and `/pyhouse-git:adopt`
+  no longer write `AGENTS.md` or name skills without their plugin prefix. A section they wrote into an
+  `AGENTS.md` that `CLAUDE.md` imports is still found and updated in place, so nothing is needed there.
+  If your `AGENTS.md` is imported by nothing, move the section into `CLAUDE.md` before running either
+  command again — Claude Code never read it there.
+- **A hex partial update no longer carries a field's presence apart from its value.** `hex-application`,
+  `hex-restapi-schema`, `hex-restapi-endpoint` and `hex-test-application-handler` drop the `sets_note`
+  flag, the presence read from the request body and the test that clears a field: in the templates,
+  `None` on an update means "leave unchanged", and nothing more. Code that already distinguishes an
+  absent field from a cleared one is not wrong and needs no change; a review simply stops asking for it.
+
+### Changed
+
+- **`meta-skill-author`: `description` no longer has to identify a skill without `when_to_use`.**
+  Claude Code reads the two together, so a skill author may put a trigger in either. `Use when …`, the
+  trigger first, no bare `: ` and the 1,536-character combined limit still hold.
+
 ## 0.21.0 — 2026-10-10
 
 Plugin versions in this release: `pyhouse-git` 0.7.0 (from 0.6.0). `pyhouse-universal` (0.18.0),
