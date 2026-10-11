@@ -47,7 +47,7 @@ below. For each one ask:
 
 | Family | Test services |
 |---|---|
-| flat | a queue consumer that calls one API and stores nothing · a nightly job that reads one table and writes a report file · a webhook receiver writing to one table · a CLI-triggered export from an object store · a crawler writing to two stores |
+| flat | a queue consumer that calls one API and stores nothing · a nightly job that reads one table and writes a report file · an HTTP endpoint that proxies one third-party API and stores nothing · a CLI-triggered export from an object store · a crawler writing to two stores |
 | hex | a CRUD REST service with one aggregate · a service driven only by a queue consumer · a gRPC service with two aggregates and no auth · a service with no relational store |
 | universal | the above, plus a library with no entrypoint and a CLI tool |
 

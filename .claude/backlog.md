@@ -19,30 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 65. The flat templates lose the ordering stamp; the obligations stay as rules
-Two things that are not the maintainer's grew into flat template lines. The record's stamp came from the
-application the family was first written from (`observed_at`, renamed `as_of` by D144). The webhook is
-a test service the review process invented (`QUESTIONS.md`, flat row, added 2026-09-27); reviews
-judged `HTTP.md` against it and turned each finding into template code: `FooChangePayload` with
-`changed_at` (D117), the ordering guard `where=` and its out-of-order test (D131, D144). That is a
-defect becoming a template, against "a defect becomes a rule". The obligations are real and general —
-any queue or third-party sender repeats and reorders — and already stated as rules: a redelivery
-changes nothing (`flat-entrypoint` rules 9 and 15), an older write never replaces a newer one
-(`persistence` rule 16). So:
-- `Foo` carries its key and data and no stamp: drop `as_of` from `flat-layered`'s schema,
-  `flat-persistence` (`TABLE.md`, `REPOSITORY.md` with the guard line), `flat-entrypoint` (Shape 1's
-  `fetched_at`, the source-stamp paragraph at `SKILL.md:101-103`, "and ordering them by the stamp" in
-  Shape 3) and `flat-test-persistence` (its seven uses, the out-of-order test, rule 13's reliance on it).
-- `HTTP.md` becomes a neutral route that takes a body and calls the work: no `FooChangePayload`, no
-  `changed_at`, no out-of-order pointer. Rule 9's obligations (verify a third party's signature before
-  parsing; a redelivery changes nothing) stay as rules, and the signature check is not template code.
-- `flat-test-entrypoint`'s idempotence test compares what the input determines without a stamp.
-- `QUESTIONS.md`'s flat "webhook receiver writing to one table" is replaced by a test service closer to
-  the maintainer's real flat services (ask which).
-- Record a decision reversing the template parts of D117, D131 and D144, with each marked.
-Check afterwards that no rule cites a template line that is gone (`flat-test-persistence` rule 13,
-`persistence` rule 16's binding pointers, `flat-entrypoint` rule 10).
-
 ### 66. A universal skill owns at-least-once delivery
 The obligations of a unit a broker or a third-party sender delivers are scattered and worded apart:
 `flat-entrypoint` rule 15 (bounded redelivery, dead letter, an idempotent effect) and rule 9 (the HTTP
@@ -62,7 +38,7 @@ from the message, never the clock or a mint per delivery; ordering points at `pe
 which stays there as the store's side; a third party's delivery is verified against the raw body it
 signed before the body is parsed. The families keep the spelling — the consumer wrapper and HTTP route
 in `flat-entrypoint`, the inbound adapter in `hex-architecture` — and point at the skill instead of
-restating it. The outbox and its relay stay in hex (D145). Lands with or after item 65; update both
+restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; update both
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 

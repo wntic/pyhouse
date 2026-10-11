@@ -1473,6 +1473,7 @@ and the `match=`-free `pytest.raises(ValueError)` in `hex-test-domain` (template
 `pytest.raises(RuntimeError)` in the first undo test of `hex-test-application-handler/FAKES.md`.
 
 ### D117 — The flat entrypoint templates mark their optional blocks; a delivered record is timed by its sender
+**The delivered record's stamp (`FooDelivery`, later `FooChangePayload`) reversed by D169.**
 Shape 1's process definition in `flat-entrypoint` and the uvicorn process definition in its `HTTP.md`
 built an engine and, in Shape 1, an HTTP client, followed by a sentence saying each block exists only
 for a role the service has. An agent copies the template and not the sentence after it, so a queue
@@ -1864,6 +1865,7 @@ says a revision is reviewed against rule 16 and drafted against a database only 
 `CONVENTIONS.md`, and `git-branching`'s `gh api` block, "on GitHub" heading and "pull request" wording.
 
 ### D131 — An older write never overwrites a newer one; a redelivery is rule 3's case; a delivery is one row
+**`HTTP.md`'s `changed_at` field and its ordering pointer reversed by D169.**
 Taken by the maintainer (backlog item 11, and a review finding that reverses D117's last sentence). No
 new test: `flat-test-run-function` rule 3 already pins the second run of any run that can repeat. It now
 names a delivery the sender may repeat — a webhook redelivery, an at-least-once broker delivery — says
@@ -2200,6 +2202,7 @@ and `hex-test-restapi-endpoint` text; `hex-test-application-handler`'s tests, ch
 `FAKES.md`; and the index lines.
 
 ### D144 — Template identifiers are derived by `naming`; an external system is `Qux`; the ordering guard is a marked line
+**The `as_of` stamp and the marked ordering guard and test reversed by D169.**
 Taken by the maintainer (backlog item 42, D138), after a four-lens review. The flat templates spelled the
 reference application's names on top of the placeholders; each is renamed to what `naming` derives. The
 external system, named after its aggregate (`foo_api`, `FooClient`, `FooApiSettings`, `FooClientError`,
@@ -2641,3 +2644,31 @@ passage is two sentences and no longer suggests seed data in a DDL revision; a r
 methods take the port's mode; `hex-store-repository`'s key builder and mappers are module functions;
 the mixed-case repository test and `hex-wiring`'s library-choice history are gone.
 **Reverse by:** from the parent of the commit that added this entry, reverting it.
+
+### D169 — The flat templates carry no ordering stamp; the obligations stay as rules
+Taken by the maintainer (2026-10-11), reversing the template parts of D117, D131 and D144. Two things
+that were never the maintainer's grew into flat template lines: the record's stamp came from the
+application the family was first written from (`observed_at`, renamed `as_of`), and the webhook was a
+test service the review process invented. Reviews judged `HTTP.md` against that webhook and turned each
+finding into template code — `FooChangePayload` with `changed_at` (D117, D131), the ordering guard
+`where=` and its out-of-order test (D144) — which is a defect becoming a template. The obligations are
+real and general, and already rules: a redelivery changes nothing (`flat-entrypoint` rules 9 and 15),
+an older write never replaces a newer one (`persistence` rule 16). So `Foo` carries its key and data and
+no stamp, in `flat-layered`'s record, `flat-persistence`'s table and upsert, `flat-entrypoint`'s
+`build_foo` and `sync_foos` (the fetch instant and the source-stamp paragraph go, and Shape 3 points at
+`persistence` rule 16 without naming a stamp), and `flat-test-persistence`'s builder and update-set test; the out-of-order test is
+gone. `HTTP.md`'s route takes `FooPayload` and calls `record_foo`, which writes only what the body
+carries; the signature check stays prose under rule 9. The guard survives as one sentence in
+`REPOSITORY.md`, and `flat-test-persistence` rule 13 still requires `test-principles`' out-of-order test wherever the
+condition holds, the update-set test's second write then carrying the newer stamp; its description and
+both index lines say so. `QUESTIONS.md`'s flat "webhook receiver writing to one
+table" becomes "an HTTP endpoint that proxies one third-party API and stores nothing". A scheduled
+ingest of one API into one table was considered first and dropped: it is Shape 1's template itself, so
+it measures nothing the template does not already show, and with the webhook gone no test service would
+be triggered over HTTP. D117's markers on Shape 1's optional blocks, D131's rules and D144's
+renames stand.
+**Reverse by:** from the parent of the commits that added this entry, restoring `flat-layered`'s `Foo`,
+`flat-persistence`'s `TABLE.md` and `REPOSITORY.md`, `flat-entrypoint`'s work template, its source-stamp
+paragraph, Shape 3's clause and `HTTP.md`, `flat-test-persistence`'s template, prose and rule 13,
+`flat-test-entrypoint`'s idempotence paragraph, the two index lines and the `QUESTIONS.md` row; and removing the reversed
+markers on D117, D131 and D144.
