@@ -42,45 +42,6 @@ restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; u
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 
-### 69. `pyhouse-universal` fixes from the 2026-10-11 review
-All verified against the current files.
-- `architecture-choice:138-142,175-176`: the lists of universal skills that still bind omit
-  `persistence`, `coupling` and `python-container-image` and call themselves the whole; say "every
-  universal skill whose subject the project has" instead of a list. `:228`: "all five cases" → six.
-- `exception-catalog:41-42`: route a client's error translation to rules 8–10 here, the class to the
-  family (`flat-layered`, `hex-capability-adapter`) or the project's own layout.
-- `exception-catalog:74-98`: drop the hedge "these two show the pattern, not a list to copy" and mark
-  each subclass `# only where …`; keep `NotFoundError` and `UpstreamError` (rule 10, the fallback example
-  at `:166-169`, `FooNotFoundError` at `:106` and nine family files rely on them).
-- `exception-catalog:149`: `{"foo_id": str(foo_id)}`.
-- `meta-skill-author:79-82`: "there is no total budget" is false — the listing gets 1% of the context
-  window, and past it descriptions drop from the least-invoked skills, the name kept; the catalogue's
-  description plus `when_to_use` is ~36,100 characters, ~737 a skill, not ~400. Correct the fact and
-  the figure; drop "the only hard number the platform documents". What to do about it is item 70.
-- `persistence` rule 8 (`:101-106`): drop the clause on which spellings the key's source merges; keep
-  "in Python, never in the store's query language".
-- `python-packaging` rule 9 (`:368-370`): an exception for a module directly under the application root,
-  which carve-out 1 forbids re-exporting, so `from myapp.exceptions import …` is allowed.
-- `python-packaging:40-48`: a drifted copy of `naming`'s Renaming (no env prefixes, queue names,
-  revision ids, CLI flags) → a pointer; and `:9` contradicts `:17-19`.
-- `python-settings:48`: the `env_file` marker adds "never in a CLI tool" (rule 2), within 120 columns.
-- `python-toolchain:54`: the copy-time marker on its own line, apart from the floor's reason.
-- `python-versioning:83-94`: the `version.py` template → one sentence.
-- `python-versioning:53-54` → `persistence`; `python-workspace:22` in `persistence:216-218`'s form
-  (rules `persistence`, files the family's data-access skill or the project's own layout).
-- `python-workspace` (`:57,65,114-117`, rule 1): mark `myschema` "only where members share a library";
-  compressing `:62-66` is optional.
-- `test-architecture-rule:112-125`: tie the `sys.exit` example to `exception-catalog` rule 13.
-- `test-architecture-rule` rule 2 (`:160-165`): label the two name forms by meaning ("a scope has no X",
-  "X only inside a scope"), not by family.
-- Hard stops that route only to a family gain "or the project's own layout": `naming:338-339`,
-  `python-packaging:390-391`, `coupling:253-255`, `python-logging:192-193`, `test-principles:389-391`,
-  `python-workspace:288-290`.
-- `agents/pyhouse-reviewer.md:93-95`: the restated ownership table → a pointer to it.
-- `commands/adopt.md` step 2: given no argument, an Opus run on 2026-10-11 still added the "add, move or
-  split a package or module" row because the tree looked hexagonal; say outright that without an
-  argument naming the family the row is left out, whatever the layout looks like.
-
 ### 76. `python-versioning` rule 13 states the tag and the aggregate number
 Rule 13 says members version independently and lockstep is right only where one artifact ships them
 all, but the tag scheme and the aggregate number are written only in `/release` (`pyhouse-git`,

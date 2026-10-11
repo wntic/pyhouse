@@ -45,7 +45,7 @@ __all__ = ["QuxSettings"]
 class QuxSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MYAPP_QUX_",
-        env_file=".env",  # only where the project keeps a dotenv file for development
+        env_file=".env",  # only where the project keeps a dotenv file for development, never in a CLI tool
         extra="ignore",
         hide_input_in_errors=True,
     )

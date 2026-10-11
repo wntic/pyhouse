@@ -51,7 +51,8 @@ dependencies = []
 dev = [
     "mypy",
     "pytest",
-    "pytest-asyncio>=0.26",  # where the suite has async tests; 0.26: asyncio_default_test_loop_scope
+    # only where the suite has async tests
+    "pytest-asyncio>=0.26",  # 0.26: asyncio_default_test_loop_scope
     "ruff",
 ]
 
@@ -91,9 +92,12 @@ plugins = ["pydantic.mypy"]  # only with pydantic
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 pythonpath = ["."]
-asyncio_mode = "auto"                            # where the suite has async tests
-asyncio_default_fixture_loop_scope = "session"   # where a session-scoped async resource exists
-asyncio_default_test_loop_scope = "session"      # where a session-scoped async resource exists
+# only where the suite has async tests
+asyncio_mode = "auto"
+# only where a session-scoped async resource exists
+asyncio_default_fixture_loop_scope = "session"
+# only where a session-scoped async resource exists
+asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
 ```
 

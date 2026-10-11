@@ -135,11 +135,9 @@ A single-file script, a lambda whose whole body is one function, a one-shot migr
 modules run once and deleted. **Say so and route nowhere: you do not need an architecture skill for
 this.** Write the script.
 
-The universal skills still bind, and they are the whole of what applies — `naming` for what things are
-called, `python-style` for typing, `python-logging` for logging, `python-packaging` for module and import rules,
-`python-settings` for anything read from the environment, `python-toolchain` for the lint and
-type-check configuration, `exception-catalog` for errors, `test-principles` for tests — and `python-versioning` the day it is
-distributed to anyone, which most scripts never are. Reaching for either family here produces
+The universal skills still bind, and they are the whole of what applies — every universal skill whose
+subject the script has, `python-versioning` among them only the day it is distributed to anyone, which
+most scripts never are. Reaching for either family here produces
 packages with nothing in them and a reviewer who assumes work lives there.
 
 Run this skill again when the script stops being one: a second trigger, a second reader of the same
@@ -172,9 +170,8 @@ them. These are the ones that come up in Python:
 family and do not supply a layout — there is none here to give, and a hexagonal layer split dropped
 into a framework's tree fights the framework at every file.
 
-The universal skills still bind in full — `naming`, `python-style`, `python-logging`, `python-packaging`,
-`python-settings`, `python-toolchain`, `python-versioning`, `exception-catalog`, `test-principles` —
-and they are not a consolation prize; they are the rules that were never architectural in the first
+The universal skills still bind in full — every universal skill whose subject the project has — and
+they are not a consolation prize; they are the rules that were never architectural in the first
 place. Where the framework dictates a module's name and contents — Django's `models.py` and
 `admin.py` — the framework's convention wins, and `python-packaging` says so itself. The deciding
 question is still worth answering, because knowing whether the project owns invariants tells the reader what to
@@ -225,7 +222,7 @@ member, at the point that member is created.
 ## Reading this with neither family installed
 
 This skill ships in `pyhouse-universal`, which installs alone. The decision above is complete without
-either family skill present: the question, the confirming evidence, both costs and all five cases are
+either family skill present: the question, the confirming evidence, both costs and all six cases are
 stated here, and the recommendation is usable as written.
 
 What a family skill adds is the *how* — the layer or role layout, what may import what, and the file

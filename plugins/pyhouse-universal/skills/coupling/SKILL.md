@@ -252,6 +252,6 @@ one store, and two functions in one file.
   `architecture-choice`; this skill supplies the volatility judgement and never picks the family.
 - Asked which package a module goes in once the boundary is drawn, or what it may import → stop, use
   `hex-architecture` (in `pyhouse-hex`) or `flat-layered` (in `pyhouse-flat`), whichever the project
-  uses.
+  uses, or the project's own layout where neither applies.
 - Asked what a module is called, or how it is exported and imported → stop, use `naming` or
   `python-packaging`.

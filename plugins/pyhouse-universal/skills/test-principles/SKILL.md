@@ -388,6 +388,7 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
   skill is the source of truth.
 - Asked for a distribution's integration conftest, its containers or isolation fixtures, or the shared
   plugin module several members load → stop, use the family's integration-setup skill
-  (`hex-test-integration-setup`, in `pyhouse-hex`, or `flat-test-integration-setup`, in `pyhouse-flat`).
+  (`hex-test-integration-setup`, in `pyhouse-hex`, or `flat-test-integration-setup`, in `pyhouse-flat`),
+  or the project's own layout where neither applies.
 - Asked for a static "no X in Y" invariant → stop, use `test-architecture-rule`.
 - Naming a builder, a fixture or a failure-injection subclass → stop, use `naming`.

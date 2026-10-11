@@ -336,5 +336,6 @@ name alongside it and retire the old one deliberately, with a migration.
 - Asked about one class per module, `__all__`, the `__init__.py` re-exports or import spelling → stop,
   use `python-packaging`; this skill names the module, that one owns the mechanics around it.
 - Asked which package a module belongs in → stop, use `flat-layered` (in `pyhouse-flat`) or
-  `hex-architecture` (in `pyhouse-hex`), whichever the project uses.
+  `hex-architecture` (in `pyhouse-hex`), whichever the project uses, or the project's own layout where
+  neither applies.
 - Asked to name a test function or a test file → stop, use `test-principles`.

@@ -190,5 +190,6 @@ verbatim into the log line. `exception-catalog` owns that statement of the rule.
 - Defining an error class, deciding what its `context` carries, or writing the translation or the
   compensation itself → stop, use `exception-catalog`.
 - Asked which layer of a service may log at all, or where a flat run's guard sits → stop, use
-  `hex-architecture` (in `pyhouse-hex`) or `flat-layered` and `flat-entrypoint` (in `pyhouse-flat`).
+  `hex-architecture` (in `pyhouse-hex`) or `flat-layered` and `flat-entrypoint` (in `pyhouse-flat`), or
+  the project's own layout where neither applies.
 - Asked whether a test may assert on what was logged → stop, use `test-principles`.

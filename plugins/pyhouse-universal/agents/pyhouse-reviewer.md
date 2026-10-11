@@ -90,9 +90,8 @@ named in its heading. A difference from it is a difference of library, and a rea
 that without changing library. The same goes for `## Other bindings`. `## Inlined typing / import
 rules` is a slice of rules owned elsewhere — apply it, but cite the owner.
 
-Where two skills appear to state one rule, cite the owner. `meta-skill-author`'s ownership table
-assigns naming, typing and logging, the interpreter floor, packaging, the error catalogue, what a
-version promises and what moves it, boundaries, testing and the architecture choice.
+Where two skills appear to state one rule, cite the owner — the one `meta-skill-author`'s
+**Ownership — reference, never restate** table names for it.
 
 ## Step 4 — Keep or drop
 

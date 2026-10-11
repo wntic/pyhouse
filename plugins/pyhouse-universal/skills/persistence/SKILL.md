@@ -103,9 +103,8 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
 8. **Rows cross the data-access boundary as the program's own declared types, and the mapping is a pure
    function the data-access code owns.** No IO. It normalizes what the driver hands back, including
    giving a naive timestamp its offset. Where a natural key is normalized, it is normalized once, here,
-   so one unit test can pin the form — in Python, never inside the store's query language, and only
-   where the key's source defines the spellings it merges as one key; a key whose source tells them
-   apart is stored as it arrives. The declared-type obligation itself is `python-style`'s.
+   so one unit test can pin the form — in Python, never inside the store's query language. The
+   declared-type obligation itself is `python-style`'s.
 9. **Every instant is stored unambiguously** — with its offset, or normalized to UTC where the store's
    type holds none — never as a naive wall-clock value. A default the store fills in is used only where
    the store is what stamps the row — a creation instant, which a row written by a migration then gets

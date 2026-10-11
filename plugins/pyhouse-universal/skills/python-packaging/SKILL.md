@@ -6,13 +6,13 @@ when_to_use: Adding a public module to a package; a wildcard import; import orde
 
 # Python Packaging
 
-What a thing is called, how its module is packaged, and how another module reaches it. These rules are
+How a module is packaged, and how another module reaches it. These rules are
 **architecture-neutral** — they hold in a layered app, a standalone service, and a shared library alike,
-because they are about naming and Python's import system rather than about layers.
+because they are about Python's import system rather than about layers.
 
 What they do *not* decide is which package a module belongs in. That is the architecture's job:
 `hex-architecture` (in the `pyhouse-hex` plugin) for a layered app, `flat-layered` (in
-`pyhouse-flat`) for a package-by-technology service.
+`pyhouse-flat`) for a package-by-technology service, or the project's own layout where neither applies.
 
 ## When to use vs. neighbours
 
@@ -37,15 +37,13 @@ name must pass, the kind-by-kind rules, and the vague-noun families (`CheckResul
 `…Manager`, `process_…`). Load it before writing an identifier; load it *first* when the code was
 ported or generated, because that is where names arrive by inertia.
 
-Two consequences of naming land here, in the packaging mechanics, and are enforced below:
+Two consequences of naming land here, in the packaging mechanics:
 
 - A module filename must describe its contents and **match its single class in snake_case**
   (`qux_client.py` → `QuxClient`), or name the set when a closed set of declarations shares it
   (`foo_schemas.py`). `utils.py` holding `class FooHelper` is wrong twice — the file
   names a category rather than a responsibility, and so does the class.
-- A rename is a **separate commit** from any behaviour change, and names that have escaped into
-  external contracts — log event names, exception `code` values, job or task names registered by string,
-  database constraint names, published API fields — are not renamed in place at all.
+- Renaming, and which names are never renamed in place, are `naming`'s **Renaming**.
 
 ## Modules
 
@@ -367,7 +365,8 @@ hand-written imports land in the right block.
    importing a module never demands the environment of an object the importer did not ask for.
 9. Import from the package that directly contains the defining module, never from the inner module
    and never through a grandparent — one re-export hop — and collapse its symbols into the documented
-   sorted form.
+   sorted form. A module directly under an application's root, which carve-out 1 keeps the root from
+   re-exporting, is imported by its own module path (`from myapp.exceptions import …`).
 10. Keep imports in the five documented groups; apply `python-style` to the empty future-import slot.
 11. **Spell an import as what it uses, and never to work around a cycle.** No `from x import *` outside
     an `__init__.py` — it pollutes the namespace and breaks linting; no module alias
@@ -388,6 +387,6 @@ hand-written imports land in the right block.
 - Any identifier is being chosen, or carried over from ported or generated code → stop, use `naming`;
   this skill checks the filename against the class once the name exists.
 - Asked which package a module belongs in → stop, use `hex-architecture` (in `pyhouse-hex`) or
-  `flat-layered` (in `pyhouse-flat`).
+  `flat-layered` (in `pyhouse-flat`), or the project's own layout where neither applies.
 - Asked whether the boundary between two modules or packages should exist at all → stop, use
   `coupling`; this skill owns the mechanics once it is drawn.
