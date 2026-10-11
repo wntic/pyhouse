@@ -297,7 +297,7 @@ The exception is a name that has escaped the codebase and become an external con
 frozen and are **not** renamed in place: log event names, exception `code` values, job or
 task names registered by string, queue and topic names, database table/column and constraint
 names, Alembic revision identifiers, serialization aliases and published API fields,
-environment-variable names and settings prefixes, CLI flags. If one of those is wrong, add the new
+environment-variable names and settings prefixes, CLI commands and flags. If one of those is wrong, add the new
 name alongside it and retire the old one deliberately, with a migration.
 
 ## Rules

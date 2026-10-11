@@ -75,8 +75,8 @@ not its identity. A project in neither family has the same layers and writes the
 datastore-contract row and is missing nothing; a library's entrypoint layer is its public API called
 the way a caller calls it, and its surface-invariant layer is what that API promises — every name in
 `__all__` importable, every documented error class reachable; a command-line tool's entrypoint layer
-invokes the command through the runner its users invoke it through. A row with no defects of its own
-to catch is not written to fill the table.
+invokes the command in process through the CLI library's runner (`python-cli` rule 6). A row with
+no defects of its own to catch is not written to fill the table.
 
 The shape is the goal: **fast layers run on every save; slow layers run on every commit; the slowest
 layers run in CI.** If a pure unit test starts touching IO, or a datastore test starts constructing the

@@ -40,7 +40,10 @@ needed to reach a recommendation and state its reason is here; the family skills
 - A Django or Flask project, a package-by-feature tree, a library or SDK, a CLI tool, an
   orchestrator-shaped data-pipeline project, a modular monolith → outside this catalogue's two families; see
   `### Project shapes this catalogue does not cover`. Name the shape rather than routing to the nearer
-  family.
+  family. A CLI tool's commands, exit codes and their test are still `python-cli`'s. A CLI tool is a
+  program its users install and run against inputs they choose; a program that does a service's work
+  against a store or an upstream the team runs, started by a command, is a service of its family with
+  a command trigger (`python-cli` rule 7).
 
 ## The question that decides it
 
@@ -159,7 +162,8 @@ them. These are the ones that come up in Python:
   form of either.
 - **A library, an SDK or any distributed package.** No entrypoint and no deployment; the public API is
   the only boundary that matters. It is not a script either, so the section above does not reach it.
-- **A multi-command CLI tool**, where the command tree is the structure.
+- **A multi-command CLI tool**, where the command tree is the structure. Its commands, their exit codes
+  and their test are `python-cli`'s, which gives no layout for a large command tree either.
 - **A data-pipeline project shaped by its orchestrator** — Airflow, Dagster, Prefect. The DAG or asset graph
   dictates the directories, and that tool's conventions outrank anything here.
 - **An ML or research project** — notebooks, experiment scripts, training and evaluation runs.
@@ -277,7 +281,7 @@ so installing one keeps everything here.
 - A project whose layout a framework, an orchestrator or a packaging form already fixes — a Django or
   Flask tree, a package-by-feature service, a library, a CLI tool, an Airflow or Dagster project, a
   modular monolith — is being assigned hexagonal or flat → stop, this catalogue does not cover that
-  shape; name it, name the universal skills, and finish.
+  shape; name it, name the universal skills — `python-cli` among them for a CLI tool — and finish.
 - This skill is being asked for the layer contract, the package layout or a file template, or to review
   a service against the family it already has → stop, use `hex-architecture` or `flat-layered` —
   install `pyhouse-hex` or `pyhouse-flat` if it is absent.

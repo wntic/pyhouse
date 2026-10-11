@@ -116,8 +116,8 @@ dependency (rule 10) floored at 0.26, where `asyncio_default_test_loop_scope` fi
 
 At a workspace root the tables are written once; what a root changes in them is `python-workspace`'s.
 A library, and a service that runs a single process, remove the `main` stub and script `uv init`
-generates; a CLI tool, and a service with several processes, declare one console script per command or
-process in `[project.scripts]`.
+generates; a CLI tool declares one console script naming its app (`python-cli`), and a service with
+several processes one per process, in `[project.scripts]`.
 
 `E` and `F` are the error and pyflakes families, `I` import sorting; `B904` is raise-without-from and
 `B006` the mutable default argument; `F403` and `F405` are the two wildcard-import warnings. `C901` is

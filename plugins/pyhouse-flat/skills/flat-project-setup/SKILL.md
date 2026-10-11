@@ -41,8 +41,8 @@ change looks like after the bootstrap is `flat-persistence`.
 `pyproject.toml` is `python-toolchain`'s template, taken as written; `uv init --package --build-backend
 hatch myapp` lays it. Then delete the `main` it writes into `src/myapp/__init__.py` and the
 `[project.scripts]` entry that points at it. A service that runs a single process starts it from
-`__main__.py`; a service with several processes, or a CLI tool, declares one console script per process
-or command in their place (`flat-layered`). What this family adds is which libraries arrive, each with
+`__main__.py`; a service with several processes declares one console script per process in
+their place (`flat-layered`). What this family adds is which libraries arrive, each with
 `uv add` or `uv add --dev`, and the floors its own templates rely on.
 
 **Dependencies are chosen by the roles the service actually has.** The settings library and the

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
-maintainer script. The "code" is 50 `SKILL.md` files — 48 that tell an agent how to write Python
+maintainer script. The "code" is 51 `SKILL.md` files — 49 that tell an agent how to write Python
 services, and two that tell it how to commit and branch. The Python in them is template content,
 not executed as part of anything here.
 
@@ -19,7 +19,7 @@ was verified. Run it before shipping a template:
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -q fastapi dishka sqlalchemy greenlet \
   pydantic-settings structlog respx pytest 'testcontainers[postgres]' alembic redis \
-  pyjwt uuid6 httpx2 pytest-httpx2 cryptography uvicorn
+  pyjwt uuid6 httpx2 pytest-httpx2 cryptography uvicorn typer
 .venv/bin/python tools/check_template_imports.py
 ```
 
@@ -174,7 +174,7 @@ tools/check_template_imports.py          resolves every import in every template
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
 .claude/backlog.md                       catalogue edits agreed or proposed, not yet made
-plugins/pyhouse-universal/               17 skills (16 universal + meta-skill-author),
+plugins/pyhouse-universal/               18 skills (17 universal + meta-skill-author),
                                          /choose-architecture, /code-review, /pyhouse-universal:adopt,
                                          agents/pyhouse-reviewer
 plugins/pyhouse-hex/                     23 hex-* skills
