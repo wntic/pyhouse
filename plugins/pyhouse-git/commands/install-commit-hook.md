@@ -92,9 +92,11 @@ git config pyhouse.commit.types "feat fix docs refactor perf test build ci style
 git config pyhouse.commit.maxSubject 72
 ```
 
-Without a `types` list the hook accepts any lowercase type, which is what the specification allows —
-`feat` and `fix` are the only two it mandates. Set the list when a project wants its vocabulary
-closed; leave it unset when it does not.
+Without a `types` list the hook accepts any type, which is what the specification allows — `feat` and
+`fix` are the only two it mandates — and in any case, since it treats nothing but `BREAKING CHANGE` as
+case-sensitive (item 15); a list is matched the same way. Set the list when a project wants its
+vocabulary closed; leave it unset when it does not. A casing the repository has settled is
+`git-commit-message` rule 7's, not the hook's.
 
 ## What this does not cover
 
@@ -102,3 +104,8 @@ The hook validates commits written in this clone. **If the project squash-merges
 reaches the mainline is the request's title, which no local hook sees** — that check belongs in
 CI or in the forge's own settings. Say so when installing into a repository that squashes, rather
 than leaving the impression that the mainline is now guarded.
+
+- **A cleanup mode given on the command line, and a comment character other than `#`.** The hook
+  reads which lines git keeps from `commit.cleanup` and from whether an editor ran; a `--cleanup`
+  flag and a non-`#` `core.commentChar` are invisible to it. Set `commit.cleanup` rather than passing
+  `--cleanup`, and leave the comment character at `#`.

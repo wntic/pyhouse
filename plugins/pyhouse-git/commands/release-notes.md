@@ -34,10 +34,11 @@ existing note's headings, order, tone and link references are followed as they a
 - **Otherwise** → from the latest release tag to `HEAD`, under `Unreleased` — unless a release commit
   in the range is still waiting for its tag (`/release` step 3), which makes it that release.
 
-Tags are read as the repository spells them (`git describe --tags --abbrev=0`). **Under per-member
-tags, each member is a release of its own**: its range starts at that member's previous tag
-(`--match '<member>-v*'`), its note goes in that member's changelog where it keeps one, `$ARGUMENTS` may
-name the member, and each member's tag at the range's end is a note of its own. **No release tag before
+Tags are read as the repository spells them, and only release tags count:
+`git describe --tags --abbrev=0` with the release-tag pattern `/release` step 3 gives. **Under
+per-member tags, each member is a release of its own**: its range starts at that member's previous
+tag, its note goes in that member's changelog where it keeps one, `$ARGUMENTS` may name the member,
+and each member's tag at the range's end is a note of its own. **No release tag before
 the range's end** → this is the first release: say so in one line and point at the documentation,
 rather than listing what the project offers.
 

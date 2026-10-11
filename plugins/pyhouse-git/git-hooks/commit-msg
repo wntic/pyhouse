@@ -21,9 +21,28 @@ set -e
 MSG_FILE="$1"
 [ -r "$MSG_FILE" ] || exit 0
 
-# The message as git will store it: comments stripped, trailing blank lines gone.
-BODY_ALL=$(sed '/^#/d' "$MSG_FILE")
-SUBJECT=$(printf '%s\n' "$BODY_ALL" | sed '/^[[:space:]]*$/d' | head -n 1)
+# The message as git will store it. Git strips '#' lines only when it cleans up in strip mode, and
+# by default that is only when an editor ran: under -m and -F it keeps them, so a '#' line straight
+# after the subject lands as the second line. Git tells a hook that no editor ran by setting
+# GIT_EDITOR to ':'. Where an editor ran, git cuts the message at the scissors line it writes under
+# -v and in scissors mode; scissors mode keeps the '#' lines above it. Leading blank lines go either way.
+# A --cleanup given on the command line, and a core.commentChar other than '#', are invisible to a
+# hook: set commit.cleanup rather than pass --cleanup, and keep '#'.
+EDITED=1
+[ "${GIT_EDITOR-}" = ":" ] && EDITED=0
+CLEANUP=$(git config --get commit.cleanup || echo default)
+if [ "$CLEANUP" = default ]; then
+    if [ "$EDITED" = 1 ]; then CLEANUP=strip; else CLEANUP=whitespace; fi
+fi
+BODY_ALL=$(cat "$MSG_FILE")
+if [ "$EDITED" = 1 ]; then
+    BODY_ALL=$(printf '%s\n' "$BODY_ALL" | sed '/^# -* >8 -*$/,$d')
+fi
+if [ "$CLEANUP" = strip ]; then
+    BODY_ALL=$(printf '%s\n' "$BODY_ALL" | sed '/^#/d')
+fi
+BODY_ALL=$(printf '%s\n' "$BODY_ALL" | sed '/[^[:space:]]/,$!d')
+SUBJECT=$(printf '%s\n' "$BODY_ALL" | head -n 1)
 
 # Nothing to check: an empty message aborts the commit on its own.
 [ -n "$SUBJECT" ] || exit 0
@@ -50,7 +69,8 @@ fail() {
 
 # Spec rule 1: type, optional scope, optional !, then a colon and a space.
 # Spec rule 4: a scope is parenthesised and non-empty. Spec rule 5: a description follows.
-if ! printf '%s' "$SUBJECT" | grep -qE '^[a-z]+(\([^()]+\))?!?: .+'; then
+# Spec rule 15: nothing but BREAKING CHANGE is case-sensitive, so a type is accepted in any case.
+if ! printf '%s' "$SUBJECT" | grep -qE '^[A-Za-z]+(\([^()]+\))?!?: .+'; then
     case "$SUBJECT" in
         *": "*) fail "the part before the colon is not a valid type or scope" ;;
         *":"*)  fail "a space must follow the colon (spec rule 1)" ;;
@@ -58,11 +78,15 @@ if ! printf '%s' "$SUBJECT" | grep -qE '^[a-z]+(\([^()]+\))?!?: .+'; then
     esac
 fi
 
-TYPE=$(printf '%s' "$SUBJECT" | sed -E 's/^([a-z]+).*/\1/')
+TYPE=$(printf '%s' "$SUBJECT" | sed -E 's/^([A-Za-z]+).*/\1/')
+
+lower() { printf '%s' "$1" | LC_ALL=C tr 'A-Z' 'a-z'; }
 
 if [ -n "$TYPES" ]; then
     MATCHED=0
-    for allowed in $TYPES; do [ "$allowed" = "$TYPE" ] && MATCHED=1 && break; done
+    for allowed in $TYPES; do
+        [ "$(lower "$allowed")" = "$(lower "$TYPE")" ] && MATCHED=1 && break
+    done
     [ "$MATCHED" = 1 ] || fail "type '$TYPE' is not one of: $TYPES"
 fi
 
@@ -71,7 +95,7 @@ LEN=$(printf '%s' "$SUBJECT" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' ')
 [ "$LEN" -le "$MAX" ] || fail "subject is $LEN characters, limit is $MAX"
 
 # Spec rule 6: a body begins one blank line after the description.
-SECOND=$(printf '%s\n' "$BODY_ALL" | sed -n '2p')
+SECOND=$(printf '%s\n' "$BODY_ALL" | sed -n '2p' | tr -d '[:space:]')
 if [ -n "$SECOND" ]; then
     fail "a body must be separated from the subject by a blank line (spec rule 6)"
 fi

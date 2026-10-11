@@ -2699,3 +2699,26 @@ root's modules with two; tests outside the package stay absolute. Closing an eng
 **Reverse by:** from the parent of the commits that added this entry, restoring `flat-layered`,
 `flat-persistence` (`SKILL.md`, `REPOSITORY.md`, `SETUP.md`), `flat-entrypoint` (`SKILL.md`, `HTTP.md`),
 `flat-project-setup` and `flat-test-integration-setup`.
+
+### D171 — How to find a merge method is `git-branching`'s; the hook follows git's own cleanup
+Taken during the `pyhouse-git` fixes from the full review of 2026-10-11. How to find a repository's
+merge method where nothing records it — the forge's setting, then the mainline's shape, then ask — moves
+from `git-commit-message` rule 9 to `git-branching` rule 2, which owns recording the method; rule 9
+keeps what each method obliges a message to be and points there, and `/commit` and `/pyhouse-git:adopt`
+point at rule 2. The fixup-and-autosquash sentence D121 kept moves whole, the git 2.44 caveat included,
+from beside the template to an unnumbered paragraph beside rule 4, the rule it carries out, so the
+rule itself ends at its obligation. The `commit-msg` hook now checks the message git will actually
+store rather than always stripping `#` lines: git strips them only when it cleans up in strip mode,
+which by default means an editor ran, and it tells a hook that none did by setting `GIT_EDITOR` to
+`:`, so under `-m` and `-F` a `#` line is kept and checked. Where an editor ran, the hook cuts at the
+scissors line, as git does under `-v` and in scissors mode, which keeps the `#` lines above it; under
+`-F` git cuts nothing, and neither does the hook. A `--cleanup` flag
+and a non-`#` `core.commentChar` are invisible to a hook, and `/install-commit-hook` says so. Reading the raw
+file unconditionally was rejected: in an editor the subject is typed above git's own `#` template, so
+every editor commit would fail the blank-line check. The hook also accepts a type in any case
+(Conventional Commits item 15); writing lowercase where nothing is settled stays `git-commit-message`
+rule 7's. `/release` finds the last release with a `--match` pattern built from the repository's own
+tag spelling, and `/release-notes` points at it, since both had taken the nearest tag of any kind.
+**Reverse by:** from the parent of the commits that added this entry, restoring rule 9's method-finding
+sentence and the template-side fixup paragraph in `git-branching`, and the hook's unconditional `#`
+stripping and lowercase-only type.

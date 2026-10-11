@@ -38,30 +38,29 @@ file — writing its own default branch for `main`, its forge's word (merge requ
 ```markdown
 ## Branching
 
-- `main` is the mainline. It always builds and passes; releases are tags on it.
+- `main` is the mainline. It always builds and passes.
+- Releases are tags on `main`.
 - Every change reaches `main` through a request whose checks pass.
 - A request lands with a merge commit, keeping every commit, so each is cleaned up before it lands —
   fixups folded, work in progress reworded. Squash and rebase merging are off.
 - A branch carries one change, starts from current `main`, and is deleted once it lands.
 - A branch is named `<type>/<change>` — the commit type its change takes, then a few lowercase
-  hyphenated words: `feat/foo-export`, `fix/bar-timeout`.
+  hyphenated words.
 ```
+
+The releases line is written only where releases are tagged; a repository that releases no versions
+leaves it out.
 
 The forge enforces the block with three repository settings, made once (rule 2): merge commits only,
 with squash and rebase merging off; the branch deleted when it lands (rule 6); and `main` protected —
 no push straight to it, and no request merged until its checks pass.
 
-A fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before the request lands
-by `git -c sequence.editor=: rebase -i --autosquash origin/<mainline>` after `git fetch` (rule 4), so
-the fold is made against the mainline as it now stands; the no-op editor accepts the folded plan
-without opening one. Before git 2.44, `--autosquash` without `-i` is silently ignored and the
-fixups land as they are.
-
 ## Other bindings
 
 - **Squash merging.** The request's title becomes the one message that lands, so no branch commit
   needs curating — and the title is what has to be conventional, checked in CI or by the forge, since
-  no local hook sees it. Rules 1, 2, 3 and 5 are unchanged; rule 4 moves from the branch to the title.
+  no local hook sees it. Every rule but 4 holds unchanged; rule 4's curation moves from the branch to
+  the title, as `git-commit-message` rule 9 says.
 - **Committing straight to the mainline** (trunk-based, no requests). Workable where one person owns
   the repository and the checks run before each push. Rule 1's gate moves from the request to the
   push; rule 5 then has no branch to protect but the mainline; rule 4 applies to the local commits
@@ -81,7 +80,10 @@ fixups land as they are.
    per request, because `git-commit-message` puts the convention's check in a different place under
    each method. Every request lands the recorded way. Enforce it in the forge's settings where the
    forge allows it. The branch-name pattern is recorded with it, so every contributor, person or agent,
-   names a branch the same way. Changing either later is a recorded decision too.
+   names a branch the same way. Changing either later is a recorded decision too. Where the method is
+   not recorded, the forge's merge setting is the answer; failing that, the mainline's shape — merge
+   commits on it mean every branch commit lands, and single-parent commits whose subjects end in a
+   request number mean squashing; anything else, ask.
 3. **A branch carries one logical change, starts from the current mainline, and lives until that change
    lands.** A long-lived branch drifts from what it will merge into, and its conflicts arrive all at
    once, late. Name it for the change, in the pattern the repository records (rule 2), or, where it
@@ -117,6 +119,12 @@ fixups land as they are.
    still runs that version and cannot take the latest.** Only then is a maintenance branch cut from
    its tag, the fix landed there and on the mainline, and the maintenance release tagged from that
    branch. Precondition: something runs or depends on a version other than the latest.
+
+Rule 4 in git: a fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before
+the request lands by `git -c sequence.editor=: rebase -i --autosquash origin/<mainline>` after
+`git fetch`, so the fold is made against the mainline as it now stands; the no-op editor accepts the
+folded plan without opening one. Before git 2.44, `--autosquash` without `-i` is silently ignored and
+the fixups land as they are.
 
 ## Hard stops
 
