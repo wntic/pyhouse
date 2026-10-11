@@ -2672,3 +2672,30 @@ renames stand.
 paragraph, Shape 3's clause and `HTTP.md`, `flat-test-persistence`'s template, prose and rule 13,
 `flat-test-entrypoint`'s idempotence paragraph, the two index lines and the `QUESTIONS.md` row; and removing the reversed
 markers on D117, D131 and D144.
+
+### D170 — The flat skills point at their rules' owners; a consumer never swallows a failed unit
+Taken by the maintainer (2026-10-11), from the verified full review of the flat plugin. Restatements
+become pointers to the rule's owner: `flat-layered` rule 6 to `python-settings` rule 13, rule 8's and the
+firewall paragraph's engine exemption to `flat-entrypoint` durable obligation 8, and rule 4's
+second-store half to `flat-persistence` rule 5, which no longer cites rule 4 back, so the two do not
+point at each other, and which now states that each store's package is named for its technology and has
+its own connection factory; `flat-persistence` rule 1 to `flat-layered` rule 3 and rule 3 to one line on the
+engine factory, both numbers kept because `REPOSITORY.md` and `SETUP.md` cite them; `flat-project-setup`'s
+development dependencies to `python-toolchain`'s template, which carries the `pytest-asyncio` the row had
+lost, and its pytest block to `python-toolchain` (D137). `flat-entrypoint` rule 12's atomic file write
+moves to `flat-layered` rule 14, beside the writer class it governs, leaving rule 12 a pointer so rules
+13–16 keep their numbers; its local-state half goes, since no test service keeps state between starts.
+The containment template is now the loop's alone: a consumer that copied it acknowledged a failed message
+and lost it, so the prose says a consumer returns the failed unit (rule 15). It names no skill for
+at-least-once delivery, because none exists yet. The loop template's placement comments, which landed in
+`__main__.py` as written, become prose between three blocks (`meta-skill-author` rule 4). The trigger
+table's first row covers a run started by hand from the command line, pointing at `python-settings`
+rules 13 and 15, with no new rule. A module in a subpackage imports the catalogue, and the work module
+beside it at the package root, as `..` (`python-packaging`, *Relative vs absolute*), as the hex templates
+do; `__main__.py` imports its sibling modules with one dot, and a module in `entrypoints/` the package
+root's modules with two; tests outside the package stay absolute. Closing an engine and a pool points at
+`flat-entrypoint` rule 14, and the atomic write moves to `flat-layered`'s row in the skills index. `StorageWriteRejectedError`, `StorageUnavailableError` and
+`InvalidPayloadError` each state their parent, the root, in one line of prose.
+**Reverse by:** from the parent of the commits that added this entry, restoring `flat-layered`,
+`flat-persistence` (`SKILL.md`, `REPOSITORY.md`, `SETUP.md`), `flat-entrypoint` (`SKILL.md`, `HTTP.md`),
+`flat-project-setup` and `flat-test-integration-setup`.

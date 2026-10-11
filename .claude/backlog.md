@@ -113,42 +113,6 @@ All verified against the current files.
   split a package or module" row because the tree looked hexagonal; say outright that without an
   argument naming the family the row is left out, whatever the layout looks like.
 
-### 72. `pyhouse-flat` fixes from the 2026-10-11 review
-All verified against the current files. The webhook signature (review item 5), `HTTP.md:117-119` and
-Shape 3's "ordering them by the stamp" are item 65's.
-- `flat-entrypoint:164`: "A loop or a consumer catches each run's failure … and goes on" hands the
-  swallowing `sync_foos_contained` to a consumer, which then acknowledges a failed message and loses it.
-  The template is the loop's; a consumer returns the failed unit (rule 15; item 66's skill once landed).
-- `flat-entrypoint` rule 12 (`:339-344`): delete the local-state half; move the atomic-file-write half to
-  `flat-layered` rule 14 and repoint "(rule 12)" at `:227`.
-- `flat-entrypoint:182-194`: the loop template's author comments (`# with the other imports`,
-  `# the first lines of _run`, `# in place of …`) land in `__main__.py`; say it in prose or in comments
-  true in the reader's file (`meta-skill-author` rule 4).
-- `flat-entrypoint:43-52,147-151`: widen the trigger row at `:45` to a CLI-triggered run and point at
-  `python-settings` rules 13 and 15 (the CLI's entry function is the composition root, a per-invocation
-  value is an argument); no new rule.
-- `flat-layered:90-93`, rule 8 (`:329-333`): the engine exemption → a pointer to `flat-entrypoint`.
-- `flat-layered` rule 6 (`:315-321`) → a pointer to `python-settings` rule 13.
-- `flat-layered` rule 4 (`:307-311`): reduce the second-store half and drop the "(`flat-layered`
-  rule 4)" citation in `flat-persistence` rule 5 (`:145-150`) in the same change, or the two point at
-  each other.
-- `flat-persistence` rule 1 (`:124-127`) → a pointer to `flat-layered` rule 3, number kept
-  (`REPOSITORY.md:3,12` cite it).
-- `flat-persistence` rule 3 (`:133-140`) → one line on the engine factory; repoint
-  `flat-test-integration-setup:178` to `python-packaging` rule 8.
-- `flat-persistence/REPOSITORY.md:22,58,62,101-104`, `flat-entrypoint/HTTP.md:24,34,75,86`:
-  `StorageWriteRejectedError`, `StorageUnavailableError` and `InvalidPayloadError` state no parent; one
-  line of prose each, as `flat-layered:232` does for `QuxRequestFailedError`. No switch to
-  `UpstreamError` and no move.
-- `flat-project-setup:53`: the development dependencies → `python-toolchain`'s template
-  (`pytest-asyncio` is lost today).
-- `flat-layered:209`, `flat-persistence/REPOSITORY.md:22`, `flat-entrypoint/HTTP.md:24`: a module in a
-  subpackage imports the catalogue as `from myapp.exceptions import …`; `python-packaging` "Relative vs
-  absolute" makes a module one level up `from ..exceptions import …`, as the hex templates write it.
-  Tests outside the package stay absolute.
-- `flat-project-setup:29`: the pytest block's owner is `python-toolchain` (D137), as
-  `flat-test-integration-setup:32` says.
-
 ### 76. `python-versioning` rule 13 states the tag and the aggregate number
 Rule 13 says members version independently and lockstep is right only where one artifact ships them
 all, but the tag scheme and the aggregate number are written only in `/release` (`pyhouse-git`,
@@ -213,8 +177,8 @@ Binding: **typer** — built on click, arguments declared by annotations, in lin
 typing rules and with FastAPI already in the hex templates. One template, the module holding the
 `typer.Typer()` app and its commands, with `pretty_exceptions_enable=False` so error output stays
 predictable (rule 2 says why). `## Other bindings`: click, argparse. Then `architecture-choice:164`
-routes a CLI tool to this skill, still giving no layout for a large command tree; item 72's CLI pointer
-in `flat-entrypoint` points here; indexes, counts and the top-level `README.md` gain the skill. Ask the
+routes a CLI tool to this skill, still giving no layout for a large command tree; the CLI pointer in
+`flat-entrypoint`'s trigger table (now at `python-settings` rules 13 and 15) points here too; indexes, counts and the top-level `README.md` gain the skill. Ask the
 maintainer for a real CLI to check the rules against before writing.
 
 ### 70. Descriptions stay as they are; `when_to_use` folds into `description`
