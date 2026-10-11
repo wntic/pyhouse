@@ -49,19 +49,18 @@ information that would need one goes in the body.
 ---
 name: <skill-name>
 description: Use when <trigger>. <What it owns, second.>
-when_to_use: <optional — additional trigger phrasings, Claude Code only>
-paths: <optional — activation globs, Claude Code only>
+when_to_use: <optional — additional trigger phrasings>
+paths: <optional — activation globs>
 ---
 ```
 
 - **`name`** — the skill's name. Keep it identical to the directory name.
 - **`description`** — what the skill covers and when to apply it. This is what gets matched to decide
-  whether to load the skill, and it is the **only** field every client reads.
+  whether to load the skill, and it is read first, so it carries the trigger.
 - **`when_to_use`** — a valid, documented Claude Code field carrying additional invocation context.
-  Optional, and read by Claude Code only. It supplements `description`; it never replaces part of it.
-  Write it when there are trigger phrasings worth adding beyond what `description` already carries. A
-  skill without it is not missing anything, and one with it is not a defect — `description` must stand
-  alone either way.
+  Optional. It is appended to `description` in the skill listing and shares its length limit. Write it
+  when there are trigger phrasings worth adding beyond what `description` already carries. A skill
+  without it is not missing anything, and one with it is not a defect.
 - **`paths`** — a valid, documented Claude Code field carrying glob patterns that limit when a skill
   auto-activates. Optional, and not restricted to test skills. It **narrows** auto-activation, so a
   too-tight glob makes a skill unfindable in a project whose layout differs slightly. Glob the layer
@@ -83,12 +82,6 @@ paths: <optional — activation globs, Claude Code only>
   window. Length is spent where it buys disambiguation, not minimised.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
-
-### `description` must be self-sufficient
-
-opencode and Codex read `description` and nothing else. A `description` therefore has to distinguish its
-skill from every sibling on its own. `when_to_use` carries *additional trigger phrasings* for Claude
-Code — never a fact that appears nowhere else, and never the clause that makes the skill identifiable.
 
 ### Description rules
 
@@ -432,9 +425,9 @@ A skill that fits no shape cleanly probably mixes concerns; split it.
   left behind ships into the reader's files (rule 4).
 - **A template that is the vendor's manual.** SDK error-code tables, input canonicalisers, client
   setup the vendor documents — nothing house-shaped is left once the vendor calls go (rule 15).
-- **A rule above, broken in passing.** A description that leans on `when_to_use`, a second full
-  template, a `## Template` heading naming no stack, a hard stop softened into advice ("think carefully
-  before X"), a leaked layer (rule 10) — each is stated once above and fails the same way here.
+- **A rule above, broken in passing.** A description that does not open with its trigger, a second
+  full template, a `## Template` heading naming no stack, a hard stop softened into advice ("think
+  carefully before X"), a leaked layer (rule 10) — each is stated once above and fails the same way here.
 
 ## After writing the file
 

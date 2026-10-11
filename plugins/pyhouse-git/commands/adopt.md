@@ -1,12 +1,12 @@
 ---
-description: Write into this repository's agent instructions how changes branch, land and are committed, and turn off the agent's own authorship line, so agents use the git skills rather than merely having them installed
+description: Write into this repository's CLAUDE.md how changes branch, land and are committed, and turn off the agent's own authorship line, so agents use the git skills rather than merely having them installed
 argument-hint: "[nothing, or the mainline, merge method and branch-name pattern to record]"
 ---
 
-Record, in the file the repository's agents read their instructions from, how a change reaches the
-mainline and which skill governs each step, so an agent that branches or commits here loads
-`git-branching` and `git-commit-message` instead of falling back on its own habits and its tool's
-defaults. Run once per repository; running it again updates the section it wrote.
+Record, in the repository's `CLAUDE.md`, how a change reaches the mainline and which skill governs
+each step, so an agent that branches or commits here loads `git-branching` and `git-commit-message`
+instead of falling back on its own habits and its tool's defaults. Run once per repository; running it
+again updates the section it wrote.
 
 **The skills hold the rules.** `git-branching` says what the repository records and how each value is
 found, `git-commit-message` rule 8 why the authorship line is stated here; this command only finds the
@@ -15,13 +15,13 @@ values and writes them down. Read both skills before writing, and do not restate
 ## 1. Find the instructions file
 
 - Not a git repository (`git rev-parse --git-dir` fails) → say so and stop.
-- The file agents read is the one the repository already has: `CLAUDE.md` at the root (or
-  `.claude/CLAUDE.md`), else `AGENTS.md`. Where `CLAUDE.md` imports `@AGENTS.md`, or both exist and
-  neither imports the other, write `AGENTS.md` — and in the second case propose adding `@AGENTS.md` to
-  `CLAUDE.md` rather than writing the section twice. Where there is neither, create `CLAUDE.md`.
-- A section headed `## Branches and commits` that this command wrote before → update it in place.
-- The file already says how changes branch, merge or are committed, under any heading → that is what
-  step 2 reads as recorded; show it, and ask whether the new section replaces it. Never leave two.
+- The file is `CLAUDE.md` at the root, else `.claude/CLAUDE.md`. Where there is neither, create
+  `CLAUDE.md` at the root.
+- A section headed `## Branches and commits` that this command wrote before → update it in place, in the
+  file it is in: where `CLAUDE.md` imports another file (`@AGENTS.md`) that holds it, there.
+- The file, or a file it imports, already says how changes branch, merge or are committed, under any
+  heading → that is what step 2 reads as recorded; show it, and ask whether the new section replaces
+  it. Never leave two.
 - A new section goes at the end of the file. Nothing else in the file changes.
 
 ## 2. Settle the values
@@ -68,14 +68,12 @@ committing, that skill's binding for the method. The release row is written only
 tagged by hand; where a tool or a CI job cuts them, the row names that instead or is left out. The
 release-note row is written only where the repository keeps release notes and no tool writes them. The last
 line is left out only where the repository's written contribution policy requires the disclosure
-(`git-commit-message` rule 8), and that policy is named instead. Where the file is `AGENTS.md`, skills
-and commands are named bare — `git-branching`, `release` — since the plugin-qualified form is Claude
-Code's.
+(`git-commit-message` rule 8), and that policy is named instead.
 
 ## 4. Turn off the agent's own authorship line
 
-An agent's own default adds the line the section forbids, and a setting stops it at the source. For
-Claude Code that is the project's `.claude/settings.json`:
+Claude Code's own default adds the line the section forbids, and a setting stops it at the source —
+the project's `.claude/settings.json`:
 
 ```json
 {
@@ -87,7 +85,7 @@ Merge it into the file if one exists: an existing `attribution` takes these two 
 `includeCoAuthoredBy` key goes, and every other key stays as it is. A `.claude/settings.local.json` that
 sets attribution overrides this file — name it, without editing it. Where `.claude/` is ignored by git,
 say so: the setting then reaches no one else. Skip this step where the repository requires the
-disclosure (step 3). No other agent's settings are written; the section carries the rule for them.
+disclosure (step 3).
 
 ## 5. Offer the hook, then report
 

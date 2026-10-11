@@ -4,7 +4,7 @@ House-style rules for writing Python services, as Claude Code skills.
 
 Forty-seven skills covering naming, packaging, settings, the toolchain, versioning, errors and tests — plus two mutually exclusive service
 architectures. They are project-neutral: worked examples use `myapp` and `Foo`, never a real service
-name. The skills are plain `SKILL.md` files, so Claude Code, opencode and Codex all read them.
+name.
 
 ## Install
 
@@ -28,10 +28,9 @@ language-level rules, or before you have picked an architecture.
 
 Installing the plugins makes the skills available; it does not make an agent use them. Run
 `/pyhouse-universal:adopt` and `/pyhouse-git:adopt` once in the repository, new or existing, and commit
-what they write: a short section in the file its agents read — `CLAUDE.md`, or `AGENTS.md` where that is
-the one it keeps — naming the skill to load before each kind of work, the repository's branching
-decisions, and, for Claude Code, a project setting that drops the agent's own authorship line. Neither
-command picks an architecture family.
+what they write: a short section in its `CLAUDE.md` naming the skill to load before each kind of work,
+the repository's branching decisions, and a project setting that drops Claude Code's own authorship
+line. Neither command picks an architecture family.
 
 ## Which family?
 

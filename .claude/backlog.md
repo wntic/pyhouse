@@ -7,7 +7,7 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Items 55 and 62 remain. Every other agreed item has landed or was closed (D130–D163).
+Item 55 remains. Every other agreed item has landed or was closed (D130–D164).
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an
@@ -18,17 +18,3 @@ no query per item in a loop, filtering and paging in the store rather than in Py
 and rows used, and every filter of a hot query backed by an index. Only what is expensive to retrofit
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
-
-### 62. Claude Code only — remove what other agents justified
-Agreed on 2026-10-11. The catalogue is for Claude Code alone: the agent-neutral goal came from a
-corporate LLM used through opencode, now too rate-limited and too short of context to develop with.
-- `CLAUDE.md` and `meta-skill-author` (*`description` must be self-sufficient*): drop the opencode and
-  Codex reason and the ban on a fact found only in `when_to_use`, since Claude Code reads both. Keep
-  `Use when …`, the trigger first, no bare `: ` and the 1,536-character listing limit. Rewrite no
-  skill's frontmatter for it.
-- Both adopt commands: drop the `AGENTS.md` branch — the `@AGENTS.md` import, choosing between two
-  files, bare skill names — and always write `CLAUDE.md`; drop "No other agent's settings are written"
-  from `/pyhouse-git:adopt`. The line against an authorship trailer stays (`git-commit-message` rule 8).
-- `README.md`: drop "Claude Code, opencode and Codex all read them" and "or `AGENTS.md`".
-Narrowing what the adopt commands support is a break (`!`, a minor for `pyhouse-universal` and
-`pyhouse-git` below 1.0.0); record it as a D-entry naming D158 as partly reversed.

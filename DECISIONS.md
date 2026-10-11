@@ -1540,6 +1540,7 @@ where they are, and 17 of them put helpers first; widening the rule to them is a
 `_translate` and `_map_integrity_error` back above their classes.
 
 ### D120 — `when_to_use` is optional, and neither its presence nor its absence is a defect
+**That `description` must stand alone reversed by D164.**
 18 skills carry `when_to_use` and 30 do not, nearly all of `pyhouse-hex` among the latter. The
 maintainer chose to legalize that state as it is rather than even it out: the field is Claude Code
 only, every other client matches on `description` alone, so it is written where there are trigger
@@ -2447,6 +2448,7 @@ names stay out: `test-principles` already names a test for the rule it pins.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
 
 ### D158 — A repository adopts the catalogue by writing it into its agents' instructions file
+**The `AGENTS.md` branch reversed by D164.**
 Taken autonomously on the maintainer's instruction (2026-10-09, backlog item 59), from 78 headless
 Claude Code runs and an end-to-end check, after a four-lens review. Installed plugins alone were not
 used: on a new service agents committed straight to the mainline (0/6 on a branch), loaded a git skill
@@ -2545,3 +2547,19 @@ description, Command DTO rule 4 and update template; `hex-restapi-schema`'s rule
 under its template; `hex-restapi-endpoint`'s PATCH route and its sentence;
 `hex-test-application-handler`'s template and checklist line; `hex-test-restapi-endpoint` rule 2;
 `hex-domain-model`'s sentence on `note`; the two index lines; and removing the reversed marker on D143.
+
+### D164 — The catalogue is written for Claude Code alone
+Taken by the maintainer (2026-10-11), partly reversing D120 and D158. Serving other agents came from a
+corporate LLM used through opencode, now too rate-limited and too short of context to develop with;
+no other agent is in use, so what existed only for one goes. `description` no longer has to identify
+a skill without `when_to_use`, since Claude Code reads the two together: the rule keeps `Use when …`,
+the trigger first, no bare `: ` and the 1,536-character combined limit, and no skill's frontmatter
+is rewritten for the change. Both adopt commands drop the `AGENTS.md` branch D158 gave them — writing
+that file where a repository kept it, the `@AGENTS.md` import, bare skill names — and always write
+`CLAUDE.md`, at the root or as `.claude/CLAUDE.md` where that is the one the repository has.
+`/pyhouse-git:adopt` keeps the line against an authorship trailer, which `git-commit-message` rule 8
+requires of any instructions file. The rest of D158 stands. A repository whose section lived in
+`AGENTS.md` imported by `CLAUDE.md` needs nothing: a command run again updates the section in the file
+it is in, so it never writes a second. One whose `AGENTS.md` nothing imports moves the section into
+`CLAUDE.md`, since Claude Code never read it there.
+**Reverse by:** from the parent of the commits that added this entry, reverting them.

@@ -28,6 +28,9 @@ Two architecture families exist because two kinds of service exist: hexagonal fo
 business rules of its own, flat for workers, ingest, ETL and glue with no rules to protect. The
 universal plugin holds what binds any Python project, including a library or a CLI tool.
 
+The catalogue is written for Claude Code alone: its plugins, commands and skill frontmatter are Claude
+Code's, and nothing is added to serve another agent.
+
 ## The lessons every change is made under
 
 - **An agent copies templates and skeletons verbatim** — names, comments, constants, package sets.
