@@ -214,7 +214,7 @@ src/myapp/infrastructure/<store-kind>/   # the profile's kind token — infrastr
 
 ### Form
 
-1. **Names and module structure** follow `naming` and `python-packaging`; technology placement follows `hex-architecture` and `hex-conventions`. An aggregate has exactly one **authoritative** store — the one its writes go to — unlike a capability port that several vendors may implement. A second store may hold a derived projection of the same aggregate (an index over `Foo`, see `## Other bindings`), which is why the repository file stem is protocol-derived for client stores; see `hex-conventions`. Two stores both accepting writes for one aggregate is the thing this forbids.
+1. **Names and module structure** follow `naming` and `python-packaging`; technology placement follows `hex-architecture` and `hex-conventions`. An aggregate has exactly one **authoritative** store, the one its writes go to (`persistence` rule 3) — unlike a capability port that several vendors may implement. A derived projection of the same aggregate on a second store (an index over `Foo`, see `## Other bindings`) sits behind its own narrower port, which is why the repository file stem is protocol-derived for client stores; see `hex-conventions`.
 2. **No explicit `(IFooRepository)` inheritance.** Structural subtyping.
 3. **Method signatures match the protocol exactly**, including async mode, keyword-only markers, and compound return shapes — a compound return is returned whole, never reduced to the entity with the rest discarded.
 
