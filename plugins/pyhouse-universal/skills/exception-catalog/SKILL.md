@@ -145,7 +145,7 @@ raises the catalog's own type, and **chains the cause**:
 try:
     response = await http.get(url)
     response.raise_for_status()
-except httpx.HTTPError as exc:
+except httpx2.HTTPError as exc:
     raise UpstreamError(f"failed to fetch foo {foo_id}", {"foo_id": str(foo_id)}) from exc
 ```
 

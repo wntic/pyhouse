@@ -475,5 +475,5 @@ annotated with its own type — never a bare tuple (`python-style`) — and a yi
 ## Hard stops
 
 - A relational test and nothing up-tree provides a session handle whose writes are discarded when the test ends (`session_factory` under this catalogue's binding), or a client-store test and nothing up-tree provides the store client emptied per test → stop, use `hex-test-integration-setup`; what is missing is the isolation guarantee, not a fixture name.
-- A test references FastAPI, `httpx` or the DI container → stop, use `hex-test-restapi-endpoint`.
+- A test references FastAPI, `httpx2` or the DI container → stop, use `hex-test-restapi-endpoint`.
 - Asked to mock the store SDK or assert against a fake → stop, use `hex-test-application-handler` at the handler-unit layer; this layer drives the real backend.

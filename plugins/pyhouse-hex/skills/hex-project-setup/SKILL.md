@@ -55,7 +55,9 @@ each added with `uv add` or `uv add --dev`.
 - **Dev** (always present): the test runner and its async plugin, the linter and the type checker.
   Triggered alongside them: the container library, once an integration tier drives a real backing
   service, and a transport test client for each entrypoint the suite drives over its own transport — an
-  HTTP test client belongs to a project with HTTP routes to call.
+  HTTP test client belongs to a project with HTTP routes to call — and an HTTP interception library with the
+  test-runner plugin that activates it (`respx`, `pytest-httpx2`) once an adapter calls an HTTP API
+  (`hex-test-capability-adapter`).
 - **Test-bootstrap extras** follow the same trigger rule as feature extras: a suite that mints
   asymmetric-signature tokens needs the crypto library that generates the keypair; a project verifying
   symmetric or opaque tokens generates no keypair and must **not** carry it. A dev dependency nothing

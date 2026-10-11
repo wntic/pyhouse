@@ -1,6 +1,6 @@
 ---
 name: flat-test-service-client
-description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `respx` over `httpx`. A unit test needing no database and no container, unlike `flat-test-entrypoint`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
+description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `respx` over `httpx2`. A unit test needing no database and no container, unlike `flat-test-entrypoint`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat-Layered Test — Service Client
@@ -8,9 +8,9 @@ description: Use when testing one external-service HTTP client class with its tr
 Consult `test-principles` for the testing constitution. Where this skill contradicts `test-principles`, the constitution wins.
 
 One unit-test file per client class, under the distribution's own `tests/unit/`. No database, no
-container, no network — `respx` intercepts at the `httpx` transport layer, so everything the client
-itself does (URL assembly, headers, `raise_for_status`, JSON parsing, the `except httpx.HTTPError`
-translation) runs unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a
+container, no network — `respx`, through `pytest-httpx2`, intercepts at the `httpx2` transport layer,
+so everything the client itself does (URL assembly, headers, `raise_for_status`, JSON parsing, the
+`except httpx2.HTTPError` translation) runs unchanged. That is why this is a *unit* test despite involving HTTP: nothing crosses a
 process boundary.
 
 The client has no `Protocol` and needs none. `respx` substitutes the transport, which is somebody else's
@@ -18,7 +18,7 @@ boundary — not an abstraction invented to make the code mockable.
 
 ## When to use vs. neighbours
 
-- The client wraps a vendor SDK rather than raw `httpx` (a cloud SDK, a database driver) → not `respx`;
+- The client wraps a vendor SDK rather than raw `httpx2` (a cloud SDK, a database driver) → not `respx`;
   test it against the real thing in a container under this distribution's `tests/integration/`, or, where
   there is no container for it, against the SDK's own test double if it ships one.
 - The filter/normalize function the client's output feeds → a plain unit test with no fixtures; it is
@@ -35,7 +35,7 @@ boundary — not an abstraction invented to make the code mockable.
   `*_client.py` → `hex-test-capability-adapter`, in the `pyhouse-hex` plugin, whose HTTP-gateway flavor
   is the same `respx` technique bound to a port.
 
-## Template — pytest, `respx` over `httpx`
+## Template — pytest, `respx` through `pytest-httpx2` over `httpx2`
 
 `tests/conftest.py` — the upstream stub and the client over it, in the one conftest above both `unit/`
 and `integration/`, because the tests of the work and of its wrapper use the same pair (`test-principles`,
@@ -44,11 +44,13 @@ fixture versus builder):
 ```python
 from collections.abc import AsyncIterator, Iterator
 
-import httpx
+import httpx2
 import pytest
 import respx
 
 from myapp.qux import QuxClient
+
+pytest_plugins = ("pytest_httpx2",)
 
 _QUX_URL = "https://qux.test"
 _TIMEOUT_SECONDS = 1.0
@@ -56,20 +58,20 @@ _TIMEOUT_SECONDS = 1.0
 
 @pytest.fixture
 def qux_stub() -> Iterator[respx.MockRouter]:
-    with respx.mock(base_url=_QUX_URL, assert_all_called=False) as router:
+    with respx.mock(base_url=_QUX_URL, assert_all_called=False, using="httpcore2") as router:
         yield router
 
 
 @pytest.fixture
 async def qux_client(qux_stub: respx.MockRouter) -> AsyncIterator[QuxClient]:
-    async with httpx.AsyncClient(base_url=_QUX_URL, timeout=_TIMEOUT_SECONDS) as http:
+    async with httpx2.AsyncClient(base_url=_QUX_URL, timeout=_TIMEOUT_SECONDS) as http:
         yield QuxClient(http)
 ```
 
 `tests/unit/test_qux_client.py`:
 
 ```python
-import httpx
+import httpx2
 import pydantic
 import pytest
 import respx
@@ -80,9 +82,7 @@ from myapp.schemas import FooPayload
 
 
 async def test_fetch_foos_returns_the_parsed_payloads(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
-    route = qux_stub.get("/foos").mock(
-        return_value=httpx.Response(200, json={"items": [{"id": "f1", "name": "alpha"}]})
-    )
+    route = qux_stub.get("/foos").respond(200, json={"items": [{"id": "f1", "name": "alpha"}]})
 
     result = await qux_client.fetch_foos()
 
@@ -94,21 +94,21 @@ async def test_fetch_foos_returns_the_parsed_payloads(qux_stub: respx.MockRouter
 async def test_non_2xx_becomes_a_qux_request_failed_error(
     qux_stub: respx.MockRouter, qux_client: QuxClient, status: int
 ) -> None:
-    qux_stub.get("/foos").mock(return_value=httpx.Response(status))
+    qux_stub.get("/foos").respond(status)
 
     with pytest.raises(QuxRequestFailedError) as exc_info:
         await qux_client.fetch_foos()
 
-    assert isinstance(exc_info.value.__cause__, httpx.HTTPStatusError)
+    assert isinstance(exc_info.value.__cause__, httpx2.HTTPStatusError)
 
 
 async def test_a_timeout_becomes_a_qux_request_failed_error(qux_stub: respx.MockRouter, qux_client: QuxClient) -> None:
-    qux_stub.get("/foos").mock(side_effect=httpx.ConnectTimeout("timed out"))
+    qux_stub.get("/foos").mock(side_effect=httpx2.ConnectTimeout("timed out"))
 
     with pytest.raises(QuxRequestFailedError) as exc_info:
         await qux_client.fetch_foos()
 
-    assert isinstance(exc_info.value.__cause__, httpx.TimeoutException)
+    assert isinstance(exc_info.value.__cause__, httpx2.TimeoutException)
 
 
 @pytest.mark.parametrize(
@@ -119,7 +119,7 @@ async def test_a_timeout_becomes_a_qux_request_failed_error(qux_stub: respx.Mock
 async def test_a_200_with_a_malformed_body_becomes_a_qux_request_failed_error(
     qux_stub: respx.MockRouter, qux_client: QuxClient, body: bytes
 ) -> None:
-    qux_stub.get("/foos").mock(return_value=httpx.Response(200, content=body))
+    qux_stub.get("/foos").respond(200, content=body)
 
     with pytest.raises(QuxRequestFailedError) as exc_info:
         await qux_client.fetch_foos()
@@ -130,9 +130,16 @@ async def test_a_200_with_a_malformed_body_becomes_a_qux_request_failed_error(
 The stub and the client are fixtures, not module-level builders, because each has an end — the stub's
 interception is lifted and the transport closed at teardown — and they sit in `tests/conftest.py`
 rather than in each test module because three files at two levels take them. The client fixture builds
-its `httpx.AsyncClient` exactly as the process definition does — base URL and timeout from constants in
+its `httpx2.AsyncClient` exactly as the process definition does — base URL and timeout from constants in
 place of settings — and **requests the stub**, so no test can hold the client without the interception
-under it (rule 7). `assert_all_called=False` is rule 6, stated where the stub is made. Where the process
+under it (rule 7). `assert_all_called=False` is rule 6, stated where the stub is made, and
+`using="httpcore2"` points respx at httpx2's transport through the mocker `pytest-httpx2` registers.
+Without that plugin no mocker is installed and every request goes to the real network, so the conftest
+loads it by name in `pytest_plugins`: the dependency is declared where it is used, it holds with plugin
+autoloading off, and a missing package fails the run at import rather than passing it over the network.
+Every response handed to respx is respx's own — `.respond(...)` on a route, `respx.MockResponse` in a
+`side_effect` sequence or callable; respx refuses an `httpx2.Response` anywhere, and its call record
+holds `httpx.Request`s, so read it without annotating it as httpx2's. Where the process
 definition hands the transport an auth flow (`flat-layered` rule 13), the fixture builds it the same
 way, and the tests pin the refresh: one rejected credential is renewed once and the request resent
 carrying the renewed credential, read back from the route's call record; a second rejection, and a
@@ -151,11 +158,13 @@ A caller's test makes this client fail at its transport (`flat-test-entrypoint` 
 
 ## Other bindings
 
-- **A stub transport instead of a global patch** — `httpx.MockTransport`, or a local ASGI app served
-  in-process, passed as `transport=` to the `httpx.AsyncClient` the test hands the client. The client
+- **A stub transport instead of a global patch** — `httpx2.MockTransport`, or a local ASGI app served
+  in-process, passed as `transport=` to the `httpx2.AsyncClient` the test hands the client. The client
   already takes its transport pre-built, so nothing in it changes. What the tests assert — the
   translation, the outgoing request, malformed bodies, timeouts — is unchanged, and so is the ban on
   extracting a `Protocol`.
+- **A client on `httpx`, httpx2's predecessor.** The same API under the old import; respx intercepts it
+  unaided, so `using="httpcore2"` and `pytest-httpx2` go and everything else stays.
 - **A different HTTP library** — `aiohttp` with `aioresponses`, `requests` with `responses`. The
   interception point and the exception classes the client translates *from* change together; the
   catalogue exception it translates *to*, the cause-chaining requirement and every rule below are
@@ -191,7 +200,7 @@ A caller's test makes this client fail at its transport (`flat-test-entrypoint` 
 - The client swallows a transport or parsing failure internally, returning a default instead of raising
   → stop, fix the client (`exception-catalog` rule 15); a boundary that hides its failures cannot be tested,
   and its caller cannot tell a failure from an empty answer.
-- The client returns raw `httpx.Response` objects to its caller → stop, fix the client (`flat-layered`);
+- The client returns raw `httpx2.Response` objects to its caller → stop, fix the client (`flat-layered`);
   the client owns parsing, and a test cannot pin behaviour that lives in the caller.
 - The client is an adapter behind a hexagonal `ICan<Verb>` port → stop, use
   `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.

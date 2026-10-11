@@ -22,7 +22,7 @@ Produces one integration-test file per endpoint. Self-contained: every test in t
 - The testing constitution these rules defer to — speed targets, fixture placement, the mocking prohibition → `test-principles`.
 - A structural invariant enforced by a grep firewall at compile time rather than over HTTP → `test-architecture-rule`.
 
-## Template(s) — pytest, httpx over an in-process ASGI transport, FastAPI
+## Template(s) — pytest, httpx2 over an in-process ASGI transport, FastAPI
 
 ```
 tests/integration/api/<resource>/
@@ -39,7 +39,7 @@ tenancy assertions that only exist when there is a caller to have a role.
 
 ```python
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from myapp.domain.exceptions import ValidationError
 
@@ -119,7 +119,7 @@ def make_foo(session_factory: async_sessionmaker[AsyncSession]) -> Callable[...,
 
 ## Inlined typing / import rules
 
-- `pytest`, `httpx`, `fastapi`, `myapp.domain.exceptions`. No `myapp.application.*` or `myapp.infrastructure.*` imports — the test drives over HTTP, not by reaching in.
+- `pytest`, `httpx2`, `fastapi`, `myapp.domain.exceptions`. No `myapp.application.*` or `myapp.infrastructure.*` imports — the test drives over HTTP, not by reaching in.
 - Full annotations on every signature, tests included — `-> None` on every test, every fixture parameter typed. `python-style` owns annotation policy and admits no test carve-out.
 - No `from __future__ import annotations`.
 

@@ -35,14 +35,13 @@ earned).
 - The shared groundwork — the substitution ladder, reliability rules, never waiting out real time →
   `test-principles`.
 
-## Template — the work end to end (pytest, `respx` over `httpx`, real Postgres)
+## Template — the work end to end (pytest, `respx` through `pytest-httpx2` over `httpx2`, real Postgres)
 
 `tests/integration/test_foo_sync.py` — the upstream stub `qux_stub` and the client over it,
 `qux_client`, are the shared fixtures in `tests/conftest.py` (`flat-test-service-client`). A run fed by
 its trigger's input — a delivery, a message — is called with a built input and takes neither fixture:
 
 ```python
-import httpx
 import respx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
@@ -59,7 +58,7 @@ _TWO_FOOS = {"items": [{"id": "alpha", "name": "a"}, {"id": "beta", "name": "b"}
 async def test_a_run_records_what_it_fetched(
     qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, connection: AsyncConnection
 ) -> None:
-    route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = qux_stub.get("/foos").respond(200, json=_TWO_FOOS)
 
     await sync_foos(qux_client, FooRepository(engine))
 
@@ -72,7 +71,7 @@ async def test_a_run_records_what_it_fetched(
 async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
     qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine, connection: AsyncConnection
 ) -> None:
-    qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    qux_stub.get("/foos").respond(200, json=_TWO_FOOS)
     await sync_foos(qux_client, FooRepository(engine))
 
     await sync_foos(qux_client, FooRepository(engine))
@@ -85,7 +84,7 @@ async def test_a_second_run_over_the_same_batch_writes_no_duplicates(
 async def test_a_run_reports_what_it_fetched(
     qux_stub: respx.MockRouter, qux_client: QuxClient, engine: AsyncEngine
 ) -> None:
-    route = qux_stub.get("/foos").mock(return_value=httpx.Response(200, json=_TWO_FOOS))
+    route = qux_stub.get("/foos").respond(200, json=_TWO_FOOS)
 
     result = await sync_foos(qux_client, FooRepository(engine))
 
@@ -106,7 +105,7 @@ asserted.
 **A framework wrapper's two tests (rule 4)** run through the harness the framework ships for invoking
 one unit in-process — no worker, no broker, no scheduler — and take the fixtures the work's own tests
 take. Under an HTTP trigger, drive the app `build_app` returns (`flat-entrypoint`, `HTTP.md`) through
-`httpx.AsyncClient(transport=httpx.ASGITransport(app=...))` on the test's loop, never FastAPI's
+`httpx2.AsyncClient(transport=httpx2.ASGITransport(app=...))` on the test's loop, never FastAPI's
 synchronous `TestClient`, which runs the app on a loop of its own and hands the session engine's
 connections to it.
 

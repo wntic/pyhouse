@@ -24,14 +24,14 @@ into the classes `exception-catalog` owns.
 - A token verifier — its port, its adapter and the dependency that resolves it → `hex-restapi-auth`; it is a pure-CPU adapter in this skill's sense, bound there.
 - The `infrastructure/<technology>/` folder, the module name and the class name → `hex-conventions` and `naming`.
 
-## Template — httpx, pydantic-settings, dishka
+## Template — httpx2, pydantic-settings, dishka
 
-### Template — async HTTP gateway (httpx)
+### Template — async HTTP gateway (httpx2)
 
 In `infrastructure/http/http_foo_classifier.py`, with its settings class beside it:
 
 ```python
-import httpx
+import httpx2
 
 from myapp.domain.exceptions import (
     UpstreamError,
@@ -45,7 +45,7 @@ __all__ = ["HttpFooClassifier"]
 
 
 class HttpFooClassifier:
-    def __init__(self, client: httpx.AsyncClient, settings: FooClassifierSettings) -> None:
+    def __init__(self, client: httpx2.AsyncClient, settings: FooClassifierSettings) -> None:
         self._client = client
         self._base_url = settings.base_url
         self._api_key = settings.api_key.get_secret_value()  # only where the upstream takes a credential
@@ -59,13 +59,13 @@ class HttpFooClassifier:
                 headers={"Authorization": f"Bearer {self._api_key}"},  # only where the upstream takes a credential
             )
             response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
+        except httpx2.HTTPStatusError as exc:
             status = exc.response.status_code
             # only where the upstream judges input the caller can correct
             if status == 400:
                 raise ValidationError("foo classifier rejected foo", {"foo_id": foo_id, "status": status}) from exc
             raise UpstreamError("foo classifier failed", {"foo_id": foo_id, "status": status}) from exc
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             raise UpstreamError("foo classifier unreachable", {"foo_id": foo_id}) from exc
         try:
             return FooKind(response.json()["kind"])
@@ -85,7 +85,7 @@ rule 9 does the adapter's own credential.
 Its settings class, in `infrastructure/http/foo_classifier_settings.py` beside it — the module named for
 the class (`python-packaging`). The adapter reads the base URL and, where the upstream takes one, the
 credential; the composition root reads the timeout when it builds this integration's own
-`httpx.AsyncClient` (`hex-wiring`).
+`httpx2.AsyncClient` (`hex-wiring`).
 
 ```python
 from pydantic import SecretStr  # only where the upstream takes a credential
@@ -132,7 +132,7 @@ own, so no integration's timeout or retry policy reaches another's calls.
 ```python
 from collections.abc import AsyncIterator
 
-import httpx
+import httpx2
 from dishka import Provider, Scope, provide
 
 from myapp.domain.foos import ICanClassifyFoos
@@ -152,7 +152,7 @@ class InfrastructureProvider(Provider):
 
     @provide
     async def foo_classifier(self, settings: FooClassifierSettings) -> AsyncIterator[ICanClassifyFoos]:
-        async with httpx.AsyncClient(timeout=settings.timeout_seconds) as client:
+        async with httpx2.AsyncClient(timeout=settings.timeout_seconds) as client:
             yield HttpFooClassifier(client=client, settings=settings)
 ```
 
@@ -165,8 +165,9 @@ class InfrastructureProvider(Provider):
   The client type, its exception family and the code/status vocabulary change together; the port
   conformance, the inject-client-plus-settings constructor, the translate-before-it-escapes rule and the
   context keys are unchanged. Budget the swap as one new error map, not a new adapter shape.
-- **A different async HTTP client.** The call and the exception family change; the status-to-catalogue
-  mapping, the fallback and the thinness rules do not.
+- **A different async HTTP client** — `httpx`, the predecessor, with the same API under the old import,
+  or `aiohttp`, stubbed in its test with `aioresponses`. The call and the exception family change; the
+  status-to-catalogue mapping, the fallback and the thinness rules do not.
 - **A sync-only SDK inside an async service.** The port stays async and the adapter runs the blocking
   call on a worker thread (`asyncio.to_thread`) — calling it inline blocks the event loop for every other
   request. Translation, context and no-instance-state are unchanged.
@@ -190,7 +191,7 @@ class InfrastructureProvider(Provider):
 
 5. **The client and the settings arrive by injection, never by construction.** Both are built once by
    the composition root (`hex-wiring`) and handed in; a method that builds its own client
-   (`httpx.AsyncClient(...)`, an SDK's own client factory) defeats connection pooling and cannot be replaced in a
+   (`httpx2.AsyncClient(...)`, an SDK's own client factory) defeats connection pooling and cannot be replaced in a
    test without patching the library. A client carries one upstream's timeout and whatever is set on it,
    so a second upstream gets a client of its own, built from its own settings and bound so neither
    adapter can be handed the other's — a second factory for the same client type replaces the first

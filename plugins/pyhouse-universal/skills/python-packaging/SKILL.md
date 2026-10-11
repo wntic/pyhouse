@@ -56,13 +56,13 @@ Two consequences of naming land here, in the packaging mechanics:
 - A module filename must describe its contents, by the rules in `naming`.
 
 ```python
-import httpx
+import httpx2
 
 __all__ = ["QuxClient"]
 
 
 class QuxClient:
-    def __init__(self, http: httpx.AsyncClient) -> None:
+    def __init__(self, http: httpx2.AsyncClient) -> None:
         self._http = http
 ```
 

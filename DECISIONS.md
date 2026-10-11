@@ -2845,3 +2845,41 @@ having none.
 the counts, and restoring `flat-entrypoint`, `flat-test-entrypoint` rule 6, `hex-persistence`'s `REPOSITORY.md` rule 8, `hex-architecture`'s
 consumer, outcome and neighbour lines, `exception-catalog` rule 15, `persistence`'s neighbour list, the
 plugin's description and the backlog's proposed entry.
+
+### D176 — The HTTP binding is httpx2, stubbed by respx through pytest-httpx2
+Taken during the 2026-10-11 run, the maintainer away. httpx is stalled — last stable 0.28.1 on
+2024-12-06, only `1.0.devN` since, and its transport httpcore last released 1.0.9 on 2025-04-24 with
+open defects in a long-lived pooled `AsyncClient` and in cancellation, the two things the templates do.
+httpx2 (2.13.1 on 2026-09-23) is its continuation under a renamed import, httpcore vendored as
+`httpcore2`, and keeps every name the templates use: `AsyncClient`, `ASGITransport`, `MockTransport`,
+`Auth`, `HTTPError`, `HTTPStatusError`, `TimeoutException` and the transport errors. aiohttp was not
+taken: httpx also serves as the in-process FastAPI test client over `ASGITransport`, which aiohttp has
+no counterpart for, and its client API is not a rename. Every template and the prose naming the library
+move to `httpx2`; no rule changes. respx 0.23.1 alone does not intercept httpx2 — the request goes to
+the network. `pytest-httpx2` 1.0.0, by respx's author, registers an `httpcore2` mocker and ships the
+`httpx2_mock` fixture, a `respx` router: a test function takes the fixture (`hex-test-capability-adapter`),
+and a fixture that must own the router enters `respx.mock(..., using="httpcore2")` itself
+(`flat-test-service-client`). That form installs no mocker unless the plugin is loaded — with
+autoloading off, or the package dropped as unimported, every request reaches the real network — so the
+flat conftest loads it by name in `pytest_plugins`, which also fails the run at import when the package
+is missing; the fixture form fails loudly on its own, as a missing fixture. Every response handed to
+respx is respx's own (`.respond(...)`, `respx.MockResponse`) and a transport error is passed as
+`side_effect=`; respx rejects an `httpx2.Response` anywhere, so the parametrized response case in
+`hex-test-capability-adapter` is parametrized over bodies, and its call record holds `httpx.Request`s. `httpx2.MockTransport` was not taken: it
+needs the transport injected into every client a process definition builds, which changes production
+code for a test. respx itself still requires httpx, so a project on this binding keeps httpx and httpcore
+installed in its development environment, test-only; the running code imports neither. No floor is
+written (`python-toolchain` rule 9), since none marks a known break: every httpx2 release from 2.0.0
+carries the names the templates use, the one earlier release is an empty 0.0.0 placeholder no resolver
+picks unconstrained, pytest-httpx2 has a single release, and respx had no floor to keep.
+`flat-project-setup` and `hex-project-setup` both name `respx` with `pytest-httpx2` as development
+dependencies; respx stays listed because the tests import it. `flat-project-setup`'s HTTP-trigger row
+brings `httpx2` as the in-process test client where no upstream client already brings it. `httpx`, the predecessor with the same
+API, is folded into the existing different-client bullet of each production binding's
+`## Other bindings` (`hex-capability-adapter`, `flat-layered`), beside aiohttp with aioresponses; the two
+test skills keep a bullet of their own for it, because an httpx2 stub does not intercept an httpx client
+and the stub changes with it. The import checker's package list names `httpx2 pytest-httpx2` in place
+of `httpx`.
+**Reverse by:** if respx supports httpx2 natively, drop `pytest-httpx2` and `using="httpcore2"` and return
+to `@respx.mock`; if pytest-httpx2 breaks, move the stubs to `httpx2.MockTransport`; to return to httpx,
+revert the commits that added this entry.

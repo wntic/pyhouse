@@ -30,7 +30,7 @@ suite — and all of it exists **only for an app that declares auth**
 - The `Role` enum's own unit test → `hex-test-domain`.
 - The testing constitution these rules defer to — fixture placement, the mocking prohibition, speed targets → `test-principles`.
 
-## Template(s) — PyJWT, cryptography, httpx over ASGI, FastAPI, pytest
+## Template(s) — PyJWT, cryptography, httpx2 over ASGI, FastAPI, pytest
 
 ```
 tests/
@@ -47,7 +47,7 @@ tests/
             └── test_<verb>_<noun>.py            # the authenticated endpoint form
 ```
 
-Two topic files carry the worked binding — **PyJWT, `cryptography`, httpx over ASGI, FastAPI and
+Two topic files carry the worked binding — **PyJWT, `cryptography`, httpx2 over ASGI, FastAPI and
 pytest** — on either side of the unit/integration seam. **Read the one for the half you are writing
 before writing it** — only this file is loaded automatically:
 
@@ -162,9 +162,9 @@ Consult `test-principles` for the testing constitution.
 - The verifier unit test adds `cryptography.hazmat.*`, `myapp.domain.auth`, `myapp.domain.exceptions`
   and `myapp.infrastructure.jwt.*`; no `myapp.application.*` and no `myapp.restapi.*` — it drives the
   adapter directly.
-- The api conftest adds `httpx`, `jwt` (PyJWT), `cryptography.hazmat.*` and
+- The api conftest adds `httpx2`, `jwt` (PyJWT), `cryptography.hazmat.*` and
   `myapp.infrastructure.jwt`, and `myapp.domain.auth` in a rank app; full annotations on the factory and its `_factory` closure.
-- The probe adds `pytest`, `fastapi`, `fastapi.routing`, `httpx`, `myapp.restapi.main`,
+- The probe adds `pytest`, `fastapi`, `fastapi.routing`, `httpx2`, `myapp.restapi.main`,
   `myapp.domain.exceptions` for the `UnauthorizedError.code` constant it asserts against, and
   `myapp.infrastructure.jwt` with `tests.helpers.jwt` for the untrusted credential. It never imports `myapp.containers`: `create_app()` builds the real
   composition root itself, and no factory runs at collection time.
