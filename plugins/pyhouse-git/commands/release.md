@@ -34,12 +34,15 @@ you fell back on a default below.
 
 **The tags' spelling comes first**, because it decides which tag is the last release. Follow the
 repository's existing tags. Where it has none, the default is the one this command takes and says it
-took: one `v<version>` tag where one artifact ships every member — a single distribution, or a
-repository like a plugin marketplace whose aggregate version the tag names — and one
-`<member>-v<version>` tag per member where members are released separately.
+took: one `v<version>` tag where one artifact ships every member — a single distribution, or several
+members shipped together under an aggregate version the tag names — and one `<member>-v<version>` tag
+per member where members are released separately.
 
-`git describe --tags --abbrev=0` names the last release — with `--match '<member>-v*'`, once per
-member, under per-member tags. **No tag at all is a first release**: propose nothing and ask what it
+`git describe --tags --abbrev=0 --match '<release tag pattern>'` names the last release. The pattern is
+the repository's own tag spelling with the version replaced by `[0-9]*` — `'v[0-9]*'` for `v<version>`,
+`'[0-9]*'` for bare numbers, `'<member>-v[0-9]*'` once per member under per-member tags. It is not
+optional: without it the nearest tag of any kind is taken, and a deploy or environment tag pushed after
+the release becomes the start of the range. **No tag at all is a first release**: propose nothing and ask what it
 should be — below 1.0.0 while nothing depends on this, 1.0.0 only if a compatibility promise is being
 made from the start.
 
@@ -83,10 +86,7 @@ A repository whose members version independently has one version field per membe
 each member's directory: `pyproject.toml`, `package.json`, `Cargo.toml`, a plugin manifest. Attribute
 each commit to every member whose directory it touches. A commit touching no member — documentation at
 the root, CI, tooling — moves no number. A repository with one version is the case with one member.
-
-Path attribution over-counts in one known way: a commit that touched a member only to update an index
-or a listing it ships moves that member. Show the attribution in the proposal so the person can strike
-it.
+Show the attribution in the proposal, so the person can correct it.
 
 **A version derived from tags** — a build that reads the number from the VCS rather than from a field —
 has no field to edit. The release is then the tag alone; say so, and skip the edit in step 7.
@@ -100,8 +100,8 @@ Three `feat` commits are one minor bump, not three.
 compatibility promise, and no commit type can make that decision for anyone — so this command never
 proposes 1.0.0 on its own. A `feat` bumps the minor and a `fix` the patch. Say which of these applied.
 
-**An aggregate version** — a marketplace, a meta-package, anything whose number follows what it
-contains — moves when what it offers changes: by a minor if any member moved by a minor or a major, by
+**An aggregate version** — a meta-package, a bundle, anything whose number follows what it contains —
+moves when what it offers changes: by a minor if any member moved by a minor or a major, by
 a patch if every member that moved did so by a patch. It always moves when a member does, because a
 repository's tag usually names it and a tag is never reused.
 
