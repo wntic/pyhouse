@@ -19,30 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 65. The flat templates lose the ordering stamp; the obligations stay as rules
-Two things that are not the maintainer's grew into flat template lines. The record's stamp came from the
-application the family was first written from (`observed_at`, renamed `as_of` by D144). The webhook is
-a test service the review process invented (`QUESTIONS.md`, flat row, added 2026-09-27); reviews
-judged `HTTP.md` against it and turned each finding into template code: `FooChangePayload` with
-`changed_at` (D117), the ordering guard `where=` and its out-of-order test (D131, D144). That is a
-defect becoming a template, against "a defect becomes a rule". The obligations are real and general —
-any queue or third-party sender repeats and reorders — and already stated as rules: a redelivery
-changes nothing (`flat-entrypoint` rules 9 and 15), an older write never replaces a newer one
-(`persistence` rule 16). So:
-- `Foo` carries its key and data and no stamp: drop `as_of` from `flat-layered`'s schema,
-  `flat-persistence` (`TABLE.md`, `REPOSITORY.md` with the guard line), `flat-entrypoint` (Shape 1's
-  `fetched_at`, the source-stamp paragraph at `SKILL.md:101-103`, "and ordering them by the stamp" in
-  Shape 3) and `flat-test-persistence` (its seven uses, the out-of-order test, rule 13's reliance on it).
-- `HTTP.md` becomes a neutral route that takes a body and calls the work: no `FooChangePayload`, no
-  `changed_at`, no out-of-order pointer. Rule 9's obligations (verify a third party's signature before
-  parsing; a redelivery changes nothing) stay as rules, and the signature check is not template code.
-- `flat-test-entrypoint`'s idempotence test compares what the input determines without a stamp.
-- `QUESTIONS.md`'s flat "webhook receiver writing to one table" is replaced by a test service closer to
-  the maintainer's real flat services (ask which).
-- Record a decision reversing the template parts of D117, D131 and D144, with each marked.
-Check afterwards that no rule cites a template line that is gone (`flat-test-persistence` rule 13,
-`persistence` rule 16's binding pointers, `flat-entrypoint` rule 10).
-
 ### 66. A universal skill owns at-least-once delivery
 The obligations of a unit a broker or a third-party sender delivers are scattered and worded apart:
 `flat-entrypoint` rule 15 (bounded redelivery, dead letter, an idempotent effect) and rule 9 (the HTTP
@@ -62,7 +38,7 @@ from the message, never the clock or a mint per delivery; ordering points at `pe
 which stays there as the store's side; a third party's delivery is verified against the raw body it
 signed before the body is parsed. The families keep the spelling — the consumer wrapper and HTTP route
 in `flat-entrypoint`, the inbound adapter in `hex-architecture` — and point at the skill instead of
-restating it. The outbox and its relay stay in hex (D145). Lands with or after item 65; update both
+restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; update both
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 
@@ -137,42 +113,6 @@ All verified against the current files.
   split a package or module" row because the tree looked hexagonal; say outright that without an
   argument naming the family the row is left out, whatever the layout looks like.
 
-### 72. `pyhouse-flat` fixes from the 2026-10-11 review
-All verified against the current files. The webhook signature (review item 5), `HTTP.md:117-119` and
-Shape 3's "ordering them by the stamp" are item 65's.
-- `flat-entrypoint:164`: "A loop or a consumer catches each run's failure … and goes on" hands the
-  swallowing `sync_foos_contained` to a consumer, which then acknowledges a failed message and loses it.
-  The template is the loop's; a consumer returns the failed unit (rule 15; item 66's skill once landed).
-- `flat-entrypoint` rule 12 (`:339-344`): delete the local-state half; move the atomic-file-write half to
-  `flat-layered` rule 14 and repoint "(rule 12)" at `:227`.
-- `flat-entrypoint:182-194`: the loop template's author comments (`# with the other imports`,
-  `# the first lines of _run`, `# in place of …`) land in `__main__.py`; say it in prose or in comments
-  true in the reader's file (`meta-skill-author` rule 4).
-- `flat-entrypoint:43-52,147-151`: widen the trigger row at `:45` to a CLI-triggered run and point at
-  `python-settings` rules 13 and 15 (the CLI's entry function is the composition root, a per-invocation
-  value is an argument); no new rule.
-- `flat-layered:90-93`, rule 8 (`:329-333`): the engine exemption → a pointer to `flat-entrypoint`.
-- `flat-layered` rule 6 (`:315-321`) → a pointer to `python-settings` rule 13.
-- `flat-layered` rule 4 (`:307-311`): reduce the second-store half and drop the "(`flat-layered`
-  rule 4)" citation in `flat-persistence` rule 5 (`:145-150`) in the same change, or the two point at
-  each other.
-- `flat-persistence` rule 1 (`:124-127`) → a pointer to `flat-layered` rule 3, number kept
-  (`REPOSITORY.md:3,12` cite it).
-- `flat-persistence` rule 3 (`:133-140`) → one line on the engine factory; repoint
-  `flat-test-integration-setup:178` to `python-packaging` rule 8.
-- `flat-persistence/REPOSITORY.md:22,58,62,101-104`, `flat-entrypoint/HTTP.md:24,34,75,86`:
-  `StorageWriteRejectedError`, `StorageUnavailableError` and `InvalidPayloadError` state no parent; one
-  line of prose each, as `flat-layered:232` does for `QuxRequestFailedError`. No switch to
-  `UpstreamError` and no move.
-- `flat-project-setup:53`: the development dependencies → `python-toolchain`'s template
-  (`pytest-asyncio` is lost today).
-- `flat-layered:209`, `flat-persistence/REPOSITORY.md:22`, `flat-entrypoint/HTTP.md:24`: a module in a
-  subpackage imports the catalogue as `from myapp.exceptions import …`; `python-packaging` "Relative vs
-  absolute" makes a module one level up `from ..exceptions import …`, as the hex templates write it.
-  Tests outside the package stay absolute.
-- `flat-project-setup:29`: the pytest block's owner is `python-toolchain` (D137), as
-  `flat-test-integration-setup:32` says.
-
 ### 76. `python-versioning` rule 13 states the tag and the aggregate number
 Rule 13 says members version independently and lockstep is right only where one artifact ships them
 all, but the tag scheme and the aggregate number are written only in `/release` (`pyhouse-git`,
@@ -237,8 +177,8 @@ Binding: **typer** — built on click, arguments declared by annotations, in lin
 typing rules and with FastAPI already in the hex templates. One template, the module holding the
 `typer.Typer()` app and its commands, with `pretty_exceptions_enable=False` so error output stays
 predictable (rule 2 says why). `## Other bindings`: click, argparse. Then `architecture-choice:164`
-routes a CLI tool to this skill, still giving no layout for a large command tree; item 72's CLI pointer
-in `flat-entrypoint` points here; indexes, counts and the top-level `README.md` gain the skill. Ask the
+routes a CLI tool to this skill, still giving no layout for a large command tree; the CLI pointer in
+`flat-entrypoint`'s trigger table (now at `python-settings` rules 13 and 15) points here too; indexes, counts and the top-level `README.md` gain the skill. Ask the
 maintainer for a real CLI to check the rules against before writing.
 
 ### 70. Descriptions stay as they are; `when_to_use` folds into `description`

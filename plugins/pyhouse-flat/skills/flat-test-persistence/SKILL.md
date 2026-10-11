@@ -1,6 +1,6 @@
 ---
 name: flat-test-persistence
-description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the generated constraint name where the translator branches on it, the catalogue exception a driver error is translated into on each write and read the class has, what each read returns, and each write's conditional contract where it has one — an upsert's update set from both sides, an ordering-stamp guard from both directions, an empty update set, a batch's chunk edge and same-key inputs, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-entrypoint`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
+description: Use when testing a flat-layered service's data-access package against the real datastore — its tables and the repository class that owns its transactions — pinning the generated constraint name where the translator branches on it, the catalogue exception a driver error is translated into on each write and read the class has, what each read returns, and each write's conditional contract where it has one — an upsert's update set from both sides, an ordering-stamp guard where writes for one key can arrive out of order, an empty update set, a batch's chunk edge and same-key inputs, a paged read's tied edge, a multi-statement write's atomicity. Consumes the container and isolation fixtures rather than laying them (`flat-test-integration-setup`). Not the function a trigger calls that reaches this write path, which is `flat-test-entrypoint`, and not a hexagonal `IFooRepository` adapter, which is `hex-test-repository-contract`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat Test — Data-Access Contract
@@ -44,7 +44,6 @@ opens its own — asserting through a fresh connection only where its own rollba
 `tests/integration/test_foo_repository.py`:
 
 ```python
-from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -56,12 +55,9 @@ from myapp.postgres import FooRepository
 from myapp.postgres.foo_table import foo_table
 from myapp.schemas import Foo, FooExternalId
 
-_EARLIER = datetime(2024, 1, 1, tzinfo=UTC)
-_LATER = datetime(2024, 1, 2, tzinfo=UTC)
 
-
-def _a_foo(external_id: str = "alpha", name: str = "first", as_of: datetime = _EARLIER) -> Foo:
-    return Foo(external_id=FooExternalId(external_id), name=name, as_of=as_of)
+def _a_foo(external_id: str = "alpha", name: str = "first") -> Foo:
+    return Foo(external_id=FooExternalId(external_id), name=name)
 
 
 # only where a write updates on conflict
@@ -73,21 +69,10 @@ async def test_a_second_write_of_one_external_id_updates_the_set_and_keeps_the_r
     await repository.upsert(_a_foo(name="first"))
     first_id: UUID = (await connection.execute(select(foo_table.c.id))).scalar_one()
 
-    await repository.upsert(_a_foo(name="second", as_of=_LATER))
+    await repository.upsert(_a_foo(name="second"))
 
-    rows = (await connection.execute(select(foo_table.c.id, foo_table.c.name, foo_table.c.as_of))).all()
-    assert [tuple(row) for row in rows] == [(first_id, "second", _LATER)]
-
-
-# only where writes for one key can arrive out of order
-async def test_an_older_write_after_a_newer_leaves_the_newer(engine: AsyncEngine, connection: AsyncConnection) -> None:
-    repository = FooRepository(engine)
-    await repository.upsert(_a_foo(name="newer", as_of=_LATER))
-
-    await repository.upsert(_a_foo(name="older", as_of=_EARLIER))
-
-    rows = (await connection.execute(select(foo_table.c.name, foo_table.c.as_of))).all()
-    assert [tuple(row) for row in rows] == [("newer", _LATER)]
+    rows = (await connection.execute(select(foo_table.c.id, foo_table.c.name))).all()
+    assert [tuple(row) for row in rows] == [(first_id, "second")]
 
 
 async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: AsyncEngine) -> None:
@@ -100,17 +85,16 @@ async def test_a_value_the_store_refuses_arrives_as_the_catalogue_error(engine: 
 The tests drive the class a caller uses and assert through `connection`, a query against the store.
 
 The first test pins the declared update set from both sides in one comparison: one row, not two; the
-name and stamp the set covers changed; the id it does not cover kept the value the first write minted.
-The second write carries the later stamp, so the test holds with an ordering guard on the write and
-without one.
+name the set covers changed; the id it does not cover kept the value the first write minted.
 
 The translation test forces the write through the public method a caller uses, refused by the store
 itself — a NUL character, which a Postgres text value cannot hold, is SQLSTATE `22021` in the
 data-exception class — so no constraint had to be invented for the test.
 
 Where a write resolves a conflict by doing nothing, the file gains the no-op test of rule 5; where it
-spans statements, the atomicity test of rule 10; where a method takes a batch, the two tests of rule 6; and a test of what
-each read returns, rule 14, wherever the class reads.
+spans statements, the atomicity test of rule 10; where a method takes a batch, the two tests of rule 6;
+where writes for one key can arrive out of order, the test of rule 13; and a test of what each read
+returns, rule 14, wherever the class reads.
 
 ## Other bindings
 
@@ -161,9 +145,9 @@ each read returns, rule 14, wherever the class reads.
     the service's declared type written through the repository class, or through the schema's own table
     object where the class has no write for it — and, where the subject opens its own connection,
     committed before it runs (`flat-test-integration-setup`).
-13. **Where writes for one key can arrive out of order, the newer record is written and then the older**
-    — `test-principles`, *Datastore contract* rule 6; the builder takes the stamp, so each write carries
-    its own.
+13. **Where writes for one key can arrive out of order, the test `test-principles`, *Datastore contract*
+    rule 6, states**; the update-set test's second write then carries the newer stamp, so it holds with
+    the guard.
 14. **Each read the class has is tested on what it returns** — `test-principles`, *Datastore contract*
     rule 9 — its rows arranged as rule 12 states.
 

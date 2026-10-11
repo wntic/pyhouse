@@ -21,10 +21,11 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from myapp.exceptions import InvalidPayloadError, MyappError
-from myapp.foo_recording import record_foo
 from myapp.postgres import FooRepository
-from myapp.schemas import FooChangePayload
+from myapp.schemas import FooPayload
+
+from ..exceptions import InvalidPayloadError, MyappError
+from ..foo_recording import record_foo
 
 __all__ = ["build_app"]
 
@@ -75,8 +76,8 @@ def build_app(repository: FooRepository) -> FastAPI:
         return _log_and_render(InvalidPayloadError("the request is invalid", {"fields": fields}))
 
     @app.post("/foos", status_code=204)
-    async def receive_foo(delivery: FooChangePayload) -> None:
-        await record_foo(repository, delivery)
+    async def receive_foo(payload: FooPayload) -> None:
+        await record_foo(repository, payload)
 
     return app
 ```
@@ -86,7 +87,8 @@ carries no status; this module maps one from the class (`exception-catalog` rule
 error renders as itself, the framework's validation failure as `InvalidPayloadError` (`422`), anything
 else as the catalogue root, and `context` is encoded for JSON first, so an identifier in it cannot turn
 the answer into a crash. The level follows the status (`python-logging`). The unexpected failure is caught by a middleware because FastAPI's handler for
-bare `Exception` re-raises to the server, which logs it a second time.
+bare `Exception` re-raises to the server, which logs it a second time. `InvalidPayloadError` is a bare
+subclass of the catalogue's root `MyappError` (`exception-catalog`).
 
 **The app is built by a factory the process definition calls**, never as a module-level `app`, which
 would build its dependencies at import (rule 3) and could not be handed a test container's engine. An
@@ -97,31 +99,24 @@ is for a caller the network already trusts.
 ## The work the route calls
 
 `src/myapp/foo_recording.py` — framework-free, named for its work, writing through the repository's
-single-row `upsert` (`flat-persistence`, `REPOSITORY.md`). `FooChangePayload`, in
-`schemas/foo_change_payload.py`, is `FooPayload` plus the `changed_at: AwareDatetime` the sender
-assigned to the change, the same on every redelivery of it; the work writes that instant, never the
-clock, so a redelivery writes what the row already holds (rule 9):
+single-row `upsert` (`flat-persistence`, `REPOSITORY.md`). Every value it writes comes from the body,
+never the clock, so a redelivery writes what the row already holds (rule 9):
 
 ```python
 from myapp.postgres import FooRepository
-from myapp.schemas import Foo, FooChangePayload, FooExternalId
+from myapp.schemas import Foo, FooExternalId, FooPayload
 
 __all__ = ["record_foo"]
 
 
-async def record_foo(repository: FooRepository, delivery: FooChangePayload) -> None:
-    foo = Foo(external_id=FooExternalId(delivery.id), name=delivery.name, as_of=delivery.changed_at)
-    await repository.upsert(foo)
+async def record_foo(repository: FooRepository, payload: FooPayload) -> None:
+    await repository.upsert(Foo(external_id=FooExternalId(payload.id), name=payload.name))
 ```
-
-Where an older delivery can arrive after a newer one for the same external id, keeping the newer is the
-data-access package's job — the marked `where=` in `flat-persistence`'s `REPOSITORY.md` (`persistence`
-rules 16 and 17).
 
 ## The process definition — uvicorn
 
-`src/myapp/__main__.py`, or a module in `entrypoints/` beside others without its last two lines. The
-process's `MyappSettings` declares `http_host: str` and `http_port: int`, required like every tunable
+`src/myapp/__main__.py`, or a module in `entrypoints/` beside others without its last two lines, its
+imports of the package root's own modules written `..`. The process's `MyappSettings` declares `http_host: str` and `http_port: int`, required like every tunable
 (`flat-layered` rule 9):
 
 ```python
@@ -129,10 +124,11 @@ import asyncio
 
 import uvicorn
 
-from myapp.logging import configure_logging
-from myapp.myapp_settings import MyappSettings
 from myapp.postgres import FooRepository, PostgresSettings, create_engine
 from myapp.web import build_app
+
+from .logging import configure_logging
+from .myapp_settings import MyappSettings
 
 
 async def _serve() -> None:

@@ -19,9 +19,9 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from myapp.exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
 from myapp.schemas import Foo
 
+from ..exceptions import MyappError, StorageUnavailableError, StorageWriteRejectedError
 from .foo_table import foo_table
 
 __all__ = ["FooRepository"]
@@ -35,15 +35,13 @@ class FooRepository:
         self._engine = engine
 
     async def upsert(self, foo: Foo) -> None:
-        statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name, as_of=foo.as_of)
+        statement = insert(foo_table).values(external_id=foo.external_id, name=foo.name)
         try:
             async with self._engine.begin() as connection:
                 await connection.execute(
                     statement.on_conflict_do_update(
                         index_elements=[foo_table.c.external_id],
-                        set_={"name": statement.excluded.name, "as_of": statement.excluded.as_of},
-                        # only where writes for one key can arrive out of order
-                        where=foo_table.c.as_of < statement.excluded.as_of,
+                        set_={"name": statement.excluded.name},
                     )
                 )
         except _DRIVER_ERRORS as exc:
@@ -71,8 +69,9 @@ test can point it at a container without touching the environment.
 The conflict clause is derived from the statement's own `excluded` row, so the update set names the
 incoming values of the row that conflicted (`persistence` rule 15). The set is declared here, per
 write, and never holds the key matched on; a write with nothing to update on conflict says
-`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. The
-marked `where=` is `persistence` rule 16's guard on the stamp.
+`on_conflict_do_nothing()` instead, because a `DO UPDATE` with an empty `SET` is a syntax error. Where
+writes for one key can arrive out of order, the record carries its ordering stamp and the clause gains
+a `where=` keeping the stored row unless the incoming stamp is newer (`persistence` rule 16).
 
 `upsert` is `persistence` rule 17's worked case: a foo already recorded is resolved by the statement's
 own conflict clause, never by asking whether its external id exists before writing.
@@ -105,7 +104,8 @@ a write. It matches on the SQLSTATE and the constraint name the driver reports â
 text, and never on SQLAlchemy's subclass, which its asyncpg adapter assigns to only some SQLSTATEs â€” and
 puts them, not the stringified error, into `context`. SQLAlchemy wraps the asyncpg exception in an
 adapter, and the adapter chains asyncpg's own exception as its `__cause__`, so both are read off that.
-The classes are the service's own, declared in its one catalogue (`exception-catalog`). **Where a caller
+The classes are the service's own, declared in its one catalogue: `StorageWriteRejectedError` is a
+bare subclass of the root `MyappError`, and so is `StorageUnavailableError` (`exception-catalog`). **Where a caller
 acts on one particular constraint, that constraint gets a branch of its own ahead of the SQLSTATE-class
 check, matched on the full generated constraint name (`persistence` rule 7)** and returning the class
 the caller catches, with the offending field and that name in its `context` (`persistence` rule 6).

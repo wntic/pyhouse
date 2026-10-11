@@ -16,7 +16,7 @@ into `Column(..., default=uuid7)`. A table another project owns declares its key
 `src/myapp/postgres/foo_table.py`:
 
 ```python
-from sqlalchemy import Column, DateTime, String, Table
+from sqlalchemy import Column, String, Table
 from sqlalchemy.dialects.postgresql import UUID
 from uuid6 import uuid7
 
@@ -28,7 +28,6 @@ foo_table = Table(
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid7),
     Column("external_id", String, nullable=False, unique=True),
     Column("name", String, nullable=False),
-    Column("as_of", DateTime(timezone=True), nullable=False),
 )
 ```
 

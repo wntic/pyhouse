@@ -121,30 +121,23 @@ layout. Only this file is loaded automatically, so open the one you need:
 
 ## Rules
 
-1. **No `Protocol` over the datastore, and that is a decision rather than an omission.** The main
-   datastore is a sticky dependency with no nameable alternative the business would plausibly adopt, so
-   it never qualifies for an interface however generic it looks (`flat-layered` rule 3). Test doubles come
-   from the real backend or from subclassing the concrete class (`test-principles`).
+1. **No `Protocol` over the datastore** — `flat-layered` rule 3, whose sticky dependency it is.
 2. **Every surrogate key this service mints is a time-ordered identifier minted application-side by one
    function every table shares.** A random identifier scatters rows inserted together across the index
    for no benefit, and a database-side default means the writer cannot know the id it just created
    without reading it back. One table diverging onto a different scheme splits the schema's id policy in
    two.
-3. **This package declares its own connection settings, and those settings and the engine built from
-   them reach everything below the process definition as arguments.** Being a component with
-   configuration of its own, it states that configuration in one settings class inside the package
-   (`flat-layered` rule 7, `python-settings`), and builds its engine through a factory that takes the
-   connection string. Nothing here builds a settings object, an engine or a session at import time
-   (`python-packaging` rule 8), and no module in this package constructs its settings class or calls
-   the engine factory: the process definition does both and hands the values down (`flat-layered`
-   rule 6).
+3. **The engine is built by a factory that takes the connection string**, called by the process
+   definition and never by a module in this package (`flat-entrypoint` rule 14; never at import,
+   `python-packaging` rule 8).
 4. **Where several distributions share a store, exactly one of them owns its schema and its migration
    history** (`python-workspace` rule 3). A service reading a store it does not own follows
    `persistence`'s schema-ownership row, and its suite creates that schema from its metadata
    (`flat-test-integration-setup`).
-5. **Two stores never share a package, a settings class or a migration history (`flat-layered`
-   rule 4):** they differ in which of `persistence`'s rules bind, in their drivers' failure types and in
-   how their schema changes, and one package holding both turns every one of those differences into a
+5. **Two stores never share a package, a settings class or a migration history; each store's package
+   is named for its technology (`postgres/`, `clickhouse/`) and has its own connection factory:** they
+   differ in which of `persistence`'s rules bind, in their drivers' failure types and in how their
+   schema changes, and one package holding both turns every one of those differences into a
    branch inside it. Work that writes to both is handed both packages' objects by the process
    definition, like any other dependency, and a unit writing to both is made whole by retrying it to
    completion, each write idempotent by its key (`persistence` rule 3).

@@ -88,9 +88,9 @@ things is how names stop identifying anything. What a work unit is called is `na
 names the work done, as `sync_foos` does in the templates.
 
 **Rule 8 is enforced by a firewall of `test-architecture-rule`'s standard form** — the framework's
-import is forbidden outside the declared wrapper package, whatever the framework. Only once a
-durable-execution engine is earned does its allow-list gain one entry, the progress helper
-(`flat-entrypoint` durable obligation 8). The other invariants worth a firewall in a flat service: no
+import is forbidden outside the declared wrapper package, whatever the framework; the one entry an
+earned durable-execution engine adds to its allow-list is `flat-entrypoint` durable obligation 8's.
+The other invariants worth a firewall in a flat service: no
 statement or table constructed outside a data-access package (rule 4), no module-level engine
 (`python-packaging` rule 8), no engine in a unit test and no mock or sleep in any test
 (`test-principles`), and in a repository of several members no runnable member importing another
@@ -108,7 +108,7 @@ is the decision:
   class sits inside it (`qux/qux_settings.py`, rule 7) — never in a package it shares with another
   component;
 - each external system gets one such package, holding its one client class;
-- each store gets one data-access package, named for the store's technology (rule 4);
+- each store gets one data-access package, named for the store's technology (`flat-persistence` rule 5);
 - a work unit is a module named for its work, and several that share a concern share a package named
   for it — never the module that defines the process running them;
 - a framework wrapper is isolated in its own package so the work it wraps stays framework-free;
@@ -139,7 +139,7 @@ rule 1). A record one package alone reads lives in that package; a record that c
 service's own record, a wire record one package parses and another consumes, what a run returns — sits
 in `schemas/`. A service with a framework adds one wrapper package — the HTTP shape's, or a
 durable-execution engine's together with its progress helper module (`flat-entrypoint`). A second store is
-a sibling of `postgres/` named for its own technology (rule 4).
+a sibling of `postgres/` named for its own technology (`flat-persistence` rule 5).
 
 ### Template — the declared records, on dataclasses and pydantic
 
@@ -153,7 +153,6 @@ type over `str` (`python-style`), wrapped where a value is mapped into the recor
 
 ```python
 from dataclasses import dataclass
-from datetime import datetime
 from typing import NewType
 
 __all__ = ["Foo", "FooExternalId"]
@@ -165,7 +164,6 @@ FooExternalId = NewType("FooExternalId", str)
 class Foo:
     external_id: FooExternalId
     name: str
-    as_of: datetime
 ```
 
 `src/myapp/schemas/foo_payload.py` — the wire record, parsed and validated where it arrives:
@@ -206,8 +204,9 @@ class FooSyncResult:
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from myapp.exceptions import QuxRequestFailedError
 from myapp.schemas import FooPayload
+
+from ..exceptions import QuxRequestFailedError
 
 __all__ = ["QuxClient"]
 
@@ -304,21 +303,14 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    opens a connection, and each store gets exactly one such package.** A store's table definitions, its
    write path and the mapping from its rows back to this service's own types sit together in that
    package, and every other package asks it for data — never a statement in a work unit, never one
-   store's access scattered across packages. A second store is a second package beside the first, named
-   for its technology like the first (`postgres/`, `clickhouse/`), with its own settings class,
-   connection factory and, where this service owns its schema (`persistence`, its schema-ownership row), migration
-   history — never a second set of tables, or a second store's fields, inside the first. A store's SQL
-   is findable in one place or it is everywhere. What such a package contains, and what changes where
-   several distributions share one store, is `flat-persistence`.
+   store's access scattered across packages. A second store is a second such package (`flat-persistence`
+   rule 5). A store's SQL is findable in one place or it is everywhere. What such a package contains,
+   and what changes where several distributions share one store, is `flat-persistence`.
 5. **One exception catalog**, and SDK/library exceptions are translated into it at the boundary — inside
    the client class that called the SDK. Shape and translation rules: `exception-catalog`.
 6. **The process definition builds settings and passes them down as values** — it is this family's
-   composition root (`python-settings` rule 13). It constructs each component's settings class once and
-   hands concrete arguments, and the transports it built, to the clients and work units it constructs.
-   The migration environment is the process definition of a migration run and builds the data-access
-   component's settings the same way (`flat-project-setup`). Nothing below the process-definition role
-   imports settings, and no module below it builds a settings object, its own component's included:
-   owning a settings class is not permission to read it from inside the component.
+   composition root, and the rule is `python-settings` rule 13; the migration environment is a
+   migration run's (`flat-project-setup`).
 7. **Every component that has configuration is a package, and declares its own settings class inside
    that package, in the module named for it** (`python-settings` rule 1) — `qux/qux_settings.py`. The
    process's configuration, an external system's and a store's are three components and three classes
@@ -326,11 +318,9 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
    prefix, and the nested-prefix collision between the process's `MYAPP_` and a component's
    `MYAPP_POSTGRES_`, are `naming`'s rule 7, the same whether the second component is a package inside
    this distribution or a library shared with siblings (`flat-persistence` states that package's half).
-8. **Only a package whose declared role is framework wrapper may import the framework** — plus, once a
-   durable-execution engine is earned, the one progress helper module the firewall's allow-list
-   names by path, so the exemption stays one entry a reviewer can read. For one distribution that is a
-   single named module at the root of its own package, and where several share a repository it is
-   promoted to a library they both depend on. That one rule is what keeps the work units callable from a
+8. **Only a package whose declared role is framework wrapper may import the framework**; the one
+   exemption, once a durable-execution engine is earned, is `flat-entrypoint` durable obligation 8's
+   progress helper. That one rule is what keeps the work units callable from a
    loop, a test or a one-off script, and it is what makes switching a service's trigger a wrapper change
    rather than a rewrite; a framework import anywhere else welds the work unit to the framework. The role
    is declared when the package is created, never inferred from a directory name.
@@ -344,7 +334,7 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     the translated exception's `context` (`exception-catalog`).
 12. **A client holds one pooled transport for the process's life and never opens one per call.** The
     process definition builds the connection pool or SDK session once, hands it to the client's
-    constructor, and closes it when the process ends (rule 6). A client that builds its own transport
+    constructor, and closes it when the process ends (`flat-entrypoint` rule 14). A client that builds its own transport
     inside a method pays a new connection on every call, discards the pool it would have reused, and can
     be pointed at a stub only by patching the library.
 13. **A credential with an expiry is refreshed, never assumed to outlive the process.** A client that
@@ -358,7 +348,11 @@ The client returns a declared type, never the parsed `dict` (`python-style`).
     written against an endpoint, a path or a response shape the system does not have passes every test
     stubbed from the same invention and fails on the first real run. Rules 5 and 12 hold whatever the
     interface is. A directory the service writes to for another reader is an external system too — a
-    package with its own settings and one writer class.
+    package with its own settings and one writer class. **A file the process writes for another reader
+    is written atomically.** A report, an export, or a position kept for the next start is written under
+    a temporary name and moved over the final one in one atomic step (`os.replace` in the standard
+    library), never written in place — a crash mid-write otherwise leaves a file its reader cannot
+    parse, or reads half of.
 15. **A process definition wires and runs; it holds no business logic.** Building settings and
     dependencies, configuring logging, the loop, the containment and the wait around a run, and starting the process
     stay in it (`flat-entrypoint`); a decision about the data a run handles belongs in a work unit, where
