@@ -42,38 +42,6 @@ restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; u
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 
-### 68. `pyhouse-git` fixes from the 2026-10-11 review
-All verified against the current files; four reproduced in a scratch repository (git 2.39.5).
-- `commands/commit.md` step 2–3: stage first, then read `git diff --staged -- <files>`; `git diff` on an
-  untracked file prints nothing, so a secret in a new file passed the check. On a stop, unstage
-  (`git restore --staged`).
-- `commands/commit.md` step 5: commit only the resolved paths (`git commit -F - -- <files>`) and name
-  anything else already staged; `git commit -F -` committed the whole index.
-- `commands/commit.md` step 4: a pointer to `git-branching` rule 4 — a fix to work not yet landed is a
-  fixup folded into the commit it fixes, never a `fix` commit `/release` would count.
-- `commands/commit.md:38,58-59`: `git log --no-merges`, as `release.md:61-62` already does.
-- `commands/commit.md:74-78`: the heredoc skeleton makes scope and body look required; replace with
-  the message composed in step 4.
-- `commands/release.md:37-39,87-89,103-106`: drop this marketplace repository's own shape (the README
-  index over-count, "a repository like a plugin marketplace"); keep the aggregate-version rule.
-- `commands/release.md:41`: `git describe --tags --match <release tag pattern>`; without it a later
-  deploy tag is taken as the last release.
-- `git-commit-message:116-119` (how to find the merge method) moves to `git-branching` rule 2;
-  repoint `adopt.md:32` and `commit.md:63-65`.
-- `git-branching:54-58`: the fixup/autosquash commands move beside rule 4 as prose, whole, the git 2.44
-  sentence included (D121 keeps it).
-- `git-branching:62-64`: the squash binding says "every rule but 4 holds" and points at rule 9, instead
-  of a list that omits rules 6–8.
-- `git-branching:46-47`: no `feat/foo-export`-style examples in the block `/pyhouse-git:adopt` copies
-  into a project's `CLAUDE.md`.
-- `git-branching:41`, `adopt.md:67-68`: "releases are tags on it" only where releases are tagged.
-- `git-hooks/commit-msg:53,61`, `install-commit-hook.md:95-96`: accept a type in any case
-  (Conventional Commits item 15); correct the claim that the specification wants lowercase.
-- `git-hooks/commit-msg:24-25`: under `-F` git keeps `#` lines, so read the second line from the raw
-  file and correct the comment.
-- `.claude-plugin/plugin.json:5`: a break is a major, a minor below 1.0.0; name `git-commit-message`
-  instead of "that skill".
-
 ### 69. `pyhouse-universal` fixes from the 2026-10-11 review
 All verified against the current files.
 - `architecture-choice:138-142,175-176`: the lists of universal skills that still bind omit
