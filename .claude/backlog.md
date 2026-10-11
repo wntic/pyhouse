@@ -19,29 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 66. A universal skill owns at-least-once delivery
-The obligations of a unit a broker or a third-party sender delivers are scattered and worded apart:
-`flat-entrypoint` rule 15 (bounded redelivery, dead letter, an idempotent effect) and rule 9 (the HTTP
-case, the sender's signature), `hex-architecture:146-147` (acknowledge after the handler; a create takes
-its identity from the message), `exception-catalog` rule 15 (a failure after a committed write, delivered
-by something that retries it), `persistence` rule 16 (an older write never replaces a newer one). Hex has
-no bounded redelivery or dead letter at all; flat states them only in its entrypoint skill, which is how
-the review found its containment function handed to a consumer that then acknowledges a failed message
-("Главное" item 4); a hex create handler copied into a consumer points at nothing and duplicates on
-every redelivery (item 3b). Both families have consumers, so D145's condition is met.
-A new universal skill, rules only and no template (a broker's redrive policy is deployment
-configuration, not code); its name derived by `naming` (working name `message-delivery`). About five
-rules: a unit is acknowledged only once its effect is committed, and a failed one is returned; redelivery
-is bounded, then the unit goes to a dead letter the operator can read, both declared in the broker's
-configuration, never a counter in the process; a redelivery changes nothing — identity and values come
-from the message, never the clock or a mint per delivery; ordering points at `persistence` rule 16,
-which stays there as the store's side; a third party's delivery is verified against the raw body it
-signed before the body is parsed. The families keep the spelling — the consumer wrapper and HTTP route
-in `flat-entrypoint`, the inbound adapter in `hex-architecture` — and point at the skill instead of
-restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; update both
-indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
-`meta-skill-author`.
-
 ### 79. The templates move from httpx to httpx2
 httpx is stalled: last stable 0.28.1 on 2024-12-06, only `1.0.devN` since, the 1.0 PR (#3796) open, issues
 and discussions closed on 2026-02-27; its transport httpcore last released 1.0.9 on 2025-04-24 with open
@@ -105,3 +82,14 @@ turns. Not measured: what the agent then wrote, and models other than Opus. So:
 - The README gains a short note: the catalogue takes most of Claude Code's skill-listing budget, so with
   many plugins installed some skills are listed without a description; `skillListingBudgetFraction` in
   the project's `.claude/settings.json` raises it. `/pyhouse-universal:adopt` does not write it.
+
+## Proposed
+
+### 81. hex has no test rule for a returned unit or a redelivery
+`at-least-once-delivery` names `flat-test-entrypoint` rules 2 and 6 as the example of testing a delivered
+unit: a consumer's handler asserted to return a failed unit unacknowledged and to acknowledge a
+successful one after its effect, and a second delivery asserted to change nothing. No `hex-test-*` skill
+states either for a hexagonal consumer; none of them mentions a consumer, an acknowledgement or a
+redelivery, so a hex service driven by a queue (a `QUESTIONS.md` test service) has no test obligation
+for the consumer line in `hex-architecture`, including a redelivered create acknowledged rather than
+mapped to a conflict.

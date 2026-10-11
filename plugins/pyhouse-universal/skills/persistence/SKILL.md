@@ -34,6 +34,9 @@ scheme is the family's, because the two families answer it differently for reaso
   in the `pyhouse-hex` plugin, and `flat-persistence`, in the `pyhouse-flat` plugin, are examples.
 - Whether two stores, or two data-access packages, should be one → `coupling`.
 - Several distributions sharing one store, and which of them owns its schema → `python-workspace`.
+- A unit a broker or a sender delivers at least once — when it is acknowledged, how its redelivery is
+  bounded, why a redelivery changes nothing → `at-least-once-delivery`; rule 16 is the store's side of
+  its ordering.
 - Testing data-access code against a real store → `test-principles`, and the family's own test skill.
 
 ## Which rules bind — the store's properties

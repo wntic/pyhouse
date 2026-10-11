@@ -1,6 +1,6 @@
 ---
 name: flat-entrypoint
-description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — one run per process started by a cron entry or a timer, a loop, a continuous stream or queue consumer, a thin HTTP wrapper, or durable execution — and deciding whether a workflow engine is earned at all; one run per process is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free function every trigger calls, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, the containment that keeps one failed run from killing a long-lived process, and the bounded redelivery and dead letter a contained unit goes to. It also carries the obligations an earned engine adds, inert under every other trigger. Testing any of it is `flat-test-entrypoint`.
+description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — one run per process started by a cron entry or a timer, a loop, a continuous stream or queue consumer, a thin HTTP wrapper, or durable execution — and deciding whether a workflow engine is earned at all; one run per process is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free function every trigger calls, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, the containment that keeps one failed run from killing a long-lived process, and where a consumer acknowledges or returns its unit, under `at-least-once-delivery`. It also carries the obligations an earned engine adds, inert under every other trigger. Testing any of it is `flat-test-entrypoint`.
 when_to_use: Also when asked for a polling loop, a `__main__` entrypoint, a nightly or periodic job, a queue or websocket consumer process, a webhook, an internal CRUD or proxy endpoint on a service with no invariants, a durable workflow, a batch loop, a heartbeat, a schedule or a cron expression, an overlap or catch-up policy, or whether this service needs a workflow engine at all.
 ---
 
@@ -32,6 +32,9 @@ nothing here assumes a sibling distribution or a repository above it.
   obligations apply; do not add orchestration modules "for later".
 - The named exceptions a wrapper translates → `exception-catalog`; the one place they are rendered is
   this skill's HTTP shape (`HTTP.md`).
+- What a consumer or a webhook route owes the unit delivered to it — acknowledged after its effect,
+  redelivered to a limit and dead-lettered, unchanged by a redelivery, its signature checked first →
+  `at-least-once-delivery`; where the wrapper does it is here (rules 9 and 15).
 - The service answers HTTP but has business invariants, or several entrypoints share its rules → not
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
@@ -171,7 +174,8 @@ async def sync_foos_contained(client: QuxClient, repository: FooRepository) -> N
 ```
 
 This function is the loop's. A consumer contains a unit's failure too, but never by swallowing it: the
-failed unit is returned to the broker for redelivery, never acknowledged (rule 15).
+failed unit is returned to the broker for redelivery, never acknowledged (rule 15,
+`at-least-once-delivery` rule 1).
 
 A loop waits between runs on an interval read from the process's settings — `MyappSettings` declaring
 `poll_interval_seconds: float`, a required field with no default (rule 16) — and stops when asked, after
@@ -243,9 +247,8 @@ per item is overhead and history for nothing, and a long-lived unit fights the e
 
 A consumer's broker is its trigger: the SDK that receives messages is imported only by the
 framework-wrapper package, which parses the message, calls the work with it, and
-acknowledges the message once the run succeeds or returns it when the run fails (rules 11, 15), the run
-writing values taken from the message, never the clock, and never letting an older message replace a
-newer one for the same key (`persistence` rule 16). A broker the service publishes to is an external
+acknowledges the message once the run succeeds or returns it when the run fails (rule 15;
+`at-least-once-delivery` rules 3–4). A broker the service publishes to is an external
 system with a package of its own (`flat-layered` rule 14).
 
 ## Shape 4 — an HTTP trigger, on FastAPI
@@ -302,8 +305,9 @@ for rule 9.
    policies and the outer one no longer bounds it.
 5. **Return aggregates, not lists of items.** Where the work has something to report, it returns frozen
    dataclasses of counters or timestamps, so what a trigger reports, logs or stores stays bounded; the
-   items themselves live in the datastore; a trigger's report is not a data bus. A read served over HTTP is the one exception by
-   construction — it returns the single record it was asked for, never the items a run processed.
+   items themselves live in the datastore; a trigger's report is not a data bus. A read served over HTTP
+   is the one exception by construction — it returns the single record it was asked for, never the
+   items a run processed.
 6. **The routing name a run is addressed to has exactly one source, and every participant reads it from
    that one place.** A queue URL, a topic, a subscription name or the name an engine routes work by is
    normally a per-deployment value and then belongs with the rest of the process's settings
@@ -331,9 +335,8 @@ for rule 9.
    failure — a catalogue error, the framework's validation failure, an unexpected exception — is
    rendered in one shape, in one place, never per route, and logged once there. A route that branches on
    the data, reaches the repository class or the client, or catches a catalogue error or maps it to a
-   status of its own, has become a second place the work lives. A request from a third party is verified
-   against the raw body it signed before the body is parsed, and a redelivery of one already recorded is
-   answered as a success and changes nothing.
+   status of its own, has become a second place the work lives. A request a third party delivers is held to
+   `at-least-once-delivery` rules 3 and 5; the route is where its signature is verified.
 10. **An input whose size the service does not control is processed in bounded memory.** An upstream
     file, an export or a feed is streamed — read and transformed a bounded slice at a time, each slice
     written before the next is read — and
@@ -360,14 +363,13 @@ for rule 9.
     copy per process is one wiring per copy, and they drift. The builder owns the thing's end as well as
     its start — the pool closed, the engine disposed — when the process leaves it, by any exit
     (`flat-layered` rule 12).
-15. **A unit a broker delivered whose run failed is neither acknowledged as done nor retried without
-    bound.** It returns for redelivery up to a declared limit, then goes to a dead-letter
-    destination the operator can read. The limit and the dead-letter destination are the broker's own
-    configuration (a redrive policy, a delivery limit), declared with the deployment, never a counter in
-    the process. Because delivery is then at least once, the unit's effect is idempotent under
-    redelivery — a second delivery of a unit already applied changes nothing. A contained failure that
-    acknowledges the unit loses it silently; one that retries forever blocks everything behind it. A
-    polling run needs neither: its next tick is the retry.
+15. **A unit a broker delivered is held to `at-least-once-delivery`, and the framework-wrapper package
+    is where.** The wrapper acknowledges the unit once the work returns, returns it when the work
+    raises, and sends it to the dead letter where parsing fails and the broker allows it — a malformed
+    unit is never acknowledged and dropped. The containment function of a process that outlives one run
+    is the loop's and is never handed to a consumer. A run reading a source that keeps no delivery state
+    for it — a table, an API, a file listing — needs none of this: its next tick is the retry. A broker
+    or a stream read by polling is still delivering.
 16. **A process that waits between runs waits for an interval its settings declare, required and with
     no default** (`python-settings` rule 5) — never a constant in the code, which only a redeploy can
     change. A consumer that never waits, taking its next unit as soon as one arrives, declares none.

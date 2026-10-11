@@ -2780,3 +2780,68 @@ it. `python-workspace`'s root `pyproject.toml` template held three notes to the 
 which would have landed verbatim; they are prose under the block. The `# only where …` optional-line
 markers stay: they mark a line, not a comment to copy.
 **Reverse by:** from the parent of the commit that added this entry, reverting it.
+
+### D175 — A universal skill owns at-least-once delivery
+Taken under the verified full review of 2026-10-11, as the maintainer agreed, and corrected by a
+four-lens review of the branch. What a program owes a unit another party delivers until it is
+acknowledged was stated only in the flat family and in different words — `flat-entrypoint` rules 9, 11
+and 15 and Shape 3 — while `hex-architecture` had only acknowledge-after-the-handler and a create's
+identity, and no bounded redelivery or dead letter at all. Both families have consumers, so D145's
+condition for a universal owner is met. The new `at-least-once-delivery` is unprefixed, a reference
+skill with five rules and no template, since a redrive policy is deployment configuration rather than
+code. Rule 1: a unit is acknowledged only once its effect is committed and a failed one is returned;
+where the acknowledgement is an offset, none is committed past a failed unit until it is dead-lettered,
+and where the mechanism redelivers only when asked, as a stream's pending entries, the consumer claims
+them back so a failure reaches the bound.
+Rule 2: redelivery is bounded and ends in a dead letter the operator reads. The first draft put the limit
+and the destination in the broker's configuration alone, which is false for a log read by offset (the
+consumer publishes to a dead-letter topic), for a stream whose pending entries count deliveries but set
+no limit, and for a queue with no delivery limit whose death history travels with the message. So the
+count is the mechanism's where it keeps one or travels with the unit, never a counter held in the
+process; the limit and destination are declared in the mechanism's configuration where it has a redrive
+of its own and otherwise in the consumer's settings, the consumer then moving the unit to the dead
+letter and only then acknowledging it; a unit that can never succeed goes there directly where the
+mechanism allows; a retry around the work that never hands the unit back is the entrypoint's retry, not
+a redelivery. Broker spellings appear only as examples, outside the bold lead. Rule 3: a redelivery
+changes nothing, identity and values coming from the unit, and a unit already applied is acknowledged
+rather than failed as a conflict. Rule 4: arrival order is not the record's, pointing at `persistence`
+rule 16, which stays the store's side; a unit with no stamp writes the source's current state or keeps
+one writer per key. Rule 5: a third party's signature is verified over the raw body before parsing, a
+signed timestamp's tolerance included. A table says which rules bind for a broker or stream, a signing
+third party and an unsigned trusted one, both senders taking rule 2's answer to a failure. The first
+draft excluded "a poll", which caught every consumer that polls its broker; the exclusion is now a
+source that keeps no delivery state for the reader — a table, an API, a file listing — and a broker or
+stream read by polling is still delivering, in the table, the hard stop and `flat-entrypoint` rule 15.
+Rule 14's phrases travel verbatim from `flat-entrypoint` rule 15 ("neither acknowledged as done nor
+retried without bound", "a second delivery of a unit already applied changes nothing", the
+lost-silently and blocks-everything sentences). The name follows `naming`'s four steps: the sentence is
+"what a program owes each unit a sender delivers until it is acknowledged"; the head noun *delivery*;
+the qualifier separating it from the sending side and from a read of a source is the guarantee the
+rules answer, *at least once*; *message* was dropped because a webhook request is not a broker's
+message and the word would scope the skill to brokers, *inbound* because it says less to a reader than
+the guarantee does. The families keep the spelling and point. `flat-entrypoint` rule 15 keeps its
+number, cited by `flat-test-entrypoint`, and is reduced to flat's own: the wrapper acknowledges once the
+work returns, returns the unit when the work raises, sends a malformed one to the dead letter where the broker allows it, and the loop's containment
+function is never handed to a consumer; rule 9's third-party sentence cites rules 3 and 5, and Shape 3 and the
+containment paragraph D170 added cite the skill. `flat-test-entrypoint` rule 6 tests a consumer through
+the function that handles one delivered unit, never the loop's contained run. `hex-architecture`'s
+consumer line keeps acknowledgement and the create's identity (`hex-application` command handler rule
+6), adds that a redelivered create meeting its first delivery's record is acknowledged as done, and
+obliges a create a delivered unit drives to resolve a conflict on its own identity as nothing to do
+(`persistence` rule 15) — required there because rule 15 allows refusing, and `hex-persistence`'s
+plain insert maps a duplicate id to `ConflictError`, which would reach the consumer's scope and the dead
+letter. `hex-persistence`'s `REPOSITORY.md` rule 8 gains one prose line, no second template: such a
+create does nothing on a conflict on `id` while every other unique constraint still refuses, and a
+create driven by a request keeps the refusing insert. `hex-architecture` points at the skill for the
+rest; its central scope's outcome list says the unit returned or rejected
+rather than "a retry or a dead-letter". Hex has no test rule for either, recorded as a proposed backlog
+entry. `exception-catalog` rule 15 and `persistence` rule 16 keep their obligations; the first names the
+skill beside "idempotent under redelivery", the second's skill gains a neighbour line. The outbox and
+its relay stay in hex (D145); the skill routes the sending side away. No `when_to_use` is written, the
+description stays under 1,024 characters, and no `## Other bindings` is written, a reference skill
+having none.
+**Reverse by:** from the parent of the commits that added this entry, deleting
+`plugins/pyhouse-universal/skills/at-least-once-delivery/`, its two index entries, its ownership row and
+the counts, and restoring `flat-entrypoint`, `flat-test-entrypoint` rule 6, `hex-persistence`'s `REPOSITORY.md` rule 8, `hex-architecture`'s
+consumer, outcome and neighbour lines, `exception-catalog` rule 15, `persistence`'s neighbour list, the
+plugin's description and the backlog's proposed entry.

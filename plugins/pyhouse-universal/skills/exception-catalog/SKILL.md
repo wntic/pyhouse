@@ -266,9 +266,9 @@ that stops it — never dropped. A translation's unmatched branch raises; it doe
     with neither a re-raise nor a log line from the scope that stops it; it reads as a success. A caught
     failure is re-raised, translated, or stopped and logged once, and a failure of an effect after a
     committed write, outside what the operation changed, is stopped and logged or handed to something
-    that retries it — re-raised only where the operation is idempotent under redelivery. Best-effort
-    compensation is the one
-    case where a scope that re-raises also stops a failure, on the three conditions in **Swallowing,
+    that retries it — re-raised only where the operation is idempotent under redelivery
+    (`at-least-once-delivery`). Best-effort compensation is the one case where a scope that re-raises
+    also stops a failure, on the three conditions in **Swallowing,
     stopping, and best-effort compensation**: the undo's failure is stopped by the scope that caught the
     original, never inside the undo method in case a caller is compensating, and never raised in place
     of the original. Never a bare `except: pass`.

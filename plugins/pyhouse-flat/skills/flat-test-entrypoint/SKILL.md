@@ -163,8 +163,10 @@ connections to it.
 6. **A process that outlives one run is tested through the function that performs one contained run,
    never by driving the loop** (`flat-entrypoint` rule 8). Call it with the transport failing — it
    returns without raising — then call it again with the transport answering and assert on that run's
-   effect (rule 3). For a broker's consumer, the failed run's unit is asserted returned for redelivery,
-   never acknowledged (`flat-entrypoint` rule 15). The logged failure is not asserted
+   effect (rule 3). A broker's consumer is tested through the function that handles one delivered
+   unit, never the loop's contained run (`flat-entrypoint` rule 15): with the work failing, the unit is
+   asserted returned and never acknowledged; with it answering, acknowledged after the effect. The
+   logged failure is not asserted
    (`test-principles`). An escape built into the loop — a patched `asyncio.sleep` that raises, a
    counter that breaks out — asserts the mechanism instead of the behaviour; the loop needs no coverage
    of its own.
