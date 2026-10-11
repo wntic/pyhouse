@@ -5,9 +5,8 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest; every earlier agreed item has landed or was closed (D130–D164). Items 63–72
-come from the full review of 2026-10-11 after adversarial verification; 76–80 from the maintainer's own
-questions the same day.
+Item 55 predates the rest and is the only agreed item left; every other has landed or was closed
+(D130–D178).
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an

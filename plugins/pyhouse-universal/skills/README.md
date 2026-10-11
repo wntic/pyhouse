@@ -241,9 +241,9 @@ concrete. Like `coupling`, it assumes no layout and no architecture — only Pyt
 
 ## Backlog
 
-- **A hex entrypoint skill other than REST** (CLI, worker). Any entrypoint calls the same application
-  handlers (`hex-application`), and `hex-restapi-app` is the only worked shell; a CLI or queue-consumer
-  skill would own the shell around those handlers.
+- **A hex entrypoint skill other than REST** (a queue consumer or worker). Any entrypoint calls the same
+  application handlers (`hex-application`), and `hex-restapi-app` is the only worked shell; a command's
+  rules are `python-cli`'s, and a queue-consumer skill would own the shell around those handlers.
 - **`flat-service-client` as its own skill** — *not currently needed*. `flat-layered` carries the
   external-system client template, its constructor-argument rule and its alternatives, and
   `flat-test-service-client` carries the test. Split it out only if the client family grows past one
