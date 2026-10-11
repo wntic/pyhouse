@@ -2722,3 +2722,61 @@ tag spelling, and `/release-notes` points at it, since both had taken the neares
 **Reverse by:** from the parent of the commits that added this entry, restoring rule 9's method-finding
 sentence and the template-side fixup paragraph in `git-branching`, and the hook's unconditional `#`
 stripping and lowercase-only type.
+
+### D172 — `pyhouse-universal` corrections from the verified review of 2026-10-11
+Taken under the verified full review of 2026-10-11. `architecture-choice`'s two lists of the universal
+skills that still bind had omitted `persistence`, `coupling` and `python-container-image` while calling
+themselves the whole; both now say "every universal skill whose subject the project has", and its
+closing section counts six cases, not five. `exception-catalog` routes a client's error translation to
+its own rules 8–10 and the client class to the family or the project's own layout; its catalog template
+marks `NotFoundError` and `UpstreamError` `# only where …` instead of hedging in prose — both stay,
+since rule 10, the fallback example and nine family files rely on them — and its translation example
+stringifies `foo_id` like the fallback beside it. `meta-skill-author` said the listing had no total
+budget; a Claude Code 2.1.296 debug log on 2026-10-11 reported "Skill listing over budget: 63 skills,
+38145 chars > 30000 budget", past which the least-invoked skills keep only their names, and the
+catalogue's `description` + `when_to_use` pairs measure ~36,100 characters, ~737 a skill. Only the fact
+and the figure changed; what to do about it is a separate decision. `persistence` rule 8 drops the
+clause on which spellings a key's source merges. `python-packaging` rule 9 lets a module directly under
+an application's root be imported by its own path, since carve-out 1 forbids re-exporting it; its
+restated list of frozen names, which had drifted from `naming`'s **Renaming**, is a pointer; its opening
+no longer claims naming. `python-settings`' dotenv marker adds "never in a CLI tool" (rule 2);
+`python-toolchain`'s optional-line marker sits on its own line, apart from the floor's reason;
+`python-versioning`'s `version.py` template is one sentence. `python-versioning` and `python-workspace`
+send schema evolution to `persistence` for rules and to the family's data-access skill or the project's
+own layout for files. `python-workspace` marks the library group and `myschema` as present only where
+members share a library. `test-architecture-rule` ties its `sys.exit` allow-list example to
+`exception-catalog` rule 13 and labels rule 2's three name forms by meaning rather than by family. The
+hard stops in `naming`, `python-packaging`, `coupling`, `python-logging`, `test-principles` and
+`python-workspace` that routed only to a family also name the project's own layout. The reviewer
+agent's restated ownership list is a pointer to the table, and `/adopt` leaves the package row out
+whenever no argument names the family, whatever the tree looks like. `python-workspace`'s Makefile
+loses its `help` target and the `## …` notes on its targets, whose reasons the prose already gives,
+and its rule 1 heading says libraries and runnable members never share a group; `python-toolchain`'s
+three async pytest keys carry their `# only where …` markers on lines of their own.
+**Reverse by:** from the parent of the commit that added this entry, reverting it.
+
+### D173 — `python-versioning` rule 13 states the tag and the aggregate number
+Rule 13 said members version independently and lockstep is right only where one artifact ships them
+all, but which tag names a release and how an aggregate number moves were written only in `/release`,
+in `pyhouse-git`, so a project carrying `pyhouse-universal` alone never saw them. Rule 13 now says a tag
+names exactly one released thing — `<member>-v<version>` per member released separately, one
+`v<version>` naming an aggregate where one artifact ships every member — and that the aggregate moves
+whenever a member does, by a minor if any member moved by a minor or more, by a patch if every member
+that moved only patched. No section and no template: the mechanics stay in `/release`. It is the fourth
+rule stated in both `pyhouse-git` and `pyhouse-universal`, worded to agree, and `CLAUDE.md`'s list of
+them names it.
+**Reverse by:** from the parent of the commit that added this entry, removing the sentences from rule
+13 and the fourth instance from `CLAUDE.md`.
+
+### D174 — "No comments" reaches every file the project writes by hand
+`python-style`'s **Comments** bound source, migrations and tests, and nothing bound the
+`pyproject.toml`, Dockerfiles, compose files, CI workflows, hook configurations and scripts an agent
+writes, which filled with comments. The rule stays owned by `python-style` rather than split across
+those files' owners: **Comments** gains a bullet and rule 10 a sentence — the source form holds in
+every file the project writes by hand, and a comment a tool generated (`alembic.ini` after
+`alembic init`) is not the project's writing. Because `python-style`'s description does not fire when
+such a file is written, `python-toolchain` and `python-container-image` each carry one pointer line to
+it. `python-workspace`'s root `pyproject.toml` template held three notes to the copier as comments,
+which would have landed verbatim; they are prose under the block. The `# only where …` optional-line
+markers stay: they mark a line, not a comment to copy.
+**Reverse by:** from the parent of the commit that added this entry, reverting it.

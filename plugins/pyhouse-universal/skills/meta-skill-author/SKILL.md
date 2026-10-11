@@ -76,10 +76,11 @@ paths: <optional — activation globs>
 ### Length
 
 - **`description` has no documented maximum.** Plan to **1,024 characters** as a safe ceiling.
-- **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing. This is
-  the only hard number the platform documents.
-- **There is no total budget across the catalogue** — 49 skills at ~400 characters is ~2% of a 200k
-  window. Length is spent where it buys disambiguation, not minimised.
+- **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing.
+- **The listing has a total budget, a fixed share of the context window.** Past it, the least-invoked
+  skills' descriptions are dropped and only their names kept. This catalogue's `description` +
+  `when_to_use` pairs come to ~36,100 characters, ~737 a skill, enough to pass it. Every character
+  added to one skill's listing is weighed against another skill's description being dropped.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
 

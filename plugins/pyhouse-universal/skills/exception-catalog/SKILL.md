@@ -38,8 +38,9 @@ shape** — the catalogue knows no transport (rules 6 and 13).
   `hex-persistence`, in the `pyhouse-hex` plugin, or `flat-persistence`, in the `pyhouse-flat`
   plugin — which references this skill for the target class name, or, with no family installed, the
   project's own data-access code, under this skill's rules 8–11.
-- Translating an HTTP or SDK error inside a client class → `flat-layered`, in the `pyhouse-flat`
-  plugin, same relationship.
+- Translating an HTTP or SDK error inside a client class → this skill's rules 8–10; the client class
+  itself is the family's — `flat-layered`, in the `pyhouse-flat` plugin, or `hex-capability-adapter`, in
+  the `pyhouse-hex` plugin — or the project's own layout.
 - The status a new class answers with on an HTTP route, and advertising it → the boundary's map
   (`hex-restapi-app`, then `hex-restapi-endpoint`, in the `pyhouse-hex` plugin; `flat-entrypoint`'s
   `HTTP.md`, in `pyhouse-flat`).
@@ -73,8 +74,8 @@ In `myapp/exceptions.py`:
 ```python
 __all__ = [
     "MyappError",
-    "NotFoundError",
-    "UpstreamError",
+    "NotFoundError",  # only where a lookup can miss
+    "UpstreamError",  # only where the project calls an external system
 ]
 
 
@@ -86,16 +87,15 @@ class MyappError(Exception):
         self.context: dict[str, object] = context if context is not None else {}
 
 
-class NotFoundError(MyappError):
+class NotFoundError(MyappError):  # only where a lookup can miss
     code = "NOT_FOUND"
 
 
-class UpstreamError(MyappError):
+class UpstreamError(MyappError):  # only where the project calls an external system
     code = "UPSTREAM_ERROR"
 ```
 
-That is the entire class body of each entry. No `__init__`, no fields, no methods. The classes a
-project needs are its own; these two show the pattern, not a list to copy.
+That is the entire class body of each entry. No `__init__`, no fields, no methods.
 
 ### A custom subclass and its raise site
 
@@ -146,7 +146,7 @@ try:
     response = await http.get(url)
     response.raise_for_status()
 except httpx.HTTPError as exc:
-    raise UpstreamError(f"failed to fetch foo {foo_id}", {"foo_id": foo_id}) from exc
+    raise UpstreamError(f"failed to fetch foo {foo_id}", {"foo_id": str(foo_id)}) from exc
 ```
 
 `from exc` is not optional. It preserves `__cause__`, which is what a test asserts to prove the

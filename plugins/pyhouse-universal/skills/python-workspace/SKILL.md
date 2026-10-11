@@ -19,7 +19,8 @@ its architecture's business — `hex-architecture`, in the `pyhouse-hex` plugin,
 - The architecture family of the members going into the workspace is not settled →
   `architecture-choice` decides hexagonal versus flat per distribution; nothing here depends on the
   answer.
-- Where members share a store, what its owning library holds → the member family's persistence skill.
+- Where members share a store, what its owning library holds → `persistence` for the rules, and for
+  the files the member family's data-access skill or the project's own layout.
 - Adding one member's internal layout — its layer or role packages, its clients, its work units → not
   this skill, use that member's architecture skill.
 - Choosing a runnable member's trigger → the member family's entrypoint skill (`flat-entrypoint`, in the
@@ -53,19 +54,18 @@ myrepo/
 │   └── compose.yaml          # deployment template — registry images, resource limits
 ├── tests/
 │   └── test_architecture.py  # repository-wide grep firewall
-├── packages/
+├── packages/                 # only where members share a library
 │   └── myschema/             # a library the runnable members depend on
 └── services/
     └── myapp/                # one runnable distribution per directory
 ```
 
-**A library that drags a heavy dependency in is not the same member as one that does not.** A library
-owning the schema pulls in the database driver and the migration tool; a member that only wants the
-logging setup should not inherit those. When the second cross-cutting helper appears, that is the signal
-for a second `packages/` member, not a bigger first one — and a repository with nothing cross-cutting yet
-has only the one.
+**A library that drags a heavy dependency in is not the same member as one that does not** — a member
+that only wants the logging setup should not inherit a schema library's driver and migration tool. The
+second cross-cutting helper is the signal for a second `packages/` member, not a bigger first one; a
+repository whose members share nothing has no `packages/` at all.
 
-Root `pyproject.toml`:
+Root `pyproject.toml` — `python-toolchain`'s tables, written here once and whole, plus:
 
 ```toml
 [project]
@@ -76,14 +76,12 @@ requires-python = ">=3.13"
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
 
-# [tool.ruff*] and [tool.mypy]: python-toolchain's tables, whole, written here once
-
 [tool.pytest.ini_options]
-# python-toolchain's keys, except `pythonpath`, which lists only what this root loads (below), and:
 testpaths = ["tests"]
-
-# [dependency-groups]: python-toolchain's dev group, whole, written here once
 ```
+
+Its `pythonpath` lists only what this root loads (below), and `packages/*` is a member group only
+where members share a library.
 
 The test configuration is whole here and nowhere else (rule 6): `python-toolchain`'s block, with
 `testpaths` naming each run's own `tests/`. **Each member's suite runs from that member's directory, with
@@ -92,7 +90,7 @@ target below does both. A member's tests import their own support (`tests.unit.f
 under a name that resolves to that member's tree, and one run over the whole repository cannot give them
 that: with the root as the runner's root, `pythonpath = ["."]` makes `tests` the repository's own
 directory and no member's, and listing every member's directory instead lets the first one listed
-shadow every other member's `tests`. Under the import mode above the runner's root decides what `tests`
+shadow every other member's `tests`. Under `python-toolchain`'s `--import-mode=importlib` the runner's root decides what `tests`
 names, while a `pythonpath` entry resolves against this file, so the root block carries no `.`.
 
 The root project is a **workspace container plus shared tooling config, with no runtime code of its
@@ -111,8 +109,9 @@ Each member's `pyproject.toml` declares its workspace dependencies explicitly �
 [project]
 name = "myapp"
 version = "0.1.0"
-dependencies = ["myschema"]
+dependencies = ["myschema"]  # only where members share a library
 
+# only where members share a library
 [tool.uv.sources]
 myschema = { workspace = true }
 
@@ -152,12 +151,9 @@ and nothing else.
 `Makefile`:
 
 ```makefile
-.PHONY: help install lint fmt typecheck test verify run-myapp
+.PHONY: install lint fmt typecheck test verify run-myapp
 
-help:  ## list targets
-	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
-
-install:  ## sync the whole workspace (bare `uv sync` only syncs the root project)
+install:
 	uv sync --all-packages
 
 lint:
@@ -167,15 +163,15 @@ fmt:
 	uv run ruff check --fix
 	uv run ruff format
 
-typecheck:  ## each member from its own directory, then the root's own tests
+typecheck:
 	for member in packages/* services/*; do [ -d $$member/src ] || continue; (cd $$member && uv run mypy --config-file $(CURDIR)/pyproject.toml src $$(find tests -name '*.py' 2>/dev/null | grep -q . && echo tests)) || exit 1; done
 	uv run mypy tests
 
-test:  ## each member's suite from its own directory, then the root's own
+test:
 	for member in packages/* services/*; do [ -d $$member/tests ] || continue; (cd $$member && uv run pytest --rootdir .; rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 5 ]) || exit 1; done
 	uv run pytest
 
-verify: lint typecheck test  ## run before pushing
+verify: lint typecheck test
 
 run-myapp:
 	cd services/myapp && uv run python -m myapp
@@ -223,7 +219,8 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
 
 ## Rules
 
-1. **One workspace, two member groups.** One group holds libraries with no entrypoint of their own;
+1. **One workspace; libraries and runnable members never share a group.** One group holds libraries with no entrypoint of their own —
+   only where members share a library, and a repository whose members share none has no such group;
    the other holds runnable distributions, one directory per deployable. `packages/*` and `services/*`
    are this example's names for them. Never put runnable code in the library group or shared library
    code in the runnable one, and never runtime code in the root project, which is a container: code
@@ -287,7 +284,7 @@ that load it. Infrastructure with its own schema owner — a workflow engine, a 
   schema owner.
 - Asked for a member's internal layout — its layer or role packages, its clients, its work units → stop,
   use that member's architecture skill (`hex-architecture`, in `pyhouse-hex`, or `flat-layered`, in
-  `pyhouse-flat`).
+  `pyhouse-flat`), or the project's own layout where neither applies.
 - The members' architecture family is not settled → stop, use `architecture-choice`, once per member.
 - Asked whether a proposed member is a boundary at all → stop, use `coupling`; rule 2 is the check this
   skill runs once that is settled.

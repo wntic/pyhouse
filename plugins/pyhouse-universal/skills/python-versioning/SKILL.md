@@ -50,8 +50,9 @@ depending on it.
   against, the release that carries it is still weighed here.
 - A repository holding several distributions — the member split, in-repository dependency edges, tooling
   settled once → `python-workspace`. It governs members; which number each member carries is here.
-- Database schema evolution and the migration chain → the family's persistence skill. A migration is
-  versioned by its own chain, not by the distribution's number.
+- Database schema evolution and the migration chain → `persistence` for the rules, and for the files
+  the architecture family's data-access skill or the project's own layout. A migration is versioned by
+  its own chain, not by the distribution's number.
 - A library, an SDK or any distributed package has no architecture family — `architecture-choice`
   names that shape as one this catalogue does not cover, and says the universal skills still bind in
   full. This is one of them, and it binds hardest there: a distributed package is the case where the
@@ -76,22 +77,9 @@ The release is an annotated tag on the release commit, spelled `v0.1.0` (rule 5)
 `git tag -a v0.1.0 -m "myapp 0.1.0"`.
 
 Where the program reports its version — a `--version` flag, a health endpoint — it reads the installed
-distribution's metadata rather than a second literal, when asked and not at import (`python-packaging`
-rule 8 builds nothing at import time, and a metadata lookup is a filesystem read). The function lives
-in a module of its own, or where the version is reported; what the package root holds is
-`python-packaging`'s. In `src/myapp/version.py`:
-
-```python
-from importlib.metadata import version
-
-__all__ = ["read_installed_version"]
-
-
-def read_installed_version() -> str:
-    return version("myapp")
-```
-
-That call takes the **distribution** name, which need not equal the import package's name.
+distribution's metadata (`importlib.metadata.version`, given the **distribution** name, which need not
+equal the import package's) rather than a second literal, when asked and never at import
+(`python-packaging` rule 8).
 
 ## Other bindings
 
@@ -176,6 +164,10 @@ That call takes the **distribution** name, which need not equal the import packa
 13. **Members of one repository version independently.** Lockstep is correct only where a single
     artifact ships them all. A shared library several distributions depend on carries its own number,
     and bumping it is a release its consumers choose to take — which is the whole reason it has one.
+    A tag names exactly one released thing, in rule 5's spelling: one `<member>-v<version>` tag per
+    member where members are released separately, and one `v<version>` naming an aggregate number where
+    one artifact ships every member. That aggregate moves whenever a member does, because its tag is never reused — by a minor
+    if any member moved by a minor or a major, by a patch if every member that moved only patched.
 
 14. **State where the scheme deviates, loudly.** Strict compatibility-encoding is not the Python norm,
     and a project that bends it — a minor that may carry a narrow break, a date-based scheme, a `0.y.z`

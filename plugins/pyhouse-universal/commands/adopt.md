@@ -35,8 +35,9 @@ the session still counts. Where this file states a convention of its own, it win
 
 The family is not chosen here. Only where `$ARGUMENTS` names the family the code already follows, add
 the row "add, move or split a package or module | `pyhouse-hex:hex-architecture`" (or
-`pyhouse-flat:flat-layered`). Where the repository is a library or a CLI tool, the first row is left
-out.
+`pyhouse-flat:flat-layered`). With no argument naming the family, that row is left out, whatever the
+tree looks like — a layout that looks hexagonal or flat is not the family settled. Where the
+repository is a library or a CLI tool, the first row is left out.
 
 ## 3. Report
 

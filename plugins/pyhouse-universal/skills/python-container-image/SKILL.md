@@ -20,6 +20,8 @@ sits among several, and the compose file that runs them, is `python-workspace`.
   `python-workspace`; what goes inside a member's `Dockerfile` is still this skill's.
 - What the program reads from its environment at start-up, and the secret type that carries a
   credential → `python-settings`.
+- A comment in the `Dockerfile` or its ignore file → `python-style`'s **Comments**, which holds in every
+  file the project writes by hand.
 - Where log events go, and a program whose stdout is its result → `python-logging`.
 - One console script per command or process → `python-toolchain`; the image runs one of them.
 - What the process does once the stop signal arrives → not this skill, which only delivers the signal.

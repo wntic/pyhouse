@@ -17,6 +17,8 @@ no family needs only this skill.
 
 - The interpreter floor, its house value and the three settings that name it → `python-style`; this
   skill writes them where it says.
+- A comment in `pyproject.toml`, a `Dockerfile`, a compose file, a CI workflow or a hook configuration
+  → `python-style`'s **Comments**, which holds in every file the project writes by hand.
 - An inline type-ignore, a `cast`, annotation coverage of tests → `python-style`, which owns the
   type-suppression policy; this skill owns only the per-package missing-stub override in the config.
 - The wildcard re-export in `__init__.py` and what a package root exports → `python-packaging`.
@@ -51,7 +53,8 @@ dependencies = []
 dev = [
     "mypy",
     "pytest",
-    "pytest-asyncio>=0.26",  # where the suite has async tests; 0.26: asyncio_default_test_loop_scope
+    # only where the suite has async tests
+    "pytest-asyncio>=0.26",  # 0.26: asyncio_default_test_loop_scope
     "ruff",
 ]
 
@@ -91,9 +94,12 @@ plugins = ["pydantic.mypy"]  # only with pydantic
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 pythonpath = ["."]
-asyncio_mode = "auto"                            # where the suite has async tests
-asyncio_default_fixture_loop_scope = "session"   # where a session-scoped async resource exists
-asyncio_default_test_loop_scope = "session"      # where a session-scoped async resource exists
+# only where the suite has async tests
+asyncio_mode = "auto"
+# only where a session-scoped async resource exists
+asyncio_default_fixture_loop_scope = "session"
+# only where a session-scoped async resource exists
+asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error"]
 ```
 

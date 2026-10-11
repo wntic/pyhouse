@@ -109,7 +109,9 @@ The multi-member form is the same function over `*_SRC_DIRECTORIES, *_TESTS`.
 
 ### Rule with an in-test allow-list
 
-The one allow-listed path is a constant at the top of the file, beside the others (rule 4):
+The one allow-listed path is a constant at the top of the file, beside the others (rule 4). The example
+is `exception-catalog` rule 13 enforced: the entry point is the one scope that renders a caught error and
+maps it to an exit code, so a process exit anywhere else is a second rendering:
 
 ```python
 _ENTRYPOINT = str(_ROOT / "src" / "myapp" / "__main__.py")
@@ -157,12 +159,12 @@ thing, which verb — are `naming`'s decision; the **patterns those words go int
    `def test_*() -> None` under the pytest binding — and no `try/except` or conditional skip around the
    search, which would break the unconditional property that makes a firewall worth having. The test name **is** the rule, and the file's test
    list reads as the workspace's structural constitution.
-2. **A rule's name states its scope and what is absent, in its family's form.** Do not pluralize, do
-   not add qualifiers.
-   - **hex — layer-scoped:** `test_<layer>_has_no_<thing>`, e.g. `test_domain_has_no_pydantic`.
-   - **flat — role-scoped:** `test_no_<thing>_outside_<role>`, e.g.
+2. **A rule's name states its scope and what is absent, in the form its meaning takes.** Do not
+   pluralize, do not add qualifiers.
+   - **A scope has no X:** `test_<scope>_has_no_<thing>`, e.g. `test_domain_has_no_pydantic`.
+   - **X only inside a scope:** `test_no_<thing>_outside_<scope>`, e.g.
      `test_no_statement_outside_the_data_access_package`.
-   - **either family — repository-wide:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
+   - **X nowhere:** `test_no_<thing>`, e.g. `test_no_future_annotations_anywhere`.
    A name that does not say where the rule looks sends a reader to the pattern to find out, and the
    file stops being readable as a constitution.
 3. **The failure names every offending location, never a count or a boolean.** Assert the collected

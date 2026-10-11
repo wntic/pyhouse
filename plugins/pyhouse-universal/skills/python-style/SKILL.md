@@ -281,6 +281,9 @@ never *what*, never a multi-line block. The scope of that rule is not uniform ac
   not this allowance; that is the code said twice, and it is the form that goes stale. *This allowance rests on banners
   having held so far, not on a test of failure, so it carries its withdrawal condition: if a banner is
   ever found lying or silently out of date, the allowance goes and tests fall under the source form.*
+- **In every other file the project writes by hand** — `pyproject.toml`, a `Dockerfile`, a compose
+  file, a CI workflow, a hook configuration, a script: the source form. A comment a tool generated
+  (`alembic.ini` after `alembic init`) is not the project's writing, and this rule does not reach it.
 
 Structural labels are not comments worth writing: no `# Arrange` / `# Act` / `# Assert`, no `# imports`,
 no `# helpers`.
@@ -331,7 +334,9 @@ never lands in the project's file.
     (`# Arrange`, `# helpers`) — applied by location under **Comments**, preserving its
     revision-docstring and test-banner allowances and their stated limits; a test banner says what the
     group pins, never what the tests do. A comment or a docstring names only what outlives it — never a
-    spec, a plan or a number taken from one, numbered and tracked or not — under the same section.
+    spec, a plan or a number taken from one, numbered and tracked or not — under the same section. The
+    rule holds in every file the project writes by hand, configuration and scripts included, and never
+    reaches a comment a tool generated.
 11. **A type error is fixed, not silenced; an inline type-ignore is the last resort, names its error
     code and gives its reason**, and a missing stub is silenced only by a per-package configuration
     override. `cast` narrows only after a runtime guard the checker cannot follow; it never silences
