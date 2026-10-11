@@ -42,18 +42,6 @@ restating it. The outbox and its relay stay in hex (D145). Item 65 has landed; u
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 
-### 76. `python-versioning` rule 13 states the tag and the aggregate number
-Rule 13 says members version independently and lockstep is right only where one artifact ships them
-all, but the tag scheme and the aggregate number are written only in `/release` (`pyhouse-git`,
-`release.md:37-39`, `:104`) and this repository's `CLAUDE.md` — a project with `pyhouse-universal`
-alone never sees them. Add one or two sentences to rule 13: a tag names exactly one released thing —
-`<member>-v<version>` per member where members are released separately, one `v<version>` naming an
-aggregate number where one artifact ships every member; the aggregate moves whenever a member does, by a
-minor if any member moved by a minor or more, by a patch if every member that moved only patched. No
-section and no template — the mechanics stay in `/release`. This is a fourth rule stated in both
-`pyhouse-git` and `pyhouse-universal`, worded to agree: add it to the list in `CLAUDE.md` "Four plugins,
-one-way dependency", which names three today.
-
 ### 77. "No comments" reaches every file the project writes by hand
 `python-style` "Comments" (`:269-290`) binds source, migrations and tests; nothing binds the
 `pyproject.toml`, Dockerfiles, compose files, CI workflows, hook configurations and scripts an agent

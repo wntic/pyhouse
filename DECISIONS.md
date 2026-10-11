@@ -2754,3 +2754,16 @@ loses its `help` target and the `## …` notes on its targets, whose reasons the
 and its rule 1 heading says libraries and runnable members never share a group; `python-toolchain`'s
 three async pytest keys carry their `# only where …` markers on lines of their own.
 **Reverse by:** from the parent of the commit that added this entry, reverting it.
+
+### D173 — `python-versioning` rule 13 states the tag and the aggregate number
+Rule 13 said members version independently and lockstep is right only where one artifact ships them
+all, but which tag names a release and how an aggregate number moves were written only in `/release`,
+in `pyhouse-git`, so a project carrying `pyhouse-universal` alone never saw them. Rule 13 now says a tag
+names exactly one released thing — `<member>-v<version>` per member released separately, one
+`v<version>` naming an aggregate where one artifact ships every member — and that the aggregate moves
+whenever a member does, by a minor if any member moved by a minor or more, by a patch if every member
+that moved only patched. No section and no template: the mechanics stay in `/release`. It is the fourth
+rule stated in both `pyhouse-git` and `pyhouse-universal`, worded to agree, and `CLAUDE.md`'s list of
+them names it.
+**Reverse by:** from the parent of the commit that added this entry, removing the sentences from rule
+13 and the fourth instance from `CLAUDE.md`.

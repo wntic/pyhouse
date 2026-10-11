@@ -164,6 +164,10 @@ equal the import package's) rather than a second literal, when asked and never a
 13. **Members of one repository version independently.** Lockstep is correct only where a single
     artifact ships them all. A shared library several distributions depend on carries its own number,
     and bumping it is a release its consumers choose to take — which is the whole reason it has one.
+    A tag names exactly one released thing, in rule 5's spelling: one `<member>-v<version>` tag per
+    member where members are released separately, and one `v<version>` naming an aggregate number where
+    one artifact ships every member. That aggregate moves whenever a member does, because its tag is never reused — by a minor
+    if any member moved by a minor or a major, by a patch if every member that moved only patched.
 
 14. **State where the scheme deviates, loudly.** Strict compatibility-encoding is not the Python norm,
     and a project that bends it — a minor that may carry a narrow break, a date-based scheme, a `0.y.z`
