@@ -230,12 +230,12 @@ specific owners. Everything else points at the owner. Before replacing a restate
 open the owner and confirm the rule is actually there — a pointer to a rule that was never written is
 invisible.
 
-**`description` must stand alone.** opencode and Codex read `description` and nothing else, so it must
-disambiguate the skill from its siblings without `when_to_use`. It opens `Use when …`, trigger first,
-one paragraph, no bare `: ` (a colon-plus-space breaks the YAML parse and the skill silently stops
-auto-firing), no application-specific names. `paths` narrows auto-activation, so it globs a layer
-directory prefixed `**/` (`**/domain/**`) and never appears on a universal skill or on
-`architecture-choice`, which must fire on a greenfield tree.
+**`description` decides whether a skill fires.** Claude Code matches it, with `when_to_use` after it,
+against the work at hand, and truncates the pair from the end at 1,536 characters combined. It opens
+`Use when …`, trigger first, one paragraph, no bare `: ` (a colon-plus-space breaks the YAML parse and
+the skill silently stops auto-firing), no application-specific names. `paths` narrows auto-activation,
+so it globs a layer directory prefixed `**/` (`**/domain/**`) and never appears on a universal skill or
+on `architecture-choice`, which must fire on a greenfield tree.
 
 **Placeholders only.** `Foo`/`Bar` aggregates (`Baz` a third, held by a different kind of store), `Qux` an external system the service calls, `myapp` a distribution's own package, `myschema` a
 shared library several distributions depend on, `myrepo` the repository root, `myframework` a framework a
