@@ -29,7 +29,7 @@ values and writes them down. Read both skills before writing, and do not restate
 - **The mainline** — `git symbolic-ref --short refs/remotes/origin/HEAD` with its `origin/` removed,
   else the branch releases are tagged on, else the branch `HEAD` names (`git symbolic-ref --short
   HEAD`, which answers before the first commit).
-- **The merge method** — found as `git-commit-message` rule 9 says; the forge's settings decide it only
+- **The merge method** — found as `git-branching` rule 2 says; the forge's settings decide it only
   where they allow exactly one method. With no history yet, propose merge commits, `git-branching`'s
   template. Where changes are committed straight to the mainline, that is the method, and
   `git-branching`'s binding for it is what gets written.
