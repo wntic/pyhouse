@@ -1,7 +1,6 @@
 ---
 name: naming
-description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on ports, the error-class and repository-class identifier forms, the vague-noun replacements, and the role suffixes (`Handler`, `Result`, `Payload`, `Service`) an architecture defines that are exempt from them. The mechanics around a name are `python-packaging`.
-when_to_use: Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repository already spells two ways.
+description: Use when deciding what something is called — what should I call this module or class, this name is vague, rename this, re-derive a ported or generated name. Owns the derivation procedure, the six naming tests, the `I` prefix on ports, the error-class and repository-class identifier forms, the vague-noun replacements, and the role suffixes (`Handler`, `Result`, `Payload`, `Service`) an architecture defines that are exempt from them. The mechanics around a name are `python-packaging`. - Naming a variable, parameter, enum member or constant; choosing between `fetch_`, `build_` and `get_by_`; standardising a term the repository already spells two ways.
 ---
 
 # Naming — deriving a name instead of recalling one

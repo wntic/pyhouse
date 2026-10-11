@@ -32,6 +32,11 @@ what they write: a short section in its `CLAUDE.md` naming the skill to load bef
 the repository's branching decisions, and a project setting that drops Claude Code's own authorship
 line. Neither command picks an architecture family.
 
+The catalogue takes most of Claude Code's skill-listing budget, so even with only a family plugin
+installed some skills are listed by name alone, without their description. To list every description,
+raise the budget with `skillListingBudgetFraction` in the project's `.claude/settings.json` (the
+default is `0.01`; `0.02` lists the whole catalogue). `/pyhouse-universal:adopt` does not write it.
+
 ## Which family?
 
 > **Does this service have business invariants of its own that it must enforce?**

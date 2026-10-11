@@ -1,7 +1,6 @@
 ---
 name: python-packaging
-description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap with the test for when a closed set of declarations may share a module, the four-part re-export contract, building nothing at import time, and the `py.typed` marker a library distribution ships. Naming a module is `naming`.
-when_to_use: Adding a public module to a package; a wildcard import; import order; a module-level settings object, engine or client.
+description: Use when the question is the mechanics around a module rather than what it is called — `__init__.py`, `__all__`, a re-export, one file or two modules, relative versus absolute imports, a circular import, or whether this needs a class at all. Owns when a class earns its place and the one-class-per-module cap with the test for when a closed set of declarations may share a module, the four-part re-export contract, building nothing at import time, and the `py.typed` marker a library distribution ships. Naming a module is `naming`. - Adding a public module to a package; a wildcard import; import order; a module-level settings object, engine or client.
 ---
 
 # Python Packaging

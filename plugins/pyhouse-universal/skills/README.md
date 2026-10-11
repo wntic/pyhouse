@@ -45,10 +45,9 @@ always brings the universal skills with it. `pyhouse-universal` is installable a
 may *name* a family skill as an example but never require one.
 
 Frontmatter and description rules — including the real length limits — are owned by
-`meta-skill-author`. There is **no total description budget** across the catalogue, and no per-skill
-character cap: `description` has no documented maximum, `description` + `when_to_use` truncate at
-**1,536 characters combined**, and length is spent where it buys disambiguation. Descriptions are
-rewritten as complete sentences to fit, never truncated.
+`meta-skill-author`. `description` truncates at **1,536 characters**, and the skill listing has a total
+budget past which descriptions are dropped and only names kept, so length is spent where it buys
+disambiguation. Descriptions are rewritten as complete sentences to fit, never truncated.
 
 ## Universal (17) — always in play
 
@@ -193,8 +192,8 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
 - Each opens with **When to use vs. neighbours**, so the wrong skill routes to the right one.
 - Rules that are non-obvious carry their *reason*, and a few carry an explicit **withdrawal condition**
   — the observation that would retire the rule. Those are deliberate; do not strip them.
-- **Frontmatter follows `meta-skill-author`.** `name` and `description` are required; `when_to_use`
-  and `paths` are valid, documented Claude Code fields and optional on any skill. Descriptions open
+- **Frontmatter follows `meta-skill-author`.** `name` and `description` are required; `paths` is
+  a valid, documented Claude Code field and optional. Descriptions open
   with **"Use when…"**, putting the trigger first and the content summary second.
 - **Never write a bare `: ` inside an unquoted description.** A colon-plus-space breaks the YAML
   parse and can leave the skill with empty metadata and no description to match. Use an em dash.
@@ -211,9 +210,9 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
   is typed bare, `/naming`. Inside a skill body, name the skill and never its slash form; it is
   the name that is stable across both install paths.
 - **Publishing.** Marketplace distribution via a GitHub repository and `plugin.json` carries `paths`
-  and `when_to_use` fine; publishing to claude.ai or the Skills API does not — that channel
-  fails hard on any key outside `name`, `description`, `license`, `compatibility`, `metadata` and
-  `allowed-tools`, so both fields are stripped on that path.
+  fine; publishing to claude.ai or the Skills API does not — that channel fails hard on any key
+  outside `name`, `description`, `license`, `compatibility`, `metadata` and `allowed-tools`, so the
+  field is stripped on that path.
 
 ## Adapting to a project
 

@@ -1542,7 +1542,7 @@ where they are, and 17 of them put helpers first; widening the rule to them is a
 `_translate` and `_map_integrity_error` back above their classes.
 
 ### D120 — `when_to_use` is optional, and neither its presence nor its absence is a defect
-**That `description` must stand alone reversed by D164.**
+**That `description` must stand alone reversed by D164.** **The field itself reversed by D178.**
 18 skills carry `when_to_use` and 30 do not, nearly all of `pyhouse-hex` among the latter. The
 maintainer chose to legalize that state as it is rather than even it out: the field is Claude Code
 only, every other client matches on `description` alone, so it is written where there are trigger
@@ -2553,6 +2553,7 @@ under its template; `hex-restapi-endpoint`'s PATCH route and its sentence;
 `hex-domain-model`'s sentence on `note`; the two index lines; and removing the reversed marker on D143.
 
 ### D164 — The catalogue is written for Claude Code alone
+**The combined `description` + `when_to_use` limit reversed by D178; the 1,536 cap is `description`'s alone.**
 Taken by the maintainer (2026-10-11), partly reversing D120 and D158. Serving other agents came from a
 corporate LLM used through opencode, now too rate-limited and too short of context to develop with;
 no other agent is in use, so what existed only for one goes. `description` no longer has to identify
@@ -3000,3 +3001,38 @@ The family pointers are one sentence each in `hex-architecture` and `flat-entryp
 - restore `flat-project-setup`'s console-script sentence;
 - drop the plugin manifest's clause;
 - remove the `python-cli` sentences in `hex-architecture` and `flat-entrypoint`.
+
+### D178 — Descriptions stay as they are; `when_to_use` folds into `description`
+Measured on 2026-10-11 (Opus, `claude -p`, a scratch hex project, the checkout's universal, hex and
+`pyhouse-git` plugins loaded with `--plugin-dir`, user settings excluded). The skill-listing budget is
+30,000 characters, Opus and Sonnet alike; the catalogue's 41 skills then loaded took ~29,500 of the
+38,145 listed, and 14 of the 23 `hex-*` skills were listed by name alone (`hex-restapi-endpoint`,
+`hex-store-repository`, `hex-wiring`, every `hex-test-*`, …). `skillListingBudgetFraction` in a
+project's `.claude/settings.json` takes effect. Over 39 runs — three prompts naming the artifact, five
+not naming it, the default budget against 0.02, three repeats for the second set — the skill loaded
+never differed between the conditions: names carry the routing. The adopt section widened what was
+loaded (`hex-architecture` first, then universal skills) at 1.5–4× the turns. Not measured: what the
+agent then wrote, and models other than Opus.
+
+So descriptions are not shortened, and `when_to_use` leaves the catalogue: Claude Code only appends it
+to `description` under the same cap and the same budget, and claude.ai and the Skills API reject the
+key. In the 20 skills that carried it (a search finds 21 lines, the 21st being the placeholder in
+`meta-skill-author`'s frontmatter template), its text was appended to `description` by script with the
+join Claude Code's listing already used, ` - `, so each skill lists exactly as before. Texts that
+opened "Also when …" or "Also fires on …" keep it, and the six that opened on a bare phrase ("Naming a
+variable …", "Which layer does this class go in …") keep that too rather than being reworded. Every
+result still opens `Use when …`, is one paragraph, has no bare `: `, parses as YAML and stays within
+1,536 characters (the longest, `persistence`, is 1,517). Nine now exceed 1,024.
+
+`meta-skill-author`'s "Length" section planned to 1,024 as a safe ceiling. That figure is the Skills
+API's, a channel D164 stopped serving; trimming nine descriptions to it would cut trigger phrasings,
+which the measurement says cost nothing to keep. The ceiling now reads 1,536, `description` alone. The
+field is listed under "deliberately not used", with where its phrasings go instead; the publishing
+caveat keeps `paths` only; the listing figure is re-measured over all 51 skills as description only
+(~38,300, ~750 a skill — unchanged, since the listed text is the same). `skills/README.md` no longer
+says there is no total budget. The top-level `README.md` tells a user the catalogue takes most of the
+budget and how to raise it; `/pyhouse-universal:adopt` does not write the setting. `/commit` step 2
+checks the key is absent and the 1,536 cap.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — each skill's
+`when_to_use` is the text after its description's last ` - ` join.
