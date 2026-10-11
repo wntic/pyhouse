@@ -982,6 +982,7 @@ parent. The empty revision was a no-op every database replays forever. A baselin
 a schema that already exists, holds that schema as frozen hand-written DDL, and is stamped on the
 databases that have it. `flat-project-setup` and `hex-project-setup` state it in their own words.
 **Reverse by:** restoring the empty template in both setup skills; nothing else depends on it.
+**That each setup skill states it in its own words superseded by D165** (the root of a migration chain is stated once, in `persistence`).
 
 ### D86 — The linter bounds function size and complexity, with the thresholds written down
 Nothing in either setup skill measured a function's size, so an oversized one passed every check. Both
@@ -2563,3 +2564,22 @@ requires of any instructions file. The rest of D158 stands. A repository whose s
 it is in, so it never writes a second. One whose `AGENTS.md` nothing imports moves the section into
 `CLAUDE.md`, since Claude Code never read it there.
 **Reverse by:** from the parent of the commits that added this entry, reverting them.
+
+### D165 — The root of a migration chain is stated once, in `persistence`
+Taken by the maintainer (2026-10-11), after the full review of that day; supersedes D85's placement.
+The obligation — a new chain rooted at its first real revision with no placeholder ahead of it, and a
+baseline only over a schema that already exists, frozen by hand as that schema's definition, written once into
+an empty chain and marked on existing stores rather than run through them — holds for any store with
+versioned migrations in any family, and `persistence` owns migrations. D85 had each setup skill state it
+in its own words because `persistence` did not exist yet (D134), and the two copies had drifted. It is
+now named in `persistence` rule 20's lead and stated in its body, so no rule number moves, and its
+`when_to_use` asks how a migration chain starts; `flat-project-setup` (its "root of
+the chain" paragraphs and rule 8) and `hex-project-setup` (block B's prose, rules 4–5 and the
+migration-tool bullet under `## Other bindings`) keep only the Alembic spelling — an empty `versions/`,
+`op` calls, `alembic stamp` — and point at it. Both skills' hard stops stay, still routing to the
+family's data-access skill. The migration-tool bullet under each skill's `## Other bindings` points at
+the rule too, and the setup skills' own rules point at their Alembic spelling rather than restating it.
+**Reverse by:** from the parent of the commit that added this entry, restoring both setup skills'
+paragraphs, rules and `## Other bindings` bullets, `persistence` rule 20, its `when_to_use` clause and
+its index line, and removing the superseded marker on
+D85.

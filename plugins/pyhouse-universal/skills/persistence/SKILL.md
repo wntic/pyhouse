@@ -1,7 +1,7 @@
 ---
 name: persistence
 description: Use when code reads or writes a datastore, written or reviewed, in any project whatever its architecture — beside the family's data-access skill whenever its templates are written, since the obligations they satisfy are stated here — who owns a transaction, where a driver error is translated and what its context carries, how constraint and table names are derived, how rows map back, which stored type a value gets, how a conflicting or older write is resolved, how a batched write is sized, how a paged read orders, how a schema change ships safely, and whether data-access code logs. Owns these store-generic rules and which of them bind given the store's properties; it binds no library and writes no file. The data-access files that satisfy them are the architecture family's — `flat-persistence` in the `pyhouse-flat` plugin, `hex-persistence` or `hex-store-repository` in the `pyhouse-hex` plugin — and the error classes, translation with the cause chained and its fallback are `exception-catalog`'s.
-when_to_use: Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, or whether a repository should log.
+when_to_use: Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, whether a repository should log, or how a migration chain starts.
 ---
 
 # Persistence — the store-generic obligations
@@ -181,10 +181,14 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
     exclusion is a lock the store or the migration tool provides, or else one dedicated job per deploy,
     never a run from every replica at start-up.
 20. **Each schema change is one new revision whose downgrade reverses its upgrade, in the opposite
-    order, and a round trip proves it.** The suite runs the history up, down to the base and up again
+    order, and a round trip proves it, on a chain rooted at its first real revision.** The suite runs the history up, down to the base and up again
     against a real store; a downgrade nothing runs is a reverse path nobody has proven. A later change is
     a new revision, never an edit to a shipped one, and a revision a tool generated is a draft, reviewed
-    against rule 19 before it is committed.
+    against rule 19 before it is committed. **A new chain is rooted at its first real revision**, with no
+    placeholder ahead of it for every store to replay as a no-op. **A baseline exists only over a schema
+    that already exists**: that schema's definition frozen by hand the day it is written, never built from the
+    schema definition as it stands when the revision runs, written once into an empty chain, and each
+    existing store marked at it rather than run through it — or the chain stops being replayable from zero.
 
 ### Batched writes
 

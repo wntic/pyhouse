@@ -19,22 +19,6 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 63. The root of a migration chain moves to `persistence`
-The obligation is stated twice, in different words, by the two setup skills:
-`hex-project-setup` (prose under block B, rules 4–5, `## Other bindings`, two hard stops) and
-`flat-project-setup` ("The root of the chain", rule 8, two hard stops). It is store- and
-family-independent — `hex-project-setup` itself says another migration tool leaves it unchanged — and
-the copies already drift ("imports neither the project's metadata nor its table registrar" against
-"never importing the tables"). `persistence` owns migrations by the ownership table and says nothing on
-it, so a project in neither family finds it nowhere. Add one rule beside rule 20, 3–4 lines: a new
-chain is rooted at its first real revision with no placeholder ahead of it; a baseline exists only over
-a schema that already exists, as that schema's DDL frozen by hand the day it is written, never built
-from the current metadata, written once into an empty chain, and existing stores are marked at it
-rather than run through it — or the chain stops being replayable from zero. Both setup skills keep
-only the Alembic spelling (`versions/` empty, `op` calls, `alembic stamp`) and point at `persistence`;
-their hard stops stay, still routing to the family's data-access skill. D85's "state it in their own
-words" predates `persistence` (D134); record the new placement and mark D85.
-
 ### 64. One authoritative store per record, stated in `persistence`
 `hex-store-repository` rule 1 carries a store-generic obligation — an aggregate has one authoritative
 store, the one its writes go to; a second store holds only a derived projection; two stores both
