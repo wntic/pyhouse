@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.24.1 — 2026-10-12
+
+Plugin versions in this release: `pyhouse-universal` 0.21.1 (from 0.21.0), `pyhouse-hex` 0.14.1 (from
+0.14.0), `pyhouse-flat` 0.13.1 (from 0.13.0); `pyhouse-git` 0.8.1 is unchanged. No obligation changes.
+
+### Changed
+
+- **The HTTP test templates stub with httpx2's own `MockTransport`, not respx.** respx does not
+  intercept httpx2 by itself, and the `pytest-httpx2` layer it needed lets requests reach the real
+  network when the plugin is not loaded. Every test template already builds the `httpx2.AsyncClient`
+  it hands to the code under test, so the stub is now that client's transport: a handler records each
+  request and answers from a queue the test fills, and an unqueued request fails the test even under a
+  caller that catches every exception. Nothing leaves the process, and no stubbing library is needed.
+  - *A project already on respx:* nothing is required; it stays listed under *Other bindings*, through
+    `pytest-httpx2` with routes answered by `.respond(...)`.
+  - *A new project:* drop `respx` and `pytest-httpx2` from the development dependencies.
+  - *A credential refresh test:* the login requests go through the same stub, so their answers are
+    queued in the order the flow sends them.
+- **httpx2 takes a floor, `httpx2>=2`.** 2.0 is its first release with the client API; the only earlier
+  one is an empty placeholder. Starlette's `testclient` now imports httpx2 and deprecates httpx, so a
+  FastAPI service carries httpx2 either way.
+- **`test-principles` *Intercepting HTTP* is worded for either kind of stub.** A stub covers every
+  request from before the first one: a transport stub covers the client it is handed, a patching
+  library is active for the whole test. A sequence test pins every request's method and URL from the
+  stub's record, and no test requires every queued answer to be used.
+
 ## 0.24.0 — 2026-10-11
 
 Plugin versions in this release: `pyhouse-universal` 0.21.0 (from 0.20.0), `pyhouse-hex` 0.14.0 (from
