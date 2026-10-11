@@ -1,6 +1,6 @@
 ---
 name: flat-entrypoint
-description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — one run per process started by a cron entry or a timer, a loop, a continuous stream or queue consumer, a thin HTTP wrapper, or durable execution — and deciding whether a workflow engine is earned at all; one run per process is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free function every trigger calls, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, the containment that keeps one failed run from killing a long-lived process, and the bounded redelivery and dead letter a contained unit goes to. It also carries the obligations an earned engine adds, inert under every other trigger. Testing any of it is `flat-test-run-function`.
+description: Use when choosing how a flat-layered service is triggered and writing the process that triggers it — one run per process started by a cron entry or a timer, a loop, a continuous stream or queue consumer, a thin HTTP wrapper, or durable execution — and deciding whether a workflow engine is earned at all; one run per process is the default, and an engine is earned only by durability across process death, retries that outlive the process, or orchestration long enough that the sequence itself must survive. Owns the framework-free function every trigger calls, the process definition that builds its dependencies once and passes them down, the retry declared where the work is invoked, the aggregate a run returns, the containment that keeps one failed run from killing a long-lived process, and the bounded redelivery and dead letter a contained unit goes to. It also carries the obligations an earned engine adds, inert under every other trigger. Testing any of it is `flat-test-entrypoint`.
 when_to_use: Also when asked for a polling loop, a `__main__` entrypoint, a nightly or periodic job, a queue or websocket consumer process, a webhook, an internal CRUD or proxy endpoint on a service with no invariants, a durable workflow, a batch loop, a heartbeat, a schedule or a cron expression, an overlap or catch-up policy, or whether this service needs a workflow engine at all.
 ---
 
@@ -36,7 +36,7 @@ nothing here assumes a sibling distribution or a repository above it.
   this family; `architecture-choice` decides, and the HTTP shell is `hex-restapi-app`, in the
   `pyhouse-hex` plugin.
 - Testing any of it — the work, the loop's containment, the wrapper, the orchestration above them
-  → `flat-test-run-function`.
+  → `flat-test-entrypoint`.
 
 ## The trigger process — four shapes
 

@@ -1,6 +1,6 @@
 ---
 name: flat-test-service-client
-description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `respx` over `httpx`. A unit test needing no database and no container, unlike `flat-test-run-function`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
+description: Use when testing one external-service HTTP client class with its transport stubbed — URL assembly, the outgoing request, response parsing, timeouts, translation into the service's catalog exception — bound here to `respx` over `httpx`. A unit test needing no database and no container, unlike `flat-test-entrypoint`, which stubs the same transport under the whole run against a real datastore. Not a hexagonal `ICan<Verb>` capability adapter — `hex-test-capability-adapter`, in the `pyhouse-hex` plugin.
 ---
 
 # Flat-Layered Test — Service Client
@@ -23,7 +23,7 @@ boundary — not an abstraction invented to make the code mockable.
   there is no container for it, against the SDK's own test double if it ships one.
 - The filter/normalize function the client's output feeds → a plain unit test with no fixtures; it is
   pure and needs nothing from this skill.
-- The work a trigger calls reaching this client → `flat-test-run-function`, which stubs the same transport under
+- The work a trigger calls reaching this client → `flat-test-entrypoint`, which stubs the same transport under
   the whole run against a real datastore, and so lives under `tests/integration/`.
 - The catalog exception this client translates *to*, and where it is declared → `exception-catalog`;
   asserting the catalog's own shape is a separate unit test, not this skill.
@@ -147,7 +147,7 @@ The error tests assert the translated class and its chained cause. `fetch_foos` 
 test agree on — never the message text, which is free to change (`exception-catalog`). The malformed-body
 cases cover both halves of parsing: a body that is not JSON, and JSON that does not fit the payload.
 
-A caller's test makes this client fail at its transport (`flat-test-run-function` rule 1).
+A caller's test makes this client fail at its transport (`flat-test-entrypoint` rule 1).
 
 ## Other bindings
 

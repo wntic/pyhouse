@@ -32,7 +32,7 @@ one for the whole of its work (`persistence` rule 1). That declaration decides t
 - The pytest configuration block that loads them → `python-toolchain`.
 - A test of a table or the repository class → `flat-test-persistence`, which consumes both
   `connection` and `truncate_all` and lays none of its own.
-- The work a trigger calls, its wrapper or the orchestration above them → `flat-test-run-function`; its code
+- The work a trigger calls, its wrapper or the orchestration above them → `flat-test-entrypoint`; its code
   owns its transactions, so it takes the wipe.
 - An external-system client's own test → `flat-test-service-client`; it needs no datastore and must not
   live under `tests/integration/`.
