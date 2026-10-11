@@ -66,16 +66,6 @@ restating it. The outbox and its relay stay in hex (D145). Lands with or after i
 indexes, the counts, `kickoff.md` if the skill list there changes, and the ownership table in
 `meta-skill-author`.
 
-### 67. `hex-application` loses the pipeline sample, keeps the failure-state exception
-Rule 3's example `ProcessFoo` returning the id with "the READY view comes from `GetFoo`" and rule 5(b)'s
-inline `try: <pipeline> except …: entity.status = FAILED; …; raise` with "a pipeline that must persist
-`status=FAILED`" are one sample application's scenario, not what most hex services have. Deleting (b)
-outright would tighten the rule — rule 5 ends "Anything beyond these three stays forbidden" — so it
-stays as one sentence with no code and no scenario: (b) recording a failure on the aggregate and
-re-raising, where the contract requires a later read to see it. Rule 3 keeps "a command returns the
-affected id; the caller re-reads through the matching query" without the example. Check
-`CONVENTIONS.md:45` and `hex-test-application-handler` for anything citing the removed text.
-
 ### 68. `pyhouse-git` fixes from the 2026-10-11 review
 All verified against the current files; four reproduced in a scratch repository (git 2.39.5).
 - `commands/commit.md` step 2–3: stage first, then read `git diff --staged -- <files>`; `git diff` on an

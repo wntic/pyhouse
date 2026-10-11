@@ -2601,3 +2601,16 @@ stores.
 **Reverse by:** from the parent of the commit that added this entry, restoring `hex-store-repository`
 rule 1's last sentence and removing the sentence from `persistence` rule 3, its `when_to_use` clause and
 its index line.
+
+### D167 — `hex-application` keeps the failure-state exception without its pipeline sample
+Taken under the verified full review of 2026-10-11. Command handler rules 3 and 5 as numbered before the
+next entry, now rules 1 and 3: rule 3's example (`ProcessFoo`
+returning the id while "the READY view comes from `GetFoo`") and rule 5(b)'s inline
+`try: <pipeline> except …: entity.status = FAILED; …; raise` described one sample application's
+processing pipeline, which most hex services do not have. Deleting 5(b) outright would have tightened
+the rule, since rule 5 forbids every `try/except` beyond its three, so (b) stays as one sentence with
+no code and no scenario: where the contract requires a later read to see that the operation failed,
+the `except` records the failure on the aggregate through its repository and re-raises. Rule 3 keeps
+"the caller re-reads through the matching query" without the example.
+**Reverse by:** from the parent of the commit that added this entry, restoring rules 3 and 5 of
+`hex-application`'s Command handler section.

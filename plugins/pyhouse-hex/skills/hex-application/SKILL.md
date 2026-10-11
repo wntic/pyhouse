@@ -368,20 +368,17 @@ per read, and do not bolt timestamps onto the entity to make a read easier.
    aggregate's key is **natural** — a code, a slug, a handle minted by the domain or supplied by the
    client, with no surrogate column in the schema — the handler returns that key, typed as the key is
    typed, because it *is* the identity. Do not add a surrogate id to an aggregate that has none just to
-   satisfy the letter of this rule. Never return the entity, a list or a `*Result`. A "do the work, then show the result" use
-   case is still a command returning the affected id — the caller re-reads through the matching query
-   (`ProcessFoo` returns the foo id; the READY view comes from `GetFoo`). One
-   mutate-and-return-a-view operation would straddle the command/query split.
+   satisfy the letter of this rule. Never return the entity, a list or a `*Result`. A "do the work, then
+   show the result" use case is still a command returning the affected id — the caller re-reads through
+   the matching query. One mutate-and-return-a-view operation would straddle the command/query split.
 4. **No business logic in the handler.** Build and mutate domain entities; let `__post_init__` and domain
    services enforce the rules. The handler orchestrates: load, mutate, call the repository.
    **Normalization — strip, lowercase, reformat — is a domain concern** living in the entity's
    `__post_init__` or a value object. Pass `command.name`, not `command.name.strip()`.
 5. **No `try/except`, with three sanctioned exceptions.** (a) Compensation, below — its `try/except
-   Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: when the contract requires the aggregate
-   to record that it failed before the error propagates — a pipeline that must persist `status=FAILED` so
-   a later read or retry sees it — the handler may
-   `try: <pipeline> except <Error>: <load-or-mutate>; entity.status = FAILED; await repository.update(entity); raise`.
-   The `except` writes the caller-visible state and **re-raises**. (c) After the store write, below — the
+   Exception` and the guard around its undo. (b) A **failure-state transition then re-raise**: where the
+   contract requires a later read to see that the operation failed, the `except` records the failure on
+   the aggregate through its repository and **re-raises**. (c) After the store write, below — the
    `try/except Exception` around a side effect of a command already committed, which stops the effect's
    failure instead of re-raising it. Follow `python-logging` for logging and `exception-catalog` for
    exception propagation and boundary translation. Anything beyond these three stays forbidden.
