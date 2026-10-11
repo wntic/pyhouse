@@ -156,15 +156,10 @@ async def update_foo(
     handler: FromDishka[UpdateFooHandler],
     get_handler: FromDishka[GetFooHandler],
 ) -> FooResponse:
-    await handler.execute(
-        UpdateFooCommand(id=id, name=body.name, note=body.note, sets_note="note" in body.model_fields_set),
-    )
+    await handler.execute(UpdateFooCommand(id=id, name=body.name, note=body.note))
     foo = await get_handler.execute(GetFooQuery(id=id))
     return FooResponse(id=foo.id, name=foo.name, note=foo.note)
 ```
-
-`note` may be cleared, so the route passes its presence beside its value (`hex-application`, Command
-DTO rule 4).
 
 ### `delete` (204)
 

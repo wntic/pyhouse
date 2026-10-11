@@ -2167,6 +2167,7 @@ dropping the batched-writes rule; `test-principles` rules 7 and 9 and its layer-
 rule 10; the wipe; `hex-persistence:33`, `hex-store-repository` rule 12, and both index lines.
 
 ### D143 — A failure after a committed write is stopped, not raised; a clearable field carries whether it was given
+**The clearable field reversed by D163.**
 Taken under backlog items 35, 40 and three item-41 leftovers, after a four-lens review. `exception-catalog`
 owns the rule, since a flat service needs it as much as a hex one: an effect after the operation's write
 has committed, outside what the operation changed — a notification, a publish, disposing of what the
@@ -2514,3 +2515,21 @@ entry — including the two runs whose prompt never mentioned a decision, which 
 the change reversed a recorded one. Where none existed, both runs recorded the binding choice in the
 agents' instructions file. A skill would have stated what the model already does.
 **Reverse by:** reopening the backlog item, with a run that shows the defect.
+
+### D163 — A partial update shows `None` as "leave unchanged" only; the clearable field is gone
+Taken by the maintainer (2026-10-11); partly reverses D143. The catalogue holds an agent to the
+architecture, not to every case of a service's logic: an agent that needs a field it can clear works
+that out itself. The clearable field came from consistency between skills, never from a defect seen in
+generated code, and most services have no such field. Removed: `hex-application`'s Command DTO rule 4,
+the `sets_note` flag on `UpdateFooCommand` and its read in the update handler, and the description's
+clause; `hex-restapi-schema`'s presence read from `model_fields_set` and rule 6's clearable branch;
+the route's `sets_note` argument and the prose beside it in `hex-restapi-endpoint`;
+`hex-test-application-handler`'s `test_update_clears_note` template and checklist line; and
+`hex-test-restapi-endpoint`'s PATCH test sending a field as `null`. `Foo.note` stays as the field a
+partial-update test leaves untouched (D108), and `hex-domain-model` now says a partial update may leave
+or set it. D143's compensation and after-the-store-write rules stand.
+**Reverse by:** restoring, from the parent of the commit that added this entry, `hex-application`'s
+description, Command DTO rule 4 and update template; `hex-restapi-schema`'s rule 6 and the sentence
+under its template; `hex-restapi-endpoint`'s PATCH route and its sentence;
+`hex-test-application-handler`'s template and checklist line; `hex-test-restapi-endpoint` rule 2;
+`hex-domain-model`'s sentence on `note`; the two index lines; and removing the reversed marker on D143.

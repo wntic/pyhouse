@@ -83,24 +83,11 @@ async def test_partial_update_leaves_unspecified_fields_untouched() -> None:
     foo_id = uuid.uuid4()
     repository = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="kept")])
 
-    await UpdateFooHandler(repository=repository).execute(UpdateFooCommand(id=foo_id, sets_note=False, name="beta"))
+    await UpdateFooHandler(repository=repository).execute(UpdateFooCommand(id=foo_id, name="beta"))
 
     stored = await repository.get_by_id(foo_id)
     assert stored.name == "beta"
     assert stored.note == "kept"  # not given on the command, so left as it was
-    assert repository.updated == [foo_id]
-
-
-# only where a field may be cleared
-async def test_update_clears_note() -> None:
-    foo_id = uuid.uuid4()
-    repository = FakeFooRepository(items=[Foo(id=foo_id, name="alpha", note="old")])
-
-    await UpdateFooHandler(repository=repository).execute(UpdateFooCommand(id=foo_id, sets_note=True, note=None))
-
-    stored = await repository.get_by_id(foo_id)
-    assert stored.note is None
-    assert stored.name == "alpha"
     assert repository.updated == [foo_id]
 
 
@@ -109,7 +96,7 @@ async def test_update_unknown_id_raises_not_found() -> None:
     missing = uuid.uuid4()
 
     with pytest.raises(NotFoundError) as exc_info:
-        await handler.execute(UpdateFooCommand(id=missing, sets_note=False, name="beta"))
+        await handler.execute(UpdateFooCommand(id=missing, name="beta"))
 
     assert exc_info.value.context["id"] == str(missing)
 ```
@@ -230,7 +217,6 @@ The recipes that hold for any test — assert a survivor rather than an empty re
 #### `update` handler
 
 - `test_partial_update_leaves_unspecified_fields_untouched` — set one field and leave another out; assert the one left out is **unchanged** and the one set is updated. This is the partial-update contract.
-- `test_update_clears_<clearable_field>` — only where a field may be cleared: give it with its presence and `None`; assert it reads back empty while a field left out is unchanged. A handler that reads `None` as "unchanged" for that field reds here.
 - `test_update_unknown_id_raises_not_found`.
 - `test_update_duplicate_<unique_field>_raises_conflict` — renaming row B to row A's name raises `FooConflictError` — only where Foo has a natural key.
 

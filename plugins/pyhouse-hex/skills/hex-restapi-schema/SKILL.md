@@ -69,8 +69,7 @@ class FooUpdateRequest(BaseModel):
     note: str | None = None
 ```
 
-Absent and `null` both parse to `None`; `note` may be cleared, so the route reads its presence from
-`body.model_fields_set` (rule 6).
+Absent and `null` both parse to `None`, which leaves the field unchanged (rule 6).
 
 ## Other bindings
 
@@ -114,7 +113,7 @@ Do **not** introduce alternate suffixes (`Dto`, `Schema`, `In`, `Out`). Another 
 
 ### PATCH semantics
 
-6. **Every field on `*UpdateRequest` is `T | None = None`.** On a field the client cannot clear, `None` is "leave unchanged"; on one it may clear, absent and `null` differ, and which fields were sent reaches the command beside their values (`hex-application`, Command DTO rule 4).
+6. **Every field on `*UpdateRequest` is `T | None = None`**, and `None` is "leave unchanged".
 7. **`*CreateRequest` lists required fields without `None`**, and gives a default only to an input that is genuinely optional. A create body with every field optional is an update body.
 
 ### `*ListResponse`

@@ -7,7 +7,7 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Items 55, 60, 61 and 62 remain. Every other agreed item has landed or was closed (D130–D161).
+Items 55, 60 and 62 remain. Every other agreed item has landed or was closed (D130–D161, D163).
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an
@@ -26,17 +26,6 @@ the wrapper and an earned engine — so it takes the mirror name, as `flat-persi
 `flat-test-persistence`. Every reference moves with it: the flat skills, `test-principles`,
 `meta-skill-author` and `CONVENTIONS.md`, `skills/README.md`, `CLAUDE.md`. A rename is a break
 (`refactor(flat-test-entrypoint)!`, a minor for `pyhouse-flat` below 1.0.0); record it as D162.
-
-### 61. Drop the clearable-field case from the hex partial update
-Agreed on 2026-10-11; partly reverses D143. The catalogue holds an agent to the architecture, not to
-every case of a service's logic: an agent that needs a field it can clear will work that out itself.
-`sets_note` came from consistency between skills (item 40), never from a defect seen in generated code,
-and most services have no such field. Remove from `hex-application`, `hex-restapi-schema`,
-`hex-restapi-endpoint` and `hex-test-application-handler` the `sets_note` flag, the presence read from
-`model_fields_set`, Command DTO rule 4 and the prose pointing at it, and the `test_update_clears_…`
-checklist line with its template; the update shows `None` as "leave unchanged" only. `Foo.note` stays as
-the field a partial-update test leaves untouched (D108). Removing a rule is a break
-(`feat(pyhouse-hex)!`, a minor below 1.0.0); record it as a D-entry that names D143 as partly reversed.
 
 ### 62. Claude Code only — remove what other agents justified
 Agreed on 2026-10-11. The catalogue is for Claude Code alone: the agent-neutral goal came from a
