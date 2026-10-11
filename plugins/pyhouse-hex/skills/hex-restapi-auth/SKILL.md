@@ -165,6 +165,7 @@ class JwtSettings(BaseSettings):
         env_prefix="MYAPP_JWT_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     algorithm: str = "RS256"
@@ -355,9 +356,10 @@ ordering and the settings lifecycle follow `hex-wiring`.
 
 ## Other bindings
 
-- **JWKS endpoint.** The issuer publishes its key set rather than one key: the adapter fetches it and
-  caches the keys by `kid`, selecting the verifying key by the token's `kid` and never by its `alg`.
-  The port, the identity, the gate and the codes are unchanged.
+- **JWKS endpoint.** The issuer publishes its key set rather than one key. Fetching and caching it by
+  `kid` is a key-set client the adapter is built on, injected like any client, since an adapter does
+  not cache (`hex-capability-adapter`); the adapter selects the verifying key by the token's `kid`,
+  never by its `alg`. The port, the identity, the gate and the codes are unchanged.
 - **Opaque token + introspection endpoint.** The port, `CurrentUser`, `require_role`, the dependency
   pair and the whole advertisement half are unchanged. What changes: the adapter does IO, so the
   capability method becomes `async` (`hex-domain-ports`' async capability shape) and the provider is
@@ -426,8 +428,7 @@ ordering and the settings lifecycle follow `hex-wiring`.
 - `Depends` from `fastapi`; `HTTPAuthorizationCredentials`, `HTTPBearer` from
   `fastapi.security`.
 - Domain imports absolute (`from myapp.domain.auth import CurrentUser`). The verifier adapter
-  **never** imports the protocol it satisfies — structural subtyping at the DI site is the contract
-  (`hex-capability-adapter`'s rule that an adapter neither inherits nor imports its protocol).
+  **never** imports the protocol it satisfies (`hex-architecture` rule 7).
 - Full annotations on every dependency, the callable class's `__call__`, and the verifier's methods. No
   `from __future__ import annotations` (`python-style`).
 

@@ -1,7 +1,7 @@
 ---
 name: hex-architecture
 description: Use when the family is already settled as hexagonal and the question is where a module belongs or whether an import may cross a boundary — the four layers, inward-only dependencies, ports, adapters, the composition root. Not whether hexagonal is the right family at all (`architecture-choice`), not where a boundary goes in the first place (`coupling`).
-when_to_use: Which layer does this class go in; may infrastructure import application; a cycle between layers; where the DI container or composition root lives; moving code between layers.
+when_to_use: Which layer does this class go in; may infrastructure import application; a cycle between layers; where the DI container or composition root lives; where a queue consumer or a CLI entrypoint goes and what it may import; moving code between layers.
 paths: ["**/domain/**", "**/application/**", "**/infrastructure/**", "**/restapi/**"]
 ---
 
@@ -40,26 +40,6 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
   order → `hex-wiring`. This skill owns only that the root exists — one module, `src/myapp/containers.py`
   — and that nothing else imports a concrete adapter.
 - Turning the import rules below into an automated test → `test-architecture-rule`.
-
-## Is this the right style at all?
-
-This layout costs indirection, and it buys the ability to change a database, a queue or a framework
-without touching business rules. That trade is only worth making when there are business rules to
-protect; a service with none pays the whole price and gets nothing back, and `flat-layered`, in the
-`pyhouse-flat` plugin, is the sibling style for exactly that case.
-
-**The decision itself is `architecture-choice`'s** — the question that settles it, the confirming
-evidence, what each family costs, and the cases this section does not cover: a service with rules
-*and* heavy integration work, a flat service growing its first rule, a workspace whose members differ,
-and the services that need neither family. Read it before writing anything if the trade above is not
-already obvious for this service. What follows here assumes hexagonal has been chosen.
-
-How much that protection is worth buying is a volatility question, and `coupling` owns the judgment:
-the indirection pays off in proportion to how much the business will keep changing the protected
-rules. Around a core subdomain — the part the business reshapes on purpose — ports and layers earn
-their keep; around a stable supporting workflow the same structure is cost without a buyer, which is
-the flat-layered case. "Not all of a large system will be well designed" is real permission, and
-volatility is how you decide where it applies.
 
 ## The four layers
 
@@ -211,6 +191,24 @@ on top of them:
   reaching into `application/`. Relative imports stay within one layer. This is `python-packaging`'s
   across-a-package-boundary rule applied to the layer split, not a second rule.
 
+## Placing a use case
+
+Outside in: the entry path in its entrypoint package, the handler in `application/<subdomain>/`, one
+protocol in `domain/<subdomain>/` for each thing the handler needs from outside, one adapter per
+protocol under `infrastructure/<technology>/` (`hex-conventions`), bound in `containers.py` and
+resolved by the entrypoint.
+
+## Moving code between layers
+
+- `domain/` → `application/` usually means the rule needed a protocol. Extract the protocol first, then
+  move the orchestrator.
+- `application/` → `domain/` is rare, and correct only when the logic was pure all along: no IO, no
+  protocol calls.
+- `infrastructure/` → `application/` almost never happens. If you feel the urge, you probably want to
+  move the orchestration up and leave the adapter behind.
+- An entrypoint → `application/` is correct when a second entrypoint needs the same logic. Pull it into a
+  handler; the entrypoint becomes a thin translator.
+
 ## Rules
 
 The checkable form. Each one is decidable by reading a single import, signature or file path; the
@@ -233,9 +231,9 @@ subsections beneath give the reasoning and the judgement calls.
    `I<Thing>Repository` or `ICan<Verb>`.
 6. **Check every handler constructor annotates a protocol type, not a concrete class.** `repository:
    IFooRepository`, never `repository: FooRepository`.
-7. **Check no adapter inherits from the protocol it satisfies.** Satisfaction is structural and is
-   checked at the injection site; an adapter that imports the protocol it satisfies leaves an unused
-   import and gains nothing.
+7. **Check no adapter inherits from or imports the protocol it satisfies.** Satisfaction is structural
+   and is checked at the injection site; an adapter that imports the protocol it satisfies leaves an
+   unused import and gains nothing.
 8. **Check the composition root is the only module importing concrete adapters** from
    `infrastructure/` — one module, `src/myapp/containers.py` — and that it binds them at startup, not at
    import time. Entrypoints resolve handlers from the container per operation and never construct an
@@ -261,29 +259,6 @@ layer-scoped test per forbidden import:
 - no ORM, validation-library or other third-party import in `domain/` (`test_domain_has_no_sqlalchemy`);
 - no `infrastructure/` import in `domain/` or `application/`;
 - no mock in tests (`test-principles`).
-
-## How to apply
-
-1. Decide the entry path: an HTTP route → `restapi/…`, a scheduled job → `worker/…`.
-2. Sketch the use case as a CQRS handler in `application/<subdomain>/`.
-3. List what the handler needs from the outside world. Each is a protocol in `domain/<subdomain>/`.
-4. Implement each protocol as an adapter under `infrastructure/<technology>/`, grouped by the external
-   technology and never by subdomain (`hex-conventions`). Adapters import domain types, translate raw
-   payloads, and raise domain exceptions (`exception-catalog`).
-5. Wire the adapters in `containers.py` and resolve the handler in the entrypoint.
-6. Verify the direction by scanning the new files' imports: `domain/` imports only stdlib and domain;
-   `application/` does not import `infrastructure/`; `infrastructure/` does not import `application/`.
-
-### When moving code between layers
-
-- `domain/` → `application/` usually means the rule needed a protocol. Extract the protocol first, then
-  move the orchestrator.
-- `application/` → `domain/` is rare, and correct only when the logic was pure all along: no IO, no
-  protocol calls.
-- `infrastructure/` → `application/` almost never happens. If you feel the urge, you probably want to
-  move the orchestration up and leave the adapter behind.
-- An entrypoint → `application/` is correct when a second entrypoint needs the same logic. Pull it into a
-  handler; the entrypoint becomes a thin translator.
 
 ## Hard stops
 

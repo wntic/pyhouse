@@ -49,10 +49,6 @@ the settings check an entrypoint runs at start — and how an add-on binding mer
 
 ## Other bindings
 
-Both libraries below are actively maintained; this is a fit decision, not a liveness one. The honest
-counterweight to the primary binding is that `dependency-injector` is far more widely known; `dishka`'s
-own interpreter requirement sits below the house floor `python-style` sets, so it never raises it.
-
 - **`dependency-injector`.** The obligations are identical; what changes is the spelling and one extra
   rule. A `containers.DeclarativeContainer` subclass replaces the provider classes, `providers.*`
   replace the factories, and — the rule dishka does not need — **a binding is reached at the call site

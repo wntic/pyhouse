@@ -7,7 +7,7 @@ paths: ["**/domain/**"]
 # Hex — Domain Ports
 
 The domain's outbound interfaces. Both are `typing.Protocol` modules holding method signatures and
-nothing else; infrastructure satisfies them **structurally**, without importing them to inherit.
+nothing else; infrastructure satisfies them **structurally** (`hex-architecture` rule 7).
 
 ## When to use vs. neighbours
 
@@ -149,9 +149,8 @@ own subdomain package (`domain/auth/`, `domain/observability/`).
 3. **Parameters and return types are domain types or primitives.** Never a database row, an SDK object
    or a validation model: a port typed in an adapter's vocabulary drags that library into every caller,
    and the domain then cannot be imported without it.
-4. **Infrastructure satisfies the port without importing it.** The adapter neither inherits nor imports
-   the protocol; satisfaction is checked where the adapter is injected, so an import here would be a dead
-   one.
+4. **Infrastructure satisfies the port structurally** — the adapter neither inherits nor imports it
+   (`hex-architecture` rule 7).
 5. **No class-level state and no helper methods.** Both belong to the adapter — a helper on the port is a
    decision the domain has taken on the adapter's behalf, and every adapter then inherits it.
 

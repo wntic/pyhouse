@@ -11,8 +11,8 @@ identity is bound, and which codes the route must then advertise. The obligation
 
 | Operation | Dependency on the route | Binding name |
 |---|---|---|
-| Any authenticated caller may perform it; the handler does not need `caller_id` | `Depends(get_current_user)` | `_: CurrentUser` |
-| Any authenticated caller; the handler needs `caller_id` (an actor stamped, an auth-scoped list) | `Depends(get_current_user)` | `user: CurrentUser` |
+| A read whose result does not depend on the caller (`hex-application` caller-derived rule 1) | `Depends(get_current_user)` | `_: CurrentUser` |
+| Any authenticated caller; a command, or a read the caller scopes | `Depends(get_current_user)` | `user: CurrentUser` |
 | Requires role rank ≥ `<Role>` — only in an app whose identity carries a role | `Depends(require_role(Role.<MIN_RANK>))` | `user: CurrentUser` |
 | Public route (health, info), **or any route in an app with no auth** | none | n/a |
 

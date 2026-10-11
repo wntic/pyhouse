@@ -120,8 +120,8 @@ So a `Foo` stored relationally behind `IFooRepository`, with a search index besi
 
 **Which repository form applies is decided by the store profile, not the vendor.** A relational store →
 the SQLAlchemy Core form in `hex-persistence`. **Any** client-style store → a vendor-agnostic
-client-repository form covering every key-value / cache / document backend. A new client-style backend is a
-**profile row in block B plus its package**, never a new form.
+client-repository form covering every key-value / cache / document backend. A new client-style backend is
+**its own `infrastructure/<kind>/` package under that form**, never a new form.
 
 **Imports and package mechanics are not restated here.** A referenced type resolves to its owning module:
 same-subdomain domain types use a relative `.module` import, cross-subdomain a relative `..subdomain`,
@@ -131,47 +131,24 @@ the collapsed import form depends on; `hex-architecture` owns only which layer m
 
 ## B. Store profiles
 
-A datastore's kind is a free token, not a closed enum — a fixed list is the same disease as a fixed type
-map. The profile maps a kind to the few things needed to wire a repository **without** knowing the
-backend's SQL/SDK internals:
+A datastore's kind is a free token — the vendor's own name, kept concrete — and every kind falls into
+one of exactly **two** profiles:
 
-There are only **two** profiles, and the table has only two rows. Everything else is a vendor filling
-one of them in:
+- **Relational** — reached through the shared engine bootstrap. The repository is `hex-persistence`'s
+  form, reusing the one engine and session factory under `infrastructure/<relational-kind>/` (a project
+  has at most one relational kind, whatever it is named), with a write-once `Table` under its `tables/`.
+  The file stem is aggregate-derived (block A).
+- **Client-style** — reached through an injected SDK client. The repository is `hex-store-repository`'s
+  form; `infrastructure/<kind>/connection.py` holds a `create_<datastore-name>_client(settings)` factory
+  that the composition root binds at process lifetime and injects into every repository on that store,
+  and there is **no** table. The file stem is protocol-derived (block A).
 
-| profile | resource parameter | resource type | resource import | relational |
-|---|---|---|---|---|
-| **relational** — reached through the shared engine bootstrap | `session_factory` | `async_sessionmaker[AsyncSession]` | the engine library's session types | **yes** |
-| **client-style** — reached through an injected SDK client | `client` | the SDK's own async client class | that SDK's client import | no |
-| *(kind not yet profiled)* | `client` | `object` | — | no |
-
-A concrete kind is one row of an **appendix the project fills in**, not a row of the table above. Two
-worked out, as the shape to copy:
-
-| kind | profile | resource type | resource import |
-|---|---|---|---|
-| `postgres` | relational | `async_sessionmaker[AsyncSession]` | `from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker` |
-| `redis` | client-style | `Redis` | `from redis.asyncio import Redis` |
-
-- **Relational** also selects the repository form (block A): yes → `hex-persistence`; no → the
-  client-repository form. Adding a client-style backend is one row here.
-- **Relational yes** → the repository reuses the shared engine + `session_factory` bootstrap under
-  `infrastructure/<relational-kind>/` (a project has at most one relational kind, whatever it is named),
-  and gets a write-once `Table` under `infrastructure/<relational-kind>/tables/`. **No** → lay a `create_<store>_client(settings)`
-  factory in `infrastructure/<kind>/connection.py` that the composition root binds at process lifetime and
-  injects into every repository on that store, and there is **no** table — the store persists through its own client.
-- An **unknown** kind degrades to a generic untyped `object` client plus a loud contract comment — fail
-  loud, do not crash. Adding a backend is **one row here**, never a change to any tool.
-
-**The connection factory is complete glue, not a stub.** For a known profile kind the connection or engine
-factory carries zero judgment — it is a fixed function of the settings shape — so write it in **full**,
-never as `raise NotImplementedError`. A stub type-checks and lints clean, then crashes the container at
-app construct. The relational engine and session factory are `hex-persistence`'s; a client-style store's
-`connection.py` is `hex-store-repository`'s, worked for redis.
-
-The factory name is `create_<datastore-name>_client` — the datastore's *name*, not its kind, so
-`create_baz_store_client` for a datastore named `baz_store`. The resource type and import come from the
-profile table. Only a genuinely unknown kind (the degraded `object` row) cannot be written complete;
-there alone leave a `NotImplementedError` plus a loud comment.
+**The connection factory is complete glue, not a stub.** It carries zero judgment — it is a fixed
+function of the settings shape — so it is written in **full**, never as `raise NotImplementedError`. A
+stub type-checks and lints clean, then crashes the container at app construct. The factory name is the
+datastore's *name*, not its kind: `create_baz_store_client` for a datastore named `baz_store`. The
+relational engine and session factory are `hex-persistence`'s; a client-style store's `connection.py` is
+`hex-store-repository`'s, worked for redis.
 
 ## C. Multi-context apps
 
@@ -226,15 +203,15 @@ same name, different shape — is never silently merged. Stop and surface it.
 5. Derive a repository's file stem from the aggregate for relational stores and the protocol for client
    stores, or an aggregate held on two stores lands two colliding files; select its implementation form
    through block B's profile.
-6. Extend datastore support through the profile table — one row, never a change to a tool or a type
-   map; retain the documented fallback for unknown kinds.
-7. Write known-profile connection factories complete, per block B, under the datastore-name-derived
-   factory name: a stub type-checks and lints clean, then crashes at app construct.
+6. Place a new datastore kind under one of block B's two profiles — its own `infrastructure/<kind>/`
+   package, never a new repository form.
+7. Write every connection factory complete, per block B, under the datastore-name-derived factory name:
+   a stub type-checks and lints clean, then crashes at app construct.
 8. Resolve context-qualified references through the named subdomain, using `python-packaging` for
    imports and `hex-architecture` for layer boundaries.
 9. Build the shared substrate from block C's union of contexts; deduplicate identical declarations and
    surface incompatible shapes.
-10. Entity ids and where they are minted → `hex-application`, command handler rule 8.
+10. Entity ids and where they are minted → `hex-application`, command handler rule 6.
 
 ## Hard stops
 

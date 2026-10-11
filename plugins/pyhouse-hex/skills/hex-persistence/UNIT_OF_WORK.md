@@ -153,7 +153,7 @@ class FoosProvider(Provider):
 ## Template — the handler that opens it (structlog)
 
 `hex-application`'s `CreateFooHandler`, with the factory in place of the repository — the one handler
-form that opens a transaction itself, the earned exception to `hex-application` Command handler rule 7.
+form that opens a transaction itself, the earned exception to `hex-application` Command handler rule 5.
 Another logging facade changes it as that skill's `## Other bindings` says:
 
 ```python

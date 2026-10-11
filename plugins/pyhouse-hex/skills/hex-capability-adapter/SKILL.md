@@ -7,9 +7,8 @@ paths: ["**/infrastructure/**"]
 # Hex — Capability Adapter (infrastructure)
 
 Produces one adapter class that adapts a domain `ICan<Verb>` capability protocol to a concrete external
-system. The adapter does not inherit from the protocol — structural subtyping at the injection site is
-the contract — and it is the last place the external library's own exceptions exist: translation happens
-here, into the classes `exception-catalog` owns.
+system. It is the last place the external library's own exceptions exist: translation happens here,
+into the classes `exception-catalog` owns.
 
 ## When to use vs. neighbours
 
@@ -100,6 +99,7 @@ class FooClassifierSettings(BaseSettings):
         env_prefix="MYAPP_FOO_CLASSIFIER_",
         env_file=".env",  # only where the project keeps a dotenv file for development
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     base_url: str
@@ -178,9 +178,8 @@ class InfrastructureProvider(Provider):
 1. **One adapter class per module**, named for the concrete technology it wraps (`HttpFooClassifier`, not
    `FooClassifier`), so two implementations of one port can coexist. Module structure is
    `python-packaging`'s; the names are `naming`'s.
-2. **The adapter does not inherit the protocol it satisfies, and does not import it.** Satisfaction is
-   structural and is checked where the adapter is injected; an import of the protocol leaves a dead
-   unused import and gains nothing.
+2. **The adapter satisfies its protocol structurally** — it neither inherits nor imports it
+   (`hex-architecture` rule 7).
 3. **Method signatures match the protocol exactly** — parameter names, keyword-only markers and
    async/sync mode included. A near-match satisfies no structural check and fails at the injection site,
    not at the adapter.
@@ -237,10 +236,10 @@ class InfrastructureProvider(Provider):
 
 ## Inlined typing / import rules
 
-- Domain imports absolute (`from myapp.domain.foos import Foo, FooKind` — the domain types the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanClassifyFoos`, …) — structural subtyping needs no import (Rule 2); importing it is a dead F401. Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .foo_classifier_settings import FooClassifierSettings`).
+- Domain imports absolute (`from myapp.domain.foos import Foo, FooKind` — the domain types the signatures name). **Never import the capability protocol the adapter satisfies** (`ICanStoreFoos`, `ICanClassifyFoos`, …; rule 2). Sibling modules within the same `infrastructure/<adapter>/` package use relative imports (`from .foo_classifier_settings import FooClassifierSettings`).
 - No `from __future__ import annotations`. Full annotations on every method.
 - `X | None` over `Optional`. `Mapping[K, V]` / `Sequence[T]` (from `collections.abc`) for read-only views.
-- **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (an untyped client method, a body read the SDK does not type) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way a route dependency casts a container-resolved value (`hex-restapi-auth`). An adapter can always restate the vendor type, so an inline ignore never meets `python-style`'s last-resort test here.
+- **A raw SDK value typed `Any` is narrowed with `cast`, never silenced.** An SDK return that mypy sees as `Any` (an untyped client method, a body read the SDK does not type) flowing into a typed protocol return is a `[no-any-return]`/`[return-value]` error — fix it with `cast(<protocol-return-type>, …)` at the boundary, the same way `hex-restapi-auth`'s `dependency-injector` binding casts a verifier resolved by attribute name. An adapter can always restate the vendor type, so an inline ignore never meets `python-style`'s last-resort test here.
 - SDK types stay inside the adapter; method signatures use domain types or primitives only.
 - No `Any` except at the immediate raw-SDK-payload boundary (e.g. `payload: dict[str, Any] = response.json()` — convert to the domain type on the next line).
 
