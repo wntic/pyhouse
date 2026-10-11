@@ -5,13 +5,13 @@ Shared vocabulary, index and skill shapes for the catalogue. The authoritative f
 
 ## Index
 
-The 50 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 51 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
 too. The counts in every heading are the number of directories on disk.
 
-### Universal (16)
+### Universal (17)
 
 - `architecture-choice` — Settle the hex-vs-flat family once per service before either family skill; names the project shapes the catalogue does not cover instead of routing them.
 - `naming` — Load first when porting or generating code, before inherited names become project vocabulary; a suffix naming a role the architecture defines (`Handler`, `Result`, `Payload`, `Service`) is not a vague noun, and the class owning a record's data access is a `Repository` with or without a port.
@@ -27,6 +27,7 @@ too. The counts in every heading are the number of directories on disk.
 - `persistence` — The store-generic data-access obligations whatever the family, and which of them lapse for a store without transactions, named constraints, a conditional write, a schema of its own, migrations or two versions running at once; it binds no library and writes no file, leaves the identity scheme to the family, and points at `exception-catalog` for the translation itself.
 - `exception-catalog` — Reuse an existing catalog entry before adding a new failure type; a failure is re-raised or stopped, never swallowed, and best-effort compensation is the one case a re-raising scope stops a second failure; a failure after a committed write is stopped, never re-raised; transport rendering, and the status a transport maps a class to, stay at the boundary.
 - `at-least-once-delivery` — A unit a broker, a stream or a third-party sender delivers until it is acknowledged is acknowledged only once its effect is committed and returned when it fails, redelivered to a limit the delivery mechanism holds and then dead-lettered, and changed by no redelivery; a third party's signature is checked over the raw body first; the consumer or route that spells it is the family's, and ordering at the store is `persistence`'s.
+- `python-cli` — A command parses, calls one typed function and renders its result; the exit code is mapped once at the boundary, success alone at zero and an unexpected exception keeping its traceback, and the command line is the tool's published surface, tested in process through the runner; it gives a CLI tool no architecture family and no layout for a large command tree.
 - `test-principles` — The testing constitution for any Python project, and it wins wherever an artifact-specific test skill contradicts it — where tests and fixtures sit and the closed autouse set, one substitution ladder, assert strength with literal expected values, HTTP interception asserted on the exercised route's own call record and pinning what the route does not match on, and a datastore contract that reads the store back and forces translated driver errors.
 - `test-architecture-rule` — Enforces source-level structure; runtime route discovery belongs to the hex app-wide invariant tests.
 
@@ -95,7 +96,7 @@ skill only as an example and must read correctly in a repository with no Python 
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 16 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it, and `/pyhouse-universal:adopt` | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 17 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it, and `/pyhouse-universal:adopt` | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |

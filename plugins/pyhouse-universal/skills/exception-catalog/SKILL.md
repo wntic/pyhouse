@@ -45,6 +45,7 @@ shape** — the catalogue knows no transport (rules 6 and 13).
   (`hex-restapi-app`, then `hex-restapi-endpoint`, in the `pyhouse-hex` plugin; `flat-entrypoint`'s
   `HTTP.md`, in `pyhouse-flat`).
 - Where the error is logged and by whom → `python-logging`.
+- The exit code a class answers with on a command line → `python-cli`'s map.
 - Whether an undo step's own failure may be stopped while another failure propagates, or a failure
   after a committed write → this skill, **Swallowing, stopping, and best-effort compensation**; the
   handler shape that does either is the architecture family's (`hex-application`, in the `pyhouse-hex`

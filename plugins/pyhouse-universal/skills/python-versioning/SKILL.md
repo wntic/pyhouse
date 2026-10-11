@@ -38,7 +38,8 @@ depending on it.
 
 - What the compatible surface consists of — what a library root re-exports, and the fact that a
   distributable package's root *is* its public API → `python-packaging`. This skill says which bump a
-  change to that surface forces; it does not define the surface.
+  change to that surface forces; it does not define the surface. A CLI tool's command line is
+  `python-cli`'s (rule 5).
 - Retiring a published identifier — a name that escaped the codebase and became an external contract
   is added alongside and retired deliberately, never renamed in place → `naming`. This skill adds that
   the retirement lands in a major, and the deprecation in a minor before it.

@@ -19,29 +19,12 @@ and rows used, and every filter of a hot query backed by an index. Only what is 
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
 
-### 80. A universal skill for a CLI tool
-Working name `cli-entrypoint`, final name from `naming`. Mostly rules; the universal skills already hold
-for a CLI and stay the owners — the entry function as composition root and per-invocation values as
-arguments (`python-settings` 13, 15), dotenv and tunable defaults (2, 9), result on stdout and logs on
-stderr (`python-logging`), one console script per command (`python-toolchain:113`), the interpreter
-floor (`python-style:82`), nothing built at import (`python-packaging` 8). What it owns, none of it
-written anywhere today:
-1. A command is thin — it parses, calls an ordinary typed function and renders the result; no logic in
-   the command.
-2. The exit code is mapped once at the boundary — 0 on success, each catalogue error its own non-zero
-   code in one place, as `exception-catalog` has a transport's status mapped at its boundary; an
-   unexpected exception is never hidden behind a bare 1.
-3. A multi-command tool: one module per command, commands never import each other.
-4. A CLI is tested in process through the library's runner, asserting the exit code and stdout as
-   literals, never through a subprocess.
-5. A CLI as one more entrypoint of a hex or flat service — the families point here, never restate it.
-Binding: **typer** — built on click, arguments declared by annotations, in line with the catalogue's
-typing rules and with FastAPI already in the hex templates. One template, the module holding the
-`typer.Typer()` app and its commands, with `pretty_exceptions_enable=False` so error output stays
-predictable (rule 2 says why). `## Other bindings`: click, argparse. Then `architecture-choice:164`
-routes a CLI tool to this skill, still giving no layout for a large command tree; the CLI pointer in
-`flat-entrypoint`'s trigger table (now at `python-settings` rules 13 and 15) points here too; indexes, counts and the top-level `README.md` gain the skill. Ask the
-maintainer for a real CLI to check the rules against before writing.
+### 82. The family skills point at `python-cli`
+`python-cli` rule 7 makes a command on a hex or flat service one more entrypoint under its rules, and
+nothing in either family names it yet. `flat-entrypoint`'s trigger row
+and `hex-architecture`'s entrypoint line each gain one pointer to `python-cli`, stating no rule of it.
+Where `flat-entrypoint` lets a run be started both by a scheduler and by a command, it says the
+scheduler runs the console script (`python-cli` rule 7).
 
 ### 70. Descriptions stay as they are; `when_to_use` folds into `description`
 Measured on 2026-10-11 (Opus, `claude -p`, a scratch hex project, the checkout's universal + hex + git

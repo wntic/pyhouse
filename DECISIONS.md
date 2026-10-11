@@ -2883,3 +2883,120 @@ of `httpx`.
 **Reverse by:** if respx supports httpx2 natively, drop `pytest-httpx2` and `using="httpcore2"` and return
 to `@respx.mock`; if pytest-httpx2 breaks, move the stubs to `httpx2.MockTransport`; to return to httpx,
 revert the commits that added this entry.
+
+### D177 — A universal skill owns the command line, bound to typer, named `python-cli`
+Taken under the maintainer's agreement of 2026-10-11 to a universal CLI skill, with typer as its
+binding; the open points were settled without the maintainer. Nothing in the catalogue said how a
+command is shaped, which exit code an outcome leaves, or how a CLI is tested, though the universal
+skills already held for one — the command's entry function as composition root and per-invocation
+values as arguments (`python-settings` 13, 15), no dotenv and a shipped tunable default (2, 5), the
+result on stdout and logs on stderr (`python-logging` 1, 3), the console script (`python-toolchain`),
+the house floor (`python-style`), nothing built at import (`python-packaging` 8), and the exit code as a
+transport outcome mapped at the boundary through the class's ancestry (`exception-catalog` 6, 13). The
+new skill points at each of those, each opened and confirmed first, and owns seven rules: the thin
+command over one typed function; the exit-code map written once, zero for success alone and the root's
+code distinct from the interpreter's `1` and the parser's `2`; an unexpected exception never caught to
+be mapped, and the library's own traceback rendering off; commands never importing one another; the
+command line as a CLI tool's published surface, whose changes `python-versioning` prices and whose
+shipped exit codes are never reassigned; the in-process test through the runner; and a command on a hex or flat
+service as one more entrypoint calling the same handler or run.
+
+**The name.** Working name `cli-entrypoint`, derived again under `naming`. Sentence: "the rules for a
+program's command-line interface — its commands, their exit codes and their test". Head noun:
+*interface*, spelt `cli`. Qualifier: the universal skills for a concern every Python program of a kind
+has are `python-*` (`python-settings`, `python-logging`, `python-toolchain`), and the plugin needs no
+family prefix. Deleted: *entrypoint* fails test 4 against `flat-entrypoint`, a sibling it would differ
+from by one qualifier while owning a different thing (the CLI is one trigger among several there), and
+bare `cli` fails test 6, matching every `client`. Result: `python-cli`.
+
+**One template, the app module.** `src/myapp/cli.py` holds the app —
+`typer.Typer(pretty_exceptions_enable=False, add_completion=False)` with a no-op `@app.callback()` —
+the map, a decorator every command passes through (logging set up first, a catalogue failure logged
+once, rendered on stderr and exited with its code) and one command calling `export_foos(destination)`.
+The decorator, not a `main()` around `app()`, is the one place because `typer.testing.CliRunner`
+invokes the app's command and never a wrapper around it, so a mapping outside it would go untested;
+and not a group subclass, because typer makes a lone command the program itself and uses no group.
+The callback makes the app a group from the start, so the first command is a named subcommand and a
+second one does not change how it is invoked (rule 5); typer otherwise answers `myapp out` for a lone
+command and refuses `myapp export out` with `2`, and the reverse once a second command exists.
+Completion is off because typer otherwise adds `--install-completion` and `--show-completion` to every
+app, and under rule 5 they would be published surface the tool never chose. `NotFoundError` and its
+import are marked "only where a caller must tell it apart", and a tool that raises no catalogue error
+has no map. A client the function needs is described in prose, not templated: the command builds it
+from its settings, opens it for the call and closes it, and on a family service the family's
+composition root builds it — a template line building one would have left it open and contradicted
+rule 7. Commands sit in that module until they outgrow it — the agreed "one module per command" became
+rule 4's "never import one another, registered by the one app module", because a module per command
+is ceremony for the one- to three-command tool most CLIs are, and the template would otherwise break
+its own rule.
+
+**The test is prose.** Every CLI has the test, but its file is everything the function behind the
+command needs substituted, which differs per tool; what is house-shaped is the `invoke` call and two
+literal asserts, stated as a sentence with the commands whole. Checked in a scratch project with typer
+0.27.3, click 8.5.0, structlog 26.1.0 and rich 15.0.0 installed, under `python -I`. Seven runner tests
+passed:
+- success, with stdout `"3 foos exported\n"`;
+- a refinement of `NotFoundError` exiting `4` with its message ending stderr;
+- the same failure again in a second test of the same module;
+- a class mapped only through the root exiting `3`;
+- a `RuntimeError` reaching `result.exception` with exit `1`;
+- a missing argument exiting `2`;
+- `--help` carrying no completion option.
+
+With a logging setup that kept the stderr present at its first configuration, both failure tests exited
+`1` with `ValueError('I/O operation on closed file.')`, which is why the skill states that the setup
+writes to the stderr current at each event. The same app run as a subprocess gave the same codes: the
+interpreter's plain traceback for the bug and, with `pretty_exceptions_enable` back on, a boxed rich
+panel quoting the source. `python -m myapp.cli export out/` ran nothing and exited `0`. The template
+passed `mypy --strict` and the house ruff selection at line length 120.
+
+**No real CLI was available to check against.** The maintainer was unavailable, so the rules were
+walked through the universal test services instead. A CLI tool: every rule binds, and rule 7 does not
+arise. A CLI-triggered flat export from an object store: the command calls the run function
+`flat-entrypoint` defines, built by that family's composition root, and maps the upstream error's
+class to its code; rules 1, 2 and 7 bind. Where its scheduler also runs it, the scheduler runs the
+console script, so one exit contract holds, and a process definition's own exit stays the family's. A
+library with no entrypoint and a hex REST service with no command have no CLI, and the skill does not
+fire. Reviews through these services found the following, now addressed:
+- a failure test asserting a whole-stderr literal breaks on the log event before the message;
+- nothing told a CLI tool from a service that a command triggers, now one sentence in
+  `architecture-choice`;
+- the root's code sat outside the map;
+- rule 2 restated `exception-catalog` rule 13, and now points at it;
+- `log.error` spread `context` into the event's own fields, and now carries it as one `context` field.
+
+`architecture-choice` routes a CLI tool's commands here while still giving it no family and no layout
+for a large command tree.
+
+**Neighbours brought into line.** These lines contradicted or bypassed the new owner:
+- `python-toolchain`'s "one console script per command" is now one script naming the app for a CLI
+  tool, and `python-container-image`'s neighbour line follows.
+- `python-versioning`'s surface line names a CLI tool's command line as `python-cli`'s.
+- `test-principles`' CLI entrypoint layer, which read as a subprocess run, is now in process through
+  the library's runner.
+- `naming`'s frozen contracts list CLI commands as well as flags.
+- `exception-catalog` routes a class's exit code to the map here.
+- `flat-project-setup` no longer gives a CLI tool one console script per command.
+- The plugin manifest's description names the skill.
+- `CLAUDE.md`'s checker install list gains `typer`, without which the template's imports go unchecked.
+
+The remaining family pointers are backlog item 82.
+
+**Reverse by:** from the parent of the commit that added this entry:
+- delete `plugins/pyhouse-universal/skills/python-cli/`;
+- remove its row in `meta-skill-author`'s ownership table, and set that skill's listing figure back to
+  ~37,500;
+- remove its line under Universal in `CONVENTIONS.md`, and set its counts back (51 → 50 skills,
+  Universal 17 → 16, the packaging table's 17 → 16);
+- remove its row in `skills/README.md`, and set its counts back (51/49 → 50/48, Universal 17 → 16,
+  the plugin row 17 → 16);
+- in the top-level `README.md`, set "Forty-nine" back to "Forty-eight" and the plugin row 18 → 17, and
+  drop its clause;
+- in `CLAUDE.md`, set 51/49 back to 50/48 and the layout block's 18 (17 + meta) to 17 (16 + meta), and
+  drop `typer` from the install list;
+- remove the `python-cli` sentences in `architecture-choice`, `python-toolchain`,
+  `python-container-image`, `python-versioning`, `test-principles` and `exception-catalog`;
+- in `naming`, set "CLI commands and flags" back to "CLI flags";
+- restore `flat-project-setup`'s console-script sentence;
+- drop the plugin manifest's clause;
+- remove backlog item 82.

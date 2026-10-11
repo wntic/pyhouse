@@ -79,7 +79,7 @@ paths: <optional — activation globs>
 - **`description` + `when_to_use` truncate at 1,536 characters combined** in the skill listing.
 - **The listing has a total budget, a fixed share of the context window.** Past it, the least-invoked
   skills' descriptions are dropped and only their names kept. This catalogue's `description` +
-  `when_to_use` pairs come to ~37,500 characters, ~750 a skill, enough to pass it. Every character
+  `when_to_use` pairs come to ~38,200 characters, ~750 a skill, enough to pass it. Every character
   added to one skill's listing is weighed against another skill's description being dropped.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
@@ -356,6 +356,7 @@ A rule lives in exactly one skill. Every other skill points at it.
 | Lint, type-check and test-runner configuration, the src layout, dependency declarations and floors, where any other hand-written version comes from | `python-toolchain` |
 | The error catalogue and boundary translation | `exception-catalog` |
 | A unit delivered at least once — when it is acknowledged or returned, bounded redelivery and the dead letter, a redelivery changing nothing, a third party's signature checked over the raw body | `at-least-once-delivery` |
+| A command-line interface — the thin command, the exit-code map, the command line as a published surface, its in-process test | `python-cli` |
 | Store-generic data access — which rules bind given the store, transaction ownership, where a driver error is translated (the translation itself is `exception-catalog`'s), constraint and table names, row mapping, stored types, conflicts, ordering and deduplication, paged reads, migrations as a deploy step, data-access code logging nothing | `persistence` |
 | What the version promises, and the change that moves it | `python-versioning` |
 | Where a boundary goes, split vs merge | `coupling` |

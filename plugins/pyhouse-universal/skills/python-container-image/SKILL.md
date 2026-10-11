@@ -23,7 +23,7 @@ sits among several, and the compose file that runs them, is `python-workspace`.
 - A comment in the `Dockerfile` or its ignore file → `python-style`'s **Comments**, which holds in every
   file the project writes by hand.
 - Where log events go, and a program whose stdout is its result → `python-logging`.
-- One console script per command or process → `python-toolchain`; the image runs one of them.
+- One console script per process, or per CLI app → `python-toolchain`; the image runs one of them.
 - What the process does once the stop signal arrives → not this skill, which only delivers the signal.
 - A library, or a CLI tool its users install as a package → not this skill; it ships as a
   distribution, released under `python-versioning`.
