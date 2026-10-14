@@ -76,7 +76,7 @@ budget, so trigger phrasings beyond the first sentence go at the end of `descrip
   description is as long as its triggers and routing need, and no shorter cap applies.
 - **The listing has a total budget, a share of the context window** (1% by default,
   `skillListingBudgetFraction`). Past it, the least-invoked skills' descriptions are dropped and only
-  their names kept. This catalogue's descriptions come to ~38,300 characters, ~750 a skill, enough to
+  their names kept. This catalogue's descriptions come to ~38,700 characters, ~760 a skill, enough to
   pass it. Every character added to one skill's listing is weighed against another skill's description
   being dropped.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
@@ -353,7 +353,7 @@ A rule lives in exactly one skill. Every other skill points at it.
 | The image a runnable program ships in — its stages, its user, its build context, its stop signal | `python-container-image` |
 | Lint, type-check and test-runner configuration, the src layout, dependency declarations and floors, where any other hand-written version comes from | `python-toolchain` |
 | The error catalogue and boundary translation | `exception-catalog` |
-| A unit delivered at least once — when it is acknowledged or returned, bounded redelivery and the dead letter, a redelivery changing nothing, a third party's signature checked over the raw body | `at-least-once-delivery` |
+| A unit delivered at least once — when it is acknowledged or returned, bounded redelivery and the dead letter, a redelivery changing nothing, a third party's signature checked over the raw body, what a relay of a recorded effect owes | `at-least-once-delivery` |
 | A command-line interface — the thin command, the exit-code map, the command line as a published surface, its in-process test | `python-cli` |
 | Store-generic data access — which rules bind given the store, transaction ownership, where a driver error is translated (the translation itself is `exception-catalog`'s), constraint and table names, row mapping, stored types, conflicts, ordering and deduplication, paged reads, migrations as a deploy step, data-access code logging nothing | `persistence` |
 | What the version promises, and the change that moves it | `python-versioning` |
