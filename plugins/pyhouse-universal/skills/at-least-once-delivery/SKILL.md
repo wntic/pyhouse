@@ -1,16 +1,17 @@
 ---
 name: at-least-once-delivery
-description: Use when a program receives units of work another party delivers, and delivers again until they are acknowledged — a queue or stream consumer, a webhook receiver, any handler a broker or a third-party sender calls — in any project whatever its architecture. Owns when a unit is acknowledged and when it is returned, the bounded redelivery and the dead letter an operator reads, a redelivery that changes nothing — identity and values taken from the unit, never the clock or a per-delivery mint — and a third party's signature verified over the raw body before parsing. It binds no broker and writes no file; the consumer or route that applies it is the architecture family's, and an older write never replacing a newer one is `persistence`'s. Also when asked whether a consumer needs at-most-once, at-least-once or exactly-once delivery, whether to acknowledge before or after the handler, why a message was lost or applied twice, where a failed message goes, or how to verify a webhook's signature.
+description: Use when a program receives units of work another party delivers, and delivers again until they are acknowledged — a queue or stream consumer, a webhook receiver, any handler a broker or a third-party sender calls — or is itself that sender, relaying an effect it recorded with a committed write, as an outbox relay does, in any project whatever its architecture. Owns when a unit is acknowledged and when it is returned, the bounded redelivery and the dead letter an operator reads, a redelivery that changes nothing — identity and values taken from the unit, never the clock or a per-delivery mint — and a third party's signature verified over the raw body before parsing; and on the sending side, what a relay of a recorded effect owes. It binds no broker and writes no file; the consumer or route that applies it is the architecture family's, an older write never replacing a newer one is `persistence`'s, and whether an effect after a write is recorded at all is `exception-catalog`'s. Also when asked whether a consumer needs at-most-once, at-least-once or exactly-once delivery, whether to acknowledge before or after the handler, why a message was lost or applied twice, where a failed message goes, or how to verify a webhook's signature.
 ---
 
-# At-least-once delivery — a unit someone else delivers
+# At-least-once delivery — a unit delivered until it is acknowledged
 
 The obligations a program owes each **unit another party delivers to it and delivers again until it is
 acknowledged** — a broker's message, a record read from a stream, a webhook request from a third party.
 They hold in any project, whatever its architecture and whatever delivers the unit. None binds a broker:
 the limit and the dead letter are the delivery mechanism's configuration, declared with the deployment,
 and the code that receives the unit — a consumer wrapper, a route, an inbound adapter — is written
-under the project's own entrypoint skill.
+under the project's own entrypoint skill. Rule 6 is the same guarantee from the other side: a program
+relaying an effect it recorded with a committed write is that sender to whoever receives it.
 
 ## When to use vs. neighbours
 
@@ -20,13 +21,12 @@ under the project's own entrypoint skill.
   project's own entrypoint applies them.
 - An older write never replacing a newer one for the same key, and deduplication left to the store →
   `persistence` (rules 15–17); rule 4 here only says when that applies to a delivered unit.
-- A failure after a committed write, and a failure that is stopped rather than swallowed →
-  `exception-catalog`.
+- A failure after a committed write — whether its effect is recorded with the write at all, or stopped
+  and logged when it fails — and a failure stopped rather than swallowed → `exception-catalog`; the
+  record committed in the write's own transaction → `persistence` rule 2. What the relay owes once the
+  record exists is rule 6 here.
 - Which scope logs a failed unit, and the event it logs → `python-logging`.
 - The signing secret, and where it is unwrapped → `python-settings`.
-- **The sending side** — delivering a committed write's effect onward, an outbox and its relay → not
-  this skill; `exception-catalog` states the obligation, and `hex-persistence`'s `UNIT_OF_WORK.md`, in
-  the `pyhouse-hex` plugin, is an example of the relay.
 - Testing that a failed unit is returned and that a second delivery changes nothing → the family's
   entrypoint test skill (`flat-test-entrypoint` rules 2 and 6, in the `pyhouse-flat` plugin, is an
   example); in a hexagonal service the redelivered create is `hex-test-application-handler`'s, in the
@@ -55,10 +55,12 @@ under the project's own entrypoint skill.
 | a broker or a stream — a queue, a log read by offset, a stream read by a consumer group — whether it pushes or the program polls it, on any schedule | 1–4 |
 | a third party over HTTP, which signs what it sends | 1, 3, 4, 5 — and rule 2's answer to a failure; the sender's retry schedule and its dead letter are its own |
 | a third party over HTTP that signs nothing, on a network that already trusts it | 1, 3, 4 — and rule 2's answer to a failure |
+| this program, relaying to another party an effect it recorded with a committed write — an outbox row | 6; a receiver the project owns holds 3 and 4 |
 
 A program **reading a source that keeps no delivery state for it** — a table, an API, a file listing —
 is delivered nothing: nothing redelivers to it, and its next run is its retry. A broker or a stream read
-by polling is still delivering.
+by polling is still delivering, and a relay reading its own record of an effect is the sender of rule 6,
+not such a reader.
 
 ## Rules
 
@@ -112,15 +114,29 @@ by polling is still delivering.
    is rejected with nothing written and is never retried into success. Where the scheme signs a
    timestamp with the body, a delivery outside the scheme's tolerance is rejected the same way, since a
    valid signature on an old body is a replay.
+6. **A relay delivers each recorded effect at least once, under the record's own id, and marks it
+   delivered only once the receiver has acknowledged it.** This is the sending side of the same
+   guarantee: the effect was recorded with the write it follows (`exception-catalog`), and a record
+   marked delivered before the receiver's acknowledgement is lost by a crash between the two, as rule 1's
+   early acknowledgement loses a unit. The receiver is whoever the relay hands the effect to — a broker
+   confirming the publish, an endpoint answering success — and its acknowledgement is awaited, never
+   assumed from a client accepting the send. Every attempt carries the same id, never one minted per
+   attempt, as the message's id or as the receiver's idempotency key wherever it accepts one, so a
+   receiver idempotent by that id (rule 3, from its side) treats a redelivery as already applied; where
+   the receiver accepts no key, a redelivery may repeat the effect, which is the cost of at least once.
+   The relay promises no order between records unless it holds back a key's later records behind a
+   failed one; a receiver that needs order has rule 4.
 
 ## Hard stops
 
 - Writing the consumer wrapper, the HTTP route or the inbound adapter that receives the unit → stop, use
   the family's entrypoint skill (`flat-entrypoint`, in the `pyhouse-flat` plugin; `hex-architecture`, in
   the `pyhouse-hex` plugin), or the project's own entrypoint where neither is installed.
-- Delivering a committed write's effect from this program to another — an outbox, a relay, a publish
-  after the write → stop, that is the sending side: `exception-catalog`, and the family's relay where it
-  has one.
-- Applying these rules to a program reading a source that keeps no delivery state for it — a table, an
-  API, a file listing → stop, nothing here binds; its next run is the retry. A broker or a stream read
-  by polling is not this case.
+- Publishing or sending a committed write's effect straight after the write, with nothing recorded,
+  where losing it costs something → stop, use `exception-catalog`; the effect is recorded atomically
+  with the write and relayed under rule 6, or, where the operation is idempotent under redelivery, the
+  operation fails whole and its redelivery reruns the effect.
+- Applying rules 1–5 to a program reading a source that keeps no delivery state for it — a table, an
+  API, a file listing → stop, they do not bind; its next run is the retry. A broker or a stream read by
+  polling is not this case, and what the program relays from its own committed write is rule 6's
+  whatever it reads.

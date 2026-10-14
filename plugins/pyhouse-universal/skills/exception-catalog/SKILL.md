@@ -208,10 +208,11 @@ it tells the caller a change that happened did not, and the caller's retry repea
 scope stops the effect's failure and logs it once, or hands the effect to something that retries it,
 and a hand-off made after the write is held to the same rule. A task started and never awaited is not a
 hand-off; it swallows its failure. An effect that must not be lost does not run after the write: it is
-recorded atomically with the write and delivered by something that retries it. An operation idempotent
-under redelivery may instead fail whole; its redelivery is the hand-off that reruns the effect. A second
-store's write that is part of what the operation changed is not such an effect: it is made whole under
-`persistence` rule 3, and its failure propagates.
+recorded atomically with the write and delivered by something that retries it, under
+`at-least-once-delivery` rule 6. An operation idempotent under redelivery may instead fail whole; its
+redelivery is the hand-off that reruns the effect. A second store's write that is part of what the
+operation changed is not such an effect: it is made whole under `persistence` rule 3, and its failure
+propagates.
 
 Everywhere else a failure a scope catches is re-raised, translated, or stopped and logged by the scope
 that stops it — never dropped. A translation's unmatched branch raises; it does not get to stop anything.

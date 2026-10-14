@@ -31,8 +31,8 @@ as in any other project. What goes *inside* a module belongs to whichever skill 
 - Choosing an annotation form or a collection type → `python-style`; the level and fields of a log
   event → `python-logging`; which layer logs is below.
 - The error catalog → `exception-catalog`.
-- What a queue consumer or a webhook route owes the unit delivered to it → `at-least-once-delivery`;
-  where the entrypoint does it is below.
+- What a queue consumer or a webhook route owes the unit delivered to it, and what a relay owes the
+  effect it sends → `at-least-once-delivery`; where the entrypoint does it is below.
 - Deriving a concrete path or class name from an identifier → `hex-conventions`.
 - Library substrate and the migration bootstrap → `hex-project-setup`; toolchain config → `python-toolchain`.
 - A table, a relational repository, a migration → `hex-persistence`.

@@ -2239,7 +2239,8 @@ unless it holds back a key's later rows behind a failed one. `hex-persistence`'s
 relay's author there, the file's header names the paragraph as a mechanism-free obligation, and
 `hex-application` *After the store write* points at it; `exception-catalog`'s "delivered by something
 that retries it" is not restated. The obligations hold in any family; they sit in the hex file as
-agreed, and move to a universal skill if a flat service earns an outbox. `naming` allows the names
+agreed, and move to a universal skill if a flat service earns an outbox *(superseded by D182: the
+relay's obligations are `at-least-once-delivery` rule 6)*. `naming` allows the names
 Python's own style gives — exactly `self` and `cls` as a method's first parameter, and `exc` for an
 exception in hand, a handler's parameter included — which the maintainer keeps as the language's style;
 `cls` elsewhere and `tb` are renamed under item 46. `hex-wiring`'s declaration-order list is bulleted,
@@ -2838,7 +2839,8 @@ rest; its central scope's outcome list says the unit returned or rejected
 rather than "a retry or a dead-letter". Hex has no test rule for either, recorded as a proposed backlog
 entry. `exception-catalog` rule 15 and `persistence` rule 16 keep their obligations; the first names the
 skill beside "idempotent under redelivery", the second's skill gains a neighbour line. The outbox and
-its relay stay in hex (D145); the skill routes the sending side away. No `when_to_use` is written, the
+its relay stay in hex (D145); the skill routes the sending side away *(superseded by D182: the skill
+owns the relay as rule 6)*. No `when_to_use` is written, the
 description stays under 1,024 characters, and no `## Other bindings` is written, a reference skill
 having none.
 **Reverse by:** from the parent of the commits that added this entry, deleting
@@ -3140,3 +3142,42 @@ aiohttp keeping `aioresponses`.
 
 **Reverse by:** from the parent of the commit that added this entry, reverting it; the D176 marker goes
 with it.
+
+### D182 — The outbox relay's obligations are `at-least-once-delivery` rule 6
+Taken by the maintainer (2026-10-14), after an outcome experiment on whether a skill for distributed
+patterns — a transactional outbox and the like — was worth writing. Nine headless Opus runs (2026-10-13,
+user settings excluded, the checkout's plugins loaded with `--plugin-dir`, write-only tools) took three
+two-sentence prompts — a REST service whose new orders other services learn of from a topic, a queue
+consumer that stores each payment and publishes an event, a poller that sends a webhook per new row —
+twice with the catalogue and once without. All nine recorded the effect in the write's own transaction
+and relayed it at least once under a stable id; none wrote to the store and published in two steps. The
+runs without the catalogue were as correct and only less structured (one wrote a single 300-line
+module). So no patterns skill is written: a defect becomes a rule, and none was seen. Three of the four
+flat runs with the catalogue read `hex-persistence`'s `UNIT_OF_WORK.md` for what the relay owes, which is
+D145's condition for a universal owner, and a project with only `pyhouse-flat` installed, its reviewer
+included, could not reach those obligations at all.
+
+They move to `at-least-once-delivery` as rule 6 — the sending side of the guarantee the skill already
+binds, whose rules 1, 3 and 4 the relay mirrors (marked delivered only after the receiver's
+acknowledgement, the same id on every attempt, no order unless a key is held back). `exception-catalog`
+owns only the decision that the effect is recorded with the write, and its description fires on error
+classes, never at relay time; `persistence` was refused because a relay is the scope that stops a
+failure, which its data-access rules forbid. A four-lens review corrected the first draft: the
+receiver is whoever the relay hands the effect to, a broker's confirmation or an endpoint's success,
+awaited; the id travels as the receiver's idempotency key wherever it accepts one, and where it accepts
+none a redelivery may repeat the effect (an obligation of idempotency on a third party nobody controls
+was the D145 wording's hex assumption); the hard stop for publishing straight after a write keeps
+`exception-catalog`'s second answer, an operation idempotent under redelivery failing whole; the stop
+for a source keeping no delivery state names rules 1–5, so a relay reading its own outbox table is not
+sent away. The neighbour line cites `persistence` rule 2 and drops `UNIT_OF_WORK.md` as an example,
+which would send a flat service to a hex unit-of-work protocol. Not added, each for want of a defect in
+the runs: a bound on a relay's attempts (the webhook runs bounded theirs; the broker runs rightly did
+not, since a bound would dead-letter events through an outage), a wider trigger phrase for an agent
+about to publish after a write (every run reached the skill), a pointer under `hex-application`'s
+create template, and a rerun of a poller finding its row already written. `UNIT_OF_WORK.md` keeps the
+unit of work and points at rule 6; `hex-persistence`, `hex-application`, `hex-architecture`,
+`exception-catalog`, both indexes, the ownership row and the top-level `README.md` follow.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it, which restores the
+relay paragraph to `UNIT_OF_WORK.md` and the skill's routing of the sending side away, and drops the
+D145 and D175 markers.
