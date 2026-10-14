@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.25.0 — 2026-10-14
+
+Plugin versions in this release: `pyhouse-universal` 0.22.0 (from 0.21.1), `pyhouse-hex` 0.15.0 (from
+0.14.1); `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.8.1 are unchanged. Nothing is removed or reversed.
+
+### Changed
+
+- **What an outbox relay owes is now a universal rule, `at-least-once-delivery` rule 6.** Until now it
+  was a paragraph in `hex-persistence`, so a flat service, or a project without `pyhouse-hex`, had no
+  rule for its relay and a review had nothing to check it against. The obligations are the same in
+  every family: each recorded effect is delivered at least once under the record's own id, marked
+  delivered only once the receiver has acknowledged it, and kept in no particular order unless the
+  relay holds a key's later records back behind a failed one. Two points are now stated outright:
+  - *The receiver's acknowledgement is awaited.* The receiver is whoever the relay hands the effect
+    to — a broker confirming the publish, an endpoint answering success. A client that has only
+    accepted the send into its buffer has not acknowledged anything. If your relay marks a row
+    delivered as soon as the send call returns, check it.
+  - *The id travels as the receiver's idempotency key wherever it accepts one.* A receiver that accepts
+    no key may see an effect twice; that is the cost of at least once, and nothing on the sending side
+    removes it.
+- **`at-least-once-delivery` now fires on the sending side as well.** It loads when a program relays an
+  effect it recorded with a committed write, and its hard stops no longer send that work elsewhere.
+  Whether an effect after a write needs recording at all is still `exception-catalog`'s decision.
+  Publishing straight after the write with nothing recorded, where losing the effect costs something,
+  stops there. An operation idempotent under redelivery may still fail whole instead. A relay that polls
+  its own outbox table is a sender under rule 6, not a reader of a source with no delivery state.
+- **`hex-persistence`'s unit-of-work file now covers the unit of work alone.** Its templates are
+  unchanged, and the relay's paragraph is replaced by a pointer to rule 6. `hex-application` and
+  `hex-architecture` point to the same rule.
+
 ## 0.24.1 — 2026-10-12
 
 Plugin versions in this release: `pyhouse-universal` 0.21.1 (from 0.21.0), `pyhouse-hex` 0.14.1 (from
