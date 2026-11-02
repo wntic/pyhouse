@@ -88,10 +88,10 @@ too. The counts in every heading are the number of directories on disk.
 
 ## Packaging — which plugin a skill ships in
 
-The catalogue is distributed on the Claude Code marketplace as four plugins under the marketplace name
+The catalogue is distributed on the Claude Code marketplace as five plugins under the marketplace name
 `pyhouse`. Three of them hold Python house style, and every new Python skill belongs to exactly one of
 those three. The fourth, `pyhouse-git`, ships beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
-depends on nothing and nothing in the catalogue depends on it, so a `git-*` skill may name a catalogue
+depends on nothing and no skill plugin depends on it, so a `git-*` skill may name a catalogue
 skill only as an example and must read correctly in a repository with no Python in it.
 
 | Plugin | Directory | Contains | Depends on |
@@ -100,6 +100,10 @@ skill only as an example and must read correctly in a repository with no Python 
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
+| `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other four |
+
+**`pyhouse` takes no skill.** It exists so one install brings the whole catalogue, and nothing depends
+on it, so no skill may name it. No prefix maps to it, and a skill is never added to it.
 
 **The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.
 

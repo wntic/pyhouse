@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repository is
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
-test suite and no runtime dependencies — only Markdown skills, four plugin manifests, and one
+test suite and no runtime dependencies — only Markdown skills, five plugin manifests, and one
 maintainer script. The "code" is 51 `SKILL.md` files — 49 that tell an agent how to write Python
 services, and two that tell it how to commit and branch. The Python in them is template content,
 not executed as part of anything here.
@@ -53,7 +53,7 @@ none of its own. It decides which skills apply and applies them.
 
 ```bash
 claude plugin marketplace add wntic/pyhouse        # or `add .` to test this checkout locally
-claude plugin install pyhouse-hex@pyhouse          # or pyhouse-flat / pyhouse-universal
+claude plugin install pyhouse@pyhouse              # all four, or one: pyhouse-hex, pyhouse-flat, …
 ```
 
 `/commit` (in `.claude/commands/`) is the repository's own commit flow, and its subject is **this
@@ -99,7 +99,7 @@ that application, and only ever added. So:
 
 ## Releasing
 
-The catalogue is subject to `python-versioning` like anything else it ships, and its five version
+The catalogue is subject to `python-versioning` like anything else it ships, and its six version
 fields — one per plugin, plus the marketplace — are what that skill calls **members versioning
 independently**: each plugin is installed on its own, so each manifest carries its own number, and
 they are not expected to match. Read the current numbers from the manifests themselves; this file
@@ -134,7 +134,7 @@ the commits since the last tag rather than argued about at release time. `/relea
 call. The type table and the scope vocabulary are in `.claude/commands/commit.md` step 4; they are
 not repeated here.
 
-**Tags are the repository's, not the plugin's.** One artifact ships all four plugins together, so the
+**Tags are the repository's, not the plugin's.** One artifact ships all five plugins together, so the
 tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
 is immutable: a correction is the next number, never a moved tag.
 
@@ -165,7 +165,7 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 ## Layout
 
 ```
-.claude-plugin/marketplace.json          lists the four plugins
+.claude-plugin/marketplace.json          lists the five plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 CHANGELOG.md                             what each release changed for the plugins' users, drafted by
                                          /release-notes after the tag
@@ -174,6 +174,8 @@ tools/check_template_imports.py          resolves every import in every template
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
 .claude/backlog.md                       catalogue edits agreed or proposed, not yet made
+plugins/pyhouse/                         no skills: depends on the other four and ships /pyhouse:setup,
+                                         which runs their setup commands in order
 plugins/pyhouse-universal/               18 skills (17 universal + meta-skill-author),
                                          /choose-architecture, /code-review, /pyhouse-universal:adopt,
                                          agents/pyhouse-reviewer
@@ -199,7 +201,7 @@ below exists to tell you what you would break, not to replace them.
 
 ## The invariants that are easy to break
 
-**Four plugins, one-way dependency.** The prefix decides the plugin: unprefixed and `meta-*` →
+**Five plugins, one-way dependency.** The prefix decides the plugin: unprefixed and `meta-*` →
 `pyhouse-universal`; `hex-*` → `pyhouse-hex`; `flat-*` → `pyhouse-flat`. Family plugins depend on
 `pyhouse-universal`, so a `hex-*`/`flat-*` skill may reference a universal skill freely. A universal
 skill may name a family skill only as an *example* and must still read correctly with that plugin
@@ -207,9 +209,9 @@ absent — `pyhouse-universal` has to be installable alone. Hex↔flat reference
 (the families are mutually exclusive) and must therefore name the plugin: "`flat-layered`, in the
 `pyhouse-flat` plugin". A cross-family reference that carries a rule the referrer *needs* is a defect.
 
-`git-*` → `pyhouse-git`, which stands outside that graph: it depends on nothing and nothing depends on
-it, because it is installed in repositories of any language. A `git-*` skill may name a catalogue skill
-only as an example and must read correctly with it absent. Since neither side can require the other, a
+`git-*` → `pyhouse-git`, which stands outside that graph: it depends on nothing and no skill plugin
+depends on it, because it is installed in repositories of any language. A `git-*` skill may name a
+catalogue skill only as an example and must read correctly with it absent. Since neither side can require the other, a
 rule both need is stated in both, worded to agree. There are four instances: a commit which is not a
 release does not touch the version, stated by `git-commit-message` from the commit's side and by
 `python-versioning` from the number's; and below 1.0.0 a break bumps the minor, stated by
@@ -220,6 +222,13 @@ rule 15; and a tag names exactly one released thing — `<member>-v<version>` pe
 separately, one `v<version>` naming an aggregate where one artifact ships every member, the aggregate
 moving by a minor if any member moved by a minor or more and by a patch if every member that moved only
 patched — stated by `/release` and by `python-versioning` rule 13. None is a duplicate to delete.
+
+`pyhouse` sits above all four: it depends on each and nothing depends on it, so it may require any of
+them and none of them may name it. It holds **no skill and no rule** — only the dependency list that
+makes the whole catalogue one install, and `/pyhouse:setup`, which runs the other plugins' setup
+commands in order and does none of their work itself. A rule or a step written into it is a second copy
+of one its owner already states; it goes in the owning plugin's command instead, and `/pyhouse:setup`
+calls that.
 
 **Principle and binding stay separate.** `## Rules` states obligations that survive swapping the
 library ("translate the driver's integrity error at the repository boundary"), never mechanisms
