@@ -26,7 +26,9 @@ structure right. The same skills are the criteria an agent reviews code against.
 
 Two architecture families exist because two kinds of service exist: hexagonal for a service with
 business rules of its own, flat for workers, ingest, ETL and glue with no rules to protect. The
-universal plugin holds what binds any Python project, including a library or a CLI tool.
+universal plugin holds what binds any Python project, including a library or a CLI tool. A fifth
+plugin, `pyhouse`, holds no skill: it installs the other four and sets a repository up for them with
+`/pyhouse:setup`, so adopting the catalogue is one install and one command.
 
 The catalogue is written for Claude Code alone: its plugins, commands and skill frontmatter are Claude
 Code's, and nothing is added to serve another agent.

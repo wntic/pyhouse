@@ -43,7 +43,7 @@ must be prefixed `**/` and absent on universal skills.
 **If a skill was added, renamed or rescoped**, confirm all of these are in step — the counts go stale first:
 
 ```
-for p in plugins/*/; do echo "$p $(ls $p/skills | grep -v README | wc -l)"; done
+for p in plugins/*/; do echo "$p $(ls $p/skills 2>/dev/null | grep -v README | wc -l)"; done
 ```
 
 - `plugins/pyhouse-universal/skills/README.md` — entry and the count in its heading

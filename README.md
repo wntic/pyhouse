@@ -16,42 +16,45 @@ name.
 
 ## Install
 
-Install all four plugins:
-
 ```bash
 claude plugin marketplace add wntic/pyhouse
-claude plugin install pyhouse-universal@pyhouse
-claude plugin install pyhouse-hex@pyhouse
-claude plugin install pyhouse-flat@pyhouse
-claude plugin install pyhouse-git@pyhouse
+claude plugin install pyhouse@pyhouse
 ```
+
+`pyhouse` holds no skills of its own. It depends on the other four plugins, so Claude Code installs
+all of them with it, and it ships `/pyhouse:setup`, which sets a repository up for them in one run.
 
 Each plugin installs and works on its own, but the catalogue is written as one piece and the plugins
 lean on each other beyond what their manifests declare:
 
 ```mermaid
 flowchart LR
-    hex["pyhouse-hex"] --> universal["pyhouse-universal"]
-    flat["pyhouse-flat"] --> universal
-    universal <-.-> git["pyhouse-git"]
+    pyhouse["pyhouse"] --> universal["pyhouse-universal"]
+    pyhouse --> hex["pyhouse-hex"]
+    pyhouse --> flat["pyhouse-flat"]
+    pyhouse --> git["pyhouse-git"]
+    hex --> universal
+    flat --> universal
+    universal <-.-> git
 ```
 
 A solid arrow is a declared dependency, which Claude Code installs for you. The dashed one is a
 reference that degrades quietly when its target is missing — and so are the references between the
-plugins the picture leaves out: `/choose-architecture` recommends a
-family whose skills are not there, a skill points at the other family's equivalent and the name
-dangles, `/pyhouse-universal:code-review` skips commit messages, `/release` computes versions without
-the rules that say what a version promises. Installing everything removes those gaps; installing a
-subset is supported, but you get less than the catalogue describes.
+plugins the picture leaves out: `/choose-architecture` recommends a family whose skills are not there,
+a skill points at the other family's equivalent and the name dangles,
+`/pyhouse-universal:code-review` skips commit messages, `/release` computes versions without the rules
+that say what a version promises. Installing everything removes those gaps; installing a subset is
+supported, but you get less than the catalogue describes, and you run the setup commands yourself.
 
-- **Only one family.** Fine once the family is settled and will stay so; leaving the other one out
-  saves skill-listing budget (see [Setting up a repository](#setting-up-a-repository)).
+- **Only one family.** `claude plugin install pyhouse-hex@pyhouse` (or `pyhouse-flat`), which brings
+  `pyhouse-universal`, plus `pyhouse-git`. Fine once the family is settled and will stay so.
 - **`pyhouse-universal` alone.** The language-level rules, for a library or a CLI tool, which neither
   family covers.
 - **`pyhouse-git` alone.** For a repository in any other language: it depends on nothing.
 
 | Plugin | Skills | What it covers |
 |---|---|---|
+| `pyhouse` | 0 | The whole catalogue in one install, and `/pyhouse:setup`, which runs the other plugins' setup commands in order. States no rule of its own. |
 | `pyhouse-universal` | 18 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, what a program owes a message or a webhook delivered at least once and what a relay of a recorded effect owes, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, a command-line interface's commands, exit codes and test, the architecture chooser, `/pyhouse-universal:adopt`, which tells a repository's agents which skill governs each kind of Python work, and the reviewer that applies all of it to code that already exists. |
 | `pyhouse-hex` | 23 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: stages the named files and reviews the staged diff, then writes a Conventional Commits message whose type carries the release the change earns. `/pyhouse-git:adopt` records in the repository's agent instructions how its changes branch, land and are committed, and turns off the agent's own authorship line. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. `/release-notes` then drafts the release note for the people using the project — what changed for them, what a break asks of them — from the changes themselves rather than the commit subjects. Depends on nothing; install it on its own. |
@@ -59,17 +62,26 @@ subset is supported, but you get less than the catalogue describes.
 
 ## Setting up a repository
 
-Installing the plugins makes the skills available; it does not make an agent use them. Do this once
-per repository, new or existing, from a Claude Code session at its root:
+Installing the plugins makes the skills available; it does not make an agent use them. Once per
+repository, new or existing, run from a Claude Code session at its root:
 
-1. **Have a `CLAUDE.md`.** In an existing repository run `/init` first if there is none, so the adopt
-   commands add to a file that already describes the project; otherwise they create a bare one.
-2. **Settle the family, if it is not.** For a new service, `/choose-architecture`. Skip it for a
-   library or a CLI tool, which belong to neither family.
+```
+/pyhouse:setup [hex | flat]
+```
+
+Pass the family only once the code already follows it. Without it, the command asks, and offers
+`/choose-architecture` for a new service. It runs each plugin's own command in turn, so each step can
+also be run alone, and running any of them again updates what it wrote rather than adding a second
+copy:
+
+1. **`CLAUDE.md`.** In an existing repository without one, it offers `/init` first, so the sections
+   below land in a file that already describes the project; otherwise the adopt commands create a bare
+   one.
+2. **The family.** `/choose-architecture` for a new service whose family is not settled. A library or a
+   CLI tool belongs to neither family.
 3. **`/pyhouse-universal:adopt [hex | flat]`** writes a `## Python house style` section into
-   `CLAUDE.md`: which skill to load before each kind of Python work. Pass the family only once the code
-   already follows it — the command never picks one, and without the argument it leaves the family's
-   layout row out.
+   `CLAUDE.md`: which skill to load before each kind of Python work. Without a family it leaves the
+   family's layout row out — it never picks one.
 4. **`/pyhouse-git:adopt`** writes a `## Branches and commits` section — the mainline, the merge method
    and the branch-name pattern, confirmed with you before it is written — and sets
    `"attribution": {"commit": "", "pr": ""}` in `.claude/settings.json`, so Claude Code stops adding
@@ -77,16 +89,17 @@ per repository, new or existing, from a Claude Code session at its root:
 5. **`/pyhouse-git:install-commit-hook shared`** puts a `commit-msg` hook in `.githooks/` and points
    `core.hooksPath` at it, so a malformed message is refused whoever writes it. `core.hooksPath` is
    per-clone: every contributor runs `git config core.hooksPath .githooks` once, so put it in the
-   repository's setup script if it has one. Use `local` instead to try the hook in your clone only.
-6. **Raise the skill-listing budget.** The catalogue takes most of Claude Code's skill-listing budget,
-   so with the default some skills are listed by name alone, without the description that makes them
-   fire. Add `"skillListingBudgetFraction": 0.02` to `.claude/settings.json` (the default is `0.01`;
-   `0.02` lists the whole catalogue). No command writes it.
-7. **Commit the result** — `CLAUDE.md`, `.claude/settings.json` and `.githooks/` — as one change of its
-   own, by the branching you just recorded. Check that `.claude/` is not ignored by git: otherwise the
-   settings reach no one else.
+   repository's setup script if it has one. Pass `local` instead to try the hook in your clone only.
 
-Running either adopt command again updates the section it wrote rather than adding a second one.
+Then **commit the result** — `CLAUDE.md`, `.claude/settings.json` and `.githooks/` — as one change of
+its own, by the branching you just recorded. Check that `.claude/` is not ignored by git: otherwise the
+settings reach no one else.
+
+**The skill-listing budget is optional.** The catalogue takes most of Claude Code's skill-listing
+budget, so with the default some skills are listed by name alone, without their description. That was
+measured not to change which skill an agent loads — the names carry the routing — so no command sets
+it. To list every description anyway, add `"skillListingBudgetFraction": 0.02` to
+`.claude/settings.json` (the default is `0.01`; `0.02` lists the whole catalogue).
 
 ## Which family?
 

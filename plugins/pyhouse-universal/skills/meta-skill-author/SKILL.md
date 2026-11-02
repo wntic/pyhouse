@@ -16,7 +16,7 @@ This skill produces one new `SKILL.md`; editing other skills is an audit task.
 
 **Read the sibling `CONVENTIONS.md` in this skill's own directory before writing anything.** It carries
 the catalogue's shared placeholder vocabulary (`Foo`, `Bar`, `myapp`, `myschema` and the names derived
-from them), the banned vocabulary, the index of what each existing skill covers, the four-plugin
+from them), the banned vocabulary, the index of what each existing skill covers, the five-plugin
 packaging layout, the four skill shapes, and what is deliberately out of scope. Only this file is
 loaded automatically; the sibling is not, so open it rather than working from this summary of it.
 

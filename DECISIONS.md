@@ -3181,3 +3181,30 @@ unit of work and points at rule 6; `hex-persistence`, `hex-application`, `hex-ar
 **Reverse by:** from the parent of the commit that added this entry, reverting it, which restores the
 relay paragraph to `UNIT_OF_WORK.md` and the skill's routing of the sending side away, and drops the
 D145 and D175 markers.
+
+### D183 — A fifth plugin, `pyhouse`, installs the catalogue and sets a repository up in one command
+Taken by the maintainer (2026-11-02). Adopting the catalogue took five install commands and five
+commands in the session — `/init`, `/choose-architecture`, both adopt commands and the hook — and the
+plugins lean on each other past their declared dependencies: `/choose-architecture` routes to either
+family, the families route to each other, the reviewer reads commit messages only with `pyhouse-git`,
+and `/release` cites `python-versioning`. So the top-level `README.md` now recommends installing every
+plugin, and the maintainer asked for one command that sets everything up.
+
+The command cannot live in either existing side. D158 put one adopt command in each of
+`pyhouse-universal` and `pyhouse-git` because the first must install alone and the second depends on
+nothing; a `/pyhouse-universal:setup` driving the git commands would have made universal the owner of
+git's setup, and installing would still have taken five commands. A plugin above both keeps D158
+intact: `pyhouse` depends on all four, nothing depends on it, it holds no skill and no rule, and its
+one command, `/pyhouse:setup`, runs the other plugins' commands in order — never restating their
+steps, so each stays runnable alone and remains the only place its rule is written. It asks
+nothing the adopt commands already ask: the family comes from the argument or one question, the
+branching values from `/pyhouse-git:adopt`'s own confirmation.
+
+`/pyhouse:setup` does not write `skillListingBudgetFraction`, for D178's reason: which skill loads did
+not depend on it. The `README.md` setup section said the setting is what makes the unlisted skills
+fire; it now says it is optional and why. Not measured: whether one command invoking four others in a
+fresh project completes without the person re-running any of them.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — the plugin
+directory, its marketplace entry, and the five-plugin wording in `CLAUDE.md`, `kickoff.md`, both
+indexes and `README.md` go with it.
