@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.26.0 — 2026-11-02
+
+Plugin versions in this release: `pyhouse` 0.1.0 (new), `pyhouse-universal` 0.22.1 (from 0.22.0);
+`pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.8.1 are unchanged. Nothing is removed
+or reversed.
+
+### Added
+
+- **`pyhouse`, a plugin that installs the whole catalogue.** It holds no skills of its own and depends
+  on the other four, so `claude plugin install pyhouse@pyhouse` brings `pyhouse-universal`,
+  `pyhouse-hex`, `pyhouse-flat` and `pyhouse-git` in one step. Reach for it unless you know you want a
+  subset. The plugins lean on each other past their declared dependencies: the architecture chooser
+  routes to both families, the families point at each other's skills, and the code review checks
+  commit messages only when `pyhouse-git` is there. A subset still installs and works, with those
+  references left dangling. If you already have the plugins installed one by one, nothing changes until
+  you add it.
+- **`/pyhouse:setup [hex | flat]`, one command that sets a repository up.** Run it once at the root of
+  a repository, new or existing. It runs the existing setup commands in order:
+  1. offers `/init` where the repository has code but no `CLAUDE.md`;
+  2. settles the architecture family from its argument, or asks, offering `/choose-architecture` for a
+     new service;
+  3. runs `/pyhouse-universal:adopt`;
+  4. runs `/pyhouse-git:adopt`, which still asks you to confirm the mainline, the merge method and the
+     branch-name pattern;
+  5. runs `/pyhouse-git:install-commit-hook`.
+
+  It writes nothing of its own and leaves everything uncommitted, and running it again updates the
+  sections it wrote. Each of those commands still works on its own. It does not set the skill-listing
+  budget.
+
 ## 0.25.0 — 2026-10-14
 
 Plugin versions in this release: `pyhouse-universal` 0.22.0 (from 0.21.1), `pyhouse-hex` 0.15.0 (from
