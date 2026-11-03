@@ -96,6 +96,14 @@ that application, and only ever added. So:
   naming hold in any Python project; a family skill uses them and never defines a family-wide instance.
 - **What is optional is shown as optional.** An HTTP status, a second store, a framework — the template
   shows the obligation and marks the one line that exists only when the option does.
+- **Every finding is verified before it reaches the maintainer.** A reviewer who wrote none of them tries
+  to refute each against the current files and `DECISIONS.md`. An unverified full review once carried 25
+  refutable findings out of 114, most of them undoing recorded decisions the lenses had not read.
+- **One recheck, never a loop.** After the findings are applied, only the fix diff is checked, once.
+  Re-reading a whole skill each round finds something every time, mostly in the text the last round
+  wrote, and the loop never ends.
+- **The outcome is kept.** The merge commit body carries the review's outcome line — findings, refuted,
+  confirmed, applied — so whether the review earns its cost can be counted.
 
 ## Releasing
 

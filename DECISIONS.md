@@ -3238,3 +3238,26 @@ cover.
 the body-width bullet from `/install-commit-hook`, and restoring the template's two-line footer. To
 enforce it instead, add the check to the hook with trailers judged line by line in the closing
 paragraph, `BREAKING[ -]CHANGE` read as prose, and a numeric setting where `0` turns it off.
+
+### D185 — `/review-skills` verifies every finding and rechecks once, on the fix diff
+Taken by the maintainer (2026-11-03). A find-and-fix loop whose only stop is a round with no findings
+does not converge: a critic agent left running overnight on design documents ran sixteen rounds, and
+about three quarters of its late findings were about the text the previous round had just written. The
+catalogue's own review had shown the milder form: the full review of 2026-10-11
+returned 114 findings, and a later adversarial pass refuted 25 of them, most because the lenses never
+read `DECISIONS.md` and proposed undoing recorded decisions.
+
+So a review now ends with one verifier — a `catalogue-reviewer` in verify mode — that tries to refute
+each finding against the current files and `DECISIONS.md`, and the lenses read the decisions about every
+skill they review. A finding carries a severity decided by its evidence, `Important` or `Nit`, and is
+marked pre-existing when the change did not touch its line, so it does not hold the change up. A change
+that alters no obligation runs lens 4 only. After the findings are applied, `recheck` verifies only the
+fix diff, once; what remains goes to the maintainer, never into another round. The outcome line goes in
+the merge commit body, so the review's cost and yield can be counted.
+
+One verifier, not a vote: whether a single verifier is enough has not been measured, and a second one is
+added only if a recheck shows confirmed findings the maintainer then rejects.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — `review-skills.md`,
+`catalogue-reviewer.md`, the finding fields and *Verifying a finding* in `QUESTIONS.md`, and the three
+review bullets in `CLAUDE.md` and the sentence in `kickoff.md` go with it.

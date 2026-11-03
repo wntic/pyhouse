@@ -111,10 +111,34 @@ Each finding carries:
 - **The question it failed** — lens and number.
 - **Evidence** — concretely which test service gets what: "a queue consumer with no store gets an
   empty `postgres/` package and a migrations directory".
+- **Severity** — `Important` when the evidence is a test service that gets wrong code, a missed rule
+  or a broken reference; `Nit` when no test service's result changes — wording, ordering, a sentence said
+  twice. The evidence decides it, not the lens: a placement finding is `Important` when a reader following
+  it writes the wrong thing.
+- **Pre-existing** — yes when the artifact is on a line the change under review did not touch. It is
+  still reported; it does not hold the change up.
+- **Recorded decision** — the `D` number, where the proposal would undo what `DECISIONS.md` records, and
+  the new evidence that outweighs that decision's reasoning. A proposal that undoes a decision with no
+  new evidence is not a finding.
 - **Proposed change** — the replacement text, or "delete".
 
 The report ends with a count of lines the proposals remove versus add. A review that only adds is
-suspect; say why if it does.
+suspect; say why if it does. A review that finds nothing is a complete review.
+
+## Verifying a finding
+
+A second reviewer, who wrote none of the findings, asks of each one:
+
+1. **Is the artifact there, as quoted, at the cited line** in the current files?
+2. **Does the evidence hold?** Would that test service, read as the table above describes it, really get
+   what the finding says — or does a rule, a precondition or a hard stop of the skill already keep it
+   out?
+3. **Does it undo a recorded decision** without naming it, or without new evidence against its reasoning?
+4. **For a `MOVE` or a pointer:** does the owner it names actually state the rule?
+5. **Severity and pre-existing** — are they right by the definitions above?
+
+A finding that fails 1 to 4 is refuted, with the reason and its source. Two findings that state one
+defect are one finding.
 
 ## What a reviewer does not do
 
