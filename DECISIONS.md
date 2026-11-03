@@ -3208,3 +3208,33 @@ fresh project completes without the person re-running any of them.
 **Reverse by:** from the parent of the commit that added this entry, reverting it — the plugin
 directory, its marketplace entry, and the five-plugin wording in `CLAUDE.md`, `kickoff.md`, both
 indexes and `README.md` go with it.
+
+### D184 — A commit body wraps at 72 characters by rule, and the hook does not check it
+Taken by the maintainer (2026-11-03). `git-commit-message` limited the subject and nothing else, so a
+body written as one line per paragraph — 282 and 272 characters in the case that raised it — passed
+the rule. Git never wraps a message: `git log` prints each line as written, indented four columns, so
+such a body overflows every terminal, graph view and emailed patch that shows it. Rule 7 now wraps the
+body, and a footer written as prose such as `BREAKING CHANGE:`, at 72 — a width of its own rather
+than the subject's, so a repository on 50/72 does not wrap bodies at 50. A tool's configuration, or a
+history whose bodies consistently run to another width or are plainly never wrapped, wins; a mixed
+history settles nothing and 72 holds, since otherwise each session guesses differently. Exempt is what
+wrapping cannot shorten: a URL, path or identifier on its own line, indented code or output, a one-line
+trailer such as `Refs:`. A wrapped footer's continuation never opens with a word and a colon, which a
+Conventional Commits parser reads as the next footer. Under a squash the body that lands wraps the
+same way, whichever the forge makes it — the request's description, or the squash message as merged.
+The skill's own `BREAKING CHANGE` example, wrapped at 79, is rewrapped to 72, and `/commit` now reads
+the history's line width with the rest of its practice.
+
+**Not enforced by the hook.** A first version added a `pyhouse.commit.maxBody` check to `commit-msg`;
+review found the shell's notion of a trailer and the rule's disagreeing on both sides — a long `Refs:`
+line refused when it shared a paragraph with a `BREAKING CHANGE:` footer, a long `BREAKING-CHANGE:`
+footer accepted, a prose last paragraph opening `Note: ` accepted as git itself reads it — and a hard
+default contradicting a history that never wrapped. A writer reading the rule tells those cases apart;
+a pattern match does not, and a hook that refuses what the rule allows teaches `--no-verify`. The
+hook's checks are unchanged, and `/install-commit-hook` names body width among what it does not
+cover.
+
+**Reverse by:** removing the wrapping sentences from rule 7, the line width from `/commit` step 4 and
+the body-width bullet from `/install-commit-hook`, and restoring the template's two-line footer. To
+enforce it instead, add the check to the hook with trailers judged line by line in the closing
+paragraph, `BREAKING[ -]CHANGE` read as prose, and a numeric setting where `0` turns it off.
