@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.27.0 — 2026-11-03
+
+Plugin versions in this release: `pyhouse-git` 0.9.0 (from 0.8.1); `pyhouse` 0.1.0,
+`pyhouse-universal` 0.22.1, `pyhouse-hex` 0.15.0 and `pyhouse-flat` 0.13.1 are unchanged. Nothing is
+removed or reversed.
+
+### Changed
+
+- **Commit message bodies are now wrapped at 72 characters.** Git never wraps a message, so a body
+  written as one long line per paragraph runs off the edge of `git log`, graph views and emailed
+  patches. `git-commit-message` used to limit only the subject. It now also wraps the body, and a
+  prose footer such as `BREAKING CHANGE:`, at 72 characters. This is a separate limit from the
+  subject's, so a repository that keeps subjects to 50 does not get 50-character bodies. Some lines
+  stay whole because wrapping cannot shorten them: a URL, path or identifier on its own line,
+  indented code or output, and a one-line trailer such as `Refs:` or `Signed-off-by:`.
+  - **Your repository's own width still wins.** That can be a width set in a tool's configuration, or
+    a history whose bodies are consistently another width or never wrapped. A history with mixed
+    widths counts as no setting, and 72 applies.
+  - **`/commit` reads the history's line width** along with the scopes and casing it already read, so
+    commits it writes match what is already there.
+  - **Squash merges.** Under a squash merge, whichever text becomes the commit body is wrapped the
+    same way: the request's description, or the squash message.
+- **The commit-msg hook does not check body width, and its behaviour is unchanged.**
+  `/install-commit-hook` now says this under "What this does not cover". A hook already installed
+  needs no update, and a body that is not wrapped is still accepted at commit time.
+
 ## 0.26.0 — 2026-11-02
 
 Plugin versions in this release: `pyhouse` 0.1.0 (new), `pyhouse-universal` 0.22.1 (from 0.22.0);
