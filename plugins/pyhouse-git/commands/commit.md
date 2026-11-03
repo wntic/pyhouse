@@ -60,10 +60,10 @@ one copy to keep right.
 The skill defers two things to the repository, and this command finds both out before writing:
 
 - **Its existing practice.** Read `git log --no-merges --oneline -20` for the scopes and casing in use,
-  and `git log --no-merges -5` and the contributing guide for whether bodies and footers appear and
-  whether a sign-off is required. The skill follows what is there — except a line saying which tool,
-  model or agent wrote the change, which it never adds whatever the history carries, and a sign-off,
-  which it asks the author for (rule 8).
+  and `git log --no-merges -5` and the contributing guide for whether bodies and footers appear, how
+  wide their lines run, and whether a sign-off is required. The skill follows what is there — except a
+  line saying which tool, model or agent wrote the change, which it never adds whatever the history
+  carries, and a sign-off, which it asks the author for (rule 8).
 - **Its merge strategy**, when this commit will land on a branch. `git-branching` rule 2 says how to
   find it where nothing records it, and when to ask; the message skill's rule 9 puts the convention on
   the request title under one strategy and on every commit under the other, so the answer changes what

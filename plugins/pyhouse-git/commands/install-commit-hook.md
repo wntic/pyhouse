@@ -109,3 +109,5 @@ than leaving the impression that the mainline is now guarded.
   reads which lines git keeps from `commit.cleanup` and from whether an editor ran; a `--cleanup`
   flag and a non-`#` `core.commentChar` are invisible to it. Set `commit.cleanup` rather than passing
   `--cleanup`, and leave the comment character at `#`.
+- **Body and footer width** (`git-commit-message` rule 7). It is left to the writer: a pattern
+  match cannot tell a prose footer, which wraps, from a trailer, which stays whole.

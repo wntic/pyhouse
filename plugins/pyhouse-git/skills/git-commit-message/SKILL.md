@@ -1,6 +1,6 @@
 ---
 name: git-commit-message
-description: Use when writing a commit message or a merge or pull request's title or description, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, why a message says nothing about the tool or agent that wrote it, why it refers only to what outlives the work, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`. - Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a merge or pull request's title and description should say, whether a feature commit should bump the version, whether to cite a spec, plan or ticket in a commit or a request, or whether an agent may add a trailer or a session link.
+description: Use when writing a commit message or a merge or pull request's title or description, or deciding what type, scope or breaking-change marker a change takes — whether through a command or typed by hand, in a repository of any language. Owns the Conventional Commits 1.0.0 message shape, the rule that the type records which release the change earns and is chosen by what the change is rather than how large it was, why a commit that is not a release never touches the version, how a break is marked so a tool reading the history finds it, why a message says nothing about the tool or agent that wrote it, why it refers only to what outlives the work, and where the convention has to hold under a squash or a merge-commit strategy. Staging and committing is `/commit`; refusing a malformed message at commit time is `/install-commit-hook`; computing and cutting the release is `/release`. - Also when asked for a commit message, a conventional commit, whether a change is feat or fix, how to mark a breaking change, what a merge or pull request's title and description should say, whether a feature commit should bump the version, whether to cite a spec, plan or ticket in a commit or a request, whether an agent may add a trailer or a session link, or how wide a commit body's lines may be.
 ---
 
 # Git — Commit Message
@@ -56,8 +56,9 @@ reaching 1.0.0 is a decision no commit takes:
 ```
 feat(foo-client)!: return every page where only the first was returned
 
-BREAKING CHANGE: fetch_foos now returns every page. A caller that relied on one
-page should pass limit=1, or call fetch_first_foo for the single-page form.
+BREAKING CHANGE: fetch_foos now returns every page. A caller that relied
+on one page should pass limit=1, or call fetch_first_foo for the
+single-page form.
 ```
 
 ## Other bindings
@@ -92,10 +93,19 @@ page should pass limit=1, or call fetch_first_foo for the single-page form.
    itself gets no body.
 6. **One logical change per commit.** A description that needs "and" is two commits — unless the parts
    cannot build or pass apart, in which case they are genuinely one.
-7. **Scope, casing and subject length follow what the repository already does.** Read the history
-   before the first message written there. Invent no scope vocabulary in one commit; where the
-   repository uses none, omit the scope. Where it has no settled casing, lowercase. Keep the subject
-   line, type and scope included, within 72 characters unless the repository sets another limit.
+7. **Scope, casing and line length follow what the repository already does.** Read the history before
+   the first message written there. Invent no scope vocabulary in one commit; where the repository uses
+   none, omit the scope. Where it has no settled casing, lowercase. Keep the subject line, type and
+   scope included, within 72 characters unless the repository sets another limit. Wrap the body, and a
+   footer written as prose such as `BREAKING CHANGE:`, by hand at 72 characters too — a width of its
+   own, not the subject's — unless a tool's configuration sets another, or the history's bodies
+   consistently run to one or are plainly never wrapped; a mixed history settles nothing, and 72 holds.
+   Git never wraps a message, so a paragraph written as one line overflows every terminal, log view and
+   patch that shows it. A wrapped footer's continuation never opens with a word and a colon, which a
+   parser reads as the next footer. A line wrapping cannot shorten stays whole — a URL, path or
+   identifier on a line of its own, indented code or output, a one-line trailer such as `Refs:` or
+   `Signed-off-by:`. Under a squash (rule 9) the body that lands is wrapped the same way — the
+   request's description where the forge makes it the commit, or the squash message as it is merged.
 8. **A message says nothing about how it was written.** No trailer, footer or line in a commit, or in
    a request's title or description, says which tool, model or agent produced the change, links the
    session it was produced in, or advertises anything — whatever the history already carries, and
