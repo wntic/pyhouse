@@ -4,7 +4,7 @@
     "name": "Yegor Vorobyev"
   },
   "metadata": {
-    "description": "Python house-style skills for writing services: one universal core plus two mutually exclusive architecture families, a language-independent git workflow plugin beside them, and one plugin that installs all four and sets a repository up for them.",
+    "description": "Python house-style skills for writing services: one universal core plus two mutually exclusive architecture families, a language-independent git workflow plugin beside them, a plugin for how one change is specified and delivered, and one plugin that installs all five and sets a repository up for them.",
     "version": "0.27.0"
   },
   "plugins": [
@@ -27,6 +27,10 @@
     {
       "name": "pyhouse-git",
       "source": "./plugins/pyhouse-git"
+    },
+    {
+      "name": "pyhouse-delivery",
+      "source": "./plugins/pyhouse-delivery"
     }
   ]
 }

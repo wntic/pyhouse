@@ -1,0 +1,23 @@
+{
+  "name": "pyhouse-delivery",
+  "displayName": "pyhouse — delivery",
+  "version": "0.1.0",
+  "description": "How one change is delivered, rather than how its code is written. Ships the delivery-spec skill — the spec a change is implemented from, short enough to review in one sitting, naming as contracts only what other code depends on, and acceptance criteria that are an action and the result it must produce, run in the environment the project names, checked before any code exists and frozen once the spec is ready. And /pyhouse-delivery:spec, which writes that spec with the person who wants the change, checks every criterion and marks the spec ready only once each check has passed. Depends on pyhouse-universal.",
+  "author": {
+    "name": "Yegor Vorobyev"
+  },
+  "homepage": "https://github.com/wntic/pyhouse",
+  "repository": "https://github.com/wntic/pyhouse",
+  "license": "MIT",
+  "keywords": [
+    "spec",
+    "acceptance-criteria",
+    "definition-of-done",
+    "workflow"
+  ],
+  "commands": "./commands",
+  "skills": "./skills",
+  "dependencies": [
+    "pyhouse-universal"
+  ]
+}

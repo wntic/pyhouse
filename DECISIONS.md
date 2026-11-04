@@ -3332,3 +3332,46 @@ defects they were calibrated on, so only reviews of later changes measure it out
 review section and the plugin row in `README.md`, the packaging rows, the copy note and the review
 paragraph in `CONVENTIONS.md` and `skills/README.md`, the manifest description, the sentence in
 `.claude/commands/kickoff.md`, and the pointers in `code-review.md` and `pyhouse-reviewer`'s description. D53 then holds unrevised.
+
+### D188 — A sixth plugin, `pyhouse-delivery`, and the spec a change is implemented from
+Taken by the maintainer (2026-11-04). In an adopted repository whose changes were implemented by agents
+from written specs, the specs failed in two ways no style rule reaches. They grew to hundreds of lines,
+because their contracts section carried the exact names and types of functions inside one component —
+a second copy of the code — and the specs were edited a hundred times on implementation branches as
+the code moved away from them. And their acceptance criteria were wrong more often than the code: in 17 of 21
+specs a criterion contradicted a recorded decision, assumed behaviour a real external system did not
+have, assumed a state the test environment was not in, or could not pass in the order written —
+criteria written in minutes and never run until implementation, then weakened on the branch to match
+what was built.
+
+How a change is specified, and in later steps implemented and accepted, is delivery, not house style,
+so it ships in its own plugin with the `delivery-` prefix rather than in `pyhouse-universal`: a project
+that wants only the style rules does not get a pipeline with them. `pyhouse-delivery` depends on
+`pyhouse-universal`, like a family plugin, and on nothing else; it names `pyhouse-git` only as an
+example, so the rule that no skill plugin depends on `pyhouse-git` holds. `pyhouse` depends on it, so
+one install still brings the whole catalogue; `/pyhouse:setup` gains nothing until the plugin has a
+setup command of its own. The plugin is laid down whole now, with its first skill, rather than after
+its last, because a skill in a plugin no marketplace lists cannot be installed to try.
+
+`delivery-spec` owns the rules: the sections of a spec and which exist only where the project has
+them; a fix in a short form whose failing test is `test-principles`' *A defect's test*; contracts
+limited to what other code depends on, so internal names are left to the implementation; the sign that
+one spec is several — it needs cutting into parts done one after another; a criterion as an action and
+the result it must produce, run in the environment the project names; the start and logs criteria only
+where the project runs as a process, and a call of its public surface for a library; and every
+criterion checked while the spec is written — against decisions by reading, against a real external
+system by a real request, preparation by running it, names not yet built against the contracts, and a
+criterion on code that already runs by seeing today's result — with the spec ready only once all pass,
+and its criteria changed after that only with the person's consent. `/pyhouse-delivery:spec` drives
+the writing and the checks with the person and states none of those rules, as D53 places procedure;
+it holds its own loop's ceiling — the corrected criteria are checked once more, and what still fails
+goes to the person. Until a project records where its specs live and which environment its criteria
+run in, the command asks, and writes neither into `CLAUDE.md`.
+
+`CONVENTIONS.md` had put use-case authoring outside the catalogue. Delivery is now inside it; what stays
+out is why a design was chosen, which is a project's own decision record and which a spec points at.
+
+**Reverse by:** deleting `plugins/pyhouse-delivery/` and its entry in `marketplace.json`, the dependency
+in `plugins/pyhouse/.claude-plugin/plugin.json`, and reverting the plugin and count lines in
+`CLAUDE.md`, both READMEs, `CONVENTIONS.md` (index, packaging, out of scope), `meta-skill-author`'s
+prefix table and `.claude/commands/kickoff.md`.

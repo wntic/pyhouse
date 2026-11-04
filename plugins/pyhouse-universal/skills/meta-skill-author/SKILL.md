@@ -16,7 +16,7 @@ This skill produces one new `SKILL.md`; editing other skills is an audit task.
 
 **Read the sibling `CONVENTIONS.md` in this skill's own directory before writing anything.** It carries
 the catalogue's shared placeholder vocabulary (`Foo`, `Bar`, `myapp`, `myschema` and the names derived
-from them), the banned vocabulary, the index of what each existing skill covers, the five-plugin
+from them), the banned vocabulary, the index of what each existing skill covers, the six-plugin
 packaging layout, the four skill shapes, and what is deliberately out of scope. Only this file is
 loaded automatically; the sibling is not, so open it rather than working from this summary of it.
 
@@ -306,6 +306,7 @@ hex-restapi-<artifact>   hex-restapi-endpoint, ...
 hex-test-<artifact>      hex-test-application-handler, ...
 flat-<artifact>          flat-entrypoint, flat-persistence, ...
 flat-test-<artifact>     flat-test-entrypoint, ...
+delivery-<artifact>      delivery-spec
 ```
 
 `flat-layered` keeps its name — it is the style anchor, not an artifact skill.

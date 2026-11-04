@@ -1,8 +1,8 @@
 # House-style skills
 
-51 skills: 49 project-neutral Python skills in seven families — Universal (17), Meta (1), Hex core
-(11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — and two language-independent
-Git skills.
+52 skills: 49 project-neutral Python skills in seven families — Universal (17), Meta (1), Hex core
+(11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — two language-independent
+Git skills, and one Delivery skill for the spec a change is implemented from.
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar` (with `Baz` where an example needs a third aggregate, and `Qux` for an external system). The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -19,8 +19,9 @@ repository:
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt` and `/install-commit-hook` commands |
+| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | the 1 `delivery-*`, the `/pyhouse-delivery:spec` command |
 
-Installing `pyhouse-hex` or `pyhouse-flat` brings `pyhouse-universal` with it. To carry a family
+Installing `pyhouse-hex`, `pyhouse-flat` or `pyhouse-delivery` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
 into a project's `.claude/skills/` or into `~/.claude/skills/`; copying carries the skills only, not
 `/choose-architecture`, `/pyhouse-universal:code-review`, `/pyhouse-universal:change-review`, `/pyhouse-universal:adopt` or the reviewer subagents. **This index ships inside `pyhouse-universal`, so every install has it** — and
@@ -36,11 +37,13 @@ service — and says when neither of them applies — a project too small to nee
 catalogue does not cover. It is itself universal, because it is what you consult before you know
 which family you are in, and the `/choose-architecture` command walks it one question at a time.
 
-**The catalogue ships as five plugins** on the Claude Code marketplace: `pyhouse-universal` (the
+**The catalogue ships as six plugins** on the Claude Code marketplace: `pyhouse-universal` (the
 unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat` for Python
 house style, and `pyhouse-git`, which ships beside them for repository workflow rather than Python house style; it depends on
-nothing, no skill plugin depends on it, and it holds in a repository of any language. The fifth,
-`pyhouse`, holds no skill: it depends on the other four, so one install brings the whole catalogue, and
+nothing, no skill plugin depends on it, and it holds in a repository of any language.
+`pyhouse-delivery` holds how one change is delivered rather than how its code is written, and depends on
+`pyhouse-universal` alone. The sixth, `pyhouse`, holds no skill: it depends on the other five, so one
+install brings the whole catalogue, and
 ships `/pyhouse:setup`, which runs their setup commands in order. Both family
 plugins depend on `pyhouse-universal`, which Claude Code enables transitively, so installing one family
 always brings the universal skills with it. `pyhouse-universal` is installable alone: a universal skill
@@ -185,6 +188,14 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
 |---|---|
 | `git-commit-message` | The commit message and a request's title and description — their shape, the type as the record of which release a change earns, the break marker, nothing about the tool that wrote it, references only to what outlives the work — never a working document — and where the convention has to hold under a squash or a merge |
 | `git-branching` | How a change reaches the mainline — the one mainline releases are cut from, the merge method and branch-name pattern recorded once, the short-lived one-change branch, history made true before it lands and never rewritten after, and when a released version earns a maintenance branch |
+
+## Delivery (1)
+
+In `pyhouse-delivery`, which depends on `pyhouse-universal` alone.
+
+| Skill | Owns |
+|---|---|
+| `delivery-spec` | The spec one change is implemented from — its sections and which exist only where the project has them, the short form of a fix, contracts limited to what other code depends on, the sign that one spec is several, criteria as an action and its result in the environment the project names, the start and logs criteria only for a running process, and every criterion checked before code and frozen once the spec is ready |
 
 ## Conventions across both sets
 

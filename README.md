@@ -10,6 +10,7 @@ name.
 - [Setting up a repository](#setting-up-a-repository)
 - [Which family?](#which-family)
 - [Reviewing existing code](#reviewing-existing-code)
+- [Writing the spec for a change](#writing-the-spec-for-a-change)
 - [How a skill is written](#how-a-skill-is-written)
 - [The catalogue](#the-catalogue)
 - [Licence](#licence)
@@ -21,7 +22,7 @@ claude plugin marketplace add wntic/pyhouse
 claude plugin install pyhouse@pyhouse
 ```
 
-`pyhouse` holds no skills of its own. It depends on the other four plugins, so Claude Code installs
+`pyhouse` holds no skills of its own. It depends on the other five plugins, so Claude Code installs
 all of them with it, and it ships `/pyhouse:setup`, which sets a repository up for them in one run.
 
 Each plugin installs and works on its own, but the catalogue is written as one piece and the plugins
@@ -33,7 +34,9 @@ flowchart LR
     pyhouse --> hex["pyhouse-hex"]
     pyhouse --> flat["pyhouse-flat"]
     pyhouse --> git["pyhouse-git"]
+    pyhouse --> delivery["pyhouse-delivery"]
     hex --> universal
+    delivery --> universal
     flat --> universal
     universal <-.-> git
 ```
@@ -58,6 +61,7 @@ supported, but you get less than the catalogue describes, and you run the setup 
 | `pyhouse-universal` | 18 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, what a program owes a message or a webhook delivered at least once and what a relay of a recorded effect owes, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, a command-line interface's commands, exit codes and test, the architecture chooser, `/pyhouse-universal:adopt`, which tells a repository's agents which skill governs each kind of Python work, and two reviewers: one that applies all of it to code that already exists, and `/pyhouse-universal:change-review`, which reviews a change for what it breaks before it lands. |
 | `pyhouse-hex` | 23 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: stages the named files and reviews the staged diff, then writes a Conventional Commits message whose type carries the release the change earns. `/pyhouse-git:adopt` records in the repository's agent instructions how its changes branch, land and are committed, and turns off the agent's own authorship line. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. `/release-notes` then drafts the release note for the people using the project — what changed for them, what a break asks of them — from the changes themselves rather than the commit subjects. Depends on nothing; install it on its own. |
+| `pyhouse-delivery` | 1 | How one change is delivered rather than how its code is written. `delivery-spec`, the spec a change is implemented from: short enough to review in one sitting, contracts limited to what other code depends on, and acceptance criteria that are an action and the result it must produce, run in the environment the project names, checked before any code exists and frozen once the spec is ready. `/pyhouse-delivery:spec` writes it with you and checks every criterion before marking it ready. |
 | `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the one-time project setup, one package per store owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
 ## Setting up a repository
@@ -137,6 +141,15 @@ second one, fresh, tries to refute each finding; only what survives is printed, 
 goes wrong and an outcome line for the merge commit. After the fixes, `recheck` reviews only the fix
 diff, once. Style conformance is not its job; that stays `/pyhouse-universal:code-review`, run when you
 want an audit.
+
+## Writing the spec for a change
+
+`/pyhouse-delivery:spec` writes the spec one change is implemented from, with you: it reads what the
+repository already says, asks what the code cannot tell it, and writes a draft. Then it checks every
+acceptance criterion before any code exists — against your decision records, by a real request where a
+criterion assumes something about an external system, by running each preparation step — and marks the
+spec ready only once each has passed. A criterion is an action and the result it must produce, so
+whoever implements the spec can show it met rather than claim it.
 
 ## How a skill is written
 
