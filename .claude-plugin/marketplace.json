@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Python house-style skills for writing services: one universal core plus two mutually exclusive architecture families, a language-independent git workflow plugin beside them, a plugin for how one change is specified and delivered, and one plugin that installs all five and sets a repository up for them.",
-    "version": "0.27.0"
+    "version": "0.28.0"
   },
   "plugins": [
     {

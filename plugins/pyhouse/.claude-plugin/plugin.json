@@ -1,7 +1,7 @@
 {
   "name": "pyhouse",
   "displayName": "pyhouse — everything",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The whole pyhouse catalogue in one install: depends on pyhouse-universal, pyhouse-hex, pyhouse-flat, pyhouse-git and pyhouse-delivery, which Claude Code installs with it, and ships /pyhouse:setup, which sets a repository up for them in one run — the Python skill table and the branching section in its CLAUDE.md, the agent's authorship line turned off, and the commit-msg hook — by running each plugin's own commands in turn. Holds no skill and states no rule of its own.",
   "author": {
     "name": "Yegor Vorobyev"
