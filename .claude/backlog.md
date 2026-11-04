@@ -5,18 +5,9 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest; 83–87 are the build steps of one agreed design, done in order, one branch
-each. Every other item has landed or was closed (D130–D178). The first step of that design landed as
-D186.
-
-### 83. A full review in `/code-review`, calibrated before it is built
-`/pyhouse-universal:code-review` becomes the review a change goes through before it lands: lenses, one
-verifier that tries to refute each finding, severity by the failure scenario, one recheck on the fix
-diff, the outcome kept. A `change-reviewer` agent carries the verify mode and a test-strength lens
-against `test-principles`. Built only after calibration: the defects an adopted repository shipped,
-with clean branches as negatives, run through both the built-in `/code-review` and this one. If the
-built-in finds the bugs, the catalogue's review states no rules of its own (D53 holds); if not, D53 is
-revisited by its own entry, with CLAUDE.md and the command's "hunts no bugs".
+Item 55 predates the rest; 84–87 are the remaining build steps of one agreed design, done in order,
+one branch each. Every other item has landed or was closed (D130–D178). The first two steps of that
+design landed as D186 and D187.
 
 ### 84. A `pyhouse-delivery` plugin, and how a spec is written
 A sixth plugin depending on `pyhouse-universal` only: `delivery-spec` and `/spec` — acceptance
@@ -26,7 +17,7 @@ frozen) lets an implementer change. `CONVENTIONS.md`'s line excluding use-case a
 ### 85. `/implement` and its step agents
 `delivery-change-contract`, `/implement`, and `delivery-tester`, `delivery-implementer` and
 `delivery-prover`: tests first, implementation against them, proof against the criteria, a bounded
-number of fix rounds, and the review from 83 before the change is offered to land.
+number of fix rounds, and the review from D187 before the change is offered to land.
 
 ### 86. Running several changes at once
 `/orchestrate` and `delivery-runner` — one runner per change in its own worktree, step agents under it
@@ -46,3 +37,11 @@ no query per item in a loop, filtering and paging in the store rather than in Py
 and rows used, and every filter of a hot query backed by an index. Only what is expensive to retrofit
 and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
 collects concrete findings from the lead's reviews first, and each becomes a rule.
+
+## Proposed
+
+### 88. Bound what `/change-review` reads in full on a large diff
+Calibrated at about 3% of a five-hour window per review, and nearly twice that on a diff of 179 files,
+of which it read about seventy in full (D187). A ceiling on full reads, or reading by lens question
+rather than by file, would cut the cost of the largest diffs. Measured on the next real changes it
+reviews, not by rerunning the calibration set.
