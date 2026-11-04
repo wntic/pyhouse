@@ -55,7 +55,7 @@ supported, but you get less than the catalogue describes, and you run the setup 
 | Plugin | Skills | What it covers |
 |---|---|---|
 | `pyhouse` | 0 | The whole catalogue in one install, and `/pyhouse:setup`, which runs the other plugins' setup commands in order. States no rule of its own. |
-| `pyhouse-universal` | 18 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, what a program owes a message or a webhook delivered at least once and what a relay of a recorded effect owes, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, a command-line interface's commands, exit codes and test, the architecture chooser, `/pyhouse-universal:adopt`, which tells a repository's agents which skill governs each kind of Python work, and the reviewer that applies all of it to code that already exists. |
+| `pyhouse-universal` | 18 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, what a program owes a message or a webhook delivered at least once and what a relay of a recorded effect owes, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, a command-line interface's commands, exit codes and test, the architecture chooser, `/pyhouse-universal:adopt`, which tells a repository's agents which skill governs each kind of Python work, and two reviewers: one that applies all of it to code that already exists, and `/pyhouse-universal:change-review`, which reviews a change for what it breaks before it lands. |
 | `pyhouse-hex` | 23 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: stages the named files and reviews the staged diff, then writes a Conventional Commits message whose type carries the release the change earns. `/pyhouse-git:adopt` records in the repository's agent instructions how its changes branch, land and are committed, and turns off the agent's own authorship line. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. `/release-notes` then drafts the release note for the people using the project — what changed for them, what a break asks of them — from the changes themselves rather than the commit subjects. Depends on nothing; install it on its own. |
 | `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the one-time project setup, one package per store owning a service's data access, trigger choice from loop to durable execution, four test families. |
@@ -127,6 +127,16 @@ attribute is reported as a gap in the catalogue, not as a finding against you.
 
 It reports obligations, never a difference from a template: a finding you would have to change
 library to act on is a review of that library, which its own tooling does better.
+
+## Reviewing a change before it lands
+
+`/pyhouse-universal:change-review` reviews one change — a branch against its mainline, a range or a
+ref — for what it breaks, in any project and on any stack: a contract other code relies on, a failure
+path nothing catches, a test that would not notice the change being wrong. A first subagent finds, a
+second one, fresh, tries to refute each finding; only what survives is printed, with the scenario that
+goes wrong and an outcome line for the merge commit. After the fixes, `recheck` reviews only the fix
+diff, once. Style conformance is not its job; that stays `/pyhouse-universal:code-review`, run when you
+want an audit.
 
 ## How a skill is written
 

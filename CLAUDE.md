@@ -46,8 +46,11 @@ still be correct, and still be worth writing, if the project that inspired it ha
 stack, a different layout and a different domain?** If the honest answer is no, it documents a history
 rather than a style.
 
-The corollary for anything that reviews: the rules live in the skills, so a review artifact states
-none of its own. It decides which skills apply and applies them.
+The corollary for anything that reviews for conformance: the rules live in the skills, so a review
+artifact states none of its own. It decides which skills apply and applies them. The one review that
+looks for what a change breaks, `/pyhouse-universal:change-review`, asks where to look rather than what
+code must be: each finding stands on a concrete failure scenario, and cites a skill only where one states
+the obligation the scenario breaks (D187).
 
 ## Commands
 
@@ -64,7 +67,10 @@ layers, the index counts — because there is no Python here to lint. It calls n
 its subject is a **Python project that installs the catalogue**. It resolves a target and hands it to
 the `pyhouse-reviewer` subagent, which decides which skills apply and applies them. The two never
 overlap — running the review command on this repository finds no architecture family and nothing to
-review, which is correct.
+review, which is correct. `/pyhouse-universal:change-review` beside it reviews one change of such a
+project for what it breaks — contracts, failure paths, tests — through the `change-reviewer` subagent,
+once to find and once to refute; it is the review a change goes through before it lands, and
+`/pyhouse-universal:code-review` stays an audit run on request.
 
 `/kickoff` (in `.claude/commands/`) starts a session: it carries why this catalogue exists, the lessons
 every change is made under, and points at `.claude/backlog.md` for open work. **When the purpose, the
@@ -185,8 +191,9 @@ tools/check_template_imports.py          resolves every import in every template
 plugins/pyhouse/                         no skills: depends on the other four and ships /pyhouse:setup,
                                          which runs their setup commands in order
 plugins/pyhouse-universal/               18 skills (17 universal + meta-skill-author),
-                                         /choose-architecture, /code-review, /pyhouse-universal:adopt,
-                                         agents/pyhouse-reviewer
+                                         /choose-architecture, /code-review, /change-review,
+                                         /pyhouse-universal:adopt, agents/pyhouse-reviewer,
+                                         agents/change-reviewer
 plugins/pyhouse-hex/                     23 hex-* skills
 plugins/pyhouse-flat/                    8 flat-* skills
 plugins/pyhouse-git/                     2 git-* skills, /commit, /release, /release-notes,

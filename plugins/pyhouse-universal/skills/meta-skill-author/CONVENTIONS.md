@@ -96,7 +96,7 @@ skill only as an example and must read correctly in a repository with no Python 
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
-| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 17 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it, and `/pyhouse-universal:adopt` | — |
+| `pyhouse-universal` | `plugins/pyhouse-universal/` | the 17 unprefixed universal skills + `meta-skill-author`, the architecture chooser `architecture-choice` among them, with its `/choose-architecture` command, the `/pyhouse-universal:code-review` command with the `pyhouse-reviewer` subagent behind it, the `/pyhouse-universal:change-review` command with the `change-reviewer` subagent behind it, and `/pyhouse-universal:adopt` | — |
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
@@ -105,7 +105,7 @@ skill only as an example and must read correctly in a repository with no Python 
 **`pyhouse` takes no skill.** It exists so one install brings the whole catalogue, and nothing depends
 on it, so no skill may name it. No prefix maps to it, and a skill is never added to it.
 
-**The two review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding.
+**The review artifacts state no rules.** `/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent behind it decide which skills apply to a target and apply them; every criterion they report is a numbered rule or a hard stop in the skill that owns it. A rule restated in either of them would be a second copy with no reader to catch it drifting, so a judgement neither can attribute to a skill is reported as a gap in the catalogue instead of as a finding. `/pyhouse-universal:change-review` and `change-reviewer` review a change for what it breaks and state no rule either: their lenses say where to look, each finding stands on a concrete failure scenario, and a skill is cited only where it states the obligation the scenario breaks — never swept for findings.
 
 A new skill's directory goes under that plugin's `skills/`, beside its siblings. The plugin's own
 manifest is the single file `.claude-plugin/plugin.json`; nothing else belongs in that directory, and

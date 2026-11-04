@@ -1,5 +1,5 @@
 ---
-description: Review a diff, a commit range, a path or a tree for conformance to the pyhouse catalogue — the architecture family's rules plus the universal ones, and for a commit range each commit message against the commit convention when pyhouse-git is installed — and print only what departs from a rule a skill actually states. Not a correctness review; it hunts no bugs and defers formatting and type-correctness to the project's own tools.
+description: Review a diff, a commit range, a path or a tree for conformance to the pyhouse catalogue — the architecture family's rules plus the universal ones, and for a commit range each commit message against the commit convention when pyhouse-git is installed — and print only what departs from a rule a skill actually states. Not a correctness review; it hunts no bugs — that is /pyhouse-universal:change-review — and defers formatting and type-correctness to the project's own tools.
 argument-hint: "[paths, a git range, or nothing for the working-tree diff]"
 ---
 
@@ -13,7 +13,7 @@ here, and do not answer from memory.
 
 It reports conformance to the catalogue, so it finds no bugs, no races and no vulnerabilities, and it
 reports no formatting or type-correctness issue — those belong to the project's own checkers and to a
-correctness review. Say so in one line if the user appears to have expected those; a clean report here
+correctness review, `/pyhouse-universal:change-review`. Say so in one line if the user appears to have expected those; a clean report here
 is not a statement that the code is correct.
 
 ## Resolving the target
