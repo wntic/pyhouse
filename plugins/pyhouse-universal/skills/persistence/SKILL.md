@@ -47,10 +47,10 @@ before reading the rules:
 |---|---|
 | multi-statement transactions | rules 1, 2 — nothing spans statements, so nothing declares an owner |
 | named constraints, and a driver that reports the violated one's name | rule 7, and the constraint name in rule 6 — without named constraints there is no name for three artifacts to agree on; where the driver reports no name, the migration still takes its names from the convention and the translator branches on the error's code |
-| typed columns and constraints | rules 11, 13 |
+| typed columns and constraints | rules 11, 13, 23 |
 | secondary indexes | rule 12 |
 | a conditional or conflict-resolving write — a conflict clause, a `MERGE`, a conditional put | rule 15 — resolution is then the store's merge-time mechanism (rule 17), and rule 16 needs a single writer per key |
-| a schema this program owns | rules 10–13, 19, 20 — they are the owner's; the program declares only what it reads and carries no migration history for it |
+| a schema this program owns | rules 10–13, 19, 20 — they are the owner's; the program declares only what it reads, with the owner's types (rule 23), and carries no migration history for it |
 | a schema versioned by migrations | rules 19, 20 |
 | two versions of the program running against it at once — a rolling deploy, or processes of different releases sharing one store | rule 19's expand-then-contract split — a single process upgrades the store where it starts, before its first statement, and one revision carries the whole change; such a program refuses to open a store stamped with a revision it does not know |
 
@@ -213,6 +213,16 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
 
 22. **Data-access code logs nothing.** It re-raises every failure, so `python-logging`'s log-once rule
     never lands on it, and a success is its caller's to log.
+
+### A schema another program owns
+
+23. **Every column this program reads from a schema it does not own is declared with the type the
+    owner gives it** — read from the owner's schema, its migrations or the catalogue of a running copy,
+    never inferred from the values the reading code expects. A test suite builds that schema from the
+    declaration (`test-principles`, *Datastore contract* rule 8), so a declared type that differs from
+    the owner's is invisible to every test and fails only against the real store: a closed set the
+    owner keeps as a database enum, declared as text, compares cleanly in the suite and may have no
+    comparison with a text parameter in the store itself.
 
 ## Hard stops
 
