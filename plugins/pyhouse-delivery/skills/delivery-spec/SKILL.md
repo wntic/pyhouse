@@ -1,6 +1,7 @@
 ---
 name: delivery-spec
 description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the acceptance criteria that decide it is done. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, a criterion as an action and the result it must produce run in the environment the project names, the start and logs criteria only where the project runs as a process and its tests plus a call of its public surface for a library, and criteria checked before any code is written and frozen once the spec is ready. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for acceptance criteria, a definition of done, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or why criteria keep failing during implementation.
+user-invocable: false
 ---
 
 # Delivery — Spec
@@ -25,7 +26,8 @@ second copy of the code, and it does not carry the reasons for a design.
 ## Template(s)
 
 A spec is one Markdown file per change, in the directory the project keeps them in. Section headings
-may be in the project's language; which sections exist, and their order, are what the template fixes.
+may be in the project's language, worded as the project's earlier specs word them; which sections
+exist, and their order, are what the template fixes — never an earlier spec's.
 A section the template marks as conditional is left out entirely where its condition does not hold —
 never kept with "none" under it.
 
@@ -55,7 +57,7 @@ Status: draft
 
 ## Where the code goes
 
-<The packages or layers this change adds or touches.>
+<The packages or layers this change adds or touches — never its files or the classes in them.>
 
 ## Contracts
 
@@ -131,7 +133,12 @@ steps.>
    function another component calls, an HTTP or command-line surface, a setting's or metric's name —
    with exact names and shapes. A name used inside one component is left out: the implementation lays
    it down, and a spec that fixes internal names and types becomes a second copy of the code that
-   drifts from it with every change.
+   drifts from it with every change. The test for each entry: would anything outside the component
+   that implements it — other code, a stored row, a dashboard, an operator's command — break if its
+   name or shape changed? If not, it is internal. So is a function placed in a shared package that only
+   this change calls, and so is the order of steps inside the component's work: **Behaviour and
+   failures** says what those steps leave behind, not how they run. An earlier spec that names
+   internals is no precedent.
 5. **Behaviour and failures name the paths the tests must cover** — what invalid input, a repeat or a
    failing dependency leaves behind, and, where the change holds state, a restart or a partial write —
    so they are decided before the code and not discovered in it.
@@ -149,7 +156,8 @@ steps.>
    note after the criteria that holds nothing up. A check the project's own gate already runs is not
    repeated as a criterion.
 8. **A step the person must take is written as theirs.** Anything an agent may not do — handling a
-   secret, deleting from an environment others share, an action needing an account it does not hold —
+   secret, deleting from an environment the person has not said is the agent's to change, an action
+   needing an account it does not hold —
    is written into the criterion as the person's step, with the command they run.
 9. **Criteria prove what tests cannot.** Tests prove logic, failure paths and edge cases; criteria prove
    the running system. A feature's criteria, where the project runs as a process, cover its start, the
@@ -169,7 +177,9 @@ steps.>
     built by matching every name it uses against **Contracts**; one whose action already runs on today's
     code by running it and seeing today's result — the symptom, or the behaviour being replaced — never
     by editing the result it states. A criterion that fails its check is corrected with the person,
-    then checked again.
+    then checked again. A check that writes to an environment, the one the criteria run in included,
+    or costs money, or calls a real external system, runs only once the person agrees, told what it
+    touches; whether an environment is anyone else's is theirs to say.
 12. **A spec is ready only once every criterion has passed its check.** Its status says so, and until
     then it is a draft that no implementation starts from.
 13. **A ready spec's criteria and meaning change only with the person's consent.** A criterion that
