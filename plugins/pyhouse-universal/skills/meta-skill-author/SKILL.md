@@ -42,7 +42,7 @@ sibling is reached by an explicit instruction to read it.
 
 ## Frontmatter
 
-Two fields are required. One more is valid, documented and used deliberately. No other field;
+Two fields are required. Two more are valid, documented and used deliberately. No other field;
 information that would need one goes in the body.
 
 ```yaml
@@ -50,6 +50,7 @@ information that would need one goes in the body.
 name: <skill-name>
 description: Use when <trigger>. <What it owns, second.>
 paths: <optional — activation globs>
+user-invocable: false   # optional — only where a command drives the skill
 ---
 ```
 
@@ -63,12 +64,18 @@ paths: <optional — activation globs>
   still fires inside a workspace member. A **universal** skill carries no `paths` at all — it binds
   anywhere, and a glob would suppress it — and neither does a skill that must fire on a greenfield
   project, where the directories it would match do not exist yet (`architecture-choice` is the case).
+- **`user-invocable: false`** — hides the skill from the `/` menu; it still loads automatically and
+  through the Skill tool. Set only on a skill a command walks the person through — showing a draft,
+  taking corrections — where invoked by hand the skill would do the work without them. A gate the
+  person must pass is still a rule of the skill, never of the command alone: the skill loads without
+  the command. `delivery-spec`, driven by `/pyhouse-delivery:spec`, is the case. A skill whose command
+  only walks its decision, with nothing the skill alone would skip, stays in the menu.
 
 `allowed-tools`, `metadata`, `license` and `compatibility` are valid and unused here. Deliberately
-**not** used: `user-invocable: false` (hides a skill from the `/` menu) and
-`disable-model-invocation: true` (blocks automatic loading *and* preloading — hand invocation only),
-and `when_to_use` — Claude Code only appends it to `description`, under the same cap and listing
-budget, so trigger phrasings beyond the first sentence go at the end of `description` instead.
+**not** used: `disable-model-invocation: true` (blocks automatic loading *and* preloading — hand
+invocation only), and `when_to_use` — Claude Code only appends it to `description`, under the same
+cap and listing budget, so trigger phrasings beyond the first sentence go at the end of `description`
+instead.
 
 ### Length
 
@@ -103,8 +110,8 @@ budget, so trigger phrasings beyond the first sentence go at the end of `descrip
 
 Claude Code ignores unknown frontmatter keys. **claude.ai and the Skills API** accept only `name`,
 `description`, `license`, `compatibility`, `metadata` and `allowed-tools` and **fail hard** on anything
-else, so `paths` is stripped before publishing there. Marketplace distribution — this catalogue's
-channel — is unaffected.
+else, so `paths` and `user-invocable` are stripped before publishing there. Marketplace distribution
+— this catalogue's channel — is unaffected.
 
 ## Body — the canonical sections
 

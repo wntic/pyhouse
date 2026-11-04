@@ -3375,3 +3375,34 @@ out is why a design was chosen, which is a project's own decision record and whi
 in `plugins/pyhouse/.claude-plugin/plugin.json`, and reverting the plugin and count lines in
 `CLAUDE.md`, both READMEs, `CONVENTIONS.md` (index, packaging, out of scope), `meta-skill-author`'s
 prefix table and `.claude/commands/kickoff.md`.
+
+### D189 — The spec command's waits hold when the skill runs alone, and contracts get a test
+Taken by the maintainer (2026-11-04), from a first run of `/pyhouse-delivery:spec` on a new service in
+an adopted repository. The person typed the skill's own name from the `/` menu instead of the command,
+and every step only the command held was skipped: the draft was marked ready without the person seeing
+it, a failing criterion was corrected without their agreement. Run again through the command, those
+steps held, but in both runs the agent wrote to the environment the criteria run in without asking —
+it judged a local test environment not to be anyone else's — and "showed" a diff the person asked for
+only in a tool's output, which the person never sees. And in both runs about half of **Contracts** was
+internal — the steps inside one activity, a function in a shared package only that service calls —
+and **Where the code goes** listed files and classes, copied from the project's earlier specs.
+
+So `delivery-spec` is hidden from the `/` menu with `user-invocable: false`, and `meta-skill-author`
+stops listing that field as deliberately unused: it is valid on a skill a command walks the person
+through, where invoked by hand the skill would do the work without them. Claude Code was checked to
+refuse a hand invocation of the hidden skill while the model still lists and loads it. Because it
+still loads automatically, a gate the person must pass is a rule of the skill, never of the command
+alone: rule 11 now runs a check that writes, costs money or calls a real external system only once
+the person agrees, and rule 8 no longer lets the agent decide an environment is not shared. The
+command points at rule 11, and says that showing is done in the reply.
+
+Rule 4 gains its test — would anything outside the implementing component break if the name or shape
+changed — and names the two internals the runs carried. **Where the code goes** names packages and
+layers, never files. The template preamble says earlier specs set how headings are worded, never which
+sections exist, and rule 4 that an earlier spec naming internals is no precedent.
+
+**Reverse by:** removing `user-invocable: false` from `delivery-spec`, restoring the field to
+"deliberately not used" in `meta-skill-author` (frontmatter block, its bullet, the publishing caveat)
+and `skills/README.md`; dropping the consent sentence from rule 11 and restoring rule 8's "an
+environment others share", with the command's step 4 stating the ask again; and dropping the rule-4
+test, the **Where the code goes** clause and the preamble's sentence on earlier specs.
