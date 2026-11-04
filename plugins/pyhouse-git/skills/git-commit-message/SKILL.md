@@ -90,7 +90,8 @@ single-page form.
    happened.
 5. **A body explains why, when the diff does not.** The problem before the change, then the trade-off
    taken, in prose rather than a list, one blank line after the description. A change that explains
-   itself gets no body.
+   itself gets no body. Where a test or a review should have caught the defect a fix corrects, its
+   body names which one did not reach it — the one part of why a fix's diff never shows.
 6. **One logical change per commit.** A description that needs "and" is two commits — unless the parts
    cannot build or pass apart, in which case they are genuinely one.
 7. **Scope, casing and line length follow what the repository already does.** Read the history before

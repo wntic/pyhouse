@@ -3261,3 +3261,32 @@ added only if a recheck shows confirmed findings the maintainer then rejects.
 **Reverse by:** from the parent of the commit that added this entry, reverting it — `review-skills.md`,
 `catalogue-reviewer.md`, the finding fields and *Verifying a finding* in `QUESTIONS.md`, and the three
 review bullets in `CLAUDE.md` and the sentence in `kickoff.md` go with it.
+
+### D186 — A defect's escape is closed by a rule where it escaped: a foreign column's type, a fix's failing test, a fix's account
+Taken by the maintainer (2026-11-04). In an adopted repository, agents implemented and accepted
+changes over several weeks, and the defects that reached review afterwards escaped in three repeated
+ways, none of which the catalogue named. A column read from a schema another program owns was declared
+with the type the reading code expected rather than the owner's: the owner kept a closed set as a
+database enum, the declaration said text, the suite built its schema from that declaration and passed,
+and the query failed only against the real store. Defects found in review were fixed with no test, or
+with one written after the fix that passed either way, and came back. And the messages of those fixes
+said what changed but never which check the defect had got past, so nothing showed which check to
+strengthen.
+
+So each became a rule in the skill that owns the concern, stated without the mechanism. `persistence`
+rule 23: a column from a schema this program does not own takes the owner's type, read from the owner's
+schema, never inferred; `test-principles` *Datastore contract* rule 8 builds the test schema with those
+types. `test-principles` *A defect's test*: a fix to behaviour a test can observe starts with a test that
+fails on the code before the fix, on the defect's own symptom; where no test in the suite can reach the
+defect, the fix's commit message names the check that would have caught it, never a code comment or a
+skipped test. `git-commit-message` rule 5: where a test or a review should have caught the defect a fix
+corrects, its body names which one did not reach it.
+
+The last two meet across the `pyhouse-git` boundary, and are not a fifth rule stated on both sides:
+`test-principles` points at `git-commit-message` "where installed" for where the account goes, and
+states only the testing obligation itself. A fix that a test or review could
+not have been expected to catch — a typo, a docstring — still takes no body.
+
+**Reverse by:** from the parent of the commits that added this entry, reverting them — rule 23 and its
+row and schema-table wording in `persistence`, *A defect's test*, the rule 8 wording, the description
+clause and the two index lines in `test-principles`, and the last sentence of `git-commit-message` rule 5.
