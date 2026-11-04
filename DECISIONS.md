@@ -3290,3 +3290,45 @@ not have been expected to catch — a typo, a docstring — still takes no body.
 **Reverse by:** from the parent of the commits that added this entry, reverting them — rule 23 and its
 row and schema-table wording in `persistence`, *A defect's test*, the rule 8 wording, the description
 clause and the two index lines in `test-principles`, and the last sentence of `git-commit-message` rule 5.
+
+### D187 — A change is reviewed for what it breaks by `/change-review`, whose findings stand on a scenario rather than a rule
+Taken by the maintainer (2026-11-04). Revisits D53 in one respect: D53 and `CLAUDE.md` held that a review
+artifact states none of its own criteria, and `/pyhouse-universal:code-review` hunts no bugs. That left
+nothing in the catalogue that looks for what a change breaks, and the built-in review did not fill the
+gap. Calibrated on an adopted repository — six defects in five branches' diffs that shipped and were fixed after
+landing, and two branches with none — the built-in review caught one
+of the six, returned nine or ten findings on every diff including the clean ones, and cost about 2.8% of
+a five-hour subscription window per run.
+
+So a second review ships in `pyhouse-universal`: `/pyhouse-universal:change-review` over a new
+`change-reviewer` subagent. One find pass reads the diff once and answers three lenses — contracts other
+code relies on (every consumer of a changed surface, values that must agree across files, every path to
+the same outcome, what the change makes reachable), failure paths (what a call on input the program does
+not control can raise and who catches it, a handler's exception set, a cleanup that masks the original
+error, containment of one bad unit, bounds, repeats) and tests (whether they would catch the change being
+wrong, cited to `test-principles`). One fresh verify pass tries to refute every finding, sets its
+severity, marks it pre-existing, and classifies each edit to an existing test as form or meaning. One
+`recheck` on the fix diff, never a second. The outcome line goes in the merge commit body, as D185 does
+for this repository's own review. Two passes rather than one per lens, because each pass rereads the
+diff and the cost of a review is what decides whether it is run at all.
+
+What D53 kept is kept. The lens questions say where to look, not what code must be; **a finding stands on
+its scenario** — concrete inputs or state, the path through the changed code and the wrong result — and a
+finding without one is dropped. Where an installed skill states the obligation the scenario breaks, the
+finding cites it, loading that one skill; the review never sweeps a skill for things to report, which
+remains `/pyhouse-universal:code-review`'s job. That command is unchanged and stays an audit run on
+request, not a gate on every change: on the same diffs it found no defect, and much of what it did report
+— message shape, suppressions, layering — a commit hook, the linter and the architecture test already
+check for free.
+
+On the same seven diffs, one run each, `/change-review` caught three of the six (both copies of one
+failure class among them), reported one or two findings per diff, and on one of the two clean branches
+found a real, still unfixed defect of the same class. It cost about 3% of the window per run, more on the
+largest diff, which read about seventy files in full. The lens questions were derived from the same
+defects they were calibrated on, so only reviews of later changes measure it out of sample.
+
+**Reverse by:** deleting `agents/change-reviewer.md` and `commands/change-review.md` from
+`pyhouse-universal`, and reverting the review paragraphs and the layout entries in `CLAUDE.md`, the
+review section and the plugin row in `README.md`, the packaging rows, the copy note and the review
+paragraph in `CONVENTIONS.md` and `skills/README.md`, the manifest description, the sentence in
+`.claude/commands/kickoff.md`, and the pointers in `code-review.md` and `pyhouse-reviewer`'s description. D53 then holds unrevised.
