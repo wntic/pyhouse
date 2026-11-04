@@ -206,7 +206,8 @@ In `pyhouse-delivery`, which depends on `pyhouse-universal` alone.
 - Rules that are non-obvious carry their *reason*, and a few carry an explicit **withdrawal condition**
   — the observation that would retire the rule. Those are deliberate; do not strip them.
 - **Frontmatter follows `meta-skill-author`.** `name` and `description` are required; `paths` is
-  a valid, documented Claude Code field and optional. Descriptions open
+  a valid, documented Claude Code field and optional; `user-invocable: false` is valid only on a skill
+  a command walks the person through. Descriptions open
   with **"Use when…"**, putting the trigger first and the content summary second.
 - **Never write a bare `: ` inside an unquoted description.** A colon-plus-space breaks the YAML
   parse and can leave the skill with empty metadata and no description to match. Use an em dash.
