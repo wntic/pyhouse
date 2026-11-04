@@ -1,6 +1,6 @@
 ---
 name: test-principles
-description: Use when writing or changing tests in any Python project and the question is a rule rather than a file — the layer budgets, where tests and shared fixtures sit and what may be autouse, fixture versus module-level builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, intercepting HTTP, what a test against a real datastore pins, reliability. Holds for a service, a library or a CLI tool alike. The fixture files a family lays are `hex-test-integration-setup`'s or `flat-test-integration-setup`'s.
+description: Use when writing or changing tests in any Python project and the question is a rule rather than a file — the layer budgets, where tests and shared fixtures sit and what may be autouse, fixture versus module-level builder, the substitution ladder and no-mocks contract, assert strength and literal expected values, intercepting HTTP, what a test against a real datastore pins, reliability, and the failing test a defect's fix starts with. Holds for a service, a library or a CLI tool alike. The fixture files a family lays are `hex-test-integration-setup`'s or `flat-test-integration-setup`'s. - Also when fixing a defect or a bug, before the fix is written.
 ---
 
 # Test — Principles (reference)
@@ -321,8 +321,8 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    its migrations, or the schema creation production runs — once per session, or per store where the
    store is created per test, never by tables the suite writes by hand, so a schema change that was
    never migrated reds here rather than in production. Where another project owns it, the suite creates
-   only what the code reads, from the layout the code declares where it declares one (rule 5). A store
-   with no schema has nothing here.
+   only what the code reads, from the layout the code declares where it declares one (rule 5), and with
+   the owner's column types either way (`persistence` rule 23). A store with no schema has nothing here.
 9. **Each read the code has is tested on what it returns** — a read-only data-access class's as much as
    one that also writes: rows arranged by rule 5, the result compared whole with the declared values
    they map to, and a filtering read arranged as *Assert strength* recipes 1 and 2 state. A write test
@@ -383,6 +383,17 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    `pytest-asyncio` in auto mode declared once in `pyproject.toml`.
 8. **A warning is a failure, not a line in the tail of the output.** `[tool.pytest.ini_options]` carries `filterwarnings` with `"error"` as its first entry, so a warning raised anywhere in the run turns the suite red. This is part of what "green" means: no extra command, no second run, nothing anyone has to remember to read.
    The price is that a deprecation from a library the project cannot fix reddens the suite too, so an exception is written as one narrow entry after `"error"` — `"ignore:<message>:<Category>:<module>"`, scoped as tightly as the warning allows — and it carries its reason beside it in a comment: whose warning it is, why the project cannot remove it at the source, and what will retire the entry. An exception without a reason is the rule switched off. A warning raised from the project's own `src/` never goes on that list; it gets fixed. Suppression conventions → `python-style`.
+
+### A defect's test
+
+**A fix to behaviour a test can observe starts with a test that fails on the code being fixed.** It
+fails on the code before the fix, on the defect's own symptom — the wrong value, the error that escaped
+— not on an import or a missing fixture, and the fix turns that same test green. A test never seen
+failing proves nothing about the defect, and a defect fixed with no test is free to come back. Where no
+test inside the suite can reach the defect — it shows only against a real external system, at
+production volume, or in what no test asserts on, such as a log line — the fix's commit message says
+so and names the check that would have caught it (`git-commit-message`, in the `pyhouse-git` plugin,
+where installed) — never a comment in the code or a skipped test.
 
 ## Hard stops
 
