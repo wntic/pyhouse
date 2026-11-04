@@ -5,7 +5,7 @@ Shared vocabulary, index and skill shapes for the catalogue. The authoritative f
 
 ## Index
 
-The 51 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 52 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -86,13 +86,20 @@ too. The counts in every heading are the number of directories on disk.
 - `git-commit-message` — The type records which release a change earns and is picked by what the change is, never its size; a commit that is not a release never touches the version; a message cites only what outlives the work, and nothing about the tool that wrote it.
 - `git-branching` — One mainline, one merge method and branch-name pattern recorded per repository, short-lived one-change branches; a fix to unlanded work is folded, and history someone else built on is never rewritten.
 
+### Delivery (1)
+
+- `delivery-spec` — The spec one change is implemented from, written before any code; contracts only what other code relies on, a fix in a shorter form, and criteria that are an action and its result in the project's named environment, checked before code and frozen once the spec is ready; why a design was chosen stays in the project's decision record.
+
 ## Packaging — which plugin a skill ships in
 
-The catalogue is distributed on the Claude Code marketplace as five plugins under the marketplace name
+The catalogue is distributed on the Claude Code marketplace as six plugins under the marketplace name
 `pyhouse`. Three of them hold Python house style, and every new Python skill belongs to exactly one of
 those three. The fourth, `pyhouse-git`, ships beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
 depends on nothing and no skill plugin depends on it, so a `git-*` skill may name a catalogue
-skill only as an example and must read correctly in a repository with no Python in it.
+skill only as an example and must read correctly in a repository with no Python in it. The fifth,
+`pyhouse-delivery`, holds the `delivery-*` skills — how one change is specified and delivered rather
+than how its code is written. It depends on `pyhouse-universal` like a family plugin, and on nothing
+else: a `delivery-*` skill may name a `git-*` skill only as an example.
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
@@ -100,7 +107,8 @@ skill only as an example and must read correctly in a repository with no Python 
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
-| `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other four |
+| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | every `delivery-*` skill (1), `/pyhouse-delivery:spec` | `pyhouse-universal` |
+| `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other five |
 
 **`pyhouse` takes no skill.** It exists so one install brings the whole catalogue, and nothing depends
 on it, so no skill may name it. No prefix maps to it, and a skill is never added to it.
@@ -124,7 +132,7 @@ broken install waiting to happen; one that says "the hexagonal family applies th
 
 The prefix decides the plugin: unprefixed and `meta-*` → `pyhouse-universal`; `hex-*` (including
 `hex-restapi-*` and `hex-test-*`) → `pyhouse-hex`; `flat-*` (including `flat-test-*`) → `pyhouse-flat`;
-`git-*` → `pyhouse-git`.
+`git-*` → `pyhouse-git`; `delivery-*` → `pyhouse-delivery`.
 A skill that would need to sit in two plugins is two skills.
 
 **The two family plugins may route to each other, and that reference is expected to dangle.** The
@@ -240,4 +248,5 @@ travel into a path, a package, an environment-variable prefix or a shipped ident
 
 - Process-only skills (brainstorming, retrospective notes). If reintroduced they belong under a separate
   prefix, e.g. `process-brainstorm`.
-- Use-case authoring belongs to the spec-driven workflow plugin, not to this catalogue.
+- Why a design was chosen, and what was rejected — a project's decision records are its own;
+  `delivery-spec` points at them.
