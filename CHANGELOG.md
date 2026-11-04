@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.28.0 — 2026-11-04
+
+Plugin versions in this release: `pyhouse-delivery` 0.1.0 (new), `pyhouse-universal` 0.23.0 (from
+0.22.1), `pyhouse-git` 0.10.0 (from 0.9.0), `pyhouse` 0.2.0 (from 0.1.0); `pyhouse-hex` 0.15.0 and
+`pyhouse-flat` 0.13.1 are unchanged. Nothing is removed or reversed.
+
+### Added
+
+- **`/pyhouse-universal:change-review`, a review of what a change breaks.** Run it on a branch before
+  it lands, with no argument (the branch against its mainline) or with a range or ref. It works in any
+  project and on any stack. It looks for three things: a contract other code relies on that the change
+  alters, a failure path nothing catches, and a test that would not notice the change being wrong.
+  Every finding names the input, the path it takes and the wrong result. A second, separate pass then
+  tries to refute each finding, and only what survives is printed, with an outcome line for the merge
+  commit. After fixing, run it once more with `recheck`. That reads only the fix diff, and there is no
+  third round. `/pyhouse-universal:code-review` is unchanged: it still audits conformance to the
+  catalogue and hunts no bugs, and it now points at `change-review` for those.
+- **`pyhouse-delivery`, a plugin for how one change is specified before it is built.** Its first
+  command is **`/pyhouse-delivery:spec`**. Give it a sentence or two about the change, or the path of a
+  draft to finish. It writes the spec with you: it asks only what the code and your decision records
+  cannot answer and shows you the draft before checking anything. Then it checks every acceptance
+  criterion before any code exists. Decision records are checked by reading them, an assumption about
+  an external system by a real request, a preparation step by running it in the environment the
+  criteria run in, and a name not yet built against the spec's contracts. The spec is marked ready
+  only once every check has passed. The command asks before any check that writes to an environment,
+  costs money or calls a real external system. It commits nothing.
+  - **The rules behind it are the `delivery-spec` skill**: a fix's short form, contracts limited to
+    what something outside the implementing component depends on, a criterion as an action and the
+    result it must produce, and a ready spec's criteria changed only with the person's consent. The
+    skill is hidden from the `/` menu, so reach it through the command. It still loads on its own when
+    you ask an agent for a spec or acceptance criteria, and it asks before a check that writes either
+    way.
+  - **Installing it.** `pyhouse` 0.2.0 depends on `pyhouse-delivery`, so a new install of `pyhouse`
+    brings it. If you already have `pyhouse` and the new plugin is not there after updating, install
+    it with `claude plugin install pyhouse-delivery@pyhouse`. It depends only on `pyhouse-universal`,
+    so the same command installs it on its own. `/pyhouse:setup` does nothing new for it yet.
+
+### Changed
+
+- **A bug fix starts with a test that fails on it** (`test-principles`, new *A defect's test*). The
+  test fails on the code before the fix, on the defect's own symptom, and the fix turns that same test
+  green. Where no test in the suite can reach the defect, for example one that shows only against a
+  real external system, the fix's commit message says so and names the check that would have caught
+  it. A comment in the code or a skipped test is not a substitute.
+- **A fix's commit body names the check the defect got past** (`git-commit-message`). Where a test or a
+  review should have caught it, the body says which one did not. A fix that nothing could have caught
+  still needs no body.
+- **A column read from a schema another program owns is declared with the owner's type**
+  (`persistence` rule 23, and `test-principles` *Datastore contract* rule 8). The type is read from the
+  owner's schema, its migrations or a running copy's catalogue, never inferred from what the reading
+  code expects. A test suite builds that schema from your declaration, so a wrong type passes every
+  test and fails only against the real store. The usual case is an enum the owner keeps as a database
+  type, declared as text.
+- **For skill authors: `user-invocable: false` is now allowed** (`meta-skill-author`), on a skill a
+  command walks the person through, where the skill invoked by hand would do the work without them. A
+  gate the person must pass still belongs in the skill, because the skill loads without the command.
+  claude.ai and the Skills API reject the field, so strip it, with `paths`, before publishing there.
+
 ## 0.27.0 — 2026-11-03
 
 Plugin versions in this release: `pyhouse-git` 0.9.0 (from 0.8.1); `pyhouse` 0.1.0,
