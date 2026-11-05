@@ -55,3 +55,24 @@ person answered each one through another session, and answers took 30–55 minut
 Proposal: step 8 asks consent, the person's steps and whether the environment is free in one message,
 once, right before the prover starts; the fix round does not ask again unless the environment changed.
 Decide after the next two runs, not on one.
+
+### 91. Less of the person's time per change — possible, not yet wanted
+The maintainer's verdict after the first days of real use: the checks are worth it, but answering
+eight sessions through a ninth costs more of the person's time than any agent spends. Watched first,
+decided later; three candidates:
+- **Two lanes by risk.** A fix, or a local feature with no contracts and no shared environment, goes
+  through the implementation, the gate and `/pyhouse-universal:change-review` alone; the full
+  `/pyhouse-delivery:implement` is kept for a change to contracts, shared configuration or an
+  environment others use.
+- **A standing agreement for an environment the person owns.** `delivery-spec` rule 11 asks before
+  every run that writes. Where the project's instructions record that an environment is the person's
+  and what an agent may do in it, that record could stand for the agreement, with the bans it lists
+  still holding.
+- **The agent decides what is not frozen.** A name, a small fork the spec leaves open: decided, recorded
+  and listed in the handover, never asked; a stop only for a frozen artifact or money.
+
+### 92. A fix's code is all "declared"
+A fix takes the short form, which has no **Where the code goes**, so `delivery-change-contract` reads
+every code edit of a fix as outside the named packages: in the first fix run all three code edits were
+declared, and the declarations repeated the diff. Proposal: for a fix, the code its **Cause** names is
+the change's own and free. Decide on one or two more fix runs.
