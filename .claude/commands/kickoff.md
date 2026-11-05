@@ -29,7 +29,8 @@ Two architecture families exist because two kinds of service exist: hexagonal fo
 business rules of its own, flat for workers, ingest, ETL and glue with no rules to protect. The
 universal plugin holds what binds any Python project, including a library or a CLI tool.
 `pyhouse-delivery` holds how one change is delivered rather than how its code is written: the spec it
-is implemented from, with criteria checked before any code exists. One more plugin, `pyhouse`, holds
+is implemented from, with criteria checked before any code exists, and its implementation by step
+agents whose every edit to a test, a criterion or a guarding check is caught by a diff. One more plugin, `pyhouse`, holds
 no skill: it installs the others and sets a repository up for them with `/pyhouse:setup`, so adopting
 the catalogue is one install and one command.
 

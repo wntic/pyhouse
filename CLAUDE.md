@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
 test suite and no runtime dependencies — only Markdown skills, six plugin manifests, and one
-maintainer script. The "code" is 52 `SKILL.md` files — 49 that tell an agent how to write Python
-services, two that tell it how to commit and branch, and one that tells it how to write the spec a
-change is implemented from. The Python in them is template content, not executed as part of
+maintainer script. The "code" is 53 `SKILL.md` files — 49 that tell an agent how to write Python
+services, two that tell it how to commit and branch, and two that tell it how to write the spec a
+change is implemented from and what implementing it may change. The Python in them is template content, not executed as part of
 anything here.
 
 Most of the contracts below can only be checked by reading, and they are broken silently. One cannot:
@@ -200,8 +200,9 @@ plugins/pyhouse-flat/                    8 flat-* skills
 plugins/pyhouse-git/                     2 git-* skills, /commit, /release, /release-notes,
                                          /pyhouse-git:adopt, /install-commit-hook and the
                                          commit-msg hook it installs — no dependency
-plugins/pyhouse-delivery/                1 delivery-* skill, /pyhouse-delivery:spec — depends on
-                                         pyhouse-universal only
+plugins/pyhouse-delivery/                2 delivery-* skills, /pyhouse-delivery:spec,
+                                         /pyhouse-delivery:implement and its three step agents —
+                                         depends on pyhouse-universal only
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and
@@ -241,8 +242,8 @@ separately, one `v<version>` naming an aggregate where one artifact ships every 
 moving by a minor if any member moved by a minor or more and by a patch if every member that moved only
 patched — stated by `/release` and by `python-versioning` rule 13. None is a duplicate to delete.
 
-`delivery-*` → `pyhouse-delivery`, which holds how one change is delivered — its spec, and in time its
-implementation and acceptance — rather than how its code is written. It depends on `pyhouse-universal`
+`delivery-*` → `pyhouse-delivery`, which holds how one change is delivered — its spec, its implementation
+and acceptance, and in time running several at once — rather than how its code is written. It depends on `pyhouse-universal`
 like a family plugin, and on nothing else: it does not depend on `pyhouse-git`, which it may name only
 as an example, and no other skill plugin depends on it.
 

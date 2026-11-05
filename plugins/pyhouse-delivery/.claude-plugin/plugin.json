@@ -2,7 +2,7 @@
   "name": "pyhouse-delivery",
   "displayName": "pyhouse — delivery",
   "version": "0.1.0",
-  "description": "How one change is delivered, rather than how its code is written. Ships the delivery-spec skill — the spec a change is implemented from, short enough to review in one sitting, naming as contracts only what other code depends on, and acceptance criteria that are an action and the result it must produce, run in the environment the project names, checked before any code exists and frozen once the spec is ready. And /pyhouse-delivery:spec, which writes that spec with the person who wants the change, checks every criterion and marks the spec ready only once each check has passed. Depends on pyhouse-universal.",
+  "description": "How one change is delivered, rather than how its code is written. Ships the delivery-spec skill — the spec a change is implemented from, short enough to review in one sitting, naming as contracts only what other code depends on, and acceptance criteria that are an action and the result it must produce, run in the environment the project names, checked before any code exists and frozen once the spec is ready. And /pyhouse-delivery:spec, which writes that spec with the person who wants the change, checks every criterion and marks the spec ready only once each check has passed. Ships delivery-change-contract — what implementing a ready spec may change, each artifact free, declared or frozen, and every edit caught by a diff from a base commit rather than forbidden. And /pyhouse-delivery:implement, which implements a ready spec through the delivery-implementer, delivery-tester and delivery-prover subagents — skeleton, tests before the code, the code, the project's gate, /pyhouse-universal:change-review, acceptance against the criteria and one round of fixes — and hands over the body of the merge commit. Depends on pyhouse-universal.",
   "author": {
     "name": "Yegor Vorobyev"
   },
@@ -13,7 +13,9 @@
     "spec",
     "acceptance-criteria",
     "definition-of-done",
-    "workflow"
+    "workflow",
+    "implementation",
+    "acceptance"
   ],
   "commands": "./commands",
   "skills": "./skills",

@@ -5,15 +5,9 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest; 85–87 are the remaining build steps of one agreed design, done in order,
-one branch each. Every other item has landed or was closed (D130–D178). The first three steps of that
-design landed as D186, D187 and D188.
-
-### 85. `/implement` and its step agents
-`delivery-change-contract` — what an artifact's mode (free, declared, frozen) lets an implementer
-change — `/implement`, and `delivery-tester`, `delivery-implementer` and
-`delivery-prover`: tests first, implementation against them, proof against the criteria, a bounded
-number of fix rounds, and the review from D187 before the change is offered to land.
+Item 55 predates the rest; 86–87 are the remaining build steps of one agreed design, done in order,
+one branch each. Every other item has landed or was closed (D130–D178). The first four steps of that
+design landed as D186, D187, D188 and D190.
 
 ### 86. Running several changes at once
 `/orchestrate` and `delivery-runner` — one runner per change in its own worktree, step agents under it
