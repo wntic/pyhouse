@@ -129,7 +129,7 @@ Write the merge commit's body and show it in the reply — the person reads the 
 output:
 
 ```
-<the spec's path where the repository keeps its specs; otherwise the spec's goal, in one line>
+<the spec's goal, in one line; its path only where the repository says its specs are kept for good>
 
 Review (contracts, failure paths, tests): <the outcome line, with how many were applied>
 - <each confirmed finding's first line> — fixed | wrong: <why> | intended: <the decision> | not worth
@@ -145,7 +145,8 @@ Declared edits:
 The answer to each finding is the person's where they gave one; the implementer's fix answers one it
 was given as **fixed** or **wrong**; a finding nobody answered is **open**, never given an answer on
 the person's behalf. Where the change goes up as a merge or pull request, its description is a copy of
-this body.
+this body. A spec is a working document unless the repository says otherwise, so a message that
+cites it sends a later reader to something rewritten or gone.
 
 After the body, in the reply only and never in a commit: the skills each agent says it loaded, set
 against the section of the instructions that names them, with any it names that no agent loaded; the

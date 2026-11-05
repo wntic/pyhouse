@@ -76,6 +76,10 @@ A fix takes the short form, which has no **Where the code goes**, so `delivery-c
 every code edit of a fix as outside the named packages: in the first fix run all three code edits were
 declared, and the declarations repeated the diff. Proposal: for a fix, the code its **Cause** names is
 the change's own and free. Decide on one or two more fix runs.
+A feature shows the same: in a run of 129 files, about thirty declarations, nearly all a filled gap
+or an existing test changed in form, listed the diff back to the person; none was undeclared. Whether
+a filled gap inside the packages **Where the code goes** names needs a declaration at all is decided
+with the fix case.
 
 ### 93. A logs criterion for a component that calls an external system
 In the second fix run, the standing logs criterion (`delivery-spec` rule 9) asked for no error line in
@@ -93,3 +97,12 @@ committed alone; the seam was declared as a filled gap, but the tests' base now 
 code, and the diff from it no longer shows that code. Proposal: a seam a regression test needs is its
 own commit before the test, or the rule says a seam may go with the test and is declared. Decide on
 more fix runs.
+
+### 95. A test that passes before the code because the skeleton laid its contract
+`/pyhouse-delivery:implement` step 4 sends every new test that passes before the code back to its
+writer once. In a feature run the skeleton wrote the migration and tables in full, because the
+project's metadata-match test needs both together, and 71 of the 231 new tests passed on it — tests of
+the schema, which a skeleton of a stored contract really does satisfy. The session left them in place
+with the tester's reasons, against the step. Proposal: a test passing on a contract the skeleton
+laid in full — a schema, a migration — is kept and listed, not sent back; the step still sends back
+one passing on behaviour.
