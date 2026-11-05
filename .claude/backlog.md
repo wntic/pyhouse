@@ -106,3 +106,21 @@ the schema, which a skeleton of a stored contract really does satisfy. The sessi
 with the tester's reasons, against the step. Proposal: a test passing on a contract the skeleton
 laid in full — a schema, a migration — is kept and listed, not sent back; the step still sends back
 one passing on behaviour.
+
+### 96. A person's step handed over as a command, not a list of edits
+`delivery-spec` rule 8 writes a step the person must take "with the command they run", but
+`/pyhouse-delivery:implement` step 8 passes the preparation on as it stands. In one feature run the
+step was 23 lines to add to ten files the agent may not read, given as a list; the person copied the
+files, answered done, and the lines never went in. In another run the session wrote a script for the
+same kind of step unasked — it only added what was missing, printed names and never values, and could
+run twice — and the step held first time. Proposal: where a person's step edits what an agent may not
+read, step 8 hands it over as a command the agent writes, with what it prints, and the reply names the
+output that shows it done.
+
+### 97. Check the person's preparation before writing to the environment
+In the same run the prover rebuilt and restarted every service at once, all of them failed at start on
+the keys the preparation should have added, and the shared environment was down for 25 minutes before
+the run stopped. Proposal: before a run that writes to the environment, the prover checks each step the
+person took where it can without reading a secret, and otherwise starts one component first and sees it
+up before the rest. Whether this is `/pyhouse-delivery:implement` step 8 or `delivery-prover`'s is
+decided with the wording.
