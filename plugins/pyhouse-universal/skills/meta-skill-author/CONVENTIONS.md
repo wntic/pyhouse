@@ -5,7 +5,7 @@ Shared vocabulary, index and skill shapes for the catalogue. The authoritative f
 
 ## Index
 
-The 52 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
+The 53 skills currently in the catalogue, grouped by family. Each entry is the skill's `name` plus one
 **disambiguating line** — the thing a reader scanning the list needs in order not to pick the skill
 next to it. It is written to agree with that skill's own `description` and body, not copied from
 either, so changing a skill's scope means changing its entry here and its row in `skills/README.md`
@@ -86,9 +86,10 @@ too. The counts in every heading are the number of directories on disk.
 - `git-commit-message` — The type records which release a change earns and is picked by what the change is, never its size; a commit that is not a release never touches the version; a message cites only what outlives the work, and nothing about the tool that wrote it.
 - `git-branching` — One mainline, one merge method and branch-name pattern recorded per repository, short-lived one-change branches; a fix to unlanded work is folded, and history someone else built on is never rewritten.
 
-### Delivery (1)
+### Delivery (2)
 
 - `delivery-spec` — The spec one change is implemented from, written before any code; contracts only what other code relies on, a fix in a shorter form, and criteria that are an action and its result in the project's named environment, checked before code and frozen once the spec is ready; why a design was chosen stays in the project's decision record.
+- `delivery-change-contract` — While a ready spec is implemented, which artifact is free, declared or frozen, and every edit caught by a diff from a base commit rather than forbidden; the spec's own rules stay `delivery-spec`'s.
 
 ## Packaging — which plugin a skill ships in
 
@@ -107,7 +108,7 @@ else: a `delivery-*` skill may name a `git-*` skill only as an example.
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
-| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | every `delivery-*` skill (1), `/pyhouse-delivery:spec` | `pyhouse-universal` |
+| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | every `delivery-*` skill (2), `/pyhouse-delivery:spec`, `/pyhouse-delivery:implement` with the `delivery-implementer`, `delivery-tester` and `delivery-prover` subagents behind it | `pyhouse-universal` |
 | `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other five |
 
 **`pyhouse` takes no skill.** It exists so one install brings the whole catalogue, and nothing depends

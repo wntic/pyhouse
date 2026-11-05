@@ -1,8 +1,9 @@
 # House-style skills
 
-52 skills: 49 project-neutral Python skills in seven families — Universal (17), Meta (1), Hex core
+53 skills: 49 project-neutral Python skills in seven families — Universal (17), Meta (1), Hex core
 (11), Hex REST API (4), Hex tests (8), Flat core (4), Flat tests (4) — two language-independent
-Git skills, and one Delivery skill for the spec a change is implemented from.
+Git skills, and two Delivery skills for the spec a change is implemented from and what its
+implementation may change.
 
 Worked examples use `myapp`, `myschema`, `myrepo`, `foos`/`bars`, and `Foo`/`Bar` (with `Baz` where an example needs a third aggregate, and `Qux` for an external system). The directory names
 in the flat-layered example are roles you rename, not vocabulary you copy — see
@@ -19,7 +20,7 @@ repository:
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt` and `/install-commit-hook` commands |
-| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | the 1 `delivery-*`, the `/pyhouse-delivery:spec` command |
+| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | the 2 `delivery-*`, the `/pyhouse-delivery:spec` and `/pyhouse-delivery:implement` commands and the step agents behind the second |
 
 Installing `pyhouse-hex`, `pyhouse-flat` or `pyhouse-delivery` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
@@ -189,13 +190,14 @@ In `pyhouse-git`, which depends on nothing and holds in a repository of any lang
 | `git-commit-message` | The commit message and a request's title and description — their shape, the type as the record of which release a change earns, the break marker, nothing about the tool that wrote it, references only to what outlives the work — never a working document — and where the convention has to hold under a squash or a merge |
 | `git-branching` | How a change reaches the mainline — the one mainline releases are cut from, the merge method and branch-name pattern recorded once, the short-lived one-change branch, history made true before it lands and never rewritten after, and when a released version earns a maintenance branch |
 
-## Delivery (1)
+## Delivery (2)
 
 In `pyhouse-delivery`, which depends on `pyhouse-universal` alone.
 
 | Skill | Owns |
 |---|---|
 | `delivery-spec` | The spec one change is implemented from — its sections and which exist only where the project has them, the short form of a fix, contracts limited to what other code depends on, the sign that one spec is several, criteria as an action and its result in the environment the project names, the start and logs criteria only for a running process, and every criterion checked before code and frozen once the spec is ready |
+| `delivery-change-contract` | What implementing a ready spec may change — each artifact free, declared or frozen, what a declaration says, the base commits the change is measured from, and every edit caught by a diff from them rather than forbidden; whether a test edit weakened it is the review's to say |
 
 ## Conventions across both sets
 

@@ -3406,3 +3406,56 @@ sections exist, and rule 4 that an earlier spec naming internals is no precedent
 and `skills/README.md`; dropping the consent sentence from rule 11 and restoring rule 8's "an
 environment others share", with the command's step 4 stating the ask again; and dropping the rule-4
 test, the **Where the code goes** clause and the preamble's sentence on earlier specs.
+
+### D190 — A ready spec is implemented by step agents whose every edit outside the change is caught by a diff
+Taken by the maintainer (2026-11-04). In an adopted repository whose specs were implemented by an
+implementer agent and a separate tester, the edits that mattered were not forbidden ones but silent
+ones. The implementer edited the tester's tests in 17 of 20 specs, so an edit stopped being a signal,
+and the few that changed what a test asserted hid among the routine ones; some were folded into the
+tester's own commits, where the history no longer shows them. Criteria and specs were changed on the
+branch, mostly with the person's consent but not always. A rule against such edits would not have held:
+they went through shell commands, which no per-path tool restriction sees. The tester, given a spec
+that named no internal names, stopped to ask for them in 14 specs. And acceptance answered "met" on
+substituted or empty runs, and was told to ignore what no criterion asked about — so it discarded a real
+defect it saw.
+
+So `pyhouse-delivery` gains `delivery-change-contract`, which owns three modes for what an
+implementation touches — free, declared, frozen — and which artifact takes which; a declaration's form;
+two base commits, the spec's as it reads ready and the tests' as written before the code, with the
+repository's guarding checks measured from where the branch left its mainline; and an edit caught by
+recomputing those diffs rather than forbidden. A base commit stays as written until the change has been
+measured from it — later curation of the branch is the repository's. Whether a test edit weakened what
+it asserts is not the editor's call; `change-reviewer` classifies each edit as form, meaning or
+corrected (D187). It did so only for tests older than the change, and the tests written before the code
+are new files from the mainline, so `/pyhouse-universal:change-review` gains `--tests-at <ref>`: tests
+present at that commit are classified as existing ones. It is worded for any change whose tests were
+committed before its code, so the universal plugin names nothing of delivery's.
+
+`/pyhouse-delivery:implement` runs the steps and states none of those rules: for a spec with contracts, a
+skeleton laying them and the internal names with no new behaviour, so a tester has names to test — an
+existing name whose contract changes keeps its body; tests before the code — by `delivery-tester` only
+where the spec has contracts, by the implementer otherwise, and for a fix the failing test
+`test-principles` asks for — each seen failing on an assertion, the not-implemented marker or, for a fix,
+the symptom; the code by `delivery-implementer`; the project's gate once; the guarded diffs; the change
+review (D187); acceptance by `delivery-prover`, which checks a criterion's preconditions before its
+action, answers met only with the output, declares a substitute and reports what it saw outside the
+criteria, and runs a criterion that writes, costs money or calls a real external system only once the
+person agreed — `delivery-spec` rule 11, widened from checking a spec to running its criteria, since a
+gate the person must pass is a skill's rule (D189); and one round of fixes on the important findings and
+the failed criteria, rechecked once. It holds its loop's ceiling itself, as D188 placed the spec
+command's. The prover runs for every project: where the project is a library its criteria are calls of
+the public surface, and there is no environment to check. Until a project records its guarded paths, gate
+command and environment, the command asks once and writes nothing into the instructions file — writing
+them is the adopt step of the next build.
+
+The merge commit's body it hands over carries the answers to the findings, the acceptance table and the
+declarations. The skills each agent loaded go to the person in the reply, never into the commit: a line
+saying what instructions produced a change is the line `git-commit-message` rule 8 keeps out of history.
+The command lands nothing.
+
+**Reverse by:** deleting `skills/delivery-change-contract/`, `commands/implement.md` and `agents/` from
+`pyhouse-delivery`, the neighbour line, the hard stop's route and rule 11's acceptance clause in
+`delivery-spec`, `--tests-at` in `change-review` and its line in `change-reviewer`'s lens 3, and
+reverting the manifest description and keywords, the counts and delivery lines in `CLAUDE.md`, both
+READMEs and `CONVENTIONS.md` (index, packaging), the sentence in `.claude/commands/kickoff.md`, and
+restoring backlog item 85.

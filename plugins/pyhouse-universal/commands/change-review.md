@@ -1,6 +1,6 @@
 ---
 description: Review a change before it lands for what it breaks — contracts other code relies on, failure paths, and tests that would not catch it — then verify every finding in a separate run and print only what survives, with an outcome line for the merge commit. Works in any project and on any stack. Run `recheck` once after the findings are fixed. Not a style audit; conformance to the catalogue is /pyhouse-universal:code-review.
-argument-hint: "[a git range or ref, nothing for this branch against its mainline; 'recheck' after fixing]"
+argument-hint: "[a git range or ref, nothing for this branch against its mainline; 'recheck' after fixing] [--tests-at <ref>]"
 ---
 
 Review the change named by `$ARGUMENTS` with the `change-reviewer` subagent: once in find mode, then
@@ -27,15 +27,20 @@ This reviews a change, so the target is always a diff.
    audits files.
 4. **`recheck`** → step 4.
 
+**`--tests-at <ref>`**, beside any target, names a commit inside the change whose tests count as tests
+that existed before it — where tests were committed before the code they test, so that an edit to them
+is classified rather than read as part of a new file. Pass it to both runs.
+
 State the resolved range and its `--shortstat` in one line.
 
 ## 2. Find, then verify
 
-Start one `change-reviewer` in **find** mode, given the target, the repository root and the plugin root
-(`${CLAUDE_PLUGIN_ROOT}`).
+Start one `change-reviewer` in **find** mode, given the target, the repository root, the plugin root
+(`${CLAUDE_PLUGIN_ROOT}`) and the `--tests-at` commit where one was named.
 
 Then start one more `change-reviewer` in **verify** mode — a fresh run, not a continuation of the
-first — given every finding and the `Tests:` line verbatim, the same target and roots. One verifier, not
+first — given every finding and the `Tests:` line verbatim, the same target, roots and `--tests-at`
+commit. One verifier, not
 a vote. Skip verify only when the find run returned no finding and its `Tests:` line says no existing
 test was edited.
 
