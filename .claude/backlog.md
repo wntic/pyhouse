@@ -76,3 +76,20 @@ A fix takes the short form, which has no **Where the code goes**, so `delivery-c
 every code edit of a fix as outside the named packages: in the first fix run all three code edits were
 declared, and the declarations repeated the diff. Proposal: for a fix, the code its **Cause** names is
 the change's own and free. Decide on one or two more fix runs.
+
+### 93. A logs criterion for a component that calls an external system
+In the second fix run, the standing logs criterion (`delivery-spec` rule 9) asked for no error line in
+ten minutes from a collector that calls a third-party site. The site returned an empty body once; the
+code handled it as designed and resumed on the next cycle; the criterion failed, and the person had to
+accept it as written. The check before code could not see this: on today's code the criterion already
+failed on the defect's own errors, which hid the site's. Proposal: rule 9's exception for a provoked
+failure also covers an error an external system causes and the code handles as designed — the criterion
+names it, so acceptance does not depend on someone else's site.
+
+### 94. What goes into a fix's regression commit
+In the same run, the regression commit held the tests and a refactor of two entry points into public
+builders, the seam the tests needed. `/pyhouse-delivery:implement` regression mode says the test is
+committed alone; the seam was declared as a filled gap, but the tests' base now carries production
+code, and the diff from it no longer shows that code. Proposal: a seam a regression test needs is its
+own commit before the test, or the rule says a seam may go with the test and is declared. Decide on
+more fix runs.
