@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.29.1 — 2026-11-06
+
+Plugin versions in this release: `pyhouse-delivery` 0.2.1 (from 0.2.0); `pyhouse` 0.2.0,
+`pyhouse-universal` 0.24.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.0 are
+unchanged.
+
+### Fixed
+
+- **The merge commit body `/pyhouse-delivery:implement` hands over opens with the spec's goal, not its
+  path.** It used to open with the spec's file path wherever the repository keeps specs. A spec is a
+  working document: it is rewritten as the work moves, so a commit that cites it points a later reader
+  at text that has changed or is gone. That contradicted `git-commit-message`'s rule that a message
+  cites only what the repository keeps for good. The path is now written only where your repository
+  says its specs are kept for good. Nothing to do on upgrade. A body you already drafted with the path
+  in its first line can be landed after replacing that line with the goal in one line.
+
 ## 0.29.0 — 2026-11-05
 
 Plugin versions in this release: `pyhouse-delivery` 0.2.0 (from 0.1.0), `pyhouse-universal` 0.24.0
