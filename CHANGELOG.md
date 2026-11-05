@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.29.0 — 2026-11-05
+
+Plugin versions in this release: `pyhouse-delivery` 0.2.0 (from 0.1.0), `pyhouse-universal` 0.24.0
+(from 0.23.0); `pyhouse` 0.2.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.0
+are unchanged. Nothing is removed or reversed.
+
+### Added
+
+- **`/pyhouse-delivery:implement`, which builds one ready spec end to end.** Give it the path of a spec
+  that `/pyhouse-delivery:spec` marked ready. It works through three step agents:
+  `delivery-implementer`, `delivery-tester` and `delivery-prover`. The steps, in order:
+  - For a spec with contracts, a skeleton that lays the names with no new behaviour. A function that
+    already exists keeps its body.
+  - Tests written before the code, each seen failing for the right reason. For a fix, this is the
+    regression test the spec names.
+  - The code itself.
+  - Your project's gate, run once.
+  - A diff of every protected path, against the commit the spec reads as ready at and the commit that
+    holds the tests.
+  - `/pyhouse-universal:change-review`.
+  - Acceptance against the spec's criteria.
+  - One round of fixes, rechecked once.
+
+  At the end it shows the body of the merge commit: the answer to each review finding, the acceptance
+  table and every declared edit. It does not merge, push or open a request. Before the run starts, it
+  asks you to approve each criterion that writes to an environment, costs money or calls a real
+  external system, and each step the spec makes yours. A criterion you did not approve is reported as
+  not run. Where your `CLAUDE.md` does not name the tests directory, the guarding checks, the gate
+  command or the environment, it asks once and uses the answers for this run only. It writes nothing
+  into your instructions.
+- **The `delivery-change-contract` skill, the rules for what an implementation may touch.** Every
+  artifact is in one of three modes:
+  - **free** — the change's own code;
+  - **declared** — code outside the packages the spec names, any edit to a test that already existed,
+    the form of a test written before the code, and a gap the spec leaves;
+  - **frozen** — what a test written before the code asserts, the spec's meaning, its criteria,
+    decision records, and the checks that guard the repository, such as the architecture test, the
+    linter and type checker configuration, and CI.
+
+  An edit is caught by a diff from a fixed commit, not prevented. An undeclared edit is reported. An
+  edit to a frozen artifact stops the change until you agree to it. The skill loads on its own when you
+  ask an agent whether an implementer may edit a test, loosen a check or fill in a name the spec leaves
+  open.
+- **`/pyhouse-universal:change-review` takes `--tests-at <ref>`** (`pyhouse-universal`). Use it when a
+  change commits its tests before its code. Tests present at that commit are judged as tests that
+  already existed. Any edit to them is classified as a change of form, a weakened assertion or a
+  correction, instead of disappearing into a new file. `/pyhouse-delivery:implement` passes it for you.
+  Without the flag the review behaves as before.
+
+### Changed
+
+- **Running acceptance criteria now waits for your approval as well** (`delivery-spec` rule 11). Rule
+  11 already asked before a check that writes to an environment, costs money or calls a real external
+  system while the spec is written. It now asks the same before such a criterion is run against the
+  code. Without your approval the criterion is reported as not run.
+
 ## 0.28.0 — 2026-11-04
 
 Plugin versions in this release: `pyhouse-delivery` 0.1.0 (new), `pyhouse-universal` 0.23.0 (from
