@@ -20,6 +20,8 @@ second copy of the code, and it does not carry the reasons for a design.
   test → `test-principles`.
 - The commit or merge message of the change → `git-commit-message`, in the `pyhouse-git` plugin, where
   installed.
+- What implementing a ready spec may change, and how an edit to its tests or criteria is caught →
+  `delivery-change-contract`.
 - What a change breaks, read from its diff once it exists → `/pyhouse-universal:change-review`, not a
   spec.
 
@@ -178,8 +180,10 @@ steps.>
     code by running it and seeing today's result — the symptom, or the behaviour being replaced — never
     by editing the result it states. A criterion that fails its check is corrected with the person,
     then checked again. A check that writes to an environment, the one the criteria run in included,
-    or costs money, or calls a real external system, runs only once the person agrees, told what it
-    touches; whether an environment is anyone else's is theirs to say.
+    or costs money, or calls a real external system — while the spec is written, or when its criteria
+    are run against the code — runs only once the person agrees, told what it touches; without that
+    agreement it is not run, and is reported as not run. Whether an environment is anyone else's is
+    theirs to say.
 12. **A spec is ready only once every criterion has passed its check.** Its status says so, and until
     then it is a draft that no implementation starts from.
 13. **A ready spec's criteria and meaning change only with the person's consent.** A criterion that
@@ -192,4 +196,5 @@ steps.>
 - Asked to record why a design was chosen, or which alternatives were rejected → stop; that is the
   project's decision record, and the spec points at it.
 - Asked to write the code, the tests or the commit for a spec → stop, this skill writes only the spec;
+  implementing a ready spec is `/pyhouse-delivery:implement`, under `delivery-change-contract`, and
   tests are `test-principles`.
