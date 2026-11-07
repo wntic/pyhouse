@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.30.0 — 2026-11-07
+
+Plugin versions in this release: `pyhouse-delivery` 0.3.0 (from 0.2.1); `pyhouse` 0.2.0,
+`pyhouse-universal` 0.24.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.0 are
+unchanged.
+
+### Breaking
+
+- **An acceptance criterion now comes in two kinds, and a test is the default.** A *test criterion*
+  states a property as the result a test asserts. Its test is written and committed before the code,
+  and the criterion is met when that test passes on the change's last commit and asserts what it did
+  when it was written. A *stand criterion* — an action run in your environment — is written only with
+  its reason: behaviour at real volumes, a real external system, rollout and configuration, or what no
+  test asserts on, such as a log line. A feature of a project that runs as a process keeps a fixed
+  stand block of its start, its main path on real input and its logs; where the process runs to
+  completion, its start and main path are one run. A library's criteria are all tests, and a fix takes
+  no stand block. What to do:
+  - A spec that is still a draft: rewrite its criteria to the new template — each one either a test
+    criterion or a stand criterion with its reason — before `/pyhouse-delivery:spec` marks it ready.
+  - A spec already marked ready under 0.2.x: either implement it before upgrading, or reopen it with
+    the person who owns it and rewrite its criteria. Under 0.3.0 every criterion it states as a stand
+    action, other than the start, main path and logs block, is read as needing a reason it does not
+    give.
+- **`/pyhouse-delivery:implement` runs its steps differently.** Nothing to change in your project, but
+  a run now looks different:
+  - The tester writes the tests for every feature, contracts or not, including the test behind each
+    test criterion, and says which test answers which criterion. The skeleton step lays nothing where a
+    feature adds no name.
+  - Your project's full gate runs at most twice: once after the code, and once after the round of
+    fixes. The step agents run only the tests they wrote or touched. A failure in a full run is
+    treated as a defect, never as a flaky test to run again.
+  - You are asked once, after the review and before acceptance: which runs that write, cost money or
+    call a real system may go ahead, your own steps, and whether the environment is free. You are not
+    asked again in the round of fixes unless something changed.
+  - A step of yours that edits a file the agent may not read, such as one holding secrets, is handed to
+    you as a script. It adds only what is missing, prints names and never values, and is safe to run
+    twice.
+  - Before anything is written to the environment, the prover checks what you prepared, where it can
+    do so without reading a secret. Otherwise it starts one component first.
+  - The prover checks a test criterion by running its test and reading that test's diff since it was
+    written. An edit that loosens an assertion, deletes a case or changes an expected value fails the
+    criterion unless you agreed to it. After a fix that changed code running in the environment, the
+    stand block is run again.
+
 ## 0.29.1 — 2026-11-06
 
 Plugin versions in this release: `pyhouse-delivery` 0.2.1 (from 0.2.0); `pyhouse` 0.2.0,
