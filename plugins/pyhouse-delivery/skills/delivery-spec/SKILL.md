@@ -1,6 +1,6 @@
 ---
 name: delivery-spec
-description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the acceptance criteria that decide it is done. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, a criterion as an action and the result it must produce run in the environment the project names, the start and logs criteria only where the project runs as a process and its tests plus a call of its public surface for a library, and criteria checked before any code is written and frozen once the spec is ready. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for acceptance criteria, a definition of done, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or why criteria keep failing during implementation.
+description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the acceptance criteria that decide it is done. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, the two kinds of criterion — a test criterion by default, whose test is committed before the code, and a stand criterion run in the environment the project names only for what no test can show, with its reason — the fixed stand block of start, main path and logs that a feature of a running process carries and a library does not, a step the person must take written as the command they run, and criteria checked before any code is written and frozen once the spec is ready. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for acceptance criteria, a definition of done, whether a criterion needs the test environment or a test is enough, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or why criteria keep failing during implementation.
 user-invocable: false
 ---
 
@@ -82,11 +82,17 @@ the change holds state, a restart or a partial write — those the change has.>
 
 ## Acceptance criteria
 
-<Where the project runs as a process: the environment the criteria run in, and any preparation, as
-steps.>
+<Where the spec has a stand criterion: the environment it runs in, and any preparation, as steps.>
 
-1. <Action — a command, a query, a request.> → <The result it must produce — an output line, a
-   number, a state.>
+<1–3 only where the project runs as a process; one that runs to completion has 1 and 2 as one run:>
+1. Stand — start. <The action that starts it.> → <The line or state that shows it up.>
+2. Stand — main path. <The action, on real input.> → <The result it must produce.>
+3. Stand — logs. <The command that reads the logs of the window the criteria ran in.> → No
+   error-level event<, other than the one criterion <n> provokes>.
+<Only where the project runs as a process and a test cannot show the result:>
+4. Stand, because <the reason rule 7 names>. <Action — a command, a query, a request.> → <The result
+   it must produce — an output line, a number, a state.>
+5. Test. <The property, as the result a test asserts>, at <the level `test-principles` gives it>.
 ```
 
 ### A fix
@@ -111,10 +117,10 @@ that would have caught it.>
 
 ## Acceptance criteria
 
-<Where the project runs as a process: the environment the criterion runs in, and any preparation, as
-steps.>
-
-1. <The action that showed the symptom.> → <The result it produces once the symptom is gone.>
+1. Test. <The symptom gone, as the result the regression test asserts.>
+<Or, only where no test can reach the defect — the environment and any preparation, as steps, then:>
+1. Stand, because <the reason rule 7 names>. <The action that showed the symptom.> → <The result it
+   produces once the symptom is gone.>
 ```
 
 ## Rules
@@ -147,27 +153,38 @@ steps.>
 
 ### What a criterion is
 
-6. **A criterion is one numbered action and the result it must produce.** The action is something
-   anyone can run — a command, a query, a request — and the result something they can see: an output
-   line, a number, a state. Whoever checks it answers met or not met and shows the output. "The code
-   matches the contracts", "errors are handled", "the tests cover X" are not criteria: no one can
-   answer them without rereading the spec.
-7. **A criterion runs in the environment the project names, within the time the project allows a
-   check.** It names that environment, where the project has one, and the preparation it needs. What
-   takes longer — a long wait, an outage that is costly to provoke — goes into **Tests**, or into a
-   note after the criteria that holds nothing up. A check the project's own gate already runs is not
-   repeated as a criterion.
-8. **A step the person must take is written as theirs.** Anything an agent may not do — handling a
-   secret, deleting from an environment the person has not said is the agent's to change, an action
-   needing an account it does not hold —
-   is written into the criterion as the person's step, with the command they run.
-9. **Criteria prove what tests cannot.** Tests prove logic, failure paths and edge cases; criteria prove
-   the running system. A feature's criteria, where the project runs as a process, cover its start, the
-   main path on real input, at most one failure that is cheap to provoke, and one or two signals that
-   show it working — and include one standing criterion: no error-level event in its logs for the time
-   the criteria take, other than the one a provoked failure is stated to produce. Where the project is a
-   library, with no process to start, a call of its public surface is its criterion, its tests run in
-   the gate, and neither the start nor the logs criterion applies.
+6. **A criterion is one numbered check that whoever checks it answers met or not met, showing the
+   output — a test criterion by default, a stand criterion only where rule 7 or 9 asks for one.** A
+   **test criterion** states a property as the result a test asserts. Its test is committed before any
+   of the code exists, so the code is judged by a test that did not know it; it is met when that test
+   passes on the change's last commit and what it asserts is unchanged since it was committed. A
+   **stand criterion** is an action anyone can run in the environment — a command, a query, a request —
+   and a result they can see: an output line, a number, a state. "The code matches the contracts",
+   "errors are handled", "the tests cover X" are not criteria: no one can answer them without
+   rereading the spec.
+7. **A stand criterion carries its reason, which is something no test can show.** Behaviour at real
+   volumes — a query's plan, a run's duration on real data; a real external system; rollout and
+   configuration — the build, the deployment, a setting read from the environment; what no test asserts
+   on, such as a log line (`test-principles`). A criterion with none of these reasons is a test
+   criterion, and one that repeats what a test or the project's gate already proves is not written. A
+   stand criterion names the environment and the preparation it needs and fits the time the project
+   allows a check; what takes longer — a long wait, an outage that is costly to provoke — goes into
+   **Tests**, or into a note after the criteria that holds nothing up.
+8. **A step the person must take is written as theirs, as the command they run.** Anything an agent
+   may not do — handling a secret, deleting from an environment the person has not said is the agent's
+   to change, an action needing an account it does not hold — is written into the criterion as the
+   person's step. Where the step edits what an agent may not read, such as a file of secrets, the
+   command is a script the agent writes: it adds only what is missing, prints the names it touched and
+   never their values, and can be run twice; what it prints is what shows the step done.
+9. **Where the project runs as a process, a feature carries a fixed stand block, and no reason is
+   asked for it.** Its start; its main path, on real input; and a standing logs criterion — no
+   error-level event in its logs for the window the criteria ran in, other than the one a stand
+   criterion is stated to provoke. The block is there for what nobody foresaw, which is also why
+   whoever runs it reports what they saw outside the criteria. Where the process runs to completion,
+   such as a job or a command-line run, its start and its main path are one criterion and one run, and
+   its logs criterion reads what that run wrote. Every other criterion follows rule 7. A fix takes no
+   block. Where the project is a library, with no process to start, every criterion is a test
+   criterion and the block does not apply.
 10. **A criterion that waits on another spec says so** and moves into that spec's criteria — or, where
     that spec is not yet written, into this spec's **Out** line — instead of being left here unmet.
 
@@ -178,12 +195,15 @@ steps.>
     it; each preparation step by running it in the named environment; a command about something not yet
     built by matching every name it uses against **Contracts**; one whose action already runs on today's
     code by running it and seeing today's result — the symptom, or the behaviour being replaced — never
-    by editing the result it states. A criterion that fails its check is corrected with the person,
-    then checked again. A check that writes to an environment, the one the criteria run in included,
-    or costs money, or calls a real external system — while the spec is written, or when its criteria
-    are run against the code — runs only once the person agrees, told what it touches; without that
-    agreement it is not run, and is reported as not run. Whether an environment is anyone else's is
-    theirs to say.
+    by editing the result it states; a test criterion, whose test is not yet written, by matching its
+    property against **Contracts**, **Behaviour and failures** and the decision records, and seeing
+    today's result where the path it tests already runs — its test is seen failing once it is written,
+    before the code; and a stand criterion's reason by asking whether a test could show the result. A
+    criterion that fails its check is corrected with the person, then checked again. A check that
+    writes to an environment, the one the criteria run in included, or costs money, or calls a real
+    external system — while the spec is written, or when its criteria are run against the code — runs
+    only once the person agrees, told what it touches; without that agreement it is not run, and is
+    reported as not run. Whether an environment is anyone else's is theirs to say.
 12. **A spec is ready only once every criterion has passed its check.** Its status says so, and until
     then it is a draft that no implementation starts from.
 13. **A ready spec's criteria and meaning change only with the person's consent.** A criterion that

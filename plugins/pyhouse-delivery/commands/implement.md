@@ -1,5 +1,5 @@
 ---
-description: Implement one ready spec end to end — skeleton, tests written before the code, the code, the project's own gate, a review of what the change breaks, acceptance against the spec's criteria, and one round of fixes — and hand over the body of the merge commit for the person to land it
+description: Implement one ready spec end to end — skeleton, tests written before the code, the code, the project's own gate, a review of what the change breaks, acceptance against the spec's criteria by their tests and on the stand, and one round of fixes — and hand over the body of the merge commit for the person to land it
 argument-hint: "<the path or key of a spec whose status is ready>"
 ---
 
@@ -51,40 +51,44 @@ Where a type is not available in this session, start a general-purpose subagent 
 
 ## 3. Skeleton
 
-Only for a spec with **Contracts** — the skeleton gives the tester its names. A fix adds no surface,
-and a feature without Contracts has no tester; either goes to step 4.
+Only for a feature — the skeleton gives the tester its names. A fix adds no surface; it goes to step 4.
 
 Start `delivery-implementer` in **skeleton** mode. It lays every contract the spec names and the internal
 names the code needs, with no behaviour, and commits. Keep the files it lists and the skills it loaded.
+Where the feature adds no name and changes no contract, it lays nothing, and the tester starts from the
+spec's base.
 
 ## 4. Tests before the code
 
-- **A spec with Contracts** → start `delivery-tester` with the spec and the skeleton commit. It writes the
-  tests, runs them and the repository's checks on them, and commits. A name it returns as **Missing**
-  goes to `delivery-implementer` in skeleton mode, once; then the tester is started again. Only its
-  **Questions** go to the person.
-- **A feature without Contracts** → the implementer writes the tests itself, in code mode, beside the
-  code; there is no tests' base, and the review judges their strength.
+- **A feature** → start `delivery-tester` with the spec and the skeleton commit, or the spec's base where
+  the skeleton laid nothing. It writes the tests, the test criteria's among them, runs them and the
+  repository's checks on them, and commits. A name it
+  returns as **Missing** goes to `delivery-implementer` in skeleton mode, once; then the tester is
+  started again. Only its **Questions** go to the person. Keep its **Criteria** — which test answers
+  which criterion — for step 8.
 - **A fix** → start `delivery-implementer` in **regression** mode: the failing test the spec's
-  **Regression test** names, seen failing on today's code, committed alone.
+  **Regression test** names, seen failing on today's code, committed alone. Where the fix's criterion is
+  a test criterion, this test answers it.
 
 Check what was committed before any behaviour exists: run the new tests, and each must fail on an
 assertion, on the skeleton's not-implemented marker, or — for a fix — on the symptom the spec names,
 such as the error that escaped; never on collection, an import or a missing fixture. A test that
 passes, or fails for the wrong reason, goes back to the agent that wrote it once, with the output; what
-still does not fail properly goes in the report. The commit that holds the tests is the **tests'
-base**.
+still does not fail properly goes in the report, and so does a test criterion no test answers. The
+commit that holds the tests is the **tests' base**. A fix whose defect no test reaches commits no test
+and has no tests' base; the steps below go without one.
 
 ## 5. Code
 
-Start `delivery-implementer` in **code** mode with both bases where they exist. It makes the tests
-pass, declares what the modes table asks, runs the gate, and commits. A question it returns about a
-frozen artifact goes to the person (see *Where this runs*).
+Start `delivery-implementer` in **code** mode with both bases, where there are two. It makes the tests
+pass, declares what the modes table asks, runs the tests it wrote or touched, and commits. A question
+it returns about a frozen artifact goes to the person (see *Where this runs*).
 
 ## 6. The gate and the diff of guarded paths
 
-Run the gate command once. A failure goes back to the implementer in code mode once, with its output;
-a second failure stops the change and goes to the person.
+Run the gate command — the first of its two full runs. Every failure in a full run is a defect, never a
+flaky test to run again, even where the test passes alone. A failure here does not stop the steps and
+is not retried here: it goes to step 9 with its output, beside the findings and the failed criteria.
 
 Then take the diffs `delivery-change-contract` rule 7 names, from each base, and set every edit they show
 against the declarations the agents returned:
@@ -97,28 +101,38 @@ against the declarations the agents returned:
 
 Run `/pyhouse-universal:change-review` through the Skill tool, on the branch against the commit where it
 left its mainline, with `--tests-at <the tests' base>` where there is one, so the tests written before
-the code are judged as tests that existed. Keep what it prints — the confirmed findings and the
-outcome line. A meaning edit to a test that the person has not agreed to is a stop, as step 6.
+the code are judged as tests that existed. Keep what it prints — the confirmed findings, its `Tests:`
+line and every finding on an edit to a test, and the outcome line. A meaning edit to a test that the
+person has not agreed to is a stop, as step 6.
 
 ## 8. Acceptance
 
-- Before the prover starts, ask the person in one message: for each criterion `delivery-spec` rule 11
-  makes wait for them, what it touches and whether it may run; and for each step the spec makes theirs,
-  to run it and paste what came back.
-- Start `delivery-prover` with the spec, the environment and its commands, the person's outputs, and
-  which waiting criteria they agreed to — one they refused, or did not answer, is **not run**. Keep its
-  table, its **Substitutes**, its **Outside the criteria** and every environment change it reports.
+- **The person, once.** Where any stand criterion is to run, ask the person in one message, after the
+  review has printed and never before: for each criterion `delivery-spec` rule 11 makes wait for them,
+  what it touches and whether it may run; for each step the spec makes theirs, the command to run and
+  the output that shows it done — where the step edits what an agent may not read, the script
+  `delivery-spec` rule 8 asks for — the one the spec's check used, or one written now where it has
+  none; and whether the environment is free for the run.
+- Start `delivery-prover` with the spec, the tests' base, step 4's **Criteria** — or, for a fix, the
+  regression test it committed — the review's `Tests:` line and its findings on test edits, the
+  environment and its commands, the person's outputs, and which waiting criteria they agreed to — one
+  they refused, or did not answer, is **not run**. Keep its table, its **Substitutes**, its **Outside
+  the criteria** and every environment change it reports.
 
 ## 9. One round of fixes
 
-Collect the confirmed `Important` findings and the criteria the prover found **not met**. A criterion it
-marked **environment** is not a code defect: it goes to the person, never to the implementer.
+Collect the confirmed `Important` findings, a failed gate from step 6, and the criteria the prover found
+**not met**. A criterion it marked **environment** is not a code defect: it goes to the person, never to
+the implementer.
 
 - Nothing collected → step 10.
-- Otherwise start `delivery-implementer` in **fix** mode once, with exactly that list. Then take step 6's
-  diffs over the fix commits and set them against its declarations, as step 6 does; run
-  `/pyhouse-universal:change-review recheck` on the fix diff, and `delivery-prover` on the failed
-  criteria only.
+- Otherwise start `delivery-implementer` in **fix** mode once, with exactly that list. Then run the gate
+  command — its second and last full run; a failure in it stops the change and goes to the person, with
+  its output. Take step 6's diffs over the fix commits and set them against its declarations, as step 6
+  does; run `/pyhouse-universal:change-review recheck` on the fix diff, and `delivery-prover` on the
+  failed criteria — and on the stand block again where a fix commit changed code the stand runs. The
+  person is not asked again unless the environment changed or a criterion to run again waits on an
+  agreement they have not given.
 
 There is no second round. Whatever is still open goes to the person as it stands: a step asked again
 always finds more.
@@ -136,7 +150,7 @@ Review (contracts, failure paths, tests): <the outcome line, with how many were 
   fixing: <why> | open
 
 Acceptance:
-- <n>. <met | not met | environment | not run> — <how it was checked, one line>
+- <n>. <test | stand> — <met | not met | environment | not run> — <how it was checked, one line>
 
 Declared edits:
 - <every declaration, the undeclared ones marked>

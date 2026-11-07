@@ -5,14 +5,9 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest; 86–87 are the remaining build steps of one agreed design, done in order,
-one branch each. Every other item has landed or was closed (D130–D178). The first four steps of that
-design landed as D186, D187, D188 and D190.
-
-### 86. Running several changes at once
-`/orchestrate` and `delivery-runner` — one runner per change in its own worktree, step agents under it
-— plus `/adopt` and `/install-worktree-hook`, which links a repository's untracked environment files
-into each new worktree.
+Item 55 predates the rest; 87 is the remaining build step of one agreed design. Every other item has
+landed or was closed (D130–D178). The steps of that design landed as D186, D187, D188, D190 and D191;
+running several changes at once was dropped (D191).
 
 ### 87. A retrospective over released changes
 `/retro`: the defects found after a change landed, which check each escaped, and the rule or test that
@@ -37,24 +32,15 @@ rather than by file, would cut the cost of the largest diffs. Measured on the ne
 reviews, not by rerunning the calibration set.
 
 ### 89. One shared acceptance environment, taken in turn
-Input to 86. In an adopted repository running about eight sessions at once, specs and implementations
-each checked criteria on the one shared stand, and found it busy only by looking: one spec session
-stopped because another implementation had rebuilt the stand from its own worktree, and each asked the
-person whether the stand was free. Since D189 a spec runs its criteria on the stand too, so the stand is
-contended at spec time as well as at acceptance. Proposal: the session that takes the environment
-records it where the others look (a lock the project names, or a line in the run plan), and the others
-wait for it instead of asking the person; `/orchestrate` hands the environment out in turn. Whether the
-record belongs to `delivery-spec` rule 7, to `/pyhouse-delivery:implement` step 8 or to 86 alone is
-decided with 86.
-
-### 90. Fewer separate waits on the person in `/pyhouse-delivery:implement`
-The first real run of the command (D190) stopped for the person at four separate moments: three tester
-questions, consent for acceptance asked early, then whether the stand was free, asked twice — once
-before the fix round and once after it. Each wait was right, but with several sessions running, the
-person answered each one through another session, and answers took 30–55 minutes to come back.
-Proposal: step 8 asks consent, the person's steps and whether the environment is free in one message,
-once, right before the prover starts; the fix round does not ask again unless the environment changed.
-Decide after the next two runs, not on one.
+In an adopted repository running about eight sessions at once, specs and implementations each checked
+criteria on the one shared stand, and found it busy only by looking: one spec session stopped because
+another implementation had rebuilt the stand from its own worktree, and each asked the person whether
+the stand was free. Since D191 one implementation runs at a time while the next change's spec is
+written beside it, and the stand is asked for once, before acceptance — but a spec's checks still run
+on it at the same time. Proposal: while an implementation holds the stand, a spec's checks only read
+it; a check that writes waits for a line the project names as the stand's lock, which the session
+holding it writes and clears. Whether the lock belongs to `delivery-spec` rule 11 or to
+`/pyhouse-delivery:implement` step 8 is decided with the wording.
 
 ### 91. Less of the person's time per change — possible, not yet wanted
 The maintainer's verdict after the first days of real use: the checks are worth it, but answering
@@ -88,7 +74,8 @@ code handled it as designed and resumed on the next cycle; the criterion failed,
 accept it as written. The check before code could not see this: on today's code the criterion already
 failed on the defect's own errors, which hid the site's. Proposal: rule 9's exception for a provoked
 failure also covers an error an external system causes and the code handles as designed — the criterion
-names it, so acceptance does not depend on someone else's site.
+names it, so acceptance does not depend on someone else's site. Since D191 a fix takes no logs
+criterion; the proposal stands for a feature's.
 
 ### 94. What goes into a fix's regression commit
 In the same run, the regression commit held the tests and a refactor of two entry points into public
@@ -107,20 +94,3 @@ with the tester's reasons, against the step. Proposal: a test passing on a contr
 laid in full — a schema, a migration — is kept and listed, not sent back; the step still sends back
 one passing on behaviour.
 
-### 96. A person's step handed over as a command, not a list of edits
-`delivery-spec` rule 8 writes a step the person must take "with the command they run", but
-`/pyhouse-delivery:implement` step 8 passes the preparation on as it stands. In one feature run the
-step was 23 lines to add to ten files the agent may not read, given as a list; the person copied the
-files, answered done, and the lines never went in. In another run the session wrote a script for the
-same kind of step unasked — it only added what was missing, printed names and never values, and could
-run twice — and the step held first time. Proposal: where a person's step edits what an agent may not
-read, step 8 hands it over as a command the agent writes, with what it prints, and the reply names the
-output that shows it done.
-
-### 97. Check the person's preparation before writing to the environment
-In the same run the prover rebuilt and restarted every service at once, all of them failed at start on
-the keys the preparation should have added, and the shared environment was down for 25 minutes before
-the run stopped. Proposal: before a run that writes to the environment, the prover checks each step the
-person took where it can without reading a secret, and otherwise starts one component first and sees it
-up before the rest. Whether this is `/pyhouse-delivery:implement` step 8 or `delivery-prover`'s is
-decided with the wording.

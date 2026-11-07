@@ -3459,3 +3459,64 @@ The command lands nothing.
 reverting the manifest description and keywords, the counts and delivery lines in `CLAUDE.md`, both
 READMEs and `CONVENTIONS.md` (index, packaging), the sentence in `.claude/commands/kickoff.md`, and
 restoring backlog item 85.
+
+### D191 — A criterion is a test written before the code by default; the stand keeps a fixed block and what no test can show
+Taken by the maintainer (2026-11-07), from nine changes implemented through `/pyhouse-delivery:implement`
+in an adopted repository. Four of the nine had a criterion fail through its own fault, not the code's:
+the stand criteria were commands, and the commands were what was wrong — a schema-dump comparison that
+a tool's random per-dump key broke, while the property it stood for held. The stand found a defect of
+the code once in nine, and only at real volumes. A ceiling the project set on acceptance time had cut
+the criteria themselves, not the time to check them. The full gate ran up to seven times in one
+implementation, because every agent ran it at every turn; and the person was asked separately for
+consent, for their steps and whether the stand was free, sometimes while the review still ran. A step
+the person had to take was handed over as a list of lines to add to files the agent may not read; the
+lines never went in, and every service then failed at start on the shared stand. Where a session wrote
+an idempotent script for the same kind of step, it held first time.
+
+So D188's criterion — an action and its result, run in the environment — becomes one of two kinds. A
+**test criterion** is the default: a property, as the result a test asserts, whose test is committed
+before the code and which is met when that test passes on the change's last commit with what it
+asserts unchanged since. The independence D190 rests on is kept by who writes it: for a feature,
+`delivery-tester` now runs whether or not the spec has contracts — a skeleton precedes it in every
+feature — and writes the criteria's tests with the rest, saying which test answers which criterion; for
+a fix, the regression test written before the fix is the criterion's test. `delivery-prover` runs that
+test and reads its diff from the tests' base itself, since the review names only the edits it finds
+to change meaning: an edit that loosens an assertion, deletes a case or changes an expected value fails
+the criterion unless the person agreed. A **stand
+criterion** carries its reason — behaviour at real volumes, a real external system, rollout and
+configuration, and what no test asserts on, such as a log line, which `test-principles` keeps out of
+tests — and a criterion with none is a test criterion. Where the project runs as a process, a
+feature also carries a fixed stand block that asks for no reason, its start, its main path on real
+input and the logs criterion, because the block is there for what nobody foresaw; the gain sought is
+the criteria's accuracy, not less time on the stand. A process that runs to completion has its start
+and main path as one run, so a job is not run twice; after a fix that changed code the stand runs, the
+block runs again. A library has test criteria only. The default level
+of a criterion's test is `test-principles`', not a real-database integration test.
+
+The full gate runs at two fixed points of `/implement` — after the code, and once after the round of
+fixes — and the agents run only the tests they wrote or touched. A failure in a full run is a defect,
+never a flaky test to rerun: one order-dependent fixture passed alone and failed in the gate. A failure
+after the code no longer goes straight back to the implementer: it joins the round of fixes, whose own
+full run is the last. A gate scoped to the members a change touched was considered and not built: in
+the repository it was measured on, one core library is a dependency of thirteen of fourteen members and
+was touched by eight of nine changes, so the affected set was everything.
+
+The person is asked once, after the review and before acceptance — consent, their steps and whether the
+environment is free — and not again in the fix round unless something changed. A step that edits what
+an agent may not read is handed over as a script the agent writes, adding only what is missing,
+printing names and never values, safe to run twice (`delivery-spec` rule 8); and the prover checks
+what the person prepared, where it can without reading a secret, before anything it runs writes to the
+environment, or else starts one component first. Backlog items 90, 96 and 97 close here.
+
+Running several implementations at once (backlog 86) is dropped: the bottleneck was the person's
+attention and the one shared stand, not the agents' speed. One implementation runs at a time, while the
+next change's spec is written beside it; `/orchestrate` and a runner return only if that proves too
+slow. D190's "the adopt step of the next build" therefore has no build to belong to.
+
+**Reverse by:** restoring rules 6, 7, 8, 9 and 11 and both acceptance templates of `delivery-spec`, and
+its description; restoring `delivery-tester` to specs with contracts and `delivery-implementer`'s gate
+and feature-without-contracts test lines; restoring `delivery-prover`'s single criterion procedure;
+restoring the descriptions of `delivery-implementer`, `delivery-tester`, `delivery-prover` and
+`/pyhouse-delivery:implement`; restoring steps 3–9 and the acceptance line of that command; reverting
+the manifest description and the delivery lines in `CLAUDE.md`, both READMEs and `CONVENTIONS.md`;
+restoring backlog items 86, 89, 90, 96 and 97, and item 93's last sentence.
