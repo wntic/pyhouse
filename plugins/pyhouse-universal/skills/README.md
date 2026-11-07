@@ -196,7 +196,7 @@ In `pyhouse-delivery`, which depends on `pyhouse-universal` alone.
 
 | Skill | Owns |
 |---|---|
-| `delivery-spec` | The spec one change is implemented from — its sections and which exist only where the project has them, the short form of a fix, contracts limited to what other code depends on, the sign that one spec is several, criteria as an action and its result in the environment the project names, the start and logs criteria only for a running process, and every criterion checked before code and frozen once the spec is ready |
+| `delivery-spec` | The spec one change is implemented from — its sections and which exist only where the project has them, the short form of a fix, contracts limited to what other code depends on, the sign that one spec is several, criteria as a test written before the code by default and an action in the environment the project names only for what no test can show, the fixed start, main path and logs block only for a running process, and every criterion checked before code and frozen once the spec is ready |
 | `delivery-change-contract` | What implementing a ready spec may change — each artifact free, declared or frozen, what a declaration says, the base commits the change is measured from, and every edit caught by a diff from them rather than forbidden; whether a test edit weakened it is the review's to say |
 
 ## Conventions across both sets

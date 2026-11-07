@@ -88,7 +88,7 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Delivery (2)
 
-- `delivery-spec` — The spec one change is implemented from, written before any code; contracts only what other code relies on, a fix in a shorter form, and criteria that are an action and its result in the project's named environment, checked before code and frozen once the spec is ready; why a design was chosen stays in the project's decision record.
+- `delivery-spec` — The spec one change is implemented from, written before any code; contracts only what other code relies on, a fix in a shorter form, and criteria that are a test written before the code by default and an action in the project's named environment only for what no test can show, checked before code and frozen once the spec is ready; why a design was chosen stays in the project's decision record.
 - `delivery-change-contract` — While a ready spec is implemented, which artifact is free, declared or frozen, and every edit caught by a diff from a base commit rather than forbidden; the spec's own rules stay `delivery-spec`'s.
 
 ## Packaging — which plugin a skill ships in

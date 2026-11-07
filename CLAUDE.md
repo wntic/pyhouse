@@ -243,7 +243,7 @@ moving by a minor if any member moved by a minor or more and by a patch if every
 patched — stated by `/release` and by `python-versioning` rule 13. None is a duplicate to delete.
 
 `delivery-*` → `pyhouse-delivery`, which holds how one change is delivered — its spec, its implementation
-and acceptance, and in time running several at once — rather than how its code is written. It depends on `pyhouse-universal`
+and acceptance — rather than how its code is written. It depends on `pyhouse-universal`
 like a family plugin, and on nothing else: it does not depend on `pyhouse-git`, which it may name only
 as an example, and no other skill plugin depends on it.
 
