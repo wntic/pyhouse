@@ -17,6 +17,18 @@ runs in an adopted repository. The change is breaking for `pyhouse-delivery`, an
   change is done; tests are written from it, and its wording may be refined during the work, the edit
   visible in the diff. Its goal and scope are frozen: an agent stops and asks before changing what the
   change does or leaves alone. Done is the project's gate passing. `delivery-prover` goes.
+- **The spec's form.** A feature keeps Goal, In/Out — which absorbs **Where the code goes** as one
+  line — and Contracts, all three frozen; Behaviour and failures, free, the list the tests are written
+  from; Source, Depends on, Settings and metrics where they apply. **Tests** and **Acceptance
+  criteria** go; in their place an optional **How to see it working**, only where the change shows
+  only in a running process — in words, no commands, not frozen, a hint for the implementer's live
+  check. A fix keeps Symptom, Cause and Regression test and has no criteria.
+- **What `/pyhouse-delivery:spec` checks before code** is the spec's claims about today's system, not
+  commands: a fix's cause reproduced or read in the code, or why it cannot be; a feature's statements
+  about existing code and data set against them. Reading only; anything that writes needs consent. A
+  spec is ready once the person has accepted the draft and its claims are checked. `delivery-spec`
+  rule 8 — a person's step as a command or script — stays, its consumer now the merge body; rules 6,
+  7, 9, 10 and 11 go, and 12–13 are rewritten for the new readiness and the frozen sections.
 - **The implementer checks its own work.** It runs the gate, and where the change is seen only in a
   running process, starts the fewest services that show it, exercises them through their public surface,
   reads their logs and stops them. No stand and no description of how to start one; an environment
