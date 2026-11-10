@@ -5,13 +5,74 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest; 87 is the remaining build step of one agreed design. Every other item has
-landed or was closed (D130–D178). The steps of that design landed as D186, D187, D188, D190 and D191;
-running several changes at once was dropped (D191).
+Item 55 predates the rest. 104 is the simplification of `pyhouse-delivery` agreed in D192; 98, 99 and
+100 are done with it. 87 waits until there are defects found after a change landed to run it on. Every
+other item has landed or was closed (D130–D178, D191, D192).
+
+### 104. Simplify `pyhouse-delivery`
+Agreed in D192, from what each step of `/pyhouse-delivery:implement` caught and cost over seventeen
+runs in an adopted repository. The change is breaking for `pyhouse-delivery`, and touches
+`/pyhouse-universal:change-review`.
+- **No acceptance step and no criteria as commands.** A spec says in words what must be true once the
+  change is done; tests are written from it, and its wording may be refined during the work, the edit
+  visible in the diff. Its goal and scope are frozen: an agent stops and asks before changing what the
+  change does or leaves alone. Done is the project's gate passing. `delivery-prover` goes.
+- **The implementer checks its own work.** It runs the gate, and where the change is seen only in a
+  running process, starts the fewest services that show it, exercises them through their public surface,
+  reads their logs and stops them. No stand and no description of how to start one; an environment
+  others use, shared services and secrets are not touched without the person's consent. Its report shows
+  each command and its output, not a claim.
+- **Tests before the code, by the implementer.** For a feature: names with no behaviour, the tests from
+  the spec, each failing on an assertion or the not-implemented marker, committed as the tests' base,
+  then the code. For a fix: the regression test seen failing on today's code, then the fix.
+  `delivery-tester` and the skeleton step go. `--tests-at` stays, so an edit to a test after its base is
+  judged by the review.
+- **No declarations.** What remains of `delivery-change-contract` is the short frozen list — the checks
+  that guard the repository, the decision records, what a test written before the code asserts, the
+  spec's goal and scope — the diff of those paths checked before the review, and the review judging an
+  edit to a test.
+- **`/change-review` without verify.** One find run sets severity and marks what predates the change; a
+  wrong finding is answered by the implementer's "wrong: <why>" or by the person. The outcome line loses
+  "refuted".
+- **A short hand-over.** The merge body says what changed and why, the decisions the spec did not make,
+  the person's steps after landing as a script, the review's outcome line and only the findings not
+  fixed. The reply adds the gate's command and result, the live check where one ran, and the open
+  questions; nothing else.
+- **One path.** A fix and a feature differ only in the implementer's first step, so there is no second,
+  lighter lane.
+
+Judged afterwards on the next three to five specs: the person's minutes, the share of the window
+(`/usage`), and what the review finds. If the implementer writes its tests to fit the code it is about
+to write rather than the spec, a separate test writer returns.
+
+### 98. The implementer runs the repository's guard tests on the tests it writes
+In two of six runs the first full gate failed on the architecture test, which bans a multi-line
+docstring — once on a fix's regression test, once on a feature's tests before the code — and each cost a
+second full run. Before it commits tests, the implementer runs the checks the repository's
+`CLAUDE.md` lists as guarding, beside its linters, on the files it wrote, and its report shows their
+output; a test commit that fails them is sent back like a test that passes.
+
+### 99. Folding fixups without moving the branch's base
+`git -c sequence.editor=: rebase -i --autosquash main` (`.claude/commands/commit.md` step 5 and the
+spellings in `git-branching`) also replays the branch onto wherever `main` stands now; in two runs the
+fold, made after the gate and the review, brought in code neither had seen. Fold onto the point the
+branch left from — `rebase -i --autosquash $(git merge-base main HEAD)` — and check that the tree is
+unchanged by `git diff <before> <after>`; a non-empty diff means the branch moved and the gate runs
+again. Bringing in the mainline stays the merge's job.
+
+### 100. A person's step after the change lands is a script, and a shared run names what it recreates
+Two fix specs carried their after-merge step — set a value in an environment file the agent may not
+read, then restart the service — as prose, and the person asked for the script both times. The step goes
+in the merge body as the script `delivery-spec` rule 8 already asks for. Running a restart, the agent
+asked first, but the command also recreated two shared services, said only afterwards: a request to run
+anything in an environment others use names everything the command recreates, read from its definition,
+before asking.
 
 ### 87. A retrospective over released changes
 `/retro`: the defects found after a change landed, which check each escaped, and the rule or test that
-would close it — the loop D186 was the first output of.
+would close it — the loop D186 was the first output of. Deferred (D192) until such defects exist: in
+the repository it would run on, most defects testing will find predate the pipeline, and half its
+steps are gone.
 
 ### 55. Performance obligations, placed with their owners
 No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an
@@ -28,132 +89,5 @@ collects concrete findings from the lead's reviews first, and each becomes a rul
 ### 88. Bound what `/change-review` reads in full on a large diff
 Calibrated at about 3% of a five-hour window per review, and nearly twice that on a diff of 179 files,
 of which it read about seventy in full (D187). A ceiling on full reads, or reading by lens question
-rather than by file, would cut the cost of the largest diffs. Measured on the next real changes it
-reviews, not by rerunning the calibration set.
-
-### 89. One shared acceptance environment, taken in turn
-In an adopted repository running about eight sessions at once, specs and implementations each checked
-criteria on the one shared stand, and found it busy only by looking: one spec session stopped because
-another implementation had rebuilt the stand from its own worktree, and each asked the person whether
-the stand was free. Since D191 one implementation runs at a time while the next change's spec is
-written beside it, and the stand is asked for once, before acceptance — but a spec's checks still run
-on it at the same time. Proposal: while an implementation holds the stand, a spec's checks only read
-it; a check that writes waits for a line the project names as the stand's lock, which the session
-holding it writes and clears. Whether the lock belongs to `delivery-spec` rule 11 or to
-`/pyhouse-delivery:implement` step 8 is decided with the wording.
-
-### 91. Less of the person's time per change — possible, not yet wanted
-The maintainer's verdict after the first days of real use: the checks are worth it, but answering
-eight sessions through a ninth costs more of the person's time than any agent spends. Watched first,
-decided later; three candidates:
-- **Two lanes by risk.** A fix, or a local feature with no contracts and no shared environment, goes
-  through the implementation, the gate and `/pyhouse-universal:change-review` alone; the full
-  `/pyhouse-delivery:implement` is kept for a change to contracts, shared configuration or an
-  environment others use.
-- **A standing agreement for an environment the person owns.** `delivery-spec` rule 11 asks before
-  every run that writes. Where the project's instructions record that an environment is the person's
-  and what an agent may do in it, that record could stand for the agreement, with the bans it lists
-  still holding.
-- **The agent decides what is not frozen.** A name, a small fork the spec leaves open: decided, recorded
-  and listed in the handover, never asked; a stop only for a frozen artifact or money.
-
-### 92. A fix's code is all "declared"
-A fix takes the short form, which has no **Where the code goes**, so `delivery-change-contract` reads
-every code edit of a fix as outside the named packages: in the first fix run all three code edits were
-declared, and the declarations repeated the diff. Proposal: for a fix, the code its **Cause** names is
-the change's own and free. Decide on one or two more fix runs.
-A feature shows the same: in a run of 129 files, about thirty declarations, nearly all a filled gap
-or an existing test changed in form, listed the diff back to the person; none was undeclared. Whether
-a filled gap inside the packages **Where the code goes** names needs a declaration at all is decided
-with the fix case.
-
-### 93. A logs criterion for a component that calls an external system
-In the second fix run, the standing logs criterion (`delivery-spec` rule 9) asked for no error line in
-ten minutes from a collector that calls a third-party site. The site returned an empty body once; the
-code handled it as designed and resumed on the next cycle; the criterion failed, and the person had to
-accept it as written. The check before code could not see this: on today's code the criterion already
-failed on the defect's own errors, which hid the site's. Proposal: rule 9's exception for a provoked
-failure also covers an error an external system causes and the code handles as designed — the criterion
-names it, so acceptance does not depend on someone else's site. Since D191 a fix takes no logs
-criterion; the proposal stands for a feature's.
-
-### 94. What goes into a fix's regression commit
-In the same run, the regression commit held the tests and a refactor of two entry points into public
-builders, the seam the tests needed. `/pyhouse-delivery:implement` regression mode says the test is
-committed alone; the seam was declared as a filled gap, but the tests' base now carries production
-code, and the diff from it no longer shows that code. Proposal: a seam a regression test needs is its
-own commit before the test, or the rule says a seam may go with the test and is declared. Decide on
-more fix runs.
-
-### 95. A test that passes before the code because the skeleton laid its contract
-`/pyhouse-delivery:implement` step 4 sends every new test that passes before the code back to its
-writer once. In a feature run the skeleton wrote the migration and tables in full, because the
-project's metadata-match test needs both together, and 71 of the 231 new tests passed on it — tests of
-the schema, which a skeleton of a stored contract really does satisfy. The session left them in place
-with the tester's reasons, against the step. Proposal: a test passing on a contract the skeleton
-laid in full — a schema, a migration — is kept and listed, not sent back; the step still sends back
-one passing on behaviour.
-
-
-### 96. A fix that is a feature, caught before it is ready
-`delivery-spec` rule 2 already says a change that adds behaviour, a surface or a schema is a feature,
-however small. In an adopted repository a spec checked ready in the fix form still named a metric, a
-log event and a field carried across runs under **Contracts**, plus ten test criteria, of which its
-**Regression test** named one. `/pyhouse-delivery:implement` routes a fix through the regression step
-with no tester, so the other nine tests would be written with the code, after the tests' base, and the
-prover's rule — a test not in the base was not written before the code — fails all nine on the form of
-the spec alone. Three of them pass on today's code by nature (a timeout that still spends an attempt, a
-record without the new field still decoded, a replay of today's history), so listing them all as the
-regression test would not work either. Proposal: rule 12's readiness check refuses a fix that has
-**Contracts**, or more criteria than its regression test answers, and sends it back as a feature; and
-`/pyhouse-delivery:implement` step 1 stops on the same sign rather than starting the regression step.
-
-### 98. The step agents run the repository's guard tests on the tests they write
-In two of six runs the first full gate failed on the repository's architecture test, which bans a
-multi-line docstring: once on a fix's regression test, once on a feature's tests before the code. Each
-cost a round of fixes and the second full run. `delivery-tester` already lists "the architecture test"
-among the checks it runs on its test code, yet it ran the linter and the formatter and not that test;
-`delivery-implementer`'s regression mode names no check at all. Proposal: both name the repository's
-guard tests — those `CLAUDE.md` lists as guarding — beside its linters, as a command they run on the
-files they wrote, and the report shows its output; `/pyhouse-delivery:implement` step 4 sends back a test
-commit that fails them, as it sends back a test that passes.
-
-### 99. Folding fixups without moving the branch's base
-`git -c sequence.editor=: rebase -i --autosquash main` (`.claude/commands/commit.md` step 5 and the
-spellings in `git-branching`) also replays the branch onto wherever `main` stands now. In two runs the
-mainline had moved while the change was implemented, so the fold, made after the gate and acceptance,
-merged code on a base neither had seen; both sessions noticed and checked that only documents came in.
-Proposal: fold onto the point the branch left from — `rebase -i --autosquash $(git merge-base main
-HEAD)` — so the fold changes only the commits; bringing in the mainline stays the merge's job.
-
-### 100. A person's step after the change lands is a script too
-`delivery-spec` rule 8 writes a person's step as a script, but two fix specs carried their after-merge
-step — set a value in an environment file the agent may not read, then restart the service — as a
-prose note outside the criteria, and the person asked for the script both times. Running the restart,
-the agent asked first, but the command also recreated two shared services it depends on, said only
-afterwards. Proposal: rule 8 covers a step the spec places after landing as well; the hand-over of
-`/pyhouse-delivery:implement` carries that script; and a request to run anything on the shared
-environment names everything the command recreates, read from its definition, before asking.
-
-### 101. A gate run that hangs
-One first full run took 34 minutes against its usual eight: a single test hung on a stuck local test
-server, and the session reported "a couple of minutes left" from the progress bar until the person
-asked twice; it then found and killed the stuck worker. Step 6 says what a failure is but nothing about
-a run that does not end. Proposal: the session knows the gate's usual length (the last run's, or the
-repository's note), and a run past about twice that is reported to the person as a hang with the test
-that holds it, never estimated from progress.
-
-### 102. A fix that changes an interface another spec describes
-A fix added an argument to a method of a shared library; an earlier spec still described the method
-with the old signature. The session noted it for later and the person asked for the edit after the
-merge. Next to item 96: a fix may change a seam, and the documents describing it drift. Proposal: the
-code step lists every spec or decision document that names a symbol whose signature it changed, and the
-edit to them goes in the same change, declared.
-
-### 103. A defect the tests before the code find outside the spec
-Writing the tests of a feature, the tester found that a criterion could not be reached: the code under
-it overflowed on a long wait, a production defect the spec had not named. The person chose to fix it in
-the same change; it went in with the feature's code, covered only by the criterion's tests, with no test
-seen failing on that defect alone. Proposal: the question offers the two ways — its own fix spec, or a
-fix inside this change with a regression test committed to the tests' base before the code, seen
-failing on today's code — and the merge body names it either way.
+rather than by file, would cut the cost of the largest diffs. Measured on the specs that judge 104,
+after verify is gone, not by rerunning the calibration set.
