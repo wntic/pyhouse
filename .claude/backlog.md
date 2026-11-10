@@ -94,3 +94,16 @@ with the tester's reasons, against the step. Proposal: a test passing on a contr
 laid in full — a schema, a migration — is kept and listed, not sent back; the step still sends back
 one passing on behaviour.
 
+
+### 96. A fix that is a feature, caught before it is ready
+`delivery-spec` rule 2 already says a change that adds behaviour, a surface or a schema is a feature,
+however small. In an adopted repository a spec checked ready in the fix form still named a metric, a
+log event and a field carried across runs under **Contracts**, plus ten test criteria, of which its
+**Regression test** named one. `/pyhouse-delivery:implement` routes a fix through the regression step
+with no tester, so the other nine tests would be written with the code, after the tests' base, and the
+prover's rule — a test not in the base was not written before the code — fails all nine on the form of
+the spec alone. Three of them pass on today's code by nature (a timeout that still spends an attempt, a
+record without the new field still decoded, a replay of today's history), so listing them all as the
+regression test would not work either. Proposal: rule 12's readiness check refuses a fix that has
+**Contracts**, or more criteria than its regression test answers, and sends it back as a feature; and
+`/pyhouse-delivery:implement` step 1 stops on the same sign rather than starting the regression step.
