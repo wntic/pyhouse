@@ -3520,3 +3520,32 @@ restoring the descriptions of `delivery-implementer`, `delivery-tester`, `delive
 `/pyhouse-delivery:implement`; restoring steps 3–9 and the acceptance line of that command; reverting
 the manifest description and the delivery lines in `CLAUDE.md`, both READMEs and `CONVENTIONS.md`;
 restoring backlog items 86, 89, 90, 96 and 97, and item 93's last sentence.
+
+### D192 — `pyhouse-delivery` is simplified to what its runs show earns its cost; the backlog it grew is closed
+Taken by the maintainer (2026-11-10), after seventeen changes implemented through
+`/pyhouse-delivery:implement` in an adopted repository, when each run had added proposals faster than
+any was decided — the pattern two earlier attempts at an agent pipeline had ended on. What each step
+caught and cost was counted over all seventeen. Writing the spec caught its defects; the review's find
+run caught eight findings on features at one to six minutes; the gate caught one defect. Nothing after
+the spec caught anything on the eight fixes. Acceptance on the stand caught one defect of the code in
+about twelve runs and five defects of its own criteria, and caused the person's longest waits; its test
+criteria and its section on what lay outside them caught nothing. The verify run refuted none of the
+thirteen calibration findings and none in any run. No declaration was ever missing, and some thirty on
+one change repeated its diff. The test writer's three catches in nine features were each a test it could
+not write from the spec, not a test failing on the code; the skeleton existed only to serve it.
+Published practice agreed: a review loop without a cap does not converge, rules added after each run
+cost on every run, and a chain of dependent steps that fits one context does not pay for several agents.
+
+So the pipeline keeps the spec, tests written before the code, the gate, one review pass and one round
+of fixes, and drops acceptance, the prover, the test writer, the skeleton step, declarations and the
+verify run (backlog 104). The implementer checks its own work and shows each command's output; where a
+change is seen only in a running process, it starts the fewest services that show it and stops them,
+and touches nothing others use without consent. The spec's goal and scope stay frozen; its wording does
+not. Fixup folding stays, onto the branch's own base (backlog 99). One path serves a fix and a feature.
+
+Backlog items 89, 91, 92, 93, 94, 95, 96, 101, 102 and 103 close here: each either served a step that
+goes or was seen once and cost nothing a rule would have saved. 98, 99 and 100 are agreed; 87 waits for
+defects found after landing; 88 is measured on the specs that judge 104.
+
+**Reverse by:** restoring backlog items 87, 89, 91–96 and 98–103 to their text at `518d675`, and
+removing item 104.
