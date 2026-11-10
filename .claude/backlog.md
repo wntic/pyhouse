@@ -54,8 +54,15 @@ runs in an adopted repository. The change is breaking for `pyhouse-delivery`, an
   lighter lane.
 
 Judged afterwards on the next three to five specs: the person's minutes, the share of the window
-(`/usage`), and what the review finds. If the implementer writes its tests to fit the code it is about
-to write rather than the spec, a separate test writer returns.
+(`/usage`), and what the review finds. Thresholds, set before the first of them:
+- more than two waits for the person on a spec — not counting "merge" or a question about a defect of
+  the spec — or more than two full gate runs in one implementation: find the step that caused them;
+- a test written to fit the code about to be written rather than the spec, on two specs of five — seen
+  by the review through `--tests-at` or in the tests' base: a separate test writer returns;
+- a wrong Important finding, answered "wrong" by the implementer or the person, on two specs of five:
+  verify returns;
+- a defect found after landing that the old acceptance on the stand would have caught: that case is
+  examined on its own before anything returns.
 
 ### 98. The implementer runs the repository's guard tests on the tests it writes
 In two of six runs the first full gate failed on the architecture test, which bans a multi-line
