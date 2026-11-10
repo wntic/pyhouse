@@ -107,3 +107,53 @@ record without the new field still decoded, a replay of today's history), so lis
 regression test would not work either. Proposal: rule 12's readiness check refuses a fix that has
 **Contracts**, or more criteria than its regression test answers, and sends it back as a feature; and
 `/pyhouse-delivery:implement` step 1 stops on the same sign rather than starting the regression step.
+
+### 98. The step agents run the repository's guard tests on the tests they write
+In two of six runs the first full gate failed on the repository's architecture test, which bans a
+multi-line docstring: once on a fix's regression test, once on a feature's tests before the code. Each
+cost a round of fixes and the second full run. `delivery-tester` already lists "the architecture test"
+among the checks it runs on its test code, yet it ran the linter and the formatter and not that test;
+`delivery-implementer`'s regression mode names no check at all. Proposal: both name the repository's
+guard tests — those `CLAUDE.md` lists as guarding — beside its linters, as a command they run on the
+files they wrote, and the report shows its output; `/pyhouse-delivery:implement` step 4 sends back a test
+commit that fails them, as it sends back a test that passes.
+
+### 99. Folding fixups without moving the branch's base
+`git -c sequence.editor=: rebase -i --autosquash main` (`.claude/commands/commit.md` step 5 and the
+spellings in `git-branching`) also replays the branch onto wherever `main` stands now. In two runs the
+mainline had moved while the change was implemented, so the fold, made after the gate and acceptance,
+merged code on a base neither had seen; both sessions noticed and checked that only documents came in.
+Proposal: fold onto the point the branch left from — `rebase -i --autosquash $(git merge-base main
+HEAD)` — so the fold changes only the commits; bringing in the mainline stays the merge's job.
+
+### 100. A person's step after the change lands is a script too
+`delivery-spec` rule 8 writes a person's step as a script, but two fix specs carried their after-merge
+step — set a value in an environment file the agent may not read, then restart the service — as a
+prose note outside the criteria, and the person asked for the script both times. Running the restart,
+the agent asked first, but the command also recreated two shared services it depends on, said only
+afterwards. Proposal: rule 8 covers a step the spec places after landing as well; the hand-over of
+`/pyhouse-delivery:implement` carries that script; and a request to run anything on the shared
+environment names everything the command recreates, read from its definition, before asking.
+
+### 101. A gate run that hangs
+One first full run took 34 minutes against its usual eight: a single test hung on a stuck local test
+server, and the session reported "a couple of minutes left" from the progress bar until the person
+asked twice; it then found and killed the stuck worker. Step 6 says what a failure is but nothing about
+a run that does not end. Proposal: the session knows the gate's usual length (the last run's, or the
+repository's note), and a run past about twice that is reported to the person as a hang with the test
+that holds it, never estimated from progress.
+
+### 102. A fix that changes an interface another spec describes
+A fix added an argument to a method of a shared library; an earlier spec still described the method
+with the old signature. The session noted it for later and the person asked for the edit after the
+merge. Next to item 96: a fix may change a seam, and the documents describing it drift. Proposal: the
+code step lists every spec or decision document that names a symbol whose signature it changed, and the
+edit to them goes in the same change, declared.
+
+### 103. A defect the tests before the code find outside the spec
+Writing the tests of a feature, the tester found that a criterion could not be reached: the code under
+it overflowed on a long wait, a production defect the spec had not named. The person chose to fix it in
+the same change; it went in with the feature's code, covered only by the criterion's tests, with no test
+seen failing on that defect alone. Proposal: the question offers the two ways — its own fix spec, or a
+fix inside this change with a regression test committed to the tests' base before the code, seen
+failing on today's code — and the merge body names it either way.
