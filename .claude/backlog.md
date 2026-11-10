@@ -17,6 +17,18 @@ runs in an adopted repository. The change is breaking for `pyhouse-delivery`, an
   change is done; tests are written from it, and its wording may be refined during the work, the edit
   visible in the diff. Its goal and scope are frozen: an agent stops and asks before changing what the
   change does or leaves alone. Done is the project's gate passing. `delivery-prover` goes.
+- **The spec's form.** A feature keeps Goal, In/Out — which absorbs **Where the code goes** as one
+  line — and Contracts, all three frozen; Behaviour and failures, free, the list the tests are written
+  from; Source, Depends on, Settings and metrics where they apply. **Tests** and **Acceptance
+  criteria** go; in their place an optional **How to see it working**, only where the change shows
+  only in a running process — in words, no commands, not frozen, a hint for the implementer's live
+  check. A fix keeps Symptom, Cause and Regression test and has no criteria.
+- **What `/pyhouse-delivery:spec` checks before code** is the spec's claims about today's system, not
+  commands: a fix's cause reproduced or read in the code, or why it cannot be; a feature's statements
+  about existing code and data set against them. Reading only; anything that writes needs consent. A
+  spec is ready once the person has accepted the draft and its claims are checked. `delivery-spec`
+  rule 8 — a person's step as a command or script — stays, its consumer now the merge body; rules 6,
+  7, 9, 10 and 11 go, and 12–13 are rewritten for the new readiness and the frozen sections.
 - **The implementer checks its own work.** It runs the gate, and where the change is seen only in a
   running process, starts the fewest services that show it, exercises them through their public surface,
   reads their logs and stops them. No stand and no description of how to start one; an environment
@@ -42,8 +54,15 @@ runs in an adopted repository. The change is breaking for `pyhouse-delivery`, an
   lighter lane.
 
 Judged afterwards on the next three to five specs: the person's minutes, the share of the window
-(`/usage`), and what the review finds. If the implementer writes its tests to fit the code it is about
-to write rather than the spec, a separate test writer returns.
+(`/usage`), and what the review finds. Thresholds, set before the first of them:
+- more than two waits for the person on a spec — not counting "merge" or a question about a defect of
+  the spec — or more than two full gate runs in one implementation: find the step that caused them;
+- a test written to fit the code about to be written rather than the spec, on two specs of five — seen
+  by the review through `--tests-at` or in the tests' base: a separate test writer returns;
+- a wrong Important finding, answered "wrong" by the implementer or the person, on two specs of five:
+  verify returns;
+- a defect found after landing that the old acceptance on the stand would have caught: that case is
+  examined on its own before anything returns.
 
 ### 98. The implementer runs the repository's guard tests on the tests it writes
 In two of six runs the first full gate failed on the architecture test, which bans a multi-line
