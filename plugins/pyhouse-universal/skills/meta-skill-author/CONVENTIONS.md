@@ -88,8 +88,8 @@ too. The counts in every heading are the number of directories on disk.
 
 ### Delivery (2)
 
-- `delivery-spec` — The spec one change is implemented from, written before any code; contracts only what other code relies on, a fix in a shorter form, and criteria that are a test written before the code by default and an action in the project's named environment only for what no test can show, checked before code and frozen once the spec is ready; why a design was chosen stays in the project's decision record.
-- `delivery-change-contract` — While a ready spec is implemented, which artifact is free, declared or frozen, and every edit caught by a diff from a base commit rather than forbidden; the spec's own rules stay `delivery-spec`'s.
+- `delivery-spec` — The spec one change is implemented from, written before any code; contracts only what other code relies on, a fix in a shorter form, behaviour the tests are written from, its statements about today's system checked before code, and its goal, scope and contracts frozen once the spec is ready; why a design was chosen stays in the project's decision record.
+- `delivery-change-contract` — While a ready spec is implemented, the short list of what is frozen, everything else free, and every edit to what is frozen caught by a diff from a base commit rather than forbidden; the spec's own rules stay `delivery-spec`'s.
 
 ## Packaging — which plugin a skill ships in
 
@@ -108,7 +108,7 @@ else: a `delivery-*` skill may name a `git-*` skill only as an example.
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | every `hex-*` skill (23) | `pyhouse-universal` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
-| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | every `delivery-*` skill (2), `/pyhouse-delivery:spec`, `/pyhouse-delivery:implement` with the `delivery-implementer`, `delivery-tester` and `delivery-prover` subagents behind it | `pyhouse-universal` |
+| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | every `delivery-*` skill (2), `/pyhouse-delivery:spec`, `/pyhouse-delivery:implement` with the `delivery-implementer` subagent behind it | `pyhouse-universal` |
 | `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other five |
 
 **`pyhouse` takes no skill.** It exists so one install brings the whole catalogue, and nothing depends
