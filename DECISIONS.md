@@ -3579,3 +3579,21 @@ away the steps that had carried five rules without saying so; each is now stated
 **Reverse by:** removing **Steps for the person** from both templates and the merge body's line for it,
 `delivery-change-contract` rule 9, the stop in `/pyhouse-delivery:implement` step 5 and the fixup sentence
 in `delivery-implementer`'s fix step.
+
+### D194 — The implementer runs the gate and the live check itself
+Taken by the maintainer (2026-11-11), correcting how D192 was built. D192 has the implementer check its
+own work; 0.4.0 still had the command run the gate at fixed points, and the live check started a fresh
+agent in a step of its own — the prover under another name, with none of the context the code was
+written in. Now `build` ends only once its own gate run passes and, where the change shows only in a
+running process, its own live check has seen it working; `fix` checks again the same way. An agent that
+returns a question is continued with the answer rather than started afresh, so a consent asked midway
+costs no context. The command keeps the branch and bases, the diff of what is frozen, the review, the
+person's questions and the hand-over. The bound the command's second gate run used to give now sits in
+the agent: a third full run still failing within one step ends it, its output going to the person, and
+the live check takes the same count — both earlier pipelines died on loops with no bound. A failure the
+change did not cause, found by rerunning only the failing tests on the branch's base, or one the
+environment causes, is returned rather than fixed.
+
+**Reverse by:** restoring `delivery-implementer`'s `check` step, the command's live-check step and its
+gate runs at steps 4 and 7, and its *Where this runs* paragraph, as of `v0.31.0`, with the descriptions
+of both, the manifest description and `README.md`'s delivery row and *Implementing a spec*.
