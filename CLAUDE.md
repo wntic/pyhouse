@@ -70,7 +70,7 @@ the `pyhouse-reviewer` subagent, which decides which skills apply and applies th
 overlap — running the review command on this repository finds no architecture family and nothing to
 review, which is correct. `/pyhouse-universal:change-review` beside it reviews one change of such a
 project for what it breaks — contracts, failure paths, tests — through the `change-reviewer` subagent,
-once to find and once to refute; it is the review a change goes through before it lands, and
+in one find run; it is the review a change goes through before it lands, and
 `/pyhouse-universal:code-review` stays an audit run on request.
 
 `/kickoff` (in `.claude/commands/`) starts a session: it carries why this catalogue exists, the lessons
@@ -201,7 +201,7 @@ plugins/pyhouse-git/                     2 git-* skills, /commit, /release, /rel
                                          /pyhouse-git:adopt, /install-commit-hook and the
                                          commit-msg hook it installs — no dependency
 plugins/pyhouse-delivery/                2 delivery-* skills, /pyhouse-delivery:spec,
-                                         /pyhouse-delivery:implement and its three step agents —
+                                         /pyhouse-delivery:implement and its implementer agent —
                                          depends on pyhouse-universal only
 ```
 
@@ -242,8 +242,8 @@ separately, one `v<version>` naming an aggregate where one artifact ships every 
 moving by a minor if any member moved by a minor or more and by a patch if every member that moved only
 patched — stated by `/release` and by `python-versioning` rule 13. None is a duplicate to delete.
 
-`delivery-*` → `pyhouse-delivery`, which holds how one change is delivered — its spec, its implementation
-and acceptance — rather than how its code is written. It depends on `pyhouse-universal`
+`delivery-*` → `pyhouse-delivery`, which holds how one change is delivered — its spec and its implementation
+— rather than how its code is written. It depends on `pyhouse-universal`
 like a family plugin, and on nothing else: it does not depend on `pyhouse-git`, which it may name only
 as an example, and no other skill plugin depends on it.
 

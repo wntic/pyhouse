@@ -1,27 +1,27 @@
 ---
 name: delivery-spec
-description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the acceptance criteria that decide it is done. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, the two kinds of criterion — a test criterion by default, whose test is committed before the code, and a stand criterion run in the environment the project names only for what no test can show, with its reason — the fixed stand block of start, main path and logs that a feature of a running process carries and a library does not, a step the person must take written as the command they run, and criteria checked before any code is written and frozen once the spec is ready. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for acceptance criteria, a definition of done, whether a criterion needs the test environment or a test is enough, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or why criteria keep failing during implementation.
+description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the behaviour its tests are written from. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, behaviour stated as what each path leaves behind, an optional note in words on how to see a change that shows only in a running process, a step the person must take written as the command they run, the spec's claims about today's system checked before any code is written, and which sections are frozen once the spec is ready — the goal, the scope and the contracts, a fix's symptom — and which may be refined during the work. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for a definition of done, what a spec should say about tests, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or whether an implementer may change what a spec says.
 user-invocable: false
 ---
 
 # Delivery — Spec
 
-A spec says what one change delivers and how anyone can tell it is done: what the change adds, what
-other code will rely on, and the criteria that decide it is finished. It is written before the code,
-with the person who wants the change, and it is short enough to review in one sitting. It is not a
-second copy of the code, and it does not carry the reasons for a design.
+A spec says what one change delivers and what must be true once it is done: what the change adds,
+what other code will rely on, and the behaviour its tests are written from. It is written before the
+code, with the person who wants the change, and it is short enough to review in one sitting. It is not
+a second copy of the code, and it does not carry the reasons for a design.
 
 ## When to use vs. neighbours
 
 - Why a design was chosen, and what was rejected → the project's decision record; a spec points at
   the section it implements and restates none of it.
 - Whether a new service is hexagonal or flat → `architecture-choice`.
-- How the tests a spec lists are written — layers, substitution, assert strength, a defect's failing
-  test → `test-principles`.
+- How the tests written from a spec are written — layers, substitution, assert strength, a defect's
+  failing test → `test-principles`.
 - The commit or merge message of the change → `git-commit-message`, in the `pyhouse-git` plugin, where
   installed.
-- What implementing a ready spec may change, and how an edit to its tests or criteria is caught →
-  `delivery-change-contract`.
+- What implementing a ready spec may change besides its own code, and how an edit to what is frozen is
+  caught → `delivery-change-contract`.
 - What a change breaks, read from its diff once it exists → `/pyhouse-universal:change-review`, not a
   spec.
 
@@ -52,14 +52,11 @@ Status: draft
 
 - In: <…>
 - Out: <… — and the spec that takes it, where one does>
+- Code: <the packages or layers this change adds or touches — never its files or the classes in them>
 
 ## Depends on
 
-<The specs that must be done first, or "nothing".>
-
-## Where the code goes
-
-<The packages or layers this change adds or touches — never its files or the classes in them.>
+<Only where another spec must be done first: that spec.>
 
 ## Contracts
 
@@ -69,30 +66,23 @@ or metric's name — each with its exact name and shape.>
 
 ## Behaviour and failures
 
-<What invalid input, a repeat or a dependency that fails or answers late leaves behind, and, where
-the change holds state, a restart or a partial write — those the change has.>
+<What the change does on its main path, and what invalid input, a repeat or a dependency that fails or
+answers late leaves behind, and, where the change holds state, a restart or a partial write — those
+the change has.>
 
 ## Settings and metrics
 
 <Only where the change adds or changes one: its name, its meaning, and whether it is required.>
 
-## Tests
+## How to see it working
 
-<What is tested, at which level.>
+<Only where the change shows only in a running process: what to do to it and what shows it working,
+in words.>
 
-## Acceptance criteria
+## Steps for the person
 
-<Where the spec has a stand criterion: the environment it runs in, and any preparation, as steps.>
-
-<1–3 only where the project runs as a process; one that runs to completion has 1 and 2 as one run:>
-1. Stand — start. <The action that starts it.> → <The line or state that shows it up.>
-2. Stand — main path. <The action, on real input.> → <The result it must produce.>
-3. Stand — logs. <The command that reads the logs of the window the criteria ran in.> → No
-   error-level event<, other than the one criterion <n> provokes>.
-<Only where the project runs as a process and a test cannot show the result:>
-4. Stand, because <the reason rule 7 names>. <Action — a command, a query, a request.> → <The result
-   it must produce — an output line, a number, a state.>
-5. Test. <The property, as the result a test asserts>, at <the level `test-principles` gives it>.
+<Only where the change needs a step an agent may not take: each as the command or script the person
+runs, and whether it comes before the change lands or after it.>
 ```
 
 ### A fix
@@ -108,19 +98,17 @@ Status: draft
 
 ## Cause
 
-<The code that produces it, and why.>
+<The code that produces it, and why — and how that was established.>
 
 ## Regression test
 
 <The test `test-principles` *A defect's test* asks for; where no test can reach the defect, the check
 that would have caught it.>
 
-## Acceptance criteria
+## Steps for the person
 
-1. Test. <The symptom gone, as the result the regression test asserts.>
-<Or, only where no test can reach the defect — the environment and any preparation, as steps, then:>
-1. Stand, because <the reason rule 7 names>. <The action that showed the symptom.> → <The result it
-   produces once the symptom is gone.>
+<Only where the fix needs a step an agent may not take: each as the command or script the person
+runs, and whether it comes before the fix lands or after it.>
 ```
 
 ## Rules
@@ -129,11 +117,10 @@ that would have caught it.>
 
 1. **One spec is one change a person can review in one sitting.** It is measured by a sign, not a
    line count: where the work has to be cut into parts implemented one after another, each part is its
-   own spec, with its own criteria, ordered by **Depends on**.
+   own spec, ordered by **Depends on**.
 2. **A fix takes the short form; anything else takes the full one.** A fix states the symptom, its
-   cause, the regression test `test-principles` asks for and one criterion showing the symptom gone.
-   A change that adds behaviour, a surface or a schema is a feature, however small, and takes every
-   section whose condition holds.
+   cause and the regression test `test-principles` asks for. A change that adds behaviour, a surface or
+   a schema is a feature, however small, and takes every section whose condition holds.
 3. **A spec states what, never why.** Where the project keeps decision records, the reasons live there
    and the spec names the section it implements. Where a spec and a decision disagree, the decision
    wins and the spec is corrected — by the person, not by whoever is implementing it.
@@ -147,69 +134,46 @@ that would have caught it.>
    this change calls, and so is the order of steps inside the component's work: **Behaviour and
    failures** says what those steps leave behind, not how they run. An earlier spec that names
    internals is no precedent.
-5. **Behaviour and failures name the paths the tests must cover** — what invalid input, a repeat or a
-   failing dependency leaves behind, and, where the change holds state, a restart or a partial write —
-   so they are decided before the code and not discovered in it.
-
-### What a criterion is
-
-6. **A criterion is one numbered check that whoever checks it answers met or not met, showing the
-   output — a test criterion by default, a stand criterion only where rule 7 or 9 asks for one.** A
-   **test criterion** states a property as the result a test asserts. Its test is committed before any
-   of the code exists, so the code is judged by a test that did not know it; it is met when that test
-   passes on the change's last commit and what it asserts is unchanged since it was committed. A
-   **stand criterion** is an action anyone can run in the environment — a command, a query, a request —
-   and a result they can see: an output line, a number, a state. "The code matches the contracts",
-   "errors are handled", "the tests cover X" are not criteria: no one can answer them without
-   rereading the spec.
-7. **A stand criterion carries its reason, which is something no test can show.** Behaviour at real
-   volumes — a query's plan, a run's duration on real data; a real external system; rollout and
-   configuration — the build, the deployment, a setting read from the environment; what no test asserts
-   on, such as a log line (`test-principles`). A criterion with none of these reasons is a test
-   criterion, and one that repeats what a test or the project's gate already proves is not written. A
-   stand criterion names the environment and the preparation it needs and fits the time the project
-   allows a check; what takes longer — a long wait, an outage that is costly to provoke — goes into
-   **Tests**, or into a note after the criteria that holds nothing up.
-8. **A step the person must take is written as theirs, as the command they run.** Anything an agent
+5. **Behaviour and failures is the list the tests are written from.** It names the main path and the
+   paths the tests must cover — what invalid input, a repeat or a failing dependency leaves behind,
+   and, where the change holds state, a restart or a partial write — so they are decided before the
+   code and not discovered in it. Each entry is a result a test can assert: "errors are handled" is
+   not one, "a payload with no `id` is rejected and nothing is stored" is. The level each test takes is
+   `test-principles`'.
+6. **How to see it working is a hint, not a check.** It exists only where the change shows only in a
+   running process — a request answered, a message consumed, a log line written — and says in words
+   what to do to the process and what shows the change working. It names no command and no environment
+   to start: whoever checks the change works those out from the project.
+7. **A step the person must take is written as theirs, as the command they run.** Anything an agent
    may not do — handling a secret, deleting from an environment the person has not said is the agent's
-   to change, an action needing an account it does not hold — is written into the criterion as the
-   person's step. Where the step edits what an agent may not read, such as a file of secrets, the
-   command is a script the agent writes: it adds only what is missing, prints the names it touched and
-   never their values, and can be run twice; what it prints is what shows the step done.
-9. **Where the project runs as a process, a feature carries a fixed stand block, and no reason is
-   asked for it.** Its start; its main path, on real input; and a standing logs criterion — no
-   error-level event in its logs for the window the criteria ran in, other than the one a stand
-   criterion is stated to provoke. The block is there for what nobody foresaw, which is also why
-   whoever runs it reports what they saw outside the criteria. Where the process runs to completion,
-   such as a job or a command-line run, its start and its main path are one criterion and one run, and
-   its logs criterion reads what that run wrote. Every other criterion follows rule 7. A fix takes no
-   block. Where the project is a library, with no process to start, every criterion is a test
-   criterion and the block does not apply.
-10. **A criterion that waits on another spec says so** and moves into that spec's criteria — or, where
-    that spec is not yet written, into this spec's **Out** line — instead of being left here unmet.
+   to change, an action needing an account it does not hold — goes into **Steps for the person**. Where
+   the step edits what an agent may not read, such as a file of secrets, the command is a script the
+   agent writes: it adds only what is missing, prints the names it touched and never their values, and
+   can be run twice; what it prints is what shows the step done.
 
 ### Checked before code, frozen after
 
-11. **Every criterion is checked while the spec is written, before any code exists.** Against the
-    decision records by reading them; an assumption about a real external system by a real request to
-    it; each preparation step by running it in the named environment; a command about something not yet
-    built by matching every name it uses against **Contracts**; one whose action already runs on today's
-    code by running it and seeing today's result — the symptom, or the behaviour being replaced — never
-    by editing the result it states; a test criterion, whose test is not yet written, by matching its
-    property against **Contracts**, **Behaviour and failures** and the decision records, and seeing
-    today's result where the path it tests already runs — its test is seen failing once it is written,
-    before the code; and a stand criterion's reason by asking whether a test could show the result. A
-    criterion that fails its check is corrected with the person, then checked again. A check that
-    writes to an environment, the one the criteria run in included, or costs money, or calls a real
-    external system — while the spec is written, or when its criteria are run against the code — runs
-    only once the person agrees, told what it touches; without that agreement it is not run, and is
-    reported as not run. Whether an environment is anyone else's is theirs to say.
-12. **A spec is ready only once every criterion has passed its check.** Its status says so, and until
-    then it is a draft that no implementation starts from.
-13. **A ready spec's criteria and meaning change only with the person's consent.** A criterion that
-    turns out unrunnable, or contradicts a decision, goes back to the person; whoever is implementing
-    the spec never rewrites it to match what was built. A change the person agrees to is recorded in the
-    spec, with its reason.
+8. **What the spec says about today's system is checked while it is written, before any code
+   exists.** A fix's cause is reproduced, or read in the code that produces it; where neither is
+   possible, the spec says why. A feature's statements about what already exists — the code it extends
+   or calls, the schema and the data it assumes, the decision records it implements — are set against
+   the code, the data and the records themselves. A statement that fails its check is corrected with
+   the person, then checked again. A check reads; one that writes to an environment, costs money or
+   calls a real external system runs only once the person agrees, told what it touches, and without
+   that agreement it is not run, and is reported as not run. Whether an environment is anyone else's is
+   theirs to say.
+9. **A spec is ready only once the person has accepted it and its statements have passed their
+   check.** Its status says so, and until then it is a draft that no implementation starts from.
+10. **A ready spec's goal, scope and contracts change only with the person's consent.** **Goal**,
+    **In scope / out of scope** and **Contracts** are frozen, and so is a fix's **Symptom**: whoever
+    implements the spec stops and asks before changing what the change does, what it leaves alone or
+    what other code relies on, and never rewrites them to match what was built. The scope's **Code**
+    line says where the work is expected, not a limit: code elsewhere is free
+    (`delivery-change-contract` rule 1) unless it changes a contract. A cause that turns out
+    wrong goes back to the person too, since the fix it implies is a different one. A change the person
+    agrees to is recorded in the spec, with its reason. **Behaviour and failures** and **How to see it
+    working** may be refined during the work, the edit visible in the diff — a refinement that drops a
+    path or changes what **Goal** promises is a change of scope, and asks first.
 
 ## Hard stops
 

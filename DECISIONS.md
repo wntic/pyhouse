@@ -3549,3 +3549,33 @@ defects found after landing; 88 is measured on the specs that judge 104.
 
 **Reverse by:** restoring backlog items 87, 89, 91–96 and 98–103 to their text at `518d675`, and
 removing item 104.
+
+### D193 — Building the simplified delivery: where the rules that lost their step now live
+Taken by the maintainer (2026-11-11), applying backlog 104 (D192) together with 98, 99 and 100, on the
+findings of a four-lens review and its verifier. Removing acceptance, the prover and declarations took
+away the steps that had carried five rules without saying so; each is now stated where it is read.
+
+- **A person's step has a section of its own.** `delivery-spec` keeps rule 8's step as a command or a
+  script, and with no criteria to hold it the spec gains an optional **Steps for the person**, each
+  marked before or after landing; the merge body lists every one not yet done, so a step before landing
+  is not lost when no live check runs.
+- **A fix freezes its symptom.** A fix has no goal, scope or contracts, so its **Symptom** is what stays
+  frozen, and a cause found wrong goes back to the person, since it implies a different fix. The scope's
+  **Code** line says where the work is expected, not a limit: code elsewhere is free unless it changes a
+  contract.
+- **What others use is a rule of `delivery-change-contract`.** Consent before touching an environment
+  others use, a shared service or a secret, naming everything the command starts, stops or recreates
+  (backlog 100), was the prover's and `delivery-spec` rule 11's; it becomes rule 9 there, because a gate
+  the person must pass is a skill's rule, never the command's alone (D189).
+- **A weakened test is a stop, not a finding.** A meaning edit to a test after its base goes to the
+  person with the diff; sent to the fix round, its own author could answer it "wrong" and land it.
+- **The fix round takes only what the change caused.** A pre-existing finding goes to the merge body as
+  open, since fixing it touches what the spec's scope leaves alone; each fix is committed as a fixup of
+  the commit it corrects where the repository folds them, folded only after the recheck.
+- **The fold's obligation is `git-branching` rule 4's**, not only its spelling: a fold keeps the point
+  the branch left from, a changed tree has the checks run again, and bringing the mainline in is the
+  merge's job (backlog 99).
+
+**Reverse by:** removing **Steps for the person** from both templates and the merge body's line for it,
+`delivery-change-contract` rule 9, the stop in `/pyhouse-delivery:implement` step 5 and the fixup sentence
+in `delivery-implementer`'s fix step.

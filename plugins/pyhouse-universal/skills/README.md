@@ -20,7 +20,7 @@ repository:
 | `pyhouse-hex` | `plugins/pyhouse-hex/` | the 23 `hex-*` |
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | the 8 `flat-*` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | the 2 `git-*`, the `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt` and `/install-commit-hook` commands |
-| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | the 2 `delivery-*`, the `/pyhouse-delivery:spec` and `/pyhouse-delivery:implement` commands and the step agents behind the second |
+| `pyhouse-delivery` | `plugins/pyhouse-delivery/` | the 2 `delivery-*`, the `/pyhouse-delivery:spec` and `/pyhouse-delivery:implement` commands and the implementer agent behind the second |
 
 Installing `pyhouse-hex`, `pyhouse-flat` or `pyhouse-delivery` brings `pyhouse-universal` with it. To carry a family
 everywhere without the marketplace, copy that plugin's `skills/` **and** `pyhouse-universal/skills/`
@@ -196,8 +196,8 @@ In `pyhouse-delivery`, which depends on `pyhouse-universal` alone.
 
 | Skill | Owns |
 |---|---|
-| `delivery-spec` | The spec one change is implemented from — its sections and which exist only where the project has them, the short form of a fix, contracts limited to what other code depends on, the sign that one spec is several, criteria as a test written before the code by default and an action in the environment the project names only for what no test can show, the fixed start, main path and logs block only for a running process, and every criterion checked before code and frozen once the spec is ready |
-| `delivery-change-contract` | What implementing a ready spec may change — each artifact free, declared or frozen, what a declaration says, the base commits the change is measured from, and every edit caught by a diff from them rather than forbidden; whether a test edit weakened it is the review's to say |
+| `delivery-spec` | The spec one change is implemented from — its sections and which exist only where the project has them, the short form of a fix, contracts limited to what other code depends on, the sign that one spec is several, behaviour stated as the list the tests are written from, a person's step as the command they run, its statements about today's system checked before code, and its goal, scope and contracts frozen once the spec is ready |
+| `delivery-change-contract` | What implementing a ready spec may not change without the person — the short frozen list, everything else free, the base commits the change is measured from, and every edit to what is frozen caught by a diff from them rather than forbidden; whether a test edit weakened it is the review's to say |
 
 ## Conventions across both sets
 

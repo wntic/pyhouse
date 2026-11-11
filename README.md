@@ -62,7 +62,7 @@ supported, but you get less than the catalogue describes, and you run the setup 
 | `pyhouse-universal` | 18 | Naming, typing and logging, packaging and re-exports, settings from the environment, the data-access obligations every store meets, what a program owes a message or a webhook delivered at least once and what a relay of a recorded effect owes, the lint, type-check and dependency configuration every distribution carries once, what a version promises and what changes it, the error catalogue, the testing constitution, the workspace root when one repository holds several distributions, the container image a runnable program ships in, a command-line interface's commands, exit codes and test, the architecture chooser, `/pyhouse-universal:adopt`, which tells a repository's agents which skill governs each kind of Python work, and two reviewers: one that applies all of it to code that already exists, and `/pyhouse-universal:change-review`, which reviews a change for what it breaks before it lands. |
 | `pyhouse-hex` | 23 | Ports and adapters: layer boundaries, the composition root, entities and value objects, CQRS handlers, persistence with paired migrations, the REST family, eight test families. |
 | `pyhouse-git` | 2 | `git-commit-message`, the Conventional Commits convention an agent follows whenever it writes a commit message. `git-branching`, how a change reaches the mainline: one merge method per repository, short-lived branches, history cleaned before it lands and never rewritten after. A language-independent `/commit`: stages the named files and reviews the staged diff, then writes a Conventional Commits message whose type carries the release the change earns. `/pyhouse-git:adopt` records in the repository's agent instructions how its changes branch, land and are committed, and turns off the agent's own authorship line. `/install-commit-hook` adds a `commit-msg` hook that refuses a malformed message at commit time. `/release` proposes the next version from the commit types since the last tag, per plugin or package, and cuts it only on an explicit yes. `/release-notes` then drafts the release note for the people using the project — what changed for them, what a break asks of them — from the changes themselves rather than the commit subjects. Depends on nothing; install it on its own. |
-| `pyhouse-delivery` | 2 | How one change is delivered rather than how its code is written. `delivery-spec`, the spec a change is implemented from: short enough to review in one sitting, contracts limited to what other code depends on, and acceptance criteria that are a test written before the code by default, and an action run in the environment the project names only for what no test can show, checked before any code exists and frozen once the spec is ready. `/pyhouse-delivery:spec` writes it with you and checks every criterion before marking it ready. `delivery-change-contract`, what implementing it may change — each artifact free, declared or frozen, every edit caught by a diff rather than forbidden. `/pyhouse-delivery:implement` implements a ready spec through three step agents — skeleton, tests before the code, the code, the gate, the change review, acceptance against the criteria, one round of fixes — and hands you the merge commit's body. |
+| `pyhouse-delivery` | 2 | How one change is delivered rather than how its code is written. `delivery-spec`, the spec a change is implemented from: short enough to review in one sitting, contracts limited to what other code depends on, and the behaviour its tests are written from; what it says about today's system is checked before any code exists, and its goal, scope and contracts are frozen once it is ready. `/pyhouse-delivery:spec` writes it with you and checks those statements before marking it ready. `delivery-change-contract`, what implementing it may not change without you — a short frozen list, every edit to it caught by a diff rather than forbidden. `/pyhouse-delivery:implement` implements a ready spec through one implementer agent — tests from the spec before the code, the code, the gate, the change review, a live check where the change shows only in a running process, one round of fixes — and hands you the merge commit's body. |
 | `pyhouse-flat` | 8 | Package-by-technical-role for workers, pipelines and ETL: the package layout and its import contract, the one-time project setup, one package per store owning a service's data access, trigger choice from loop to durable execution, four test families. |
 
 ## Setting up a repository
@@ -137,35 +137,37 @@ library to act on is a review of that library, which its own tooling does better
 
 `/pyhouse-universal:change-review` reviews one change — a branch against its mainline, a range or a
 ref — for what it breaks, in any project and on any stack: a contract other code relies on, a failure
-path nothing catches, a test that would not notice the change being wrong. A first subagent finds, a
-second one, fresh, tries to refute each finding; only what survives is printed, with the scenario that
-goes wrong and an outcome line for the merge commit. After the fixes, `recheck` reviews only the fix
+path nothing catches, a test that would not notice the change being wrong. One subagent reads the diff
+and prints each finding with the scenario that goes wrong, its severity, and an outcome line for the
+merge commit. After the fixes, `recheck` reviews only the fix
 diff, once. Style conformance is not its job; that stays `/pyhouse-universal:code-review`, run when you
 want an audit.
 
 ## Writing the spec for a change
 
 `/pyhouse-delivery:spec` writes the spec one change is implemented from, with you: it reads what the
-repository already says, asks what the code cannot tell it, and writes a draft. Then it checks every
-acceptance criterion before any code exists — against your decision records, by a real request where a
-criterion assumes something about an external system, by running each preparation step — and marks the
-spec ready only once each has passed. A criterion is by default a property a test asserts, the test
-written before the code; only what no test can show — real volumes, a real external system, rollout and
-configuration — is an action run in your environment, beside a fixed start, main path and logs check
-for a feature of a running service. Either way, whoever implements the spec shows it met rather than
-claims it.
+repository already says, asks what the code cannot tell it, and writes a draft: the goal, the scope, the
+contracts other code relies on, and the behaviour the tests will be written from — for a fix, the
+symptom, its cause and the regression test. Before any code exists it checks what the draft says about
+today's system — a fix's cause reproduced or read in the code, a feature's assumptions set against the
+code and data — reading only, anything that writes with your consent. The spec is ready once you have
+accepted it and its statements have held; from then on its goal, scope and contracts change only with
+you.
 
 ## Implementing a spec
 
-`/pyhouse-delivery:implement <spec>` implements one ready spec on its own branch. An implementer lays a
-skeleton of the names the code needs; for a feature, a tester writes the tests against it before any
-behaviour exists — the tests the criteria are accepted by among them — and each is seen failing for the
-right reason. The implementer then writes the code, the project's gate runs in full at most twice, and
-every edit to a test, a criterion or a guarding check is read off a diff from the commit it was
-measured from — declared, agreed by you, or a stop. `/pyhouse-universal:change-review` reviews the
-change, a prover runs each criterion as written and answers met only with the output, and one round of
-fixes takes the important findings and the failed criteria. What comes back is the merge commit's
-body: the answers to the findings, the acceptance table and the declared edits. Landing it is yours.
+`/pyhouse-delivery:implement <spec>` implements one ready spec on its own branch, through one implementer
+agent. For a feature it writes the tests from the spec before any behaviour exists and sees each fail
+for the right reason; for a fix, the regression test failing on today's code. Then it writes the code,
+the project's gate runs in full at most twice, and every edit to what is frozen — the spec's goal,
+scope and contracts, what a test written before the code asserts, a guarding check — is read off a diff
+from the commit it was measured from, and is a stop unless you agreed to it.
+`/pyhouse-universal:change-review` reviews the change; where it shows only in a running process, the
+implementer starts the fewest services that show it, checks it and stops them, touching nothing others
+use without you. One round of fixes takes the important findings and what failed. Every check comes back
+as its command and output, not a claim. What you get is the merge commit's body — what changed, the
+decisions the spec did not make, your steps after landing as a script, and the findings not fixed.
+Landing it is yours.
 
 ## How a skill is written
 
