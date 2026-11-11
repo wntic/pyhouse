@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.31.0 — 2026-11-11
+
+Plugin versions in this release: `pyhouse-delivery` 0.4.0 (from 0.3.0), `pyhouse-universal` 0.25.0
+(from 0.24.0), `pyhouse-git` 0.10.1 (from 0.10.0); `pyhouse` 0.2.0, `pyhouse-hex` 0.15.0 and
+`pyhouse-flat` 0.13.1 are unchanged.
+
+### Breaking
+
+- **A spec has no acceptance criteria any more; it says in words what must become true.** A feature's
+  spec keeps Goal, In scope / out of scope — which now carries the old **Where the code goes** as one
+  `Code:` line — and Contracts, and these are frozen once the spec is ready, together with a fix's
+  Symptom. **Behaviour and failures** is the list the tests are written from, and may be refined during
+  the work. **Tests** and **Acceptance criteria** are gone. Two optional sections take their place: **How
+  to see it working**, in words and without commands, only where the change shows only in a running
+  process; and **Steps for the person**, each step as the command or script you run, marked before or
+  after landing. Before any code, `/pyhouse-delivery:spec` checks what the spec says about today's
+  system — a fix's cause reproduced or read in the code, a feature's assumptions set against the code
+  and data — instead of running criteria; a spec is ready once you have accepted it and those checks
+  held. What to do:
+  - A spec that is still a draft: drop its Tests and Acceptance criteria sections, fold **Where the
+    code goes** into a `Code:` line under In/Out, move any step of yours into **Steps for the person**,
+    and keep a stand-only check, if you want one, as a sentence under **How to see it working**.
+  - A spec already marked ready under 0.3.x: implement it before upgrading, or reopen it and rewrite it
+    as above. Under 0.4.0 its criteria are not run by anything — neither their tests nor the stand.
+  - Whatever your `CLAUDE.md` says about the environment acceptance criteria run in, and how long a
+    check may take, is no longer read. Restrictions on environments and shared services stay useful:
+    the implementer reads them.
+- **`/pyhouse-delivery:implement` runs one implementer agent; `delivery-tester` and `delivery-prover`
+  are removed.** Nothing to change in your project unless its instructions name those two agents —
+  remove them there. A run now looks like this:
+  - For a feature, the implementer writes the tests from the spec before any code, sees each fail for
+    the right reason, runs your guarding checks — such as the architecture test — on them, and commits
+    them as the tests' base; then the code. For a fix, the regression test failing on today's code
+    comes first. There is no skeleton step.
+  - Your gate runs in full at most twice, then `/pyhouse-universal:change-review`. Where the change
+    shows only in a running process, the implementer starts the fewest services that show it, checks it
+    through their public surface and logs, and stops them.
+  - Nothing is declared any more. What is frozen — your guarding checks, decision records, what a test
+    written before the code asserts, the spec's goal, scope and contracts — is caught by a diff, and an
+    edit to it is a stop unless you agreed. A weakened assertion goes to you, never to the fix round.
+  - Before any command touches an environment others use, a shared service or a secret, you are asked,
+    and told everything the command starts, stops or recreates.
+  - One round of fixes takes the important findings the change caused, a failed gate and a failed live
+    check; a finding that predates the change is handed to you as open. Fixes are committed as fixups
+    where your repository folds them.
+  - Every check comes back as its command and output. The merge body says what changed and why, the
+    decisions the spec did not make, your steps not yet done, the review's outcome line and only the
+    findings not fixed — no acceptance table and no list of declared edits.
+- **`/pyhouse-universal:change-review` reviews in one run, with no second run trying to refute the
+  findings.** Every finding is printed with its scenario, its severity and whether it predates the
+  change; a wrong one is answered by whoever fixes the change, or by you. The outcome line is now
+  `Review (contracts, failure paths, tests): <N> findings (<I> important).` — anything that reads the
+  old line's refuted and confirmed counts has to change.
+
+### Fixed
+
+- **Folding fixups no longer moves the branch onto the current mainline.** `git-branching` rule 4 now
+  folds onto the point the branch left from — `git rebase -i --autosquash $(git merge-base
+  origin/<mainline> HEAD)` — and checks with `git diff` that the tree is the one the branch's checks
+  already saw; a fold that changed it has the checks run again. The old spelling replayed the branch
+  onto the mainline as it stood, landing code no check or review had seen. Bringing the mainline in is
+  the merge's job.
+
 ## 0.30.0 — 2026-11-07
 
 Plugin versions in this release: `pyhouse-delivery` 0.3.0 (from 0.2.1); `pyhouse` 0.2.0,
