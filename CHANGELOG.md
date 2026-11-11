@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.31.1 — 2026-11-11
+
+Plugin versions in this release: `pyhouse-delivery` 0.4.1 (from 0.4.0); `pyhouse` 0.2.0,
+`pyhouse-universal` 0.25.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.1 are
+unchanged.
+
+### Fixed
+
+- **The implementer now checks its own work, as 0.4.0 promised.** In 0.4.0 `/pyhouse-delivery:implement`
+  still ran your gate itself, and the live check started a fresh agent with none of the context the code
+  was written in. Now the implementer ends its build, and its round of fixes, only once its own full
+  gate run passes and, where the change shows only in a running process, its own live check has seen it
+  working. A question it asks midway — consent to touch something others use — continues the same agent
+  with your answer instead of starting it again.
+
+### Changed
+
+- **A run can now stop on a failing gate before the review.** The implementer fixes what its gate run
+  shows failing and runs it again, at most three full runs per step, the live check counting its own
+  runs the same way. A third run still failing ends the step, and the change comes back to you with
+  that output and what was tried. A failure your change did not cause — the failing tests also fail
+  when rerun alone on the branch's base, in a separate worktree — or one your environment causes, such
+  as a missing container runtime, comes back to you as a question instead of being fixed. No test is
+  skipped or marked as expected to fail to get the gate green.
+
 ## 0.31.0 — 2026-11-11
 
 Plugin versions in this release: `pyhouse-delivery` 0.4.0 (from 0.3.0), `pyhouse-universal` 0.25.0
