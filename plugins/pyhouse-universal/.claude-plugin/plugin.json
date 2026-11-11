@@ -1,7 +1,7 @@
 {
   "name": "pyhouse-universal",
   "displayName": "pyhouse \u2014 universal",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Python house-style rules that bind whichever architecture a service uses: naming derivation, typing and logging forms, the package and re-export contract, settings read from the environment, the data-access obligations every store meets, what a program owes a unit delivered at least once, the lint, type-check and dependency configuration every distribution carries once, the single error catalogue, what a distribution's version promises and which change moves it, the testing constitution, the workspace root for a repository holding several distributions, the container image a runnable program ships in, and a command-line interface's commands, exit codes and their test. Ships the hex-vs-flat architecture chooser and its /choose-architecture command, so a greenfield service can settle its family before installing pyhouse-hex or pyhouse-flat, the /pyhouse-universal:adopt command, which tells a repository's agents which skill governs each kind of Python work, and the namespaced /pyhouse-universal:code-review command with the reviewer subagent behind it, which applies these skills to existing code instead of writing new code, and the /pyhouse-universal:change-review command with the change-reviewer subagent behind it, which reviews a change before it lands for the contracts it breaks, the failure paths nothing catches and the tests that would not notice, each finding with the scenario that goes wrong.",
   "author": {
     "name": "Yegor Vorobyev"

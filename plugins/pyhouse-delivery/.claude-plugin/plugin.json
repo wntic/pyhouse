@@ -1,7 +1,7 @@
 {
   "name": "pyhouse-delivery",
   "displayName": "pyhouse — delivery",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "How one change is delivered, rather than how its code is written. Ships the delivery-spec skill — the spec a change is implemented from, short enough to review in one sitting, naming as contracts only what other code depends on and stating the behaviour its tests are written from, its statements about today's system checked before any code exists, and its goal, scope and contracts frozen once it is ready. And /pyhouse-delivery:spec, which writes that spec with the person who wants the change, checks those statements and marks the spec ready once the person has accepted it. Ships delivery-change-contract — the short list of what is frozen while a ready spec is implemented, and every edit to it caught by a diff from a base commit rather than forbidden. And /pyhouse-delivery:implement, which implements a ready spec through the delivery-implementer subagent — tests written from the spec before the code, the code, the project's gate, /pyhouse-universal:change-review, a live check where the change shows only in a running process, and one round of fixes — and hands over the body of the merge commit. Depends on pyhouse-universal.",
   "author": {
     "name": "Yegor Vorobyev"
