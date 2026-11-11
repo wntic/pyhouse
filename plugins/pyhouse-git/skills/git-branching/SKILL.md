@@ -100,7 +100,9 @@ no push straight to it, and no request merged until its checks pass.
    own — that records a defect no release ever carried; it is committed as a fixup of that commit and
    folded, so no `fixup!` or `squash!` commit reaches the mainline. Work-in-progress commits are folded
    or reworded. This is the curation a squash would otherwise do, done where the author still knows what
-   each commit was.
+   each commit was. A fold is meant to change no line the branch's checks have seen: it keeps the point
+   the branch left from, a fold that did change the tree has the checks run again, and bringing the mainline in is
+   the merge's job, never the fold's.
 5. **History someone else may have built on is never rewritten.** The mainline, and any branch another
    person or process has fetched, are never rebased, amended or force-pushed; a mistake on them is
    corrected by a new commit. A branch only its author has used may be, until it lands — with a force
@@ -120,10 +122,11 @@ no push straight to it, and no request merged until its checks pass.
    branch. Precondition: something runs or depends on a version other than the latest.
 
 Rule 4 in git: a fix to unlanded work is committed with `git commit --fixup=<sha>` and folded before
-the request lands by `git -c sequence.editor=: rebase -i --autosquash origin/<mainline>` after
-`git fetch`, so the fold is made against the mainline as it now stands; the no-op editor accepts the
-folded plan without opening one. Before git 2.44, `--autosquash` without `-i` is silently ignored and
-the fixups land as they are.
+the request lands by `git -c sequence.editor=: rebase -i --autosquash $(git merge-base origin/<mainline> HEAD)`
+after `git fetch`; the no-op editor accepts the folded plan without opening one. Take
+`git rev-parse HEAD` before the fold and `git diff <before> HEAD` after it: empty, the tree is the one
+already checked; not empty, the fold changed the tree. Before git 2.44, `--autosquash` without `-i` is
+silently ignored and the fixups land as they are.
 
 ## Hard stops
 

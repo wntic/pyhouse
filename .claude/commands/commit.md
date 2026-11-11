@@ -128,8 +128,10 @@ EOF
 
 **A correction to a commit already on this branch** is not a new message: commit it with
 `git commit --fixup=<sha>`, and before the branch is merged fold every fixup into the commit it
-corrects with `git -c sequence.editor=: rebase -i --autosquash main` — or against the
-`integration/<name>` branch it lands in. On an `integration/<name>` branch itself, add
+corrects with `git -c sequence.editor=: rebase -i --autosquash $(git merge-base main HEAD)` — or the
+merge base with the `integration/<name>` branch it lands in — so the fold does not also move the branch
+onto a `main` its review never saw. `git diff <HEAD before> HEAD` is then empty; a non-empty diff means
+the branch moved, and step 2's checks run again. On an `integration/<name>` branch itself, add
 `--rebase-merges` so the merges it combined survive, and fold there only while no branch has been
 started from it. `git-branching` rule 4 is why, and rule 5 is why this rewrites only a branch no one
 else has built on.
