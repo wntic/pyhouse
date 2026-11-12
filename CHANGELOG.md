@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.32.0 — 2026-11-13
+
+Plugin versions in this release: `pyhouse-delivery` 0.5.0 (from 0.4.1); `pyhouse` 0.2.0,
+`pyhouse-universal` 0.25.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.1 are
+unchanged.
+
+### Changed
+
+- **The live check asks for your consent once, before the build.** `/pyhouse-delivery:implement` now
+  works out, before any code is written, what its live check would start, stop, recreate, write to,
+  call or read a secret from, and asks about it in its first message, together with its other
+  questions. Your answer holds for the whole change, the round of fixes included; you are asked again
+  only about something beyond it. Name in your agent instructions which environments a change may use
+  freely, and the question about them goes away.
+- **Credentials for the live check are no longer asked for piece by piece.** The implementer takes them
+  from what your project keeps for its checks — a test fixture, a seed, a documented local default — or
+  creates them in an environment it started itself. It never reads a file of secrets. What only you can
+  do comes to you once, as one script to run, in that same first message where it is known then.
+- **Adding a decision record or tightening a check no longer stops the run.** A new decision record, and
+  a rule that only makes a guarding check stricter, such as the architecture test, are now free and are
+  read by the review in the diff. A record that supersedes or contradicts an existing one, an exemption
+  added to a check, and a rule changed or removed still stop and ask you first.
+
 ## 0.31.1 — 2026-11-11
 
 Plugin versions in this release: `pyhouse-delivery` 0.4.1 (from 0.4.0); `pyhouse` 0.2.0,
