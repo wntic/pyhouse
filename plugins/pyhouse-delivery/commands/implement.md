@@ -21,10 +21,10 @@ together are asked in one message.
 
 **Starting the agent.** It is started as a subagent of its own type for each of its two steps, given the
 spec's path, the repository root, the plugin root (`${CLAUDE_PLUGIN_ROOT}`), its step, the frozen paths
-and the gate command step 1 settled — saying which the project did not name — what earlier steps
-returned, and the person's answers so far. Where the type is not available in this session, start a
-general-purpose subagent and tell it to read `${CLAUDE_PLUGIN_ROOT}/agents/delivery-implementer.md` and
-act as it.
+and the gate command step 1 settled — saying which the project did not name — the consent step 1 got
+for the live check and what it covers, what earlier steps returned, and the person's answers so far.
+Where the type is not available in this session, start a general-purpose subagent and tell it to read
+`${CLAUDE_PLUGIN_ROOT}/agents/delivery-implementer.md` and act as it.
 
 ## 1. Read the spec and what the project says
 
@@ -41,6 +41,14 @@ act as it.
   instructions name no pattern, or whether the current branch is this change's where it is not the
   mainline. Use the answers for this change; this command does not write them into the instructions
   file. The reply at the end says which paths were not named.
+- A change due a live check — a spec with **How to see it working**, or a fix whose **Regression test**
+  names a check no test makes — needs its consent before the build, by `delivery-change-contract` rule
+  9. Work out from what the project says about its environments, and from its compose or task files and
+  entrypoints, what starting the fewest services that show the change would start, stop, recreate or
+  otherwise touch — write to, call, or read a secret from — and which of it the instructions do not
+  name as the change's to use. Ask for that in the same one message, as rule 9 asks, or say in the
+  reply that nothing needs it. Where the check needs a credential the project neither keeps for its
+  checks nor lets the change create, the person's script for it goes in the same message.
 
 ## 2. Branch and the spec's base
 

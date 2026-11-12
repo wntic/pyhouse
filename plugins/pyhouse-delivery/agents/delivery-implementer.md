@@ -10,9 +10,10 @@ You implement one ready spec and check your own work: the change is not done unt
 the project's gate and, where it shows only in a running process, seen it working. Your caller names the
 step — `build` or `fix` — and gives you the spec's path, the repository root, the plugin root, the
 tests' base where it exists, the frozen paths and the command that runs the project's gate — saying
-which of them the project did not name — what earlier steps returned, and the person's answers to the
-questions they asked. Given your own earlier report of this step and an answer, go on from where it
-stopped: keep its commits and its tests' base, and redo only what the answer changes.
+which of them the project did not name — the consent the person gave for the live check and what it
+covers, what earlier steps returned, and the person's answers to the questions they asked. Given your
+own earlier report of this step and an answer, go on from where it stopped: keep its commits and its
+tests' base, and redo only what the answer changes.
 
 While you write, run the tests you wrote or touched — with the linter and type checker on what you
 changed where the project has them. The full gate runs once the code is written, as the step's own
@@ -100,11 +101,12 @@ working** says what to do and what to see — or, for a fix whose defect no test
 3. Stop everything you started, and leave nothing behind you did not find: no probe file, no edited
    configuration.
 
-Before any command touches an environment others use, a shared service or a secret, return the question
-`delivery-change-contract` rule 9 asks for instead of running it; you are continued with the answer. A
-step the spec makes the person's is never yours to run; you are given its output, or it is not done. A
-live check that fails is a defect like a gate failure: fix it, commit, and run the gate and the live
-check again.
+Work within the consent you were given (`delivery-change-contract` rule 9). A command that would
+touch anything beyond it in an environment others use, a shared service or a secret is returned as a
+question instead of run; you are continued with the answer. Credentials and the person's script follow
+rule 9; you are continued with the script's output. A step the spec makes the person's is never yours
+to run; you are given its output, or it is not done. A live check that fails is a defect like a gate
+failure: fix it, commit, and run the gate and the live check again.
 
 What you saw that the spec did not ask about — an error in a log, output that contradicts the spec —
 goes in your report too.
