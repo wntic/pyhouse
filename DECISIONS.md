@@ -3616,3 +3616,13 @@ once in fourteen. The share of the window was never measured: no session took `/
 stays unmeasured rather than measured on these specs.
 
 **Reverse by:** restoring backlog item 104 as of `3a7ac07`.
+
+### D196 — No catalogue rules on performance until a review finds them
+Taken by the maintainer (2026-11-12), closing backlog 55. It placed performance obligations with their
+owners — a universal skill on async code and `persistence` — on the condition that the maintainer first
+collect concrete findings from the lead's reviews, each to become a rule. None was collected, and the
+item has stood since it was agreed with nothing to write from; rules written ahead of a finding would be
+the bag of tips it set out to avoid. A performance defect that a review does find is placed then, with
+the owner the item named.
+
+**Reverse by:** restoring backlog item 55 as of `d0b8f76`.
