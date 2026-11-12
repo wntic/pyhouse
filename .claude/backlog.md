@@ -5,22 +5,8 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest. 104 is the measurement of the simplified `pyhouse-delivery` (D192), its
-thresholds set before the first spec; its first twelve specs raised 105 and 106. 87 waits until there are defects found after a change landed to
-run it on. Every other item has landed or was closed (D130–D178, D191, D192).
-
-### 104. Judge the simplified `pyhouse-delivery`
-The simplification of D192 is judged on the next three to five specs implemented with it: the person's
-minutes, the share of the window (`/usage`), and what the review finds. Thresholds, set before the
-first of them:
-- more than two waits for the person on a spec — not counting "merge" or a question about a defect of
-  the spec — or more than two full gate runs in one implementation: find the step that caused them;
-- a test written to fit the code about to be written rather than the spec, on two specs of five — seen
-  by the review through `--tests-at` or in the tests' base: a separate test writer returns;
-- a wrong Important finding, answered "wrong" by the implementer or the person, on two specs of five:
-  verify returns;
-- a defect found after landing that the old acceptance on the stand would have caught: that case is
-  examined on its own before anything returns.
+Item 55 predates the rest. 87 waits until there are defects found after a change landed to run it on.
+Every other item has landed or was closed (D130–D178, D191, D192, D195).
 
 ### 87. A retrospective over released changes
 `/retro`: the defects found after a change landed, which check each escaped, and the rule or test that
@@ -43,11 +29,11 @@ collects concrete findings from the lead's reviews first, and each becomes a rul
 ### 88. Bound what `/change-review` reads in full on a large diff
 Calibrated at about 3% of a five-hour window per review, and nearly twice that on a diff of 179 files,
 of which it read about seventy in full (D187). A ceiling on full reads, or reading by lens question
-rather than by file, would cut the cost of the largest diffs. Measured on the specs that judge 104,
-after verify is gone, not by rerunning the calibration set.
+rather than by file, would cut the cost of the largest diffs. To be measured with `/usage` on specs after
+verify is gone, not by rerunning the calibration set; the fourteen that closed 104 took none (D195).
 
 ### 105. A live check that does not wait on the person piece by piece
-Measured on the first twelve specs under delivery 0.4.1 in two adopted repositories: consent and credentials
+Measured on the first twelve specs under delivery 0.4.1 (D195) in two adopted repositories: consent and credentials
 for the live check caused most of the person's waits — on six specs; one spec spent three questions in a
 row on a user's password and then an admin login, and skipped the check; one waited 56 minutes for
 leave to start a cluster profile the repository uses only for this. The person's words: do it yourself
