@@ -3626,3 +3626,29 @@ the bag of tips it set out to avoid. A performance defect that a review does fin
 the owner the item named.
 
 **Reverse by:** restoring backlog item 55 as of `d0b8f76`.
+
+### D197 — Consent to a live check is asked once, and a new record is free
+Taken by the maintainer (2026-11-13), applying backlog 105 and 106, measured on the fourteen specs that
+closed 104 (D195). Consent and credentials for the live check caused most of the person's waits — six
+specs, one of them three questions in a row and then a skipped check — and four specs stopped to ask
+whether a decision record could be added, the answer always yes.
+
+- **Consent is asked once, before the build.** `/pyhouse-delivery:implement` step 1 works out what the
+  live check would touch — by the agent's own measure, the fewest services that show the change — and
+  asks in the same message as its other questions; the answer holds for the whole change, and only a
+  command beyond it is asked again. The command asks rather than the agent, because asking from inside
+  the build is the mid-run wait being removed. `delivery-change-contract` rule 9 states the obligation;
+  touching still means writing to, calling or reading a secret from, not only starting.
+- **Credentials are found or made, not asked for.** A credential comes from what the project keeps for
+  its checks, or is created in an environment the change started; a file of secrets is never read.
+  What only the person can do reaches them once, as one script, in step 1's message where it is known
+  then.
+- **Adding is free, changing is not.** A new decision record and a rule that only makes a guarding check
+  stricter are free and read by the review in the diff. A record that supersedes or contradicts one that
+  exists changes the old decision and is frozen, as is an exemption added to a check or a rule changed or
+  removed. The command and the agent point at the list rather than restating it, and no report line
+  declares the additions (D192).
+
+**Reverse by:** restoring `delivery-change-contract` *What is frozen* and rule 9, `/pyhouse-delivery:implement`
+step 1 and *Starting the agent*, and `delivery-implementer`'s opening paragraph and live-check paragraph,
+as of `0b1e7f9`, and backlog items 105 and 106 as of that commit.
