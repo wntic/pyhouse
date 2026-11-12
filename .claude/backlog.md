@@ -5,24 +5,14 @@ Remove an entry in the change that does it; record the decision in `DECISIONS.md
 
 ## Agreed
 
-Item 55 predates the rest. 87 waits until there are defects found after a change landed to run it on.
-Every other item has landed or was closed (D130–D178, D191, D192, D195).
+87 waits until there are defects found after a change landed to run it on. Every other item has
+landed or was closed (D130–D178, D191, D192, D195, D196).
 
 ### 87. A retrospective over released changes
 `/retro`: the defects found after a change landed, which check each escaped, and the rule or test that
 would close it — the loop D186 was the first output of. Deferred (D192) until such defects exist: in
 the repository it would run on, most defects testing will find predate the pipeline, and half its
 steps are gone.
-
-### 55. Performance obligations, placed with their owners
-No `performance` skill: a bag of tips would restate rules other skills own. Two groups, each with an
-owner. Language-level, a universal skill on async code: no blocking I/O or CPU-bound work inside a
-coroutine (today one `## Other bindings` bullet in `hex-capability-adapter`), concurrency always
-bounded, a client or pool built once per process rather than per call. Data access, in `persistence`:
-no query per item in a loop, filtering and paging in the store rather than in Python, only the columns
-and rows used, and every filter of a hot query backed by an index. Only what is expensive to retrofit
-and checkable in review belongs; a micro-optimisation without a measurement does not. The maintainer
-collects concrete findings from the lead's reviews first, and each becomes a rule.
 
 ## Proposed
 
