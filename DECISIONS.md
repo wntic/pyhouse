@@ -3597,3 +3597,22 @@ environment causes, is returned rather than fixed.
 **Reverse by:** restoring `delivery-implementer`'s `check` step, the command's live-check step and its
 gate runs at steps 4 and 7, and its *Where this runs* paragraph, as of `v0.31.0`, with the descriptions
 of both, the manifest description and `README.md`'s delivery row and *Implementing a spec*.
+
+### D195 — The simplified delivery stays
+Taken by the maintainer (2026-11-12), closing backlog 104 (D192) on fourteen specs implemented with
+`pyhouse-delivery` 0.4.1 in two adopted repositories, five of them in the one the earlier pipeline was
+measured on. No threshold set before the first spec was crossed in a way that brings a step back. The
+review found eight Important findings and none was answered wrong: seven were fixed, and one was kept by
+the person as a risk, not refuted — so verify does not return. No test was written to fit the code: every
+edit after the tests' base was a form edit, or a correction the spec's own change of behaviour asked for.
+No defect found after landing would have been caught by acceptance on the stand; one was found by a live
+check, the step that replaced it. A feature took 24 to 64 minutes to hand-over in the repository it was
+measured on, where the largest features had taken about two hours before.
+
+Where a threshold was crossed, the cause was not a step of the pipeline. Two specs waited on the person
+more than twice, for consent and credentials for the live check, and for leave to add a decision record;
+those are backlog 105 and 106. One spec ran the full gate six times, on pins of incidental artifacts,
+once in fourteen. The share of the window was never measured: no session took `/usage`, so backlog 88
+stays unmeasured rather than measured on these specs.
+
+**Reverse by:** restoring backlog item 104 as of `3a7ac07`.
