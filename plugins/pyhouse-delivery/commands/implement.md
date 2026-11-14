@@ -1,5 +1,5 @@
 ---
-description: Implement one ready spec end to end — an implementer that writes the tests from the spec before the code, then the code, and checks its own work by the project's gate and, where the change shows only in a running process, a live check; a review of what the change breaks; and one round of fixes — and hand over the body of the merge commit for the person to land it
+description: Implement one ready spec end to end — an implementer that writes the tests from the spec before the code, then the code, and checks its own work by the project's gate and, where the change shows only in a running process, a live check; a review of what the change breaks; and one round of fixes — and hand over the body of the merge commit for the person to land it, with the spec marked implemented on the branch
 argument-hint: "<the path or key of a spec whose status is ready>"
 ---
 
@@ -28,8 +28,9 @@ Where the type is not available in this session, start a general-purpose subagen
 
 ## 1. Read the spec and what the project says
 
-- `$ARGUMENTS` empty, or naming no spec → ask which one. A spec whose status is not ready → stop:
-  it is finished with `/pyhouse-delivery:spec` first.
+- `$ARGUMENTS` empty, or naming no spec → ask which one. A spec whose status is not ready → stop: a
+  draft is finished with `/pyhouse-delivery:spec` first, and an implemented one is not implemented
+  again — a further change to it is a spec of its own (`delivery-spec` rule 11).
 - Read the repository's agent instructions (`CLAUDE.md` and any file it imports) for: the section that
   names which skills govern which work; how branches are named and land; the command that runs the
   project's gate — its tests, and its linter, type checker and architecture test where it has them, in
@@ -56,9 +57,9 @@ Where the type is not available in this session, start a general-purpose subagen
   step 1 was given. On another branch the person said is this change's → stay on it. One they said is
   not → with a clean working tree, create the change's branch from the mainline as above; otherwise
   stop: what is on it is the person's.
-- The spec uncommitted, or changed since it was committed → commit it as the branch's first commit, by
-  the repository's commit convention. That commit, or the branch point where the spec was already
-  committed as ready, is the **spec's base**.
+- The spec uncommitted, or changed since it was committed → commit it, with its row in the index of
+  specs where there is one, as the branch's first commit, by the repository's commit convention. That
+  commit, or the branch point where the spec was already committed as ready, is the **spec's base**.
 
 ## 3. Build
 
@@ -104,6 +105,10 @@ There is no second round. Whatever is still open goes to the person as it stands
 always finds more.
 
 ## 7. Hand over
+
+Set the spec's `Status: implemented`, and its row in the index of specs where the project keeps one,
+and commit that on the branch by the repository's commit convention (`delivery-spec` rule 11). A
+change stopped before this step leaves the spec ready.
 
 Write the merge commit's body and show it in the reply — the person reads the reply, never a tool's
 output:
