@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.33.0 — 2026-11-14
+
+Plugin versions in this release: `pyhouse-delivery` 0.6.0 (from 0.5.0); `pyhouse` 0.2.0,
+`pyhouse-universal` 0.25.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.1 are
+unchanged.
+
+### Added
+
+- **A spec now says when it has been implemented.** A spec's status goes from `draft` to `ready` to
+  `implemented`. `/pyhouse-delivery:implement` sets `Status: implemented` in a commit of its own on the
+  change's branch at the hand-over, after the review and the round of fixes, so the spec reaches your
+  mainline as implemented only when the change does. On the mainline, an implemented spec has landed
+  and a ready one has not. A run that stops before the hand-over leaves the spec ready. Specs
+  implemented before this release still read `ready`; set them by hand if you want the status to hold
+  for them too.
+
+### Changed
+
+- **`/pyhouse-delivery:implement` refuses an implemented spec.** As with a draft, it stops: a further
+  change to what an implemented spec delivered is a spec of its own.
+- **An index of specs you already keep is kept in step.** Where your specs directory has an index of the
+  specs, such as a table with their statuses, `/pyhouse-delivery:spec` adds the new spec's row when it
+  writes the draft and updates it when the spec is ready, and `/pyhouse-delivery:implement` commits the
+  row with the spec and moves it to implemented with the status. Where you keep no index, none is made:
+  the status lines in the specs are the index.
+
 ## 0.32.0 — 2026-11-13
 
 Plugin versions in this release: `pyhouse-delivery` 0.5.0 (from 0.4.1); `pyhouse` 0.2.0,
