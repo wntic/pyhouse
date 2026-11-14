@@ -35,7 +35,8 @@ memory.
 ## 3. Write the draft
 
 Write the file in the specs directory, named the way the specs already there are, with
-`Status: draft`. Show it to the person and take their corrections before checking anything.
+`Status: draft` — and its row in the index of specs, where the project keeps one (`delivery-spec`
+rule 11). Show it to the person and take their corrections before checking anything.
 
 Showing is done in the reply: what a tool printed reaches only you. A draft is shown by its path, its
 goal and scope, its contracts and its behaviour list; a diff the person asks for is quoted in full, and
@@ -54,9 +55,10 @@ Check each statement the way the skill names, and keep the output of each check.
 
 ## 5. Mark it ready, or leave it a draft
 
-Ask the person to accept the spec as it now stands. Set `Status: ready` once the skill's rule for a
-ready spec holds. Otherwise it stays a draft, and the report says what blocks it.
+Ask the person to accept the spec as it now stands. Set `Status: ready`, and the index's row where
+there is one, once the skill's rule for a ready spec holds. Otherwise it stays a draft, and the report
+says what blocks it.
 
 Report the file's path and one line per statement checked: how it was checked, and whether it held.
-Leave the file uncommitted. Where the person asks for the commit, it is a change of its own, by the
-branching the repository records.
+Leave the spec and its index row uncommitted. Where the person asks for the commit, it is a change of
+its own, by the branching the repository records.

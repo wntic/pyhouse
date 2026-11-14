@@ -3662,3 +3662,23 @@ exactly the diffs most likely to break something. If a review's cost becomes a p
 is measured with `/usage` then and the item reopened.
 
 **Reverse by:** restoring backlog item 88 as of `9e547cc`.
+
+### D199 — A spec is marked implemented by the change that implements it
+Taken by the maintainer (2026-11-14). A spec's status stopped at `ready`, so once several had been
+implemented nothing in the specs said which: an adopted repository had kept its own table of specs and
+their statuses from before the catalogue, and a greenfield one tried with it had none. `delivery-spec`
+rule 11 adds `implemented`, set in a commit of the change itself, so the mainline reads it only once
+the change has landed and a spec still `ready` there has not. `/pyhouse-delivery:implement` sets it at
+the hand-over, after the review and the round of fixes; a change stopped earlier leaves the spec ready,
+and an implemented spec is refused like a draft — a further change to it is a spec of its own.
+
+The status line is the one record of it. An index of specs is a second copy, and a copy kept by hand is
+the first thing to go stale, so none is made: the status lines are read for one. Where a project
+already keeps an index, its row is written with the spec and moves with the status in the same change,
+`/pyhouse-delivery:spec` and `/pyhouse-delivery:implement` committing it with the spec. The status is
+not frozen (`delivery-change-contract` freezes the sections rule 10 names), and it is set after the
+diffs of what is frozen are taken.
+
+**Reverse by:** restoring `delivery-spec` rule 11 and its description, `/pyhouse-delivery:spec` steps 3
+and 5, `/pyhouse-delivery:implement` steps 1, 2 and 7 and its description, the pyhouse-delivery
+manifest's description and the three index lines as of `9d55e49`.

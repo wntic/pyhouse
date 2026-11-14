@@ -1,6 +1,6 @@
 ---
 name: delivery-spec
-description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the behaviour its tests are written from. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, behaviour stated as what each path leaves behind, an optional note in words on how to see a change that shows only in a running process, a step the person must take written as the command they run, the spec's claims about today's system checked before any code is written, and which sections are frozen once the spec is ready — the goal, the scope and the contracts, a fix's symptom — and which may be refined during the work. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for a definition of done, what a spec should say about tests, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or whether an implementer may change what a spec says.
+description: Use when writing, splitting or checking the spec for one change before it is implemented — a feature or a fix, what it names as contracts, and the behaviour its tests are written from. Owns the spec's sections and which of them exist only where the project has them, the shorter form a fix takes, contracts limited to what other code depends on, the sign that one spec is several, behaviour stated as what each path leaves behind, an optional note in words on how to see a change that shows only in a running process, a step the person must take written as the command they run, the spec's claims about today's system checked before any code is written, and which sections are frozen once the spec is ready — the goal, the scope and the contracts, a fix's symptom — and which may be refined during the work, and the status it carries from draft to implemented, set by the change itself so the mainline reads implemented only once it has landed. Not why a design was chosen — that is the project's own decision record, which a spec points at. - Also when asked for a definition of done, what a spec should say about tests, how large a spec may be, whether a spec should name internal functions and types, how to write up a bug before fixing it, or whether an implementer may change what a spec says.
 user-invocable: false
 ---
 
@@ -174,6 +174,13 @@ runs, and whether it comes before the fix lands or after it.>
     agrees to is recorded in the spec, with its reason. **Behaviour and failures** and **How to see it
     working** may be refined during the work, the edit visible in the diff — a refinement that drops a
     path or changes what **Goal** promises is a change of scope, and asks first.
+11. **A spec is implemented once its change is, and the change says so.** Its status moves from `draft`
+    to `ready` to `implemented`, and `implemented` is set in a commit of the change that implements it.
+    The mainline then reads `implemented` only for a change that has landed: a spec still `ready` there
+    has not, whether or not work on it began. An implemented spec is not implemented again; a further
+    change to what it delivered is a spec of its own. Where the project keeps an index of its specs, a
+    new spec gets its row when it is written, and the row changes with the status, in the same change;
+    where it keeps none, none is made — the status lines are the index.
 
 ## Hard stops
 
