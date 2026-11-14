@@ -3652,3 +3652,13 @@ whether a decision record could be added, the answer always yes.
 **Reverse by:** restoring `delivery-change-contract` *What is frozen* and rule 9, `/pyhouse-delivery:implement`
 step 1 and *Starting the agent*, and `delivery-implementer`'s opening paragraph and live-check paragraph,
 as of `0b1e7f9`, and backlog items 105 and 106 as of that commit.
+
+### D198 — `/change-review` is not bounded on a large diff
+Taken by the maintainer (2026-11-14), closing backlog 88. It proposed a ceiling on the files a review
+reads in full, or reading by lens question rather than by file, because a calibrated review took about
+3% of a five-hour window and nearly twice that on a diff of 179 files (D187). The cost seen on the specs
+since has been small enough not to be worth a bound, and a bound trades away what the review finds on
+exactly the diffs most likely to break something. If a review's cost becomes a problem on real specs, it
+is measured with `/usage` then and the item reopened.
+
+**Reverse by:** restoring backlog item 88 as of `9e547cc`.
