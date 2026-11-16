@@ -1,5 +1,5 @@
 ---
-description: Review a change before it lands for what it breaks — contracts other code relies on, failure paths, and tests that would not catch it — in one run, and print every finding with its scenario and severity, and an outcome line for the merge commit. Works in any project and on any stack. Run `recheck` once after the findings are fixed. Not a style audit; conformance to the catalogue is /pyhouse-universal:code-review.
+description: Review a change before it lands for what it breaks — contracts other code relies on, failure paths, and tests that would not catch it — in one run, and print every finding with its scenario and severity, and an outcome line for the merge commit. Works in any project and on any stack. Run `recheck` once after the findings are fixed. Not a style audit of the code.
 argument-hint: "[a git range or ref, nothing for this branch against its mainline; 'recheck' after fixing] [--tests-at <ref>]"
 ---
 
@@ -23,8 +23,8 @@ This reviews a change, so the target is always a diff.
    `git diff HEAD`, staged and unstaged together, plus every untracked file `git status --porcelain`
    lists, which no diff shows — name those files to the subagent. If there is nothing at all, ask what
    to review.
-3. **Paths or a whole tree** → not a change. Say so and offer `/pyhouse-universal:code-review`, which
-   audits files.
+3. **Paths or a whole tree** → not a change. Say so, and ask for the range or ref that holds the change
+   to review.
 4. **`recheck`** → step 4.
 
 **`--tests-at <ref>`**, beside any target, names a commit inside the change whose tests count as tests

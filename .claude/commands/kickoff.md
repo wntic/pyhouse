@@ -22,8 +22,9 @@ where one was asked for. The maintainer, a backend engineer, then spends days re
 The catalogue is the fix: skills an agent loads so that the code it writes is clean from the start —
 the right layout, small modules, one owner per concern. It serves the data scientists and the
 maintainer alike: someone who can write the code still wants to prompt in two sentences and get the
-structure right. The same skills are the criteria an agent reviews code against, and
-`/pyhouse-universal:change-review` reviews each change for what it breaks before it lands (D187).
+structure right. The same skills are the criteria code is reviewed against, by hand;
+`/pyhouse-universal:change-review` reviews each change for what it breaks before it lands, citing a
+skill where a failure breaks an obligation one states (D187). No conformance audit ships (D200).
 
 Two architecture families exist because two kinds of service exist: hexagonal for a service with
 business rules of its own, flat for workers, ingest, ETL and glue with no rules to protect. The

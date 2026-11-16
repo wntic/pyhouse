@@ -35,7 +35,7 @@ Two uses, and every rule in it is shaped by serving both.
 any stack, any scale — and used immediately, without adaptation. A rule that holds only on the project
 it was extracted from is worthless here however useful it was there.
 
-**Reviewing.** The same rules are the criteria an agent checks code against. This is why the two-layer
+**Reviewing.** The same rules are the criteria code is checked against. This is why the two-layer
 split is not stylistic: an **obligation** ("one declared transaction owner per callable", "translate the
 driver's error at the boundary") is checkable on any codebase, and a **spelling** ("pass
 `join_transaction_mode="create_savepoint"`") is checkable only where the stack happens to match, and is
@@ -47,11 +47,11 @@ still be correct, and still be worth writing, if the project that inspired it ha
 stack, a different layout and a different domain?** If the honest answer is no, it documents a history
 rather than a style.
 
-The corollary for anything that reviews for conformance: the rules live in the skills, so a review
-artifact states none of its own. It decides which skills apply and applies them. The one review that
-looks for what a change breaks, `/pyhouse-universal:change-review`, asks where to look rather than what
-code must be: each finding stands on a concrete failure scenario, and cites a skill only where one states
-the obligation the scenario breaks (D187).
+The corollary for anything that reviews: the rules live in the skills, so a review artifact states none
+of its own. The one review the catalogue ships, `/pyhouse-universal:change-review`, asks where to look
+rather than what code must be: each finding stands on a concrete failure scenario, and cites a skill
+only where one states the obligation the scenario breaks (D187). The catalogue ships no conformance
+audit; the one it had was removed when nothing ran it (D200).
 
 ## Commands
 
@@ -64,14 +64,10 @@ claude plugin install pyhouse@pyhouse              # all five, or one: pyhouse-h
 repository**: step 2 checks the catalogue contract — frontmatter, the placeholder vocabulary, the two
 layers, the index counts — because there is no Python here to lint. It calls nothing external.
 
-`/pyhouse-universal:code-review` (shipped in that plugin, not in `.claude/commands/`) is the other direction:
-its subject is a **Python project that installs the catalogue**. It resolves a target and hands it to
-the `pyhouse-reviewer` subagent, which decides which skills apply and applies them. The two never
-overlap — running the review command on this repository finds no architecture family and nothing to
-review, which is correct. `/pyhouse-universal:change-review` beside it reviews one change of such a
-project for what it breaks — contracts, failure paths, tests — through the `change-reviewer` subagent,
-in one find run; it is the review a change goes through before it lands, and
-`/pyhouse-universal:code-review` stays an audit run on request.
+`/pyhouse-universal:change-review` (shipped in that plugin, not in `.claude/commands/`) is the other
+direction: its subject is a **Python project that installs the catalogue**. It reviews one change of
+such a project for what it breaks — contracts, failure paths, tests — through the `change-reviewer`
+subagent, in one find run; it is the review a change goes through before it lands.
 
 `/kickoff` (in `.claude/commands/`) starts a session: it carries why this catalogue exists, the lessons
 every change is made under, and points at `.claude/backlog.md` for open work. **When the purpose, the
@@ -192,9 +188,8 @@ tools/check_template_imports.py          resolves every import in every template
 plugins/pyhouse/                         no skills: depends on the other five and ships /pyhouse:setup,
                                          which runs their setup commands in order
 plugins/pyhouse-universal/               18 skills (17 universal + meta-skill-author),
-                                         /choose-architecture, /code-review, /change-review,
-                                         /pyhouse-universal:adopt, agents/pyhouse-reviewer,
-                                         agents/change-reviewer
+                                         /choose-architecture, /change-review,
+                                         /pyhouse-universal:adopt, agents/change-reviewer
 plugins/pyhouse-hex/                     23 hex-* skills
 plugins/pyhouse-flat/                    8 flat-* skills
 plugins/pyhouse-git/                     2 git-* skills, /commit, /release, /release-notes,

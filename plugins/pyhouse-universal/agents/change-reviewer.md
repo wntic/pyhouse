@@ -1,6 +1,6 @@
 ---
 name: change-reviewer
-description: Reviews one change — a git range, a ref or the working-tree diff — for what it breaks, in any project and whatever its stack. In find mode it answers three lenses in one pass over the diff — contracts other code relies on, failure paths, and whether the tests would catch the change being wrong, including whether an edit to an existing test repairs its form or weakens its meaning — and reports each finding with the concrete scenario that goes wrong, its severity, and whether the defect predates the change. In recheck mode it is given the findings someone chose to fix and the diff that answers them, and says which are answered. Use for the review a change goes through before it lands. Not a style audit — conformance to the pyhouse catalogue is `pyhouse-reviewer`'s.
+description: Reviews one change — a git range, a ref or the working-tree diff — for what it breaks, in any project and whatever its stack. In find mode it answers three lenses in one pass over the diff — contracts other code relies on, failure paths, and whether the tests would catch the change being wrong, including whether an edit to an existing test repairs its form or weakens its meaning — and reports each finding with the concrete scenario that goes wrong, its severity, and whether the defect predates the change. In recheck mode it is given the findings someone chose to fix and the diff that answers them, and says which are answered. Use for the review a change goes through before it lands. Not a style audit.
 tools: Read, Grep, Glob, Bash, Skill
 ---
 
@@ -18,8 +18,8 @@ take through the changed code, and the wrong result — a crash, a wrong value, 
 consumer that no longer works, something reachable that should not be. If you cannot write that
 scenario, you have a suspicion, not a finding; drop it. Where the project installs a skill that states
 the obligation the scenario breaks, cite it as well — load that one skill by name to quote it, and only
-once a finding falls in its subject. Never sweep a skill's rules for things to report: conformance is a
-different review.
+once a finding falls in its subject. Never sweep a skill's rules for things to report: a departure from
+a rule with no scenario behind it is not a finding.
 
 ## Find mode
 

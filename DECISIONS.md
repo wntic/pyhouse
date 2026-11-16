@@ -375,6 +375,7 @@ hide exactly the fact the rules turn on.
 ## The review half
 
 ### D53 — The reviewer is a command over a subagent, and not a skill
+**Reversed by D200.**
 The catalogue states the rules and nothing applied them to existing code. Three mechanisms were
 available and the choice was argued from what each one does, not from taste.
 
@@ -424,6 +425,7 @@ D21 bumped all three plugins together because all three changed. Here only one d
 by range. The marketplace's own metadata went to 0.3.0, since what it offers changed.
 
 ### D56 — What the reviewer cannot check, recorded rather than hidden
+**Reversed by D200.**
 The limits below are properties of the catalogue or of review itself, not defects in the artifact.
 They are where a human still has to look.
 
@@ -457,6 +459,7 @@ as compliance and a missing rule reads as silence. Gaps reported to the maintain
 by which either surfaces, and they depend on a reader noticing something the skills do not state.
 
 ### D57 — The command is `code-review`, namespaced, not `style-review` (maintainer's call)
+**Reversed by D200.**
 It shipped first as `/style-review`, for two reasons that did not survive. The first was to fill a hole
 `CLAUDE.md` named — which D54 then established had never existed. The second was a collision with
 Claude Code's own `/code-review`, and a plugin command is namespaced: `pyhouse-universal:code-review`
@@ -696,6 +699,7 @@ The skill's worked example was run through the `commit-msg` hook it describes be
 passes. A skill whose own example its own enforcement rejects would have been worse than none.
 
 ### D69 — The reviewer reads commit messages, and only for what can still change
+**Reversed by D200.**
 A commit range carries messages as well as code, and `git-commit-message` makes each message's type the
 record a release is computed from, so a mistyped message is a wrong version waiting to be cut. The
 reviewer now checks messages against that skill, as a second axis independent of the architecture
@@ -3292,6 +3296,7 @@ row and schema-table wording in `persistence`, *A defect's test*, the rule 8 wor
 clause and the two index lines in `test-principles`, and the last sentence of `git-commit-message` rule 5.
 
 ### D187 — A change is reviewed for what it breaks by `/change-review`, whose findings stand on a scenario rather than a rule
+**That `/pyhouse-universal:code-review` stays an audit run on request ended by D200.**
 Taken by the maintainer (2026-11-04). Revisits D53 in one respect: D53 and `CLAUDE.md` held that a review
 artifact states none of its own criteria, and `/pyhouse-universal:code-review` hunts no bugs. That left
 nothing in the catalogue that looks for what a change breaks, and the built-in review did not fill the
@@ -3682,3 +3687,52 @@ diffs of what is frozen are taken.
 **Reverse by:** restoring `delivery-spec` rule 11 and its description, `/pyhouse-delivery:spec` steps 3
 and 5, `/pyhouse-delivery:implement` steps 1, 2 and 7 and its description, the pyhouse-delivery
 manifest's description and the three index lines as of `9d55e49`.
+
+### D200 — The conformance audit is removed: `/pyhouse-universal:code-review` and `pyhouse-reviewer`
+Taken by the maintainer (2026-11-16). Reverses D53, which made the reviewer a command over a subagent,
+and with it D56, which recorded what that reviewer could not check, D57, which named its command, and
+D69, which had it read commit messages for their meaning; and ends the part of D187 that left
+conformance to `/pyhouse-universal:code-review` as an audit run on request.
+
+Nothing ran it. In an adopted repository's transcripts it ran nine times, all on one day, from that
+repository's own implementation command, which stopped calling it the next day: together with a second
+verifier it kept finding more, and implementation looped through rounds of fixes. In the month since,
+no session called the command, and no step of `pyhouse-delivery` calls it — by D187's own reasoning,
+since a review that is not a gate is run only when someone remembers to.
+
+What it found was not the problem. Of those nine runs' nineteen major findings, eighteen held and were
+fixed, and one was false — a container build that "leaked" a secret file an ignore pattern already
+excluded — and went into a round of fixes unchecked, since nothing verified a finding. Five of the
+nineteen were commit history — red commits, unfolded fixups, a break left unmarked — of which folding
+fixups before landing (D193) now holds the second, and the commit hook only a message's shape;
+six were tests too weak to catch a wrong change, and two real defects, which `change-reviewer`'s lenses
+cover; five were conformance no other check reaches — a container running as root, an undeclared
+runtime dependency, work done at import time, two settings prefixes reading each other's variables,
+lint thresholds left unwritten. Those nine ran on code written before `pyhouse-delivery` existed.
+
+Before deciding, one run measured it on code written since: the adopted repository's eight merges after
+its implementation moved to `pyhouse-delivery` — 32 commits, about 4,200 Python lines added, a
+hexagonal service and two libraries — at about 1–1.5% of a five-hour window. It held the code to the
+hexagonal skills, `persistence` and `test-principles`, and returned no major finding, no structural
+one, and two minor ones that held: a loop over examples inside one parametrised test, twice. The
+condition, set before the run, was to keep the audit only if it found structural departures nothing
+else catches. It found none. The run did not load `naming`, `python-packaging` or `python-style`, so the
+evidence is one run over part of the catalogue, and it says only that the audit is not worth shipping
+for what it would catch now.
+
+What is lost: nothing in the catalogue reviews code for a departure from a rule that has no failure
+behind it. `change-reviewer` cites a skill only where its scenario breaks the obligation, and the static
+architecture test and the linter hold what they hold. A measure of whether implementation keeps to the
+skills — the outcome the catalogue is judged by — is now taken by restoring the agent for the occasion,
+as the calibration behind D187 did, from a checkout of `v0.33.0` passed with `--plugin-dir`. Nor does
+anything now check a commit message's type against its diff once it is written: `/commit` holds that
+only as it writes the message, the `commit-msg` hook checks only its shape, and `/release` trusts the
+types it reads, so a mistyped commit that lands is caught, if at all, by whoever reads the release.
+
+**Reverse by:** restoring `plugins/pyhouse-universal/agents/pyhouse-reviewer.md` and
+`commands/code-review.md` as of `v0.33.0`, and reverting this change's edits to the manifest's
+description, `change-reviewer`'s description and opening paragraph, `change-review.md`'s description and
+its paths-or-tree step, the plugin row and the copying sentence in `skills/README.md`, the plugin row
+and the review paragraph in `CONVENTIONS.md`, the review paragraphs, the commands paragraph and the
+layout entry in `CLAUDE.md`, the section, contents link, plugin row and pointers in `README.md`, the
+sentence in `.claude/commands/kickoff.md`, and the reversal lines under D53, D56, D57, D69 and D187.
