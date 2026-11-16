@@ -71,7 +71,8 @@ go to the person as **Where this runs** says; a run they refused or did not answ
 `delivery-change-contract` rule 9's.
 
 Read its report before going on. It must show the run before the code, each new test failing on an
-assertion, on the not-implemented marker or — for a fix — on the symptom the spec names; the
+assertion, on the not-implemented marker or — for a fix — on the symptom the spec names, or the
+agent's reason one cannot; the
 repository's guarding checks passing on the tests; the gate's last full run passing, on the step's last
 commit; and the live check, where one was due. What the report does not show goes back to the agent
 once; what it still does not show goes in the reply at the end. A gate that still fails — a step the

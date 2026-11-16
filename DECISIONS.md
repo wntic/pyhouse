@@ -3736,3 +3736,35 @@ its paths-or-tree step, the plugin row and the copying sentence in `skills/READM
 and the review paragraph in `CONVENTIONS.md`, the review paragraphs, the commands paragraph and the
 layout entry in `CLAUDE.md`, the section, contents link, plugin row and pointers in `README.md`, the
 sentence in `.claude/commands/kickoff.md`, and the reversal lines under D53, D56, D57, D69 and D187.
+
+### D201 — The tests' base is red, and the mainline's guarantee is its merges
+Taken by the maintainer (2026-11-16), closing backlog 107. In an adopted repository a tests' base
+replaced a working list endpoint and its handler with the not-implemented marker, and the next commit
+restored them, so one commit reachable from the mainline had a live endpoint broken. The spec had changed
+that endpoint's contract: a paging parameter its body read was replaced by another, so the rule that a
+changed name keeps today's body could not be kept. It happened in two tests' bases of about thirty.
+
+Proposed instead: the marker only on a name that does not exist yet. Not taken, because the marker is not
+what makes that commit red. Every tests' base fails the gate by construction — `delivery-implementer`
+build step 3 asks each new test to fail — and a merge commit keeping every commit puts it on the
+mainline, reachable through the merge's second parent. With today's body kept, the commit still fails;
+and a body written to fit both the old and the new signature is neither behaviour, made only to fail on
+an assertion rather than on the marker. Nor was the tests' base folded into the code after the review,
+which `delivery-change-contract` rule 7 already permits a repository to do: it costs an automated fold
+and the history's record of tests written before the code, to remove a commit no release is cut from.
+
+So the mainline's guarantee, where tests are committed before the code, is that each merge passes —
+its first-parent history — and a red tests' base reached through a second parent is the accepted cost;
+`git log --first-parent` and `git bisect start --first-parent` read the history the guarantee covers.
+The audit D200 removed counted red commits among its findings that held; a tests' base is the one kind
+accepted, and the others still go uncaught. A changed name keeps today's body where it can run under the
+new signature, and takes the marker where it cannot; a caller the new signature breaks is held to the
+same test. `delivery-change-contract` rule 7 now says the base is red by design and that a repository
+promising every commit passes folds it. `git-branching`'s template line "`main` always builds and passes"
+and `git-commit-message` rule 6 are not reworded: `pyhouse-git` depends on nothing, and a repository
+that wants every commit green folds the base under `delivery-change-contract` rule 7.
+
+**Reverse by:** restoring `delivery-implementer` build step 1 to end its changed-name sentence at "keeps
+today's body" and removing its caller sentence, removing the last sentence of `delivery-change-contract`
+rule 7 and ", or the agent's reason one cannot" in `/pyhouse-delivery:implement` step 3, and restoring
+backlog item 107 as of `a676057`.
