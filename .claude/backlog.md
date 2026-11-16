@@ -195,3 +195,21 @@ constraint for effectively-once looks covered by `at-least-once-delivery` rule 6
 from `khononov-coupling`, since `coupling` is built on that book; its rebalancing and case-study chapters
 (`ch11`, `ch13`) are where a gap would be. Open: whether the procedure is written down (in `.sources`, or
 as a maintainer command), and which books come next.
+
+### 116. A second `change-reviewer` in `/implement`'s review step
+Asked by the maintainer (2026-11-16): whether the review step gains from two find runs, with a third
+agent confirming or refuting their findings. The verifier half was tried and removed — it refuted none
+of 13 calibration findings nor any in 17 `/implement` runs (D187, D192) — so the question is the second
+finder. Measured 2026-11-16/17, 8 headless Opus runs of the v0.35.0 `/change-review` on three producer
+diffs from the 2c calibration (`.sources/delivery/steps/2-review/calibration-2d.md`, raw outputs in
+`raw/cal-out-2d/`). Repeats did not catch what calibration missed: D10 0 of 3, D12 0 of 3, so those
+misses are the lens questions' limit, not a run's chance. The other findings did differ between runs:
+on the 44-file diff three findings recurred in every run and one run added two more Important ones; on
+the 232-file diff four distinct serious findings appeared, each run seeing one or two; on the clean
+diff one run found an Important weakened test the other did not. Duplicates across runs are obvious, so
+a judge would mostly merge. None of the extra findings is verified, and none is fixed at the producer's
+current head. The runs cost $35.97, $4.50 each against $2.64 in 2c, about 40% of a five-hour window by
+2c's ratio; two finders and a judge would make the step about $9–14 a feature. To do: the maintainer
+checks the seven extra findings and the recurring core against the producer, then decides — mostly real
+earns a second finder, at least on large diffs; mostly false keeps one (D192). Open: whether a second
+finder is worth its cost when the review's known misses are ones a repeat does not reach.
