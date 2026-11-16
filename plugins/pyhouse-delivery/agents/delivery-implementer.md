@@ -40,8 +40,12 @@ that decide it. "Tests pass" without them is not a result.
 
 1. Lay the names the tests need with no behaviour: every contract the spec names exactly as it names
    it, and the internal names you choose, each new body raising the language's not-implemented error. A
-   name that exists and whose contract the spec changes takes its new signature and keeps today's body.
-   A contract that cannot be written as named is a question, not a rename.
+   name that exists and whose contract the spec changes takes its new signature and keeps today's body
+   where it still runs under that signature; where it does not, its whole body is the not-implemented
+   error, never one adapted to bridge the old signature and the new. A caller whose call the new
+   signature breaks is held to the same test: its call is written to the new signature where its body
+   still runs, and its body is the not-implemented error where it does not. A contract that cannot be
+   written as named is a question, not a rename.
 2. Write the tests from **Contracts** and **Behaviour and failures**, by `test-principles`: one per
    contract and per path the spec lists, at the level that skill gives it. Test what the spec says,
    never what the code you are about to write will happen to do. Where the spec and a decision

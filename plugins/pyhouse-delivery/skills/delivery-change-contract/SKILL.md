@@ -62,7 +62,9 @@ is caught by a diff from a fixed commit, and reaches the person as a stop.
 7. **A base commit stays as written until the change has been measured from it.** No later edit is
    folded into it before the diff and the review have read the change: an edit folded into the commit it
    changes is invisible to both. Once they have, the branch's history may be curated as the repository
-   lands branches.
+   lands branches. The tests' base fails the gate by design, so a merge that keeps every commit puts one
+   failing commit beside the mainline's first-parent history; where the repository promises that every
+   commit passes, not only every merge, that curation folds the base into the code.
 8. **Whoever made an edit does not judge what it did to a test.** Whether an edit kept what the test
    asserts or weakened it is decided by the review, from the diff, by someone who wrote neither the test
    nor the edit — and for a test written before the code, from the tests' base, where it already
