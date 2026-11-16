@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.34.0 — 2026-11-16
+
+Plugin versions in this release: `pyhouse-universal` 0.26.0 (from 0.25.0); `pyhouse` 0.2.0,
+`pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1, `pyhouse-git` 0.10.1 and `pyhouse-delivery` 0.6.0 are
+unchanged.
+
+### Breaking
+
+- **`/pyhouse-universal:code-review` and the `pyhouse-reviewer` subagent are removed.** The catalogue no
+  longer ships an audit of code against its rules: it was run almost never, and a run over code written
+  with the skills loaded found no significant departure from them. What to do:
+  - Remove any call to `/pyhouse-universal:code-review`, and any delegation to `pyhouse-reviewer`, from
+    your agent instructions, commands and scripts; after upgrading they name a command and an agent that
+    no longer exist.
+  - To review a change before it lands, use `/pyhouse-universal:change-review`, which reviews it for
+    what it breaks and cites a skill where a failure breaks an obligation one states.
+  - For a one-off audit of a tree against the catalogue, run the reviewer from the 0.33.0 release: check
+    out the `v0.33.0` tag and start Claude Code with `--plugin-dir` pointing at that checkout's
+    `plugins/pyhouse-universal`.
+  - Nothing now checks a commit message's type against its diff after it is written. `/commit` still
+    chooses the type from the staged diff, and the `commit-msg` hook, where you installed it, still
+    checks the message's shape.
+
+### Changed
+
+- **`/pyhouse-universal:change-review` given paths or a whole tree asks for the change.** It used to offer
+  the audit; it now says that paths are not a change and asks for the range or ref that holds one.
+
 ## 0.33.0 — 2026-11-14
 
 Plugin versions in this release: `pyhouse-delivery` 0.6.0 (from 0.5.0); `pyhouse` 0.2.0,
