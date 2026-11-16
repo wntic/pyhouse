@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.35.0 — 2026-11-16
+
+Plugin versions in this release: `pyhouse-delivery` 0.7.0 (from 0.6.0); `pyhouse` 0.2.0,
+`pyhouse-universal` 0.26.0, `pyhouse-hex` 0.15.0, `pyhouse-flat` 0.13.1 and `pyhouse-git` 0.10.1 are
+unchanged.
+
+### Changed
+
+- **The tests' base no longer stubs out code that still works.** Before writing the tests, the
+  implementer lays the names they need. Where the spec changes an existing name's signature, that name
+  now keeps today's body whenever the body still runs under the new signature, and only where it cannot,
+  for example because a parameter it reads is gone, is the whole body replaced by the not-implemented
+  error. It never writes a body that serves both the old and the new signature. A caller whose existing
+  call the new signature breaks follows the same rule: its call is updated where its body still runs,
+  and it is stubbed only where it cannot run. Fewer commits between the tests and the code leave a path
+  that used to work broken.
+- **The red tests' base is stated, and what to do about it.** The tests' base fails your gate by design,
+  because every test in it has to fail before the code exists. When a branch lands with a merge commit
+  that keeps every commit, that failing commit sits beside your mainline's first-parent history, which is
+  where the guarantee holds that every merge passes. Read that history with `git log --first-parent`,
+  and bisect it with `git bisect start --first-parent`. Where your repository promises that every
+  commit passes, not only every merge, fold the tests' base into the code after the review and before
+  the branch lands; `delivery-change-contract` allows this once the change has been measured from it.
+- **`/pyhouse-delivery:implement` accepts a reason a test cannot fail first.** Where the implementer
+  reports why a new test cannot fail before the code, for instance because today's behaviour already
+  satisfies it, the command takes that reason. It no longer sends the report back or lists the test as
+  missing in the hand-over.
+
 ## 0.34.0 — 2026-11-16
 
 Plugin versions in this release: `pyhouse-universal` 0.26.0 (from 0.25.0); `pyhouse` 0.2.0,
