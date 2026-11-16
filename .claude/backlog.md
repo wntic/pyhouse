@@ -135,3 +135,63 @@ project with the catalogue and the maintainer's usual plugins installed, at the 
 and update the stale figures. Open: whether a 2% budget still holds the catalogue with other plugins
 beside it; and whether the size matters beyond D178's finding that names carry the routing — the
 listing is paid on every session, and D178 did not measure what the agent then wrote.
+
+### 114. A read, a decision in code and a write back lose a concurrent update
+Found by reading `kleppmann-ddia` — a skill the maintainer generated on 2026-11-15 with
+`book-to-skill` (github.com/virgiliojr94/book-to-skill) from Martin Kleppmann's *Designing
+Data-Intensive Applications* (O'Reilly, 2017), kept outside the catalogue — against `persistence`. Its
+`chapters/ch07-transactions.md` (lines 17, 31, 37, 41) restates the book: a read-modify-write in
+application code with no lock, no compare-and-set and no atomic update loses one of two concurrent
+updates, and the database's default isolation level (often read committed) does not stop it; a read of
+a premise, a decision in code and a write that changes the premise (write skew) needs serializable
+isolation or an explicit lock. `persistence` rule 16 covers a different case — an older write arriving
+after a newer one for the same key, guarded by an ordering stamp — and nothing in `plugins/` names a
+lost update, write skew or an isolation level (searched 2026-11-17). Candidate obligation, without
+mechanism: where a write depends on a value the same callable read, the write is made conditional on
+that value still holding — an atomic update in the store, a version or compare-and-set guard, or a lock
+taken by the read — never read, decided and written back unguarded. Lens 1: a CRUD service with
+concurrent updates to one aggregate has it; a feed poller writing what it finds, an LLM worker storing
+one result per record and a proxy that stores nothing do not, so it is a rule where the service has
+concurrent writers of one record, not a template line. Open: whether it is architecture or the logic
+edge case the catalogue leaves alone; whether rule 16 widens to hold it or it is a rule of its own; and
+that no generated service has shown the defect yet. The same chapter (line 32) also separates retries of
+transient and permanent errors, which supports 110.
+
+### 115. Books as evidence for the catalogue, never shipped in it
+The maintainer generated two skills from books with `book-to-skill` — `khononov-coupling` (Vlad
+Khononov, *Balancing Coupling in Software Design*) and `kleppmann-ddia` (above) — and asked whether they
+belong in the catalogue. Judged 2026-11-17: the summaries are accurate where they could be checked, but
+they do not ship. They are reference, not obligations, and restate rules the catalogue already gives an
+owner (`coupling` is Khononov's model restated with credit; DDIA overlaps `persistence` and
+`at-least-once-delivery`), so a rule would have two owners. They fire on studying a book, not on writing
+a service, so an agent's output does not change, and the model already knows DDIA well. They would add
+~900 characters to an overrun listing (113). And `khononov-coupling` bundles 22 figures extracted from
+the PDF beside detailed chapter summaries, which a public marketplace cannot redistribute. Proposal: a
+book skill stays in the maintainer's user scope, or in `.sources` if it is to be versioned, and serves
+as a lens — read beside the owning skill to ask which obligation the book states that the owner lacks,
+with each finding going through `/review-skills` like any other and the book cited in the decision
+record only, per CLAUDE.md's "Source material is evidence". 114 is its first output.
+
+What is taken is a fragment, never the skill. A fragment reaches a skill only past five filters: (1) it
+is an obligation on code, not knowledge — "LSM versus B-tree" or "percentiles, not averages" is
+knowledge; (2) it passes lens 1 against the test services in `QUESTIONS.md` — a template line only where
+most have it, otherwise one sentence of prose; (3) an owning skill exists and does not already state it,
+checked by a search of `plugins/`; (4) it is restated in the catalogue's words without mechanism, the
+book cited only in the decision record, which also keeps the book's text out; (5) an agent without the
+rule gets it wrong — the model knows DDIA but does not apply it unprompted, and that gap is what a rule
+is for, so a candidate is tried on a short prompt (for 114, a service with a PATCH endpoint: does the
+agent read, decide and write back unguarded?) and a seen defect earns the rule, which 108's harness
+would make routine. Systematic form: one agent per pair of book and owning skill, given `QUESTIONS.md`
+and these filters; each finding verified against `DECISIONS.md` by an agent that did not write it;
+survivors land here.
+
+Candidates already seen in `kleppmann-ddia`, past filter 3 only (searched 2026-11-17): a lost update
+(114); retrying only transient failures (110); a duration or timeout measured with a monotonic clock,
+never the wall clock, which jumps — nothing in `plugins/` names a monotonic clock, and the owner would
+be `python-style`; and a consumer of a message tolerating fields it does not know, since during a rolling
+deploy old and new versions read each other's messages — `extra="ignore"` appears only on settings
+classes, and the owner would be `coupling` or `at-least-once-delivery`. A client-chosen id with a unique
+constraint for effectively-once looks covered by `at-least-once-delivery` rule 6. Fewer are expected
+from `khononov-coupling`, since `coupling` is built on that book; its rebalancing and case-study chapters
+(`ch11`, `ch13`) are where a gap would be. Open: whether the procedure is written down (in `.sources`, or
+as a maintainer command), and which books come next.
