@@ -66,7 +66,10 @@ line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B006", "B904", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
+select = [
+    "E", "F", "I", "B006", "B904", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917",
+    "S102", "S301", "S307", "S506", "S602", "S605",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -121,7 +124,10 @@ several processes one per process, in `[project.scripts]`.
 `E` and `F` are the error and pyflakes families, `I` import sorting; `B904` is raise-without-from and
 `B006` the mutable default argument; `F403` and `F405` are the two wildcard-import warnings. `C901` is
 cyclomatic complexity; `PLR0911`, `PLR0912`, `PLR0913`, `PLR0915` and `PLR0917` are too many returns,
-branches, arguments, statements and positional arguments.
+branches, arguments, statements and positional arguments. `S102` and `S307` are `exec` and `eval`,
+`S301` unpickling, `S506` `yaml.load` with a loader that can construct arbitrary objects, and `S602`
+and `S605` a process started through a shell — `subprocess` with `shell=True`, or `os.system` and
+`os.popen`.
 
 Ruff runs with no paths, so it covers every Python file in the tree, `migrations/` included; mypy is
 given `src` and `tests` and stops there. `tests/` is not a package, so a `conftest.py` at two levels
@@ -153,8 +159,8 @@ there. Either is compliant once written; the setting drives the formatter as wel
   tool's own table where it reads no other, never a deprecated one — are unchanged.
 - **Another linter or type checker.** flake8 with its plugins, or pyright in strict mode: the rule codes
   and keys change; the parity of `src` and `tests`, the narrow selection that still refuses an unchained
-  `raise` in `except` and a mutable default, every size and complexity threshold written down, one
-  written line length and the closed list of suppressions do not.
+  `raise` in `except`, a mutable default and the six calls that run their input, every size and
+  complexity threshold written down, one written line length and the closed list of suppressions do not.
 
 ## Rules
 
@@ -168,7 +174,11 @@ there. Either is compliant once written; the setting drives the formatter as wel
    green under strict checking is `python-style`'s full annotation coverage.
 3. **The correctness selection is narrow**: the error and pyflakes families, import sorting, and two
    bugbear rules — a `raise` inside `except` that neither chains the cause nor says `from None`, and a
-   mutable default argument — not the whole bugbear family.
+   mutable default argument — not the whole bugbear family; and six security rules, each a call that
+   runs code or a command built from its input — `exec`, `eval`, unpickling, a YAML load that constructs
+   objects, a process started through a shell from `subprocess` or from `os` — not the whole security
+   family, whose remaining rules fire on a test's `assert`, on a fixed subprocess argument list and on SQL
+   text holding a trusted constant.
 4. **Function size and complexity are bounded by the linter, with every threshold written down.**
    Cyclomatic complexity stops at 10, McCabe's own published ceiling; branches at 12, return statements
    at 6 and statements at 50, pylint's long-standing defaults. Arguments are capped twice: positional

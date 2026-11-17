@@ -16,14 +16,14 @@ steps are gone.
 
 ## Proposed
 
-108–111 come from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
+108–110 come from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
 2.2.3), a multi-language agent kit of 71 agents and 314 skills, compared with the catalogue on
 2026-11-17. ECC paths below are at that commit. Most of ECC was not taken: about 35 of ~70 Python rules
 the catalogue already states, ~8 are performance (D196), ~15 bind one stack; its two-reviewer and
 generator/evaluator loops are what D185, D192 and D195 removed; and its Python material contradicts the
 catalogue in many places — `Optional[X]`, an HTTP status on the exception class, log-and-re-raise,
-`create_all` at startup, settings built at import, `@patch` and an in-memory sqlite in tests. These four
-are what survived.
+`create_all` at startup, settings built at import, `@patch` and an in-memory sqlite in tests. These three
+are what survived, with a fourth, 111, closed as D202 and D203.
 
 ### 108. A harness that measures whether an agent follows a skill under a naive prompt
 ECC's `skills/skill-comply` (`SKILL.md`, `prompts/`, `scripts/runner.py`) generates, for one skill or
@@ -80,22 +80,12 @@ an obligation, without mechanism, in `at-least-once-delivery` — rule 6 widened
 caller that retries — or one sentence beside each family's placement rule. Open: no generated service
 has shown the defect yet, and a defect becomes a rule; whether the generality alone earns it.
 
-### 111. The security lint family
-A gap found on the way, not from a defect; the data-migration half of this item is D202.
-
-ECC's `agents/python-reviewer.md:28-32` lists SQL or a shell command built from strings,
-path traversal, `eval`, unsafe deserialization and YAML's unsafe load. The catalogue states none, and
-`python-toolchain` rule 3 keeps the linter's selection narrow without the security family (ruff's `S`,
-from bandit) and without a decision saying why. The model already knows these and a linter catches most,
-so the proposal is not a rule but a decision either way: add `S` to the selection, or record why it is
-left out.
-
 ### 112. A security review before a service is first exposed to the internet
 The maintainer builds web applications and other services that will be reachable by anyone on the
 internet, and a service an agent wrote in a short time is an easy target. Wanted: a check of the code
 for security before its first deploy. The catalogue has nothing for this — `/pyhouse-universal:change-review`
-reviews one change for what it breaks, not a whole codebase for what an attacker can reach, and 111 asks
-only whether the linter's security family is selected. A candidate to start from is Cloudflare's
+reviews one change for what it breaks, not a whole codebase for what an attacker can reach, and the linter
+selects only six of its security rules (D203). A candidate to start from is Cloudflare's
 `security-audit-skill` (github.com/cloudflare/security-audit-skill, MIT, read 2026-11-17): six phases —
 reconnaissance into an architecture note and a coverage ledger of trust boundaries and input surfaces,
 hunting by isolated sub-agents assigned from the ledger, a fresh verifier trying to disprove each
