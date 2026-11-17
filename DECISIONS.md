@@ -3821,3 +3821,18 @@ linter can apply.
 **Reverse by:** restoring `python-toolchain`'s `select` line, the paragraph naming the codes, rule 3
 and the linter bullet under `## Other bindings` as of `95c59c9`, and restoring `.claude/backlog.md` —
 item 111, the ECC intro's count and item 112's sentence on 111 — as of the same commit.
+
+### D204 — The proposed backlog is triaged: one change reviewer stays, a new hook first only logs
+Taken by the maintainer (2026-11-18), deciding every proposed backlog item at once, each as done, closed
+or waiting, so that no proposal stays open without a decision. Item 116, a second `change-reviewer` in
+`/implement`'s review step, closes: eight repeated runs on the calibration diffs reached neither of its
+known misses (D10 0 of 3, D12 0 of 3), so those are the lens questions' limit, which a repeat does not
+reach; the extra findings the repeats did add are unverified; a second finder and a judge would roughly
+double the step's cost; and the Claude Code team's own account argues for tuning the one reviewer over
+adding a second. One finder stays, as D192 set it, and the known misses go to 118, a project's own
+checks. Its seven unverified findings are not checked. Item 120, a new hook that first only logs, folds
+into 117, the only hook agreed to ship. Items 108, 109 (option a only), 112, 113, 115, 117, 118 and 119
+are agreed, in the order the backlog states; 110 and 114 wait for 108's harness, 121 for a rewrite
+through `/implement`, and 87 still for defects found after landing.
+
+**Reverse by:** restoring `.claude/backlog.md` as of `ba09256`.

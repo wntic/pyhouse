@@ -3,18 +3,23 @@
 Each entry is **Proposed** (awaiting the maintainer's decision) or **Agreed** (decided, not yet done).
 Remove an entry in the change that does it; record the decision in `DECISIONS.md` as usual.
 
+## Proposed
+
+None. Every item proposed up to 121 was decided on 2026-11-18 (D204): 116 closed, 120 folded into 117,
+the rest agreed below.
+
 ## Agreed
 
-87 waits until there are defects found after a change landed to run it on. Every other item has
-landed or was closed (D130–D178, D191, D192, D195–D198, D201).
+Taken in this order: 113, 109, 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found
+after a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D204).
 
 ### 87. A retrospective over released changes
+**Waits** for defects found after a change landed.
 `/retro`: the defects found after a change landed, which check each escaped, and the rule or test that
 would close it — the loop D186 was the first output of. Deferred (D192) until such defects exist: in
 the repository it would run on, most defects testing will find predate the pipeline, and half its
 steps are gone.
-
-## Proposed
 
 108–110 come from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
 2.2.3), a multi-language agent kit of 71 agents and 314 skills, compared with the catalogue on
@@ -26,6 +31,9 @@ catalogue in many places — `Optional[X]`, an HTTP status on the exception clas
 are what survived, with a fourth, 111, closed as D202 and D203.
 
 ### 108. A harness that measures whether an agent follows a skill under a naive prompt
+**Agreed, fifth.** The prompt set lives in `tools/` beside the runner, so runs stay comparable across
+releases, and raw outputs go to `.sources`; it runs on Opus; its first use re-runs D178 on the catalogue
+as it is.
 ECC's `skills/skill-comply` (`SKILL.md`, `prompts/`, `scripts/runner.py`) generates, for one skill or
 rule, the behaviour it expects as 3–7 ordered steps, then one task at three prompt strictness levels —
 supportive ("use TDD to implement …"), neutral (the task only), and competing ("quickly implement …,
@@ -40,11 +48,11 @@ skills loaded and whether each loaded before the first `Write`/`Edit` — the pa
 a model — leaving what the code looks like to be read, as D182 did. Not taken from ECC: its LLM
 classifier of tool calls (the catalogue's question is the structure written, not the call sequence), its
 auto-generated scenarios (a fixed set is what makes runs comparable across releases), and its "promote
-to hook below 60% compliance" advice. Open: whether the prompt set lives in `tools/` or in `.sources`;
-which model it runs on, given that Haiku is not evidence; and whether its first use is to re-run D178 now
-that the catalogue has 53 skills.
+to hook below 60% compliance" advice.
 
 ### 109. An agent bypasses the commit-msg hook with `--no-verify`
+**Agreed, second: option (a) only.** The hook's rejection text keeps the bypass, which D65 put there for
+the person; (b) and (c) wait for a second bypass.
 ECC ships a PreToolUse hook, `scripts/hooks/block-no-verify.js:3-6`, that "blocks git hook-bypass flags
 (--no-verify, -c core.hooksPath=) to protect pre-commit, commit-msg, and pre-push hooks from being
 skipped by AI agents". The catalogue's own run shows the case: in the hand-over for spec 064 "the agent
@@ -61,10 +69,11 @@ deleted rather than fixed — so any remedy leaves the human's bypass open. Opti
 fixed or reported, never bypassed; (b) `/implement` re-runs the installed `commit-msg` over every
 message on the branch before the review, catching rather than forbidding, as D190 prefers; (c) a
 PreToolUse hook in `plugins/pyhouse-git/hooks/` (the directory D65 keeps free for one), which binds the
-agent only and is still evaded by a script or `git commit-tree`. Open: whether the hook's rejection text
-should stop advertising the bypass, given that D65 put it there for the person.
+agent only and is still evaded by a script or `git commit-tree`.
 
 ### 110. Which failures a retry repeats, and which calls it may repeat
+**Waits for 108.** Tried on a short prompt first: a rule only if Opus, unprompted, retries a rejection
+or repeats a write that is not idempotent.
 ECC states it in `skills/error-handling/SKILL.md:376` — "Retry logic only retries retriable errors (not
 4xx client errors)" — with `retryIf` at `:343`, and breaks it itself in
 `skills/backend-patterns/SKILL.md:318-340`, a retry around every error. The catalogue states only where a
@@ -81,6 +90,8 @@ caller that retries — or one sentence beside each family's placement rule. Ope
 has shown the defect yet, and a defect becomes a rule; whether the generality alone earns it.
 
 ### 112. A security review before a service is first exposed to the internet
+**Agreed, seventh, as research:** the comparison and one trial run below, before anything is written
+here. The likely outcome is a third-party skill installed beside the catalogue rather than one it ships.
 The maintainer builds web applications and other services that will be reachable by anyone on the
 internet, and a service an agent wrote in a short time is an easy target. Wanted: a check of the code
 for security before its first deploy. The catalogue has nothing for this — `/pyhouse-universal:change-review`
@@ -102,6 +113,8 @@ validated at the boundary, secrets never in the repository), which existing skil
 many agents a run costs against the two the delivery pipeline settled on.
 
 ### 113. How much context the catalogue's listing takes now
+**Agreed, first.** The change updates the stale figures; the `/context` measurement is the maintainer's to
+run, since the command is interactive.
 The maintainer remembers that the descriptions passed the default listing budget (1% of the context
 window, ~10k tokens) and that the budget was raised to 2% (~20k). Measured from the frontmatter on
 2026-11-17: 53 skill descriptions are 41,362 characters (~10,300 tokens at four characters a token), 11
@@ -119,6 +132,8 @@ beside it; and whether the size matters beyond D178's finding that names carry t
 listing is paid on every session, and D178 did not measure what the agent then wrote.
 
 ### 114. A read, a decision in code and a write back lose a concurrent update
+**Waits for 108.** 115's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
+unprompted.
 Found by reading `kleppmann-ddia` — a skill the maintainer generated on 2026-11-15 with
 `book-to-skill` (github.com/virgiliojr94/book-to-skill) from Martin Kleppmann's *Designing
 Data-Intensive Applications* (O'Reilly, 2017), kept outside the catalogue — against `persistence`. Its
@@ -140,6 +155,9 @@ that no generated service has shown the defect yet. The same chapter (line 32) a
 transient and permanent errors, which supports 110.
 
 ### 115. Books as evidence for the catalogue, never shipped in it
+**Agreed, third:** a decision record that a book skill does not ship and serves as a lens, and the
+procedure with its five filters written down in `.sources`. The candidates below wait for 108, which
+filter 5 needs.
 The maintainer generated two skills from books with `book-to-skill` — `khononov-coupling` (Vlad
 Khononov, *Balancing Coupling in Software Design*) and `kleppmann-ddia` (above) — and asked whether they
 belong in the catalogue. Judged 2026-11-17: the summaries are accurate where they could be checked, but
@@ -175,37 +193,10 @@ deploy old and new versions read each other's messages — `extra="ignore"` appe
 classes, and the owner would be `coupling` or `at-least-once-delivery`. A client-chosen id with a unique
 constraint for effectively-once looks covered by `at-least-once-delivery` rule 6. Fewer are expected
 from `khononov-coupling`, since `coupling` is built on that book; its rebalancing and case-study chapters
-(`ch11`, `ch13`) are where a gap would be. Open: whether the procedure is written down (in `.sources`, or
-as a maintainer command), and which books come next.
-
-### 116. A second `change-reviewer` in `/implement`'s review step
-Asked by the maintainer (2026-11-16): whether the review step gains from two find runs, with a third
-agent confirming or refuting their findings. The verifier half was tried and removed — it refuted none
-of 13 calibration findings nor any in 17 `/implement` runs (D187, D192) — so the question is the second
-finder. Measured 2026-11-16/17, 8 headless Opus runs of the v0.35.0 `/change-review` on three producer
-diffs from the 2c calibration (`.sources/delivery/steps/2-review/calibration-2d.md`, raw outputs in
-`raw/cal-out-2d/`). Repeats did not catch what calibration missed: D10 0 of 3, D12 0 of 3, so those
-misses are the lens questions' limit, not a run's chance. The other findings did differ between runs:
-on the 44-file diff three findings recurred in every run and one run added two more Important ones; on
-the 232-file diff four distinct serious findings appeared, each run seeing one or two; on the clean
-diff one run found an Important weakened test the other did not. Duplicates across runs are obvious, so
-a judge would mostly merge. None of the extra findings is verified, and none is fixed at the producer's
-current head. The runs cost $35.97, $4.50 each against $2.64 in 2c, about 40% of a five-hour window by
-2c's ratio; two finders and a judge would make the step about $9–14 a feature. To do: the maintainer
-checks the seven extra findings and the recurring core against the producer, then decides — mostly real
-earns a second finder, at least on large diffs; mostly false keeps one (D192). Open: whether a second
-finder is worth its cost when the review's known misses are ones a repeat does not reach.
-
-The Claude Code team's account of its own verification (claude.dev, 2026-11-16; see 118) argues against
-the second finder: "Adding a second, more expensive, reviewer on top of the primary one is often a worse
-approach than tuning the primary", the primary tuned by a file of what to look at in this code. That is
-an account of their setup, not a measurement of ours, and it fits what 2d found — the known misses are
-the questions' limit, which a repeat does not reach and a project-specific check might (118). It also
-names a discipline the calibration lacks: a tuning set kept apart from the fixed set the reviewer is
-judged on. The lens questions were tuned on the same calibration diffs they are now measured on, so a
-decision taken here should be checked on diffs held out from that tuning.
+(`ch11`, `ch13`) are where a gap would be. Open: which books come next.
 
 ### 117. The guard that keeps an agent out of secret files, shipped as a plugin hook
+**Agreed, fourth, with 120:** a plugin of its own, its first release only logging.
 Asked by the maintainer (2026-11-17), after copying env files into worktrees by hand for every spec run
 in parallel: agents were refused by a PreToolUse hook that lives outside the catalogue, in two copies
 kept by hand (user settings and one repository's `.claude/`). It refuses any Bash command whose text
@@ -228,26 +219,42 @@ ignore list rarely covers `.env.local` or `.env.bak`) and absent. Refused: readi
 `rm -r` on a directory that holds one. Acceptance: the recorded commands — every value read still
 refused, the false positives gone.
 
-Proposed: ship it as a plugin's `hooks/hooks.json`, versioned like any change here. A plugin's hooks
+Agreed: ship it as a plugin's `hooks/hooks.json`, versioned like any change here. A plugin's hooks
 run once it is enabled, so `/pyhouse:setup` installs nothing for it, and the hand-kept copies are
-deleted. Open: which plugin — not `pyhouse`, which holds no rule. A plugin of its own outside the skill
-graph, like `pyhouse-git`, since dotenv files are not Python's, `pyhouse` depending on it; it can then
-be disabled alone, and a plugin's hook cannot be switched off without its plugin. Or
-`pyhouse-delivery`, whose rules the hook enforces — but those rules must change with it: `delivery-spec`
-rule 7 sends "handling a secret" and any edit of a file of secrets to the person as a script, which an
-agent that may copy and edit without reading no longer needs. Also open: whether "an agent never reads
-a file of secrets" belongs in a universal skill (`python-settings` owns the secret) rather than only in
-delivery's two rules.
+deleted. The plugin is one of its own outside the skill graph, like `pyhouse-git`, since dotenv files
+are not Python's, with `pyhouse` depending on it; it can then be disabled alone, since a plugin's hook
+cannot be switched off without its plugin. Not `pyhouse`, which holds no rule, and not
+`pyhouse-delivery`, though its rules change with it: `delivery-spec` rule 7 sends "handling a secret" and
+any edit of a file of secrets to the person as a script, which an agent that may copy and edit without
+reading no longer needs. Decided while it is built: whether "an agent never reads a file of secrets"
+belongs in a universal skill (`python-settings` owns the secret) rather than only in delivery's two
+rules.
+
+Its first release only logs what it would refuse (120, folded in here). The article's team (118) starts
+a new gate in an observe mode that "will log what would have been blocked, so that we can review any
+false positives", before an enforce mode that blocks. The acceptance above replays recorded commands,
+which shows only the false positives already seen; the 359 refusals showed agents dropping a step
+silently or hiding the token after one, which an observe phase shows before any work is lost. So the
+hook has a mode that only logs, chosen in the user's settings, run in the producer for a week of
+ordinary work and its log compared with the labels in `.sources/delivery/runs/2026-11-17-env-hook.md`
+before it enforces. The article's give-up valve — a commit let through after two refusals "so Claude
+doesn't get stuck" — is not taken: letting the third read through is the leak. Decided while it is
+built: how a plugin hook reads its mode, an environment variable in settings or a file; and whether the
+commit-msg hook (D65) gains the same mode. 109's option (c), if it is ever taken, starts the same way.
 
 ### 118. A project's own review checks, each triggered by the diff and read from the base
-118–121 come from "How the Claude Code team thinks about verification" (Addy Osmani, claude.dev,
-2026-11-16; a copy and the comparison with the catalogue are in `.sources/articles/` and
-`.sources/research/2026-11-17-verification-article.md`). Much of the article is already here: three runs
-then a person (D194), a flaky failure never retried or skipped (`delivery-implementer`), no sleeping in a
-test (`test-principles` reliability rule 3), cheap checks before the review, a review tied to commits,
-Important / Nit / Pre-existing. It is one team's practice on a different setup — a hosted reviewer, CI,
-hundreds of agents — with one number behind it, so **each item below is decided only after it is tried
-on ours**: the producer and the second project, Opus, and the calibration in `.sources/delivery/steps/2-review/`.
+**Agreed, eighth:** the experiment in the producer below first; code in the catalogue only if it shows a
+gain.
+
+118, 119 and 121 — and 120, now part of 117 — come from "How the Claude Code team thinks about
+verification" (Addy Osmani, claude.dev, 2026-11-16; a copy and the comparison with the catalogue are in
+`.sources/articles/` and `.sources/research/2026-11-17-verification-article.md`). Much of the article is
+already here: three runs then a person (D194), a flaky failure never retried or skipped
+(`delivery-implementer`), no sleeping in a test (`test-principles` reliability rule 3), cheap checks
+before the review, a review tied to commits, Important / Nit / Pre-existing. It is one team's practice on
+a different setup — a hosted reviewer, CI, hundreds of agents — with one number behind it, so **each item
+below is decided only after it is tried on ours**: the producer and the second project, Opus, and the
+calibration in `.sources/delivery/steps/2-review/`.
 
 The article's team keeps a reliability checklist of 39 items, "each with a trigger that can be read from
 a diff, a check, and the incidents or PRs behind it"; the reviewer reads the diff and runs only the items
@@ -257,8 +264,8 @@ three finders are replayed on the incident's change, and a bug at least two find
 on a small diff earns a rule. `change-reviewer` has nowhere to put what a project learned: its lenses are
 fixed, and it reads no project file. The catalogue's skills do not fill that gap, since a project's past
 outage — a field older records lack, a consumer outside the repository — is not an obligation of any
-family. 116's misses (D10, D12) are the case: a repeat does not reach them, and a check written for them
-might. 87 (`/retro`) would be the producer of such items.
+family. The 2d calibration's misses (D10, D12) are the case: repeated runs did not reach them (D204),
+and a check written for them might. 87 (`/retro`) would be the producer of such items.
 
 Proposal: `change-reviewer` reads a project's file of checks — trigger, check, the incident behind it —
 taken from the change's base commit, never from the change, and in find mode answers only the checks
@@ -271,6 +278,7 @@ contradicts "a review artifact states none of its own" (CLAUDE.md) — it states
 catalogue's; and whether `/implement` passes the base or the reviewer finds it.
 
 ### 119. How to start and drive a service, written once in the project
+**Agreed, sixth:** the count from the timelines first, then decided on its numbers.
 The article's practice is a skill named `verify` in the repository's `.claude/skills/` that says how to
 start the app and drive it, which the agent uses before committing and which the team makes "fast and
 reliable" as its smoke-test harness. `delivery-implementer`'s live check works the same thing out afresh
@@ -286,21 +294,9 @@ and compare three specs. Open: a project skill, a section of the project's agent
 script; whether `/pyhouse:setup` offers to write it; and whether a change may correct it freely, like a
 new decision record (D197), or only with consent, as a check that guards the repository.
 
-### 120. A new hook starts by logging what it would refuse
-The article's team starts a new gate in an observe mode that "will log what would have been blocked, so
-that we can review any false positives", before an enforce mode that blocks; enforce also lets a commit
-through after two refusals in a session "so Claude doesn't get stuck". Two items here would ship a hook
-that refuses at once: 117's rewritten secret-file guard and 109's option (c). 117's acceptance replays
-recorded commands, which shows only the false positives already seen; its 359 refusals showed agents
-dropping a step silently or hiding the token after one (117), which an observe phase would show before any
-work is lost. Proposal: a hook the catalogue ships has a mode that only logs, chosen in the user's
-settings, and its first release runs in it. The give-up valve is not taken for a guard of secrets: letting
-the third read through is the leak. To test before deciding: run 117's rewrite in the producer in the
-logging mode for a week of ordinary work and compare its log with the labels in
-`.sources/delivery/runs/2026-11-17-env-hook.md`. Open: how a plugin hook reads its mode — an environment
-variable in settings, or a file; and whether the commit-msg hook (D65) gains the same mode.
-
 ### 121. A change that promises unchanged behaviour is checked against the code it replaces
+**Waits** for a rewrite of a generated service through `/implement`; until one is done, how often a
+rewrite goes that way is unknown.
 The article's third test type is differential: "run both the old system and the new system with the same
 inputs and see if you get different results", the inputs generated or sampled from production, irrelevant
 differences such as whitespace normalised, and intended differences kept as a list. The catalogue's first
