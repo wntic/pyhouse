@@ -3800,4 +3800,24 @@ skill (`meta-skill-author` rule 7).
 change whole" and end "blocking the code still serving.", the sentence of rule 20 that begins "A revision
 that changes only rows", and " and the data change's own revision" from its properties table; restoring
 `hex-persistence`'s routing line and hard stop on a data-only migration as of `cffc47f`; and restoring
-backlog item 111 as of the same commit.
+backlog item 111's data-migration half as of the same commit.
+
+### D203 — The linter selects six security rules, not the security family
+Agreed with the maintainer 2026-11-17, closing the security-lint half of backlog 111. `python-toolchain`
+rule 3 kept the selection narrow with no security rule and no decision saying why. Ruff's whole `S`
+family, run over the catalogue's 159 python blocks, reported 105 `S101` (an `assert`, in every test) and
+4 `S603`/`S607` (a fixed argument list in a test fixture) and nothing true. Taking the family means
+either exempting `tests`, which breaks rule 2's parity, or a `noqa` in the templates, which rule 5's
+closed list forbids. So the selection names six rules, as it names two from bugbear: `S102` `exec`,
+`S307` `eval`, `S301` unpickling, `S506` a YAML load that constructs objects, and `S602` and `S605` a
+process started through a shell — `subprocess` with `shell=True`, or `os.system` and `os.popen` — each
+a call that runs code or a command from its input, none firing on the catalogue's templates nor on the
+maintainer's projects. `S608`, SQL built from a string, was proposed and left out: over the maintainer's
+two real projects it reported 46 lines and every one interpolated a trusted constant, a table name, into
+SQL text — mostly in tests against a store with no query builder — and rule 5 leaves no way to keep such
+a line but to rewrite it. Path traversal, the other item of the list that prompted this, has no rule a
+linter can apply.
+
+**Reverse by:** restoring `python-toolchain`'s `select` line, the paragraph naming the codes, rule 3
+and the linter bullet under `## Other bindings` as of `95c59c9`, and restoring `.claude/backlog.md` —
+item 111, the ECC intro's count and item 112's sentence on 111 — as of the same commit.
