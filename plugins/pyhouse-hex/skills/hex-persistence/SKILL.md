@@ -41,8 +41,8 @@ instead. The store profile decides which applies (`hex-conventions` block B).
 - An external write undone when a later store write fails (compensation) → `hex-application`.
 - The exception classes the translator raises → `exception-catalog`.
 - The integration test that drives this adapter against a real database → `hex-test-repository-contract`.
-- A data-only migration (`backfill_*`, `seed_*`) with no DDL → its own revision file; this skill covers
-  DDL only.
+- A backfill or another change to rows already stored → `persistence` rule 19, which says when it is a
+  revision of its own and when it runs; the revision templated here changes the schema only.
 - Asked for an ORM, a declarative base or relationships → still this skill: the templates here
   are Core, and an ORM project satisfies the rules here and `persistence`'s through the ORM bullet under
   `## Other bindings`; do not copy a Core template into a mapped class.
@@ -175,5 +175,3 @@ environment import it from its module (`from ..metadata import metadata`,
   compensation in `hex-application`, not a unit of work.
 - Asked to mint an id inside the repository → stop, use `hex-application`, which owns the identity
   scheme (Command handler rule 6) and its one store-minted exception.
-- The change includes a data migration (`backfill_*`, `seed_*`) → stop, that is a separate revision
-  file; this skill covers DDL only.
