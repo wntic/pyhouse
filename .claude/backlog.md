@@ -213,3 +213,37 @@ current head. The runs cost $35.97, $4.50 each against $2.64 in 2c, about 40% of
 checks the seven extra findings and the recurring core against the producer, then decides — mostly real
 earns a second finder, at least on large diffs; mostly false keeps one (D192). Open: whether a second
 finder is worth its cost when the review's known misses are ones a repeat does not reach.
+
+### 117. The guard that keeps an agent out of secret files, shipped as a plugin hook
+Asked by the maintainer (2026-11-17), after copying env files into worktrees by hand for every spec run
+in parallel: agents were refused by a PreToolUse hook that lives outside the catalogue, in two copies
+kept by hand (user settings and one repository's `.claude/`). It refuses any Bash command whose text
+contains the dotenv token and any Read or Grep of such a path. The 359 refusals in the producer's
+transcripts (2026-10-16 … 11-13, `.sources/delivery/runs/2026-11-17-env-hook.md`): 15 (4%) read values,
+the hook's purpose, nearly all a non-secret URL, list or setting; the rest read nothing — the name in a
+grep pattern, an exclusion, a document edit or a jsonpath (176), an existence or gitignore check (64), a
+template other than exactly `.env.example` (36), loading into a process (29), a key edit or a copy (24).
+After a refusal agents dropped the step silently (31) or hid the token (11); subagents never escalated
+once. Worktrees were made without their env files and removed without comparing them. The hook misses
+reads all the same — a heredoc with a redirect, `$(…)` inside a commit message — and every destruction
+that does not name the file: `>` over an existing one, `git clean -x`, `git worktree remove --force`.
+
+Decided with the maintainer, the rewrite refuses reading content and destroying a file, never naming
+it. Allowed: a mention, an existence check, any `*.example`, appending, editing keys in place, loading
+into a process unless the command prints values (`docker compose … config`, `… exec … env`), and a copy
+or move whose target is dotenv-named, git-ignored (checked, not inferred from the name — a project's
+ignore list rarely covers `.env.local` or `.env.bak`) and absent. Refused: reading content; `rm`; `>`,
+`truncate`, `cp` or `mv` over an existing file; `git clean -x`/`-X`; `git worktree remove --force` and
+`rm -r` on a directory that holds one. Acceptance: the recorded commands — every value read still
+refused, the false positives gone.
+
+Proposed: ship it as a plugin's `hooks/hooks.json`, versioned like any change here. A plugin's hooks
+run once it is enabled, so `/pyhouse:setup` installs nothing for it, and the hand-kept copies are
+deleted. Open: which plugin — not `pyhouse`, which holds no rule. A plugin of its own outside the skill
+graph, like `pyhouse-git`, since dotenv files are not Python's, `pyhouse` depending on it; it can then
+be disabled alone, and a plugin's hook cannot be switched off without its plugin. Or
+`pyhouse-delivery`, whose rules the hook enforces — but those rules must change with it: `delivery-spec`
+rule 7 sends "handling a secret" and any edit of a file of secrets to the person as a script, which an
+agent that may copy and edit without reading no longer needs. Also open: whether "an agent never reads
+a file of secrets" belongs in a universal skill (`python-settings` owns the secret) rather than only in
+delivery's two rules.
