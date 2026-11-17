@@ -214,6 +214,15 @@ checks the seven extra findings and the recurring core against the producer, the
 earns a second finder, at least on large diffs; mostly false keeps one (D192). Open: whether a second
 finder is worth its cost when the review's known misses are ones a repeat does not reach.
 
+The Claude Code team's account of its own verification (claude.dev, 2026-11-16; see 118) argues against
+the second finder: "Adding a second, more expensive, reviewer on top of the primary one is often a worse
+approach than tuning the primary", the primary tuned by a file of what to look at in this code. That is
+an account of their setup, not a measurement of ours, and it fits what 2d found — the known misses are
+the questions' limit, which a repeat does not reach and a project-specific check might (118). It also
+names a discipline the calibration lacks: a tuning set kept apart from the fixed set the reviewer is
+judged on. The lens questions were tuned on the same calibration diffs they are now measured on, so a
+decision taken here should be checked on diffs held out from that tuning.
+
 ### 117. The guard that keeps an agent out of secret files, shipped as a plugin hook
 Asked by the maintainer (2026-11-17), after copying env files into worktrees by hand for every spec run
 in parallel: agents were refused by a PreToolUse hook that lives outside the catalogue, in two copies
@@ -247,3 +256,80 @@ rule 7 sends "handling a secret" and any edit of a file of secrets to the person
 agent that may copy and edit without reading no longer needs. Also open: whether "an agent never reads
 a file of secrets" belongs in a universal skill (`python-settings` owns the secret) rather than only in
 delivery's two rules.
+
+### 118. A project's own review checks, each triggered by the diff and read from the base
+118–121 come from "How the Claude Code team thinks about verification" (Addy Osmani, claude.dev,
+2026-11-16; a copy and the comparison with the catalogue are in `.sources/articles/` and
+`.sources/research/2026-11-17-verification-article.md`). Much of the article is already here: three runs
+then a person (D194), a flaky failure never retried or skipped (`delivery-implementer`), no sleeping in a
+test (`test-principles` reliability rule 3), cheap checks before the review, a review tied to commits,
+Important / Nit / Pre-existing. It is one team's practice on a different setup — a hosted reviewer, CI,
+hundreds of agents — with one number behind it, so **each item below is decided only after it is tried
+on ours**: the producer and the second project, Opus, and the calibration in `.sources/delivery/steps/2-review/`.
+
+The article's team keeps a reliability checklist of 39 items, "each with a trigger that can be read from
+a diff, a check, and the incidents or PRs behind it"; the reviewer reads the diff and runs only the items
+whose trigger matches, usually 3 to 10. The rules that gate a change are read "from the base or default
+branch, never from the pull request's changes". A missed bug becomes such an item when it is detectable:
+three finders are replayed on the incident's change, and a bug at least two find that the reviewer missed
+on a small diff earns a rule. `change-reviewer` has nowhere to put what a project learned: its lenses are
+fixed, and it reads no project file. The catalogue's skills do not fill that gap, since a project's past
+outage — a field older records lack, a consumer outside the repository — is not an obligation of any
+family. 116's misses (D10, D12) are the case: a repeat does not reach them, and a check written for them
+might. 87 (`/retro`) would be the producer of such items.
+
+Proposal: `change-reviewer` reads a project's file of checks — trigger, check, the incident behind it —
+taken from the change's base commit, never from the change, and in find mode answers only the checks
+whose trigger the diff matches, each finding still standing on its scenario (D187). Not a rule set of the
+catalogue's: the file is the project's, written by its owner. To test before deciding: write checks for
+D10 and D12 in the producer, rerun `/change-review` on the three 2d diffs with and without the file, and
+count what is found, what is newly over-flagged on the clean diff, and the cost; then try it on one diff
+that played no part in writing the checks. Open: where the file lives and what it is called; whether it
+contradicts "a review artifact states none of its own" (CLAUDE.md) — it states the project's, not the
+catalogue's; and whether `/implement` passes the base or the reviewer finds it.
+
+### 119. How to start and drive a service, written once in the project
+The article's practice is a skill named `verify` in the repository's `.claude/skills/` that says how to
+start the app and drive it, which the agent uses before committing and which the team makes "fast and
+reliable" as its smoke-test harness. `delivery-implementer`'s live check works the same thing out afresh
+each time — step 1: "Work out from the project how to start it: its agent instructions, its compose or
+task files, its entrypoints" — and the spec's **How to see it working** says only what to do to the
+change, not how to bring the service up. A feature took 24 to 64 minutes to hand-over (D195); how much of
+that went to finding out how to start the service has not been counted. Proposal: the project keeps one
+description of how to start the fewest services and drive them through their public surface, which the
+live check reads first and reports as wrong where it was. To test before deciding: count from the
+producer's timelines (`.sources/delivery/runs/timelines/`) the turns and minutes each live check spent
+on starting the service and how often it failed to; then write the description by hand in the producer
+and compare three specs. Open: a project skill, a section of the project's agent instructions, or a
+script; whether `/pyhouse:setup` offers to write it; and whether a change may correct it freely, like a
+new decision record (D197), or only with consent, as a check that guards the repository.
+
+### 120. A new hook starts by logging what it would refuse
+The article's team starts a new gate in an observe mode that "will log what would have been blocked, so
+that we can review any false positives", before an enforce mode that blocks; enforce also lets a commit
+through after two refusals in a session "so Claude doesn't get stuck". Two items here would ship a hook
+that refuses at once: 117's rewritten secret-file guard and 109's option (c). 117's acceptance replays
+recorded commands, which shows only the false positives already seen; its 359 refusals showed agents
+dropping a step silently or hiding the token after one (117), which an observe phase would show before any
+work is lost. Proposal: a hook the catalogue ships has a mode that only logs, chosen in the user's
+settings, and its first release runs in it. The give-up valve is not taken for a guard of secrets: letting
+the third read through is the leak. To test before deciding: run 117's rewrite in the producer in the
+logging mode for a week of ordinary work and compare its log with the labels in
+`.sources/delivery/runs/2026-11-17-env-hook.md`. Open: how a plugin hook reads its mode — an environment
+variable in settings, or a file; and whether the commit-msg hook (D65) gains the same mode.
+
+### 121. A change that promises unchanged behaviour is checked against the code it replaces
+The article's third test type is differential: "run both the old system and the new system with the same
+inputs and see if you get different results", the inputs generated or sampled from production, irrelevant
+differences such as whitespace normalised, and intended differences kept as a list. The catalogue's first
+use is the maintainer rewriting a service an agent wrote — one or two modules of a thousand lines — into
+a family's layout, a change whose promise is that nothing a caller sees changes. Nothing in
+`pyhouse-delivery` or `test-principles` speaks of such a change: a search of `plugins/` for "refactor",
+"restructure" and "unchanged" finds no rule (2026-11-17). The tests the rewrite writes come from the new
+code's shape, and the old code usually has none, so a behaviour lost in the move passes them. Candidate
+obligation, without mechanism: where a change's goal is unchanged behaviour, its check runs the old and
+the new code on the same inputs and compares what each leaves behind, with every intended difference
+named in the spec. To test before deciding: restructure one real generated service with `/implement`
+twice, with and without that check, and count the behaviour differences each run leaves that its tests
+do not catch. Open: whether it is `delivery-spec`'s (a spec form whose goal is "unchanged") or
+`test-principles`'s; and how often a rewrite really goes through `/implement` rather than by hand.
