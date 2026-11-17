@@ -52,7 +52,7 @@ before reading the rules:
 | a conditional or conflict-resolving write — a conflict clause, a `MERGE`, a conditional put | rule 15 — resolution is then the store's merge-time mechanism (rule 17), and rule 16 needs a single writer per key |
 | a schema this program owns | rules 10–13, 19, 20 — they are the owner's; the program declares only what it reads, with the owner's types (rule 23), and carries no migration history for it |
 | a schema versioned by migrations | rules 19, 20 |
-| two versions of the program running against it at once — a rolling deploy, or processes of different releases sharing one store | rule 19's expand-then-contract split — a single process upgrades the store where it starts, before its first statement, and one revision carries the whole change; such a program refuses to open a store stamped with a revision it does not know |
+| two versions of the program running against it at once — a rolling deploy, or processes of different releases sharing one store | rule 19's expand-then-contract split and the data change's own revision — a single process upgrades the store where it starts, before its first statement, and one revision carries the whole change; such a program refuses to open a store stamped with a revision it does not know |
 
 **Rules 3–6, 8, 9, 14, 16–18, 21 and 22 hold whatever kind of store it is**, SQL or not — a columnar store,
 a document store, a key-value store or a vendor-managed index. A store answering *no* to every question
@@ -170,23 +170,32 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
 
 ### Schema changes
 
-19. **A migration runs before the new code touches the store — as a deploy step where there is one —
-    and never twice at once.** Where two versions of the program run against one store at once, every
-    schema change is compatible with the code still running, so a change that needs both halves lands in
-    two releases, never in one revision. Expand first — add the table, or the column nullable or with a
-    default the store fills in — while the old code keeps working against it. Contract in a later
-    release, once nothing running reads or writes what is removed or tightened — a column dropped or
-    renamed, a `NOT NULL` added, a constraint narrowed. A column added `NOT NULL` with no default passes
-    a schema diff and a round trip over an empty database, then fails the deploy on a populated table.
-    The migration is applied by an existing tool for the store wherever one fits. A hand-written runner
-    is written only where none does, and does what a tool would — records each applied version in the
-    store itself, applies in order, stops at the first failure, and never runs twice at once. That
-    exclusion is a lock the store or the migration tool provides, or else one dedicated job per deploy,
-    never a run from every replica at start-up.
+19. **A migration runs before the new code touches the store — as a deploy step where there is one — and
+    never twice at once.** Where two versions of the program run against one store at once, every schema
+    change is compatible with the code still running, so a change that needs both halves lands in two
+    releases, never in one revision. Expand first — add the table, or the column nullable or with a
+    default the store fills in — while the old code keeps working against it. Contract in a later release,
+    once nothing running reads or writes what is removed or tightened — a column dropped or renamed, a
+    `NOT NULL` added, a constraint narrowed. A column added `NOT NULL` with no default passes a schema
+    diff and a round trip over an empty database, then fails the deploy on a populated table. Asked for
+    such a change whole, the change delivers its first release — the expand and the code that writes the
+    new shape — and names what each later one carries: a revision runs with the deploy that ships it, so a
+    later one committed beside the expand runs with it. **Where two versions run at once, a change to rows
+    already stored — a backfill, a correction — is a revision of its own, never one that changes the
+    schema**, and runs once every running version writes the new shape: in a release after the expand, at
+    the latest just ahead of the contract that relies on it. Run in the expand's revision it misses every
+    row the old code writes after it, and where the store applies a revision in one transaction it holds
+    the schema change's lock for as long as it runs, blocking the code still serving. The migration is
+    applied by an existing tool for the store wherever one fits. A hand-written runner is written only
+    where none does, and does what a tool would — records each applied version in the store itself,
+    applies in order, stops at the first failure, and never runs twice at once. That exclusion is a lock
+    the store or the migration tool provides, or else one dedicated job per deploy, never a run from every
+    replica at start-up.
 20. **Each schema change is one new revision whose downgrade reverses its upgrade, in the opposite
     order, and a round trip proves it, on a chain rooted at its first real revision.** The suite runs the history up, down to the base and up again
-    against a real store; a downgrade nothing runs is a reverse path nobody has proven. A later change is
-    a new revision, never an edit to a shipped one, and a revision a tool generated is a draft, reviewed
+    against a real store; a downgrade nothing runs is a reverse path nobody has proven. A revision that
+    changes only rows reverses what it can and is otherwise a no-op, never a refusal: the round trip runs
+    it. A later change is a new revision, never an edit to a shipped one, and a revision a tool generated is a draft, reviewed
     against rule 19 before it is committed. **A new chain is rooted at its first real revision**, with no
     placeholder ahead of it for every store to replay as a no-op. **A baseline exists only over a schema
     that already exists**: that schema's definition frozen by hand the day it is written, never built from the

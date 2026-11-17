@@ -80,18 +80,10 @@ an obligation, without mechanism, in `at-least-once-delivery` — rule 6 widened
 caller that retries — or one sentence beside each family's placement rule. Open: no generated service
 has shown the defect yet, and a defect becomes a rule; whether the generality alone earns it.
 
-### 111. Data migrations in `persistence`, and the security lint family
-Two gaps found on the way, neither from a defect.
+### 111. The security lint family
+A gap found on the way, not from a defect; the data-migration half of this item is D202.
 
-Data migrations: ECC's `skills/database-migrations/SKILL.md:24` — "Schema and data migrations are
-separate — never mix DDL and DML in one migration" — and `:102-125`, a backfill in bounded batches
-rather than one transaction over the table. The catalogue has the separation only in `hex-persistence`
-(`SKILL.md:44`, a routing line; `:178`, a hard stop), with no reason given; `persistence` rules 19–20
-and `flat-persistence` are silent, so a flat service never meets it. That half is placement (lens 2):
-the obligation and its reason move to `persistence`, and `hex-persistence` points at it. The batching
-half is performance and stays out under D196 unless a review finds it.
-
-Security lint: ECC's `agents/python-reviewer.md:28-32` lists SQL or a shell command built from strings,
+ECC's `agents/python-reviewer.md:28-32` lists SQL or a shell command built from strings,
 path traversal, `eval`, unsafe deserialization and YAML's unsafe load. The catalogue states none, and
 `python-toolchain` rule 3 keeps the linter's selection narrow without the security family (ruff's `S`,
 from bandit) and without a decision saying why. The model already knows these and a linter catches most,

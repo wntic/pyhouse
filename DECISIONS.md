@@ -3768,3 +3768,36 @@ that wants every commit green folds the base under `delivery-change-contract` ru
 today's body" and removing its caller sentence, removing the last sentence of `delivery-change-contract`
 rule 7 and ", or the agent's reason one cannot" in `/pyhouse-delivery:implement` step 3, and restoring
 backlog item 107 as of `a676057`.
+
+### D202 — A change to stored rows is a revision of its own, stated in `persistence`
+Taken 2026-11-17, closing the data-migration half of backlog 111. `hex-persistence` kept data changes
+out of its revision twice — a routing line ("a data-only migration … its own revision file; this skill
+covers DDL only") and a hard stop saying the same — with no reason, and `persistence` and
+`flat-persistence` said nothing, so a flat service never met the obligation at all. The obligation holds
+for any store whose schema is versioned and that two versions of a program use at once, so it is
+`persistence`'s, beside the expand-then-contract split it belongs to: rule 19 now says that, where two
+versions run at once, a backfill or a correction is a revision of its own, never one that changes the
+schema, run once every running version writes the new shape — after the expand, at the latest just
+ahead of the contract — because in the expand's revision it misses the rows the old code writes
+afterwards, and on a store that applies a revision in one transaction it holds the schema change's lock
+for as long as it runs. The table of properties binds it, like the split, only there; a single process
+upgrading its store at start still carries the whole change in one revision. Seed data is not named: a
+row inserted into a table the same revision creates has neither of the two failures. Running a backfill
+in bounded batches rather than one statement over the table stays out under D196.
+
+The review added two sentences the new one exposed. Rule 19 said which release each half lands in, but
+not what an agent asked for the whole change delivers, so expand, backfill and contract could be
+committed together and applied by one upgrade before the rollout, failing the old replicas' writes: the
+change now delivers its first release and names what each later one carries. And rule 20's reversing
+downgrade was stated for a schema change only, so a revision changing only rows now reverses what it can
+and is otherwise a no-op, never a refusal, since the round trip runs it.
+
+`hex-persistence`'s routing line now only points at rule 19, and its hard stop is deleted: its remedy
+was to write this skill's own revision differently, which `persistence` rule 19 now governs, not another
+skill (`meta-skill-author` rule 7).
+
+**Reverse by:** removing from `persistence` rule 19 the three sentences that begin "Asked for such a
+change whole" and end "blocking the code still serving.", the sentence of rule 20 that begins "A revision
+that changes only rows", and " and the data change's own revision" from its properties table; restoring
+`hex-persistence`'s routing line and hard stop on a data-only migration as of `cffc47f`; and restoring
+backlog item 111 as of the same commit.
