@@ -1,5 +1,5 @@
 ---
-description: Set this repository up for the pyhouse catalogue in one run — the Python skill table and the branching section in its CLAUDE.md, the agent's authorship line turned off, and the commit-msg hook — by running each pyhouse plugin's own commands in turn
+description: Set this repository up for the pyhouse catalogue in one run — the Python skill table and the branching section in its CLAUDE.md, the agent's authorship line turned off, the commit-msg hook, and the skill-listing budget raised to list every skill — by running each pyhouse plugin's own commands in turn
 argument-hint: "[nothing, or hex | flat — the architecture family the code already follows]"
 ---
 
@@ -7,10 +7,11 @@ Run, in order, the commands that set a repository up for the catalogue, so a per
 and runs one command. Run once per repository, new or existing; running it again updates what the
 earlier run wrote, because every command it runs does.
 
-**This command states no rule and writes no file itself.** Each step is another plugin's command,
-invoked by its name and followed as that command says — its questions, its checks, its stops. Do not
-reproduce any of them here or do their work from memory: load the command and run it. Where one is
-not available, say which plugin is missing and stop.
+**This command states no rule and does no other plugin's work.** Each step but step 6 is another
+plugin's command, invoked by its name and followed as that command says — its questions, its checks,
+its stops. Do not reproduce any of them here or do their work from memory: load the command and run
+it. Where one is not available, say which plugin is missing and stop. Step 6 is this command's own,
+because only the whole catalogue overruns the budget it raises, and no other plugin holds the whole.
 
 ## 1. Check the ground
 
@@ -55,7 +56,23 @@ Its last step offers the hook; that is step 5, so do not ask twice.
 Run `/pyhouse-git:install-commit-hook`, passing `shared` unless the person asked for `local`. It
 checks for hooks and a `core.hooksPath` already in place and asks before touching either.
 
-## 6. Report
+## 6. Raise the skill-listing budget
+
+Claude Code lists every installed skill's description within a budget, a share of the context window,
+and past it keeps only the names of the least-invoked skills. The whole catalogue overruns the default,
+so set the share in the project's `.claude/settings.json`:
+
+```json
+{
+  "skillListingBudgetFraction": 0.03
+}
+```
+
+Merge it into the file step 4 wrote, or create the file where step 4 was skipped, keeping every other
+key. A value already there of 0.03 or more stays as it is. A `.claude/settings.local.json` that sets a
+lower value overrides this file — name it, without editing it.
+
+## 7. Report
 
 One list: each file written or changed and by which step, each value recorded and where it came from,
 the family recorded or that none was, and what every other contributor must run once to enable the
@@ -63,7 +80,3 @@ hook. Name any step skipped and why.
 
 Leave everything uncommitted. Where the person asks for the commit, it is one change of its own, on a
 branch named by the pattern step 4 recorded — or the first commit, in a repository that has none.
-
-The skill-listing budget (`skillListingBudgetFraction` in `.claude/settings.json`) is not written:
-raising it lists every description, but which skill loads was measured not to depend on it. Mention it
-only if the person asks why some skills are listed by name alone.

@@ -10,9 +10,9 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 113, 109, 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found
-after a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
-`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D204).
+Taken in this order: 109, 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
+a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D205).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -112,25 +112,6 @@ a security audit may be a tool rather than a rule set; if obligations come out o
 validated at the boundary, secrets never in the repository), which existing skill owns each; and how
 many agents a run costs against the two the delivery pipeline settled on.
 
-### 113. How much context the catalogue's listing takes now
-**Agreed, first.** The change updates the stale figures; the `/context` measurement is the maintainer's to
-run, since the command is interactive.
-The maintainer remembers that the descriptions passed the default listing budget (1% of the context
-window, ~10k tokens) and that the budget was raised to 2% (~20k). Measured from the frontmatter on
-2026-11-17: 53 skill descriptions are 41,362 characters (~10,300 tokens at four characters a token), 11
-command descriptions 2,513, and 2 agent descriptions 1,474 — about 45,000 characters, ~11,300 tokens,
-before names and the listing's own formatting. `meta-skill-author`'s "Length" section still says
-~38,700, and D178 ~38,300; both are stale. D178 measured the default budget at 30,000 characters, so the
-catalogue alone overruns it by half and the least-invoked skills are listed by name only; the
-`README.md` tells a user to set `"skillListingBudgetFraction": 0.02` to list them all, and `/pyhouse:setup`
-does not set it, since which skill loaded did not depend on it. The maintainer's
-`~/.claude/settings.json` does not carry the setting; where it is set, if anywhere, is unchecked. Other
-installed plugins share the same budget. To do: measure what a session actually spends — `/context` in a
-project with the catalogue and the maintainer's usual plugins installed, at the default and at 0.02 —
-and update the stale figures. Open: whether a 2% budget still holds the catalogue with other plugins
-beside it; and whether the size matters beyond D178's finding that names carry the routing — the
-listing is paid on every session, and D178 did not measure what the agent then wrote.
-
 ### 114. A read, a decision in code and a write back lose a concurrent update
 **Waits for 108.** 115's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
 unprompted.
@@ -165,7 +146,7 @@ they do not ship. They are reference, not obligations, and restate rules the cat
 owner (`coupling` is Khononov's model restated with credit; DDIA overlaps `persistence` and
 `at-least-once-delivery`), so a rule would have two owners. They fire on studying a book, not on writing
 a service, so an agent's output does not change, and the model already knows DDIA well. They would add
-~900 characters to an overrun listing (113). And `khononov-coupling` bundles 22 figures extracted from
+~900 characters to an overrun listing (D205). And `khononov-coupling` bundles 22 figures extracted from
 the PDF beside detailed chapter summaries, which a public marketplace cannot redistribute. Proposal: a
 book skill stays in the maintainer's user scope, or in `.sources` if it is to be versioned, and serves
 as a lens — read beside the owning skill to ask which obligation the book states that the owner lacks,

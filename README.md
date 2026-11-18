@@ -77,7 +77,7 @@ repository, new or existing, run from a Claude Code session at its root:
 Pass the family only once the code already follows it. Without it, the command asks, and offers
 `/choose-architecture` for a new service. It runs each plugin's own command in turn, so each step can
 also be run alone, and running any of them again updates what it wrote rather than adding a second
-copy:
+copy; the last step is its own:
 
 1. **`CLAUDE.md`.** In an existing repository without one, it offers `/init` first, so the sections
    below land in a file that already describes the project; otherwise the adopt commands create a bare
@@ -95,16 +95,15 @@ copy:
    `core.hooksPath` at it, so a malformed message is refused whoever writes it. `core.hooksPath` is
    per-clone: every contributor runs `git config core.hooksPath .githooks` once, so put it in the
    repository's setup script if it has one. Pass `local` instead to try the hook in your clone only.
+6. **The skill-listing budget.** The catalogue overruns Claude Code's default skill-listing budget, past
+   which some skills are listed by name alone, without their description. The command sets
+   `"skillListingBudgetFraction": 0.03` in `.claude/settings.json`, which lists every description with
+   room for other plugins' skills. Which skill an agent loads was measured not to change with it — the
+   names carry the routing — but on a 1M-token window the whole listing costs 3%.
 
 Then **commit the result** — `CLAUDE.md`, `.claude/settings.json` and `.githooks/` — as one change of
 its own, by the branching you just recorded. Check that `.claude/` is not ignored by git: otherwise the
 settings reach no one else.
-
-**The skill-listing budget is optional.** The catalogue takes most of Claude Code's skill-listing
-budget, so with the default some skills are listed by name alone, without their description. That was
-measured not to change which skill an agent loads — the names carry the routing — so no command sets
-it. To list every description anyway, add `"skillListingBudgetFraction": 0.02` to
-`.claude/settings.json` (the default is `0.01`; `0.02` lists the whole catalogue).
 
 ## Which family?
 

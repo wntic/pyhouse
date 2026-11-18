@@ -3836,3 +3836,33 @@ are agreed, in the order the backlog states; 110 and 114 wait for 108's harness,
 through `/implement`, and 87 still for defects found after landing.
 
 **Reverse by:** restoring `.claude/backlog.md` as of `ba09256`.
+
+### D205 — `/pyhouse:setup` raises the skill-listing budget to 0.03
+Measured by the maintainer on 2026-11-18 with `/context`, Opus with a 1M-token window, in a session with
+all six plugins and the usual built-in and synced skills installed, nine synced skills switched off. At
+the default share the skill listing filled its 10k tokens and 32 of the catalogue's 53 skills were
+listed by name alone — 19 of 23 `hex-*`, 8 universal, 5 `flat-*` — with `hex-architecture` described and
+`hex-persistence` not. At 0.02 every description was listed in 19.4k of 20k tokens, the catalogue's
+share about 15.3k; one more skill, or the nine switched-off ones switched back on, would overrun it
+again. Its 41,362 characters of skill descriptions cost about 15k tokens with names and formatting, not
+the ~10k that four characters a token gives.
+
+D178 found which skill loads did not depend on the budget, and `/pyhouse:setup` therefore wrote nothing
+(D183). That finding stands; what changed is the price, 1% or 3% of a 1M-token window, against a
+description that can tell two similarly named skills apart — unmeasured, since D178 did not look at what
+the agent then wrote. So the command now sets `"skillListingBudgetFraction": 0.03` in the project's
+`.claude/settings.json`, committed with the rest of the setup so it reaches every contributor, leaving a
+higher value and naming a lower one in `.claude/settings.local.json`. 0.03 over 0.02 for room beside
+other plugins' skills. Not the user's own settings: a repository's setup does not write outside the
+repository, and reaches only the person who ran it there.
+
+The step is `/pyhouse:setup`'s own, the one step it does not delegate. `pyhouse` holds no rule and
+writes nothing another plugin owns, but no other plugin can own this: only the whole catalogue overruns
+the budget, and `pyhouse-universal` installed alone does not. The figures in `meta-skill-author`'s
+"Length" section were corrected on the same branch. Not measured: whether the listed descriptions change
+what the agent writes, which a harness running naive prompts can answer, and a window other than 1M
+tokens, where 3% is less.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — step 6 of
+`setup.md`, the sixth setup step in `README.md`, and the sentence on the command's own step in
+`CLAUDE.md` and `kickoff.md` go with it.

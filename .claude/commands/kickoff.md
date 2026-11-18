@@ -34,7 +34,8 @@ is implemented from, its claims about today's system checked before any code exi
 implementation — tests from the spec before the code, the gate, one review, one round of fixes — whose
 every edit to what is frozen is caught by a diff. One more plugin, `pyhouse`, holds
 no skill: it installs the others and sets a repository up for them with `/pyhouse:setup`, so adopting
-the catalogue is one install and one command.
+the catalogue is one install and one command; the command's one step of its own raises the
+skill-listing budget the whole catalogue overruns.
 
 The catalogue is written for Claude Code alone: its plugins, commands and skill frontmatter are Claude
 Code's, and nothing is added to serve another agent.
