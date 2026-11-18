@@ -100,8 +100,8 @@ Then **commit the result** — `CLAUDE.md`, `.claude/settings.json` and `.githoo
 its own, by the branching you just recorded. Check that `.claude/` is not ignored by git: otherwise the
 settings reach no one else.
 
-**The skill-listing budget is optional.** The catalogue takes most of Claude Code's skill-listing
-budget, so with the default some skills are listed by name alone, without their description. That was
+**The skill-listing budget is optional.** The catalogue takes more than Claude Code's default
+skill-listing budget, so some skills are listed by name alone, without their description. That was
 measured not to change which skill an agent loads — the names carry the routing — so no command sets
 it. To list every description anyway, add `"skillListingBudgetFraction": 0.02` to
 `.claude/settings.json` (the default is `0.01`; `0.02` lists the whole catalogue).

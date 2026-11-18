@@ -82,10 +82,10 @@ instead.
 - **`description` truncates at 1,536 characters** in the skill listing. That is the ceiling; a
   description is as long as its triggers and routing need, and no shorter cap applies.
 - **The listing has a total budget, a share of the context window** (1% by default,
-  `skillListingBudgetFraction`). Past it, the least-invoked skills' descriptions are dropped and only
-  their names kept. This catalogue's descriptions come to ~38,700 characters, ~760 a skill, enough to
-  pass it. Every character added to one skill's listing is weighed against another skill's description
-  being dropped.
+  `skillListingBudgetFraction`), measured at 30,000 characters. Past it, the least-invoked skills'
+  descriptions are dropped and only their names kept. This catalogue's descriptions come to ~41,400
+  characters, ~780 a skill, more than the default holds, so some are listed by name alone; which skill
+  loads was measured not to change with the budget.
 - Truncation is from the end, so **the trigger leads**. A description that does not fit is rewritten as
   complete sentences to fit, never cut mid-sentence.
 
