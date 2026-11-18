@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.36.0 — 2026-11-18
+
+Plugin versions in this release: `pyhouse-universal` 0.27.0 (from 0.26.0), `pyhouse-hex` 0.15.1 (from
+0.15.0), `pyhouse-git` 0.11.0 (from 0.10.1), `pyhouse-delivery` 0.8.0 (from 0.7.0) and `pyhouse` 0.3.0
+(from 0.2.0); `pyhouse-flat` 0.13.1 is unchanged.
+
+### Added
+
+- **`/pyhouse:setup` raises the skill-listing budget.** With every plugin installed, the catalogue
+  overruns Claude Code's default skill listing, and 32 of its 53 skills were listed by name alone,
+  without their description. The command now sets `"skillListingBudgetFraction": 0.03` in the project's
+  `.claude/settings.json`, which lists every description with room for other plugins' skills; it costs
+  about 3% of a 1M-token context window. A value of 0.03 or more already there is kept, and a lower one
+  in `.claude/settings.local.json`, which overrides the project file, is named for you to change. In a
+  repository you set up before this release, run `/pyhouse:setup` again, or add the key by hand.
+
+### Changed
+
+- **The linter configuration selects six security rules.** `python-toolchain`'s rule selection now
+  refuses `exec` and `eval` (`S102`, `S307`), unpickling (`S301`), `yaml.load` with a loader that can
+  construct arbitrary objects (`S506`), and a process started through a shell — `subprocess` with
+  `shell=True`, `os.system` or `os.popen` (`S602`, `S605`). The rest of the security family is not
+  selected: it fires on a test's `assert`, a fixed argument list and SQL holding a trusted constant. A
+  project whose configuration an agent writes or updates from this skill gets the six; existing code
+  that makes one of these calls then fails the lint, and since no suppression is sanctioned for them, the
+  call is rewritten — a safe loader, an argument list without a shell — rather than silenced.
+- **A change to stored rows is a migration revision of its own.** Where two versions of a program run
+  against one store at once, `persistence` now has a backfill or a correction of stored rows written as
+  its own revision, never inside one that changes the schema, and run once every running version writes
+  the new shape — after the expand, at the latest just before the contract that relies on it. Run with
+  the expand, it misses the rows the old code writes afterwards and can hold the schema change's lock for
+  as long as it runs. A change asked for whole now delivers its first release and names what each later
+  one carries, and a revision that changes only rows reverses what it can and is otherwise a no-op on
+  downgrade, rather than refusing. `hex-persistence` points at this rule instead of stating the split
+  without its reason, and a flat service now meets it through the `persistence` rule it already cites.
+- **An agent fixes or reports a hook's refusal and never bypasses it.** `/pyhouse-git:commit` and the
+  `/pyhouse-delivery:implement` implementer no longer commit with `--no-verify` or with the hooks path
+  pointed elsewhere when a hook refuses: they fix what the hook names and commit again, or report the
+  refusal with its output. The `commit-msg` hook still tells you how to bypass it once; that way out is
+  yours.
+
+### Fixed
+
+- **`meta-skill-author` no longer says the catalogue fits the listing budget.** It gave the descriptions'
+  total as ~38,700 characters, enough to fit; they are ~41,400, past the default. It also stops asking an
+  author to weigh each character of a description against another skill's, since which skill loads was
+  measured not to depend on the budget.
+
 ## 0.35.0 — 2026-11-16
 
 Plugin versions in this release: `pyhouse-delivery` 0.7.0 (from 0.6.0); `pyhouse` 0.2.0,
