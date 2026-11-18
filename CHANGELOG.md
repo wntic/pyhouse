@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.37.0 — 2026-11-19
+
+Plugin versions in this release: `pyhouse-secrets` 0.1.0 (new) and `pyhouse` 0.4.0 (from 0.3.0);
+`pyhouse-universal` 0.27.0, `pyhouse-hex` 0.15.1, `pyhouse-flat` 0.13.1, `pyhouse-git` 0.11.0 and
+`pyhouse-delivery` 0.8.0 are unchanged.
+
+### Added
+
+- **`pyhouse-secrets`, a guard that keeps an agent out of files of secrets.** A new plugin with no
+  skills, only a hook that runs before Bash, Read, Grep and Write. It stops an agent from reading a file
+  of secrets, so the values never enter the conversation, and from destroying one. That covers `.env`,
+  `.env.*`, `*.env` and `.envrc` in any case, but not a template ending `.example`, `.sample`,
+  `.template` or `.dist`, nor a file under the system's temporary directory. It judges what a command
+  does to the file, not whether the name appears in it.
+  - **Allowed:** naming the file in a search pattern, an exclusion, a document or a commit message;
+    `test -f`, `ls`, `git check-ignore`; checks that print no value, such as `grep -q '^KEY='`,
+    `grep -c`, `cmp -s`, `wc -l` or a hash; appending with `>>`; editing a key in place with `sed -i`;
+    loading the file into a process with `set -a; . FILE; set +a` or `--env-file`; copying or moving
+    it to a new path that git ignores, for example into a worktree, one file at a time.
+  - **Refused:** printing the content; removing the file; writing over it; and a `git clean`,
+    `rm -r`, `find -delete`, `rsync --delete` or `git worktree remove` that would take it with it.
+    Printing what a load put in the environment is refused too, by `env`, `printenv`, an `echo` of a
+    loaded variable or `set -x`.
+
+  Installing `pyhouse` now brings it. To install it on its own, in a repository of any language, run
+  `claude plugin install pyhouse-secrets@pyhouse`. It needs `python3` on the machine; without it the
+  hook does not run and nothing is guarded.
+
+  **This release only records.** Its `mode` option starts at `log`: nothing is refused, and every
+  decision about a call that names a file of secrets is appended to `decisions.jsonl` in the plugin's
+  data directory, `~/.claude/plugins/data/<plugin>/`, readable only by you. Read the record before you
+  turn on refusals. Once it shows no refusal you would not want, set `mode` to `enforce` in `/plugin`
+  (the plugin's settings). If you already keep a hook of your own that blocks reading these files, leave
+  it on until then, so the weeks of recording are not weeks without a guard.
+
 ## 0.36.0 — 2026-11-18
 
 Plugin versions in this release: `pyhouse-universal` 0.27.0 (from 0.26.0), `pyhouse-hex` 0.15.1 (from
