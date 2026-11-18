@@ -10,9 +10,20 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
+Taken in this order: 122, 108, 119, 112, 118. Waiting: 87 for defects found after
 a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
-`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D207).
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D208).
+
+### 122. A step the person must take, narrowed to the values the agent does not hold
+**Agreed, first** (D208), on a branch of its own after `pyhouse-secrets` lands.
+`delivery-spec` rule 7 sends "handling a secret" and every edit of a file of secrets to the person, as a
+script the agent writes; `delivery-change-contract` rule 9 and `delivery-implementer` point at it. Most
+such edits need no value the agent lacks: adding a key whose value the spec or the project gives,
+removing a key, copying the file into a worktree. An agent makes them without reading the file — a
+check that prints no value, appending, editing in place, a copy to a new ignored path — whether or not
+`pyhouse-secrets` is installed, which `pyhouse-delivery` does not depend on. Proposal: the person's step
+keeps what needs a secret's value the agent does not hold, or an account it lacks; an edit to a file of
+secrets that needs neither is the agent's, made without reading the file. Reviewed with `/review-skills`.
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -114,59 +125,12 @@ edge case the catalogue leaves alone; whether rule 16 widens to hold it or it is
 that no generated service has shown the defect yet. The same chapter (line 32) also separates retries of
 transient and permanent errors, which supports 110.
 
-### 117. The guard that keeps an agent out of secret files, shipped as a plugin hook
-**Agreed, fourth, with 120:** a plugin of its own, its first release only logging.
-Asked by the maintainer (2026-11-17), after copying env files into worktrees by hand for every spec run
-in parallel: agents were refused by a PreToolUse hook that lives outside the catalogue, in two copies
-kept by hand (user settings and one repository's `.claude/`). It refuses any Bash command whose text
-contains the dotenv token and any Read or Grep of such a path. The 359 refusals in the producer's
-transcripts (2026-10-16 … 11-13, `.sources/delivery/runs/2026-11-17-env-hook.md`): 15 (4%) read values,
-the hook's purpose, nearly all a non-secret URL, list or setting; the rest read nothing — the name in a
-grep pattern, an exclusion, a document edit or a jsonpath (176), an existence or gitignore check (64), a
-template other than exactly `.env.example` (36), loading into a process (29), a key edit or a copy (24).
-After a refusal agents dropped the step silently (31) or hid the token (11); subagents never escalated
-once. Worktrees were made without their env files and removed without comparing them. The hook misses
-reads all the same — a heredoc with a redirect, `$(…)` inside a commit message — and every destruction
-that does not name the file: `>` over an existing one, `git clean -x`, `git worktree remove --force`.
-
-Decided with the maintainer, the rewrite refuses reading content and destroying a file, never naming
-it. Allowed: a mention, an existence check, any `*.example`, appending, editing keys in place, loading
-into a process unless the command prints values (`docker compose … config`, `… exec … env`), and a copy
-or move whose target is dotenv-named, git-ignored (checked, not inferred from the name — a project's
-ignore list rarely covers `.env.local` or `.env.bak`) and absent. Refused: reading content; `rm`; `>`,
-`truncate`, `cp` or `mv` over an existing file; `git clean -x`/`-X`; `git worktree remove --force` and
-`rm -r` on a directory that holds one. Acceptance: the recorded commands — every value read still
-refused, the false positives gone.
-
-Agreed: ship it as a plugin's `hooks/hooks.json`, versioned like any change here. A plugin's hooks
-run once it is enabled, so `/pyhouse:setup` installs nothing for it, and the hand-kept copies are
-deleted. The plugin is one of its own outside the skill graph, like `pyhouse-git`, since dotenv files
-are not Python's, with `pyhouse` depending on it; it can then be disabled alone, since a plugin's hook
-cannot be switched off without its plugin. Not `pyhouse`, which holds no rule, and not
-`pyhouse-delivery`, though its rules change with it: `delivery-spec` rule 7 sends "handling a secret" and
-any edit of a file of secrets to the person as a script, which an agent that may copy and edit without
-reading no longer needs. Decided while it is built: whether "an agent never reads a file of secrets"
-belongs in a universal skill (`python-settings` owns the secret) rather than only in delivery's two
-rules.
-
-Its first release only logs what it would refuse (120, folded in here). The article's team (118) starts
-a new gate in an observe mode that "will log what would have been blocked, so that we can review any
-false positives", before an enforce mode that blocks. The acceptance above replays recorded commands,
-which shows only the false positives already seen; the 359 refusals showed agents dropping a step
-silently or hiding the token after one, which an observe phase shows before any work is lost. So the
-hook has a mode that only logs, chosen in the user's settings, run in the producer for a week of
-ordinary work and its log compared with the labels in `.sources/delivery/runs/2026-11-17-env-hook.md`
-before it enforces. The article's give-up valve — a commit let through after two refusals "so Claude
-doesn't get stuck" — is not taken: letting the third read through is the leak. Decided while it is
-built: how a plugin hook reads its mode, an environment variable in settings or a file; and whether the
-commit-msg hook (D65) gains the same mode. D206's untaken PreToolUse hook, if it is ever built, starts the same way.
-
 ### 118. A project's own review checks, each triggered by the diff and read from the base
 **Agreed, eighth:** the experiment in the producer below first; code in the catalogue only if it shows a
 gain.
 
-118, 119 and 121 — and 120, now part of 117 — come from "How the Claude Code team thinks about
-verification" (Addy Osmani, claude.dev, 2026-11-16; a copy and the comparison with the catalogue are in
+118, 119 and 121 — and 120, which landed with 117 as D208 — come from "How the Claude Code team
+thinks about verification" (Addy Osmani, claude.dev, 2026-11-16; a copy and the comparison with the catalogue are in
 `.sources/articles/` and `.sources/research/2026-11-17-verification-article.md`). Much of the article is
 already here: three runs then a person (D194), a flaky failure never retried or skipped
 (`delivery-implementer`), no sleeping in a test (`test-principles` reliability rule 3), cheap checks

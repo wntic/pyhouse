@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-`pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system, no
-test suite and no runtime dependencies — only Markdown skills, six plugin manifests, and one
-maintainer script. The "code" is 53 `SKILL.md` files — 49 that tell an agent how to write Python
-services, two that tell it how to commit and branch, and two that tell it how to write the spec a
+`pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system and no
+runtime dependencies — only Markdown skills, seven plugin manifests, two hook scripts (`pyhouse-git`'s
+`commit-msg` and `pyhouse-secrets`' guard, which has the repository's one test file), and one
+maintainer script. The "code" is 53 `SKILL.md` files — 49 that tell an agent
+how to write Python services, two that tell it how to commit and branch, and two that tell it how to write the spec a
 change is implemented from and what implementing it may change. The Python in them is template content, not executed as part of
 anything here.
 
@@ -57,7 +58,7 @@ audit; the one it had was removed when nothing ran it (D200).
 
 ```bash
 claude plugin marketplace add wntic/pyhouse        # or `add .` to test this checkout locally
-claude plugin install pyhouse@pyhouse              # all five, or one: pyhouse-hex, pyhouse-flat, …
+claude plugin install pyhouse@pyhouse              # all six, or one: pyhouse-hex, pyhouse-flat, …
 ```
 
 `/commit` (in `.claude/commands/`) is the repository's own commit flow, and its subject is **this
@@ -110,7 +111,7 @@ that application, and only ever added. So:
 
 ## Releasing
 
-The catalogue is subject to `python-versioning` like anything else it ships, and its seven version
+The catalogue is subject to `python-versioning` like anything else it ships, and its eight version
 fields — one per plugin, plus the marketplace — are what that skill calls **members versioning
 independently**: each plugin is installed on its own, so each manifest carries its own number, and
 they are not expected to match. Read the current numbers from the manifests themselves; this file
@@ -145,7 +146,7 @@ the commits since the last tag rather than argued about at release time. `/relea
 call. The type table and the scope vocabulary are in `.claude/commands/commit.md` step 4; they are
 not repeated here.
 
-**Tags are the repository's, not the plugin's.** One artifact ships all six plugins together, so the
+**Tags are the repository's, not the plugin's.** One artifact ships all seven plugins together, so the
 tag names the marketplace version — `v0.4.0`, with the `v` on the tag and never in a manifest. A tag
 is immutable: a correction is the next number, never a moved tag.
 
@@ -176,16 +177,17 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 ## Layout
 
 ```
-.claude-plugin/marketplace.json          lists the six plugins
+.claude-plugin/marketplace.json          lists the seven plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 CHANGELOG.md                             what each release changed for the plugins' users, drafted by
                                          /release-notes after the tag
 tools/check_template_imports.py          resolves every import in every template (see above)
+tools/test_secret_files_hook.py          the cases pyhouse-secrets' hook must allow and refuse
 .claude/review/QUESTIONS.md              the questions a review of a skill answers
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own
 .claude/backlog.md                       catalogue edits agreed or proposed, not yet made
-plugins/pyhouse/                         no skills: depends on the other five and ships /pyhouse:setup,
+plugins/pyhouse/                         no skills: depends on the other six and ships /pyhouse:setup,
                                          which runs their setup commands in order
 plugins/pyhouse-universal/               18 skills (17 universal + meta-skill-author),
                                          /choose-architecture, /change-review,
@@ -198,6 +200,8 @@ plugins/pyhouse-git/                     2 git-* skills, /commit, /release, /rel
 plugins/pyhouse-delivery/                2 delivery-* skills, /pyhouse-delivery:spec,
                                          /pyhouse-delivery:implement and its implementer agent —
                                          depends on pyhouse-universal only
+plugins/pyhouse-secrets/                 no skills: the PreToolUse hook that keeps an agent from
+                                         reading or destroying a file of secrets — no dependency
 ```
 
 Each plugin's manifest is the single file `plugins/<plugin>/.claude-plugin/plugin.json`; `skills/` and
@@ -215,7 +219,7 @@ below exists to tell you what you would break, not to replace them.
 
 ## The invariants that are easy to break
 
-**Six plugins, one-way dependency.** The prefix decides the plugin: unprefixed and `meta-*` →
+**Seven plugins, one-way dependency.** The prefix decides the plugin: unprefixed and `meta-*` →
 `pyhouse-universal`; `hex-*` → `pyhouse-hex`; `flat-*` → `pyhouse-flat`. Family plugins depend on
 `pyhouse-universal`, so a `hex-*`/`flat-*` skill may reference a universal skill freely. A universal
 skill may name a family skill only as an *example* and must still read correctly with that plugin
@@ -242,7 +246,15 @@ patched — stated by `/release` and by `python-versioning` rule 13. None is a d
 like a family plugin, and on nothing else: it does not depend on `pyhouse-git`, which it may name only
 as an example, and no other skill plugin depends on it.
 
-`pyhouse` sits above all five: it depends on each and nothing depends on it, so it may require any of
+`pyhouse-secrets` holds no skill: only a PreToolUse hook that refuses an agent reading a file of secrets
+or destroying one, and never refuses naming one (D208). Like `pyhouse-git` it stands outside the graph,
+since dotenv files are not Python's: it depends on nothing, and no skill or skill plugin may require
+it, so a rule about secrets that a skill needs is stated in that skill and must read correctly with the
+hook absent. Its first release only logs; the mode is the plugin's own option. `python3` runs it, and
+`tools/test_secret_files_hook.py` holds the cases it must allow and refuse — run it after any change to
+the hook.
+
+`pyhouse` sits above all six: it depends on each and nothing depends on it, so it may require any of
 them and none of them may name it. It holds **no skill and no rule** — only the dependency list that
 makes the whole catalogue one install, and `/pyhouse:setup`, which runs the other plugins' setup
 commands in order and does none of their work itself. A rule or a step written into it is a second copy

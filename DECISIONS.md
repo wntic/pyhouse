@@ -3915,3 +3915,63 @@ are kept in the sources repository.
 
 **Reverse by:** from the parent of the commit that added this entry, reverting it — the sentence in
 `CLAUDE.md`'s "Source material is evidence" goes with it.
+
+### D208 — `pyhouse-secrets` refuses reading and destroying a file of secrets, never naming one, and first only logs
+Taken by the maintainer (2026-11-17, agreed in D204 as backlog items 117 and 120; settled while it was
+built on 2026-11-18). An agent was kept out of dotenv files by a PreToolUse hook outside the catalogue,
+kept by hand in two copies, which refused any command whose text held the name. Of the 359 refusals in
+one project's transcripts (2026-10-16 … 11-13, labelled in the sources repository), 15 read values; the
+rest named the file in a pattern, an exclusion, a document edit or a field path, checked it existed,
+read a template, loaded it into a process, or edited or copied it without reading it. After a refusal
+agents dropped the step silently (31) or hid the name from the check (11), worktrees were made without
+their env files and removed without comparing them, and subagents never asked the person. The hook
+missed reads all the same — a heredoc with a redirect, `$(…)` in a commit message — and every
+destruction that did not name the file.
+
+So the guard ships as a plugin of its own, `pyhouse-secrets`, outside the skill graph like
+`pyhouse-git`, since dotenv files are not Python's; `pyhouse` depends on it, and it can be disabled
+alone, a plugin's hook having no switch of its own. Its hook reads what a command does to a file named
+like one of secrets — parsing quotes, `$(…)`, heredocs, pipelines, loops, variables and `cd` — rather
+than whether the name appears. A file of secrets is `.env`, `.env.*`, `*.env` or `.envrc` in any case;
+templates ending `.example`, `.sample`, `.template` or `.dist`, and files under the system's temporary
+directory, which an agent made for itself, are not. Allowed: a mention; an existence or ignore check; a
+check that prints no value (`grep -q`, `-c`, `-l`, `cmp`, `wc`, a hash, or a read piped only into one);
+appending; editing in place; loading into a process unless the same command prints what it loaded —
+`env`, `printenv`, an `echo` of a variable it may have set, an interpreter reading the environment, or
+`set -x` tracing the load; a copy or move whose target is named like one, ignored by git as
+`git check-ignore` reports, and absent, each file a glob or a copied directory carries checked alone.
+Refused: reading content; removing one; `>`, `truncate`, `tee`, `cp`, `mv`, `git checkout` or Write
+over an existing one; `git clean`, `rm -r`, `find -delete`, `rsync --delete` and `git worktree remove`
+where one would go — the last without `--force` too, since git removes ignored files with the
+worktree. A directory tree too large to walk is refused as unchecked rather than passed. Code passed to an interpreter is refused only
+where a string literal in it is, by itself, a path to one; a copy through a variable, a pipe or a loop
+is refused, since its target cannot be checked, and the refusal says to copy each file by its own
+path. Not caught, as before: a script or a make target that reads one without naming it, a recursive
+search over a tree holding one, and a deliberate rewording, which `delivery-implementer` and D206
+already forbid. The refusal names what is allowed instead and says not to reword the command.
+
+Replayed on the 348 of the 359 commands whose transcripts still exist: every one of the 14 value reads
+is refused, and 7 of the other 334 are — the copies through a loop (2), a move to a path the project
+did not ignore (1), a copy whose target directory no longer exists, so no ignore rule could be read for
+it (1), a python script writing one (1), a byte of one printed in hex (1), key names printed (1). Copies
+and overwrites were judged against today's file system, which has moved on since. The replay tool and its output are kept in the sources repository.
+
+Its first release only logs: the plugin option `mode` defaults to `log`, which writes every decision
+about a call naming a file of secrets to `decisions.jsonl` in the plugin's data directory, mode `0600`,
+and refuses nothing; `enforce` refuses. An option, not a file or an environment variable, since Claude
+Code prompts for it when the plugin is enabled and exports it to the hook. The log holds the command
+text, which the session's transcript already holds. The hand-kept hook stays enabled until enforce is
+turned on, so the log week is not a week without a guard, and the log shows what the new hook decides
+on the same calls the old one refused; they are deleted the day it enforces. The article's give-up
+valve, letting a call through after two refusals, is not taken. Python 3.9 and the standard library,
+not POSIX `sh` as D65 chose for the commit-msg hook, since a hook that parses shell needs a parser; where
+`python3` is missing the hook fails to start, which Claude Code treats as a non-blocking error, so the
+guard is absent rather than in the way. Not taken: a rule in a universal skill that an agent never
+reads a file of secrets — an agent's conduct, not an obligation on Python code, held by the hook and
+by `delivery-change-contract` rule 9; and the commit-msg hook gaining the same log mode, which no
+false refusal of it has asked for. `delivery-spec` rule 7, which sends every edit of a file of secrets
+to the person as a script, is narrowed on a branch of its own.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it —
+`plugins/pyhouse-secrets/`, `tools/test_secret_files_hook.py`, its entries in the marketplace, in
+`pyhouse`'s dependencies and in the indexes go with it, and the hand-kept hook stays.
