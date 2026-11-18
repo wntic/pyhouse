@@ -38,13 +38,14 @@ service — and says when neither of them applies — a project too small to nee
 catalogue does not cover. It is itself universal, because it is what you consult before you know
 which family you are in, and the `/choose-architecture` command walks it one question at a time.
 
-**The catalogue ships as six plugins** on the Claude Code marketplace: `pyhouse-universal` (the
+**The catalogue ships as seven plugins** on the Claude Code marketplace: `pyhouse-universal` (the
 unprefixed skills, `meta-skill-author`, the chooser), `pyhouse-hex` and `pyhouse-flat` for Python
 house style, and `pyhouse-git`, which ships beside them for repository workflow rather than Python house style; it depends on
 nothing, no skill plugin depends on it, and it holds in a repository of any language.
 `pyhouse-delivery` holds how one change is delivered rather than how its code is written, and depends on
-`pyhouse-universal` alone. The sixth, `pyhouse`, holds no skill: it depends on the other five, so one
-install brings the whole catalogue, and
+`pyhouse-universal` alone. `pyhouse-secrets` holds no skill: a hook that keeps an agent from
+reading or destroying a file of secrets, depending on nothing. The seventh, `pyhouse`, holds no skill:
+it depends on the other six, so one install brings the whole catalogue, and
 ships `/pyhouse:setup`, which runs their setup commands in order. Both family
 plugins depend on `pyhouse-universal`, which Claude Code enables transitively, so installing one family
 always brings the universal skills with it. `pyhouse-universal` is installable alone: a universal skill

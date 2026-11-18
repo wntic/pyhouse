@@ -93,14 +93,16 @@ too. The counts in every heading are the number of directories on disk.
 
 ## Packaging — which plugin a skill ships in
 
-The catalogue is distributed on the Claude Code marketplace as six plugins under the marketplace name
+The catalogue is distributed on the Claude Code marketplace as seven plugins under the marketplace name
 `pyhouse`. Three of them hold Python house style, and every new Python skill belongs to exactly one of
 those three. The fourth, `pyhouse-git`, ships beside them and holds the `git-*` skills — repository workflow rather than Python house style. It
 depends on nothing and no skill plugin depends on it, so a `git-*` skill may name a catalogue
 skill only as an example and must read correctly in a repository with no Python in it. The fifth,
 `pyhouse-delivery`, holds the `delivery-*` skills — how one change is specified and delivered rather
 than how its code is written. It depends on `pyhouse-universal` like a family plugin, and on nothing
-else: a `delivery-*` skill may name a `git-*` skill only as an example.
+else: a `delivery-*` skill may name a `git-*` skill only as an example. The sixth, `pyhouse-secrets`,
+holds no skill: only the hook that keeps an agent from reading or destroying a file of secrets. Like
+`pyhouse-git` it depends on nothing, and no skill may require it.
 
 | Plugin | Directory | Contains | Depends on |
 |---|---|---|---|
@@ -109,7 +111,8 @@ else: a `delivery-*` skill may name a `git-*` skill only as an example.
 | `pyhouse-flat` | `plugins/pyhouse-flat/` | every `flat-*` skill (8) | `pyhouse-universal` |
 | `pyhouse-git` | `plugins/pyhouse-git/` | every `git-*` skill (2), `/commit`, `/release`, `/release-notes`, `/pyhouse-git:adopt`, `/install-commit-hook`, the `commit-msg` hook | — |
 | `pyhouse-delivery` | `plugins/pyhouse-delivery/` | every `delivery-*` skill (2), `/pyhouse-delivery:spec`, `/pyhouse-delivery:implement` with the `delivery-implementer` subagent behind it | `pyhouse-universal` |
-| `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other five |
+| `pyhouse-secrets` | `plugins/pyhouse-secrets/` | no skill; the PreToolUse hook that refuses reading or destroying a file of secrets | — |
+| `pyhouse` | `plugins/pyhouse/` | no skill; `/pyhouse:setup`, which runs the other plugins' setup commands in order | the other six |
 
 **`pyhouse` takes no skill.** It exists so one install brings the whole catalogue, and nothing depends
 on it, so no skill may name it. No prefix maps to it, and a skill is never added to it.

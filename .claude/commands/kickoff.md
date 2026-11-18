@@ -32,7 +32,9 @@ universal plugin holds what binds any Python project, including a library or a C
 `pyhouse-delivery` holds how one change is delivered rather than how its code is written: the spec it
 is implemented from, its claims about today's system checked before any code exists, and its
 implementation — tests from the spec before the code, the gate, one review, one round of fixes — whose
-every edit to what is frozen is caught by a diff. One more plugin, `pyhouse`, holds
+every edit to what is frozen is caught by a diff. `pyhouse-secrets` holds no skill: its hook keeps an
+agent from reading or destroying a file of secrets, in a repository of any language, while it may still
+name, check, load and copy one (D208). One more plugin, `pyhouse`, holds
 no skill: it installs the others and sets a repository up for them with `/pyhouse:setup`, so adopting
 the catalogue is one install and one command; the command's one step of its own raises the
 skill-listing budget the whole catalogue overruns.
