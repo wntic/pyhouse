@@ -3887,3 +3887,31 @@ flag, which binds the agent only and is still evaded by a script or `git commit-
 
 **Reverse by:** from the parent of the commit that added this entry, reverting it — the line in
 `delivery-implementer`'s never-list and the paragraph in `/pyhouse-git:commit` step 5 go with it.
+
+### D207 — A skill generated from a book does not ship; it is a lens on the owning skill
+Taken by the maintainer (2026-11-17, agreed in D204), after generating two skills from books with
+`book-to-skill` — one from Vlad Khononov's *Balancing Coupling in Software Design*, one from Martin
+Kleppmann's *Designing Data-Intensive Applications* (O'Reilly, 2017) — and asking whether they belong in
+the catalogue. They do not ship. The summaries are accurate where they could be checked, but they are
+reference, not obligations, and restate rules the catalogue already gives an owner: `coupling` is
+Khononov's model restated with credit, and DDIA overlaps `persistence` and `at-least-once-delivery`, so
+a rule would have two owners. They fire on studying a book, not on writing a service, so what an agent
+writes does not change, and the model knows DDIA already. They would add about 900 characters to a
+listing that already overruns its default (D205). And one bundles figures extracted from the book with
+detailed chapter summaries, which a public marketplace cannot redistribute.
+
+A book skill stays in the maintainer's own scope, or in the private sources repository where it is to be
+versioned, and serves as a lens: read beside the owning skill to ask which obligation the book states
+that the owner lacks. What is taken is a fragment, never the skill, and a fragment reaches a skill only
+past five filters: (1) it is an obligation on code, not knowledge; (2) it passes lens 1 against the test
+services in `QUESTIONS.md`, as a template line only where most of them have it; (3) an owning skill
+exists and does not already state it, checked by a search of `plugins/`; (4) it is restated in the
+catalogue's words without mechanism, the book cited in the decision record only; (5) an agent without
+the rule gets it wrong — tried on a short prompt on Opus, since the model knowing a book is not the
+model applying it unprompted, and a seen defect is what earns the rule. Each finding then goes through
+`/review-skills` like any other. The procedure, the candidates already seen and the systematic form —
+one agent per pair of book and owning skill, each finding verified by an agent that did not write it —
+are kept in the sources repository.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — the sentence in
+`CLAUDE.md`'s "Source material is evidence" goes with it.

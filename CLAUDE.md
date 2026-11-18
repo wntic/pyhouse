@@ -298,6 +298,11 @@ The test before adding anything sourced this way: **would this still be worth wr
 had used a different stack?** If the answer is no, the skill is documenting someone's dependency
 choice. If yes, but the shape changes, write the version that survives the swap.
 
+**A book is such material, and so is a skill generated from one.** It never ships; it is read beside the
+owning skill for an obligation the book states and the owner lacks, and a fragment reaches a skill only
+past the five filters D207 records — the last being that an agent without the rule is seen to get it
+wrong.
+
 **The one instance is fully unwound.** Two skills in the flat family existed only because the
 originating source used a particular durable-execution engine. They are gone, and so is the engine:
 their obligations are stack-independent rules in `flat-entrypoint` and `flat-test-entrypoint`, each

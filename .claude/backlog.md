@@ -10,9 +10,9 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
+Taken in this order: 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
 a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
-`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D206).
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D207).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -92,7 +92,7 @@ validated at the boundary, secrets never in the repository), which existing skil
 many agents a run costs against the two the delivery pipeline settled on.
 
 ### 114. A read, a decision in code and a write back lose a concurrent update
-**Waits for 108.** 115's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
+**Waits for 108.** D207's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
 unprompted.
 Found by reading `kleppmann-ddia` — a skill the maintainer generated on 2026-11-15 with
 `book-to-skill` (github.com/virgiliojr94/book-to-skill) from Martin Kleppmann's *Designing
@@ -113,47 +113,6 @@ concurrent writers of one record, not a template line. Open: whether it is archi
 edge case the catalogue leaves alone; whether rule 16 widens to hold it or it is a rule of its own; and
 that no generated service has shown the defect yet. The same chapter (line 32) also separates retries of
 transient and permanent errors, which supports 110.
-
-### 115. Books as evidence for the catalogue, never shipped in it
-**Agreed, third:** a decision record that a book skill does not ship and serves as a lens, and the
-procedure with its five filters written down in `.sources`. The candidates below wait for 108, which
-filter 5 needs.
-The maintainer generated two skills from books with `book-to-skill` — `khononov-coupling` (Vlad
-Khononov, *Balancing Coupling in Software Design*) and `kleppmann-ddia` (above) — and asked whether they
-belong in the catalogue. Judged 2026-11-17: the summaries are accurate where they could be checked, but
-they do not ship. They are reference, not obligations, and restate rules the catalogue already gives an
-owner (`coupling` is Khononov's model restated with credit; DDIA overlaps `persistence` and
-`at-least-once-delivery`), so a rule would have two owners. They fire on studying a book, not on writing
-a service, so an agent's output does not change, and the model already knows DDIA well. They would add
-~900 characters to an overrun listing (D205). And `khononov-coupling` bundles 22 figures extracted from
-the PDF beside detailed chapter summaries, which a public marketplace cannot redistribute. Proposal: a
-book skill stays in the maintainer's user scope, or in `.sources` if it is to be versioned, and serves
-as a lens — read beside the owning skill to ask which obligation the book states that the owner lacks,
-with each finding going through `/review-skills` like any other and the book cited in the decision
-record only, per CLAUDE.md's "Source material is evidence". 114 is its first output.
-
-What is taken is a fragment, never the skill. A fragment reaches a skill only past five filters: (1) it
-is an obligation on code, not knowledge — "LSM versus B-tree" or "percentiles, not averages" is
-knowledge; (2) it passes lens 1 against the test services in `QUESTIONS.md` — a template line only where
-most have it, otherwise one sentence of prose; (3) an owning skill exists and does not already state it,
-checked by a search of `plugins/`; (4) it is restated in the catalogue's words without mechanism, the
-book cited only in the decision record, which also keeps the book's text out; (5) an agent without the
-rule gets it wrong — the model knows DDIA but does not apply it unprompted, and that gap is what a rule
-is for, so a candidate is tried on a short prompt (for 114, a service with a PATCH endpoint: does the
-agent read, decide and write back unguarded?) and a seen defect earns the rule, which 108's harness
-would make routine. Systematic form: one agent per pair of book and owning skill, given `QUESTIONS.md`
-and these filters; each finding verified against `DECISIONS.md` by an agent that did not write it;
-survivors land here.
-
-Candidates already seen in `kleppmann-ddia`, past filter 3 only (searched 2026-11-17): a lost update
-(114); retrying only transient failures (110); a duration or timeout measured with a monotonic clock,
-never the wall clock, which jumps — nothing in `plugins/` names a monotonic clock, and the owner would
-be `python-style`; and a consumer of a message tolerating fields it does not know, since during a rolling
-deploy old and new versions read each other's messages — `extra="ignore"` appears only on settings
-classes, and the owner would be `coupling` or `at-least-once-delivery`. A client-chosen id with a unique
-constraint for effectively-once looks covered by `at-least-once-delivery` rule 6. Fewer are expected
-from `khononov-coupling`, since `coupling` is built on that book; its rebalancing and case-study chapters
-(`ch11`, `ch13`) are where a gap would be. Open: which books come next.
 
 ### 117. The guard that keeps an agent out of secret files, shipped as a plugin hook
 **Agreed, fourth, with 120:** a plugin of its own, its first release only logging.
