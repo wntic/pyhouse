@@ -247,7 +247,8 @@ them and none of them may name it. It holds **no skill and no rule** — only th
 makes the whole catalogue one install, and `/pyhouse:setup`, which runs the other plugins' setup
 commands in order and does none of their work itself. A rule or a step written into it is a second copy
 of one its owner already states; it goes in the owning plugin's command instead, and `/pyhouse:setup`
-calls that.
+calls that. Its one step of its own raises the skill-listing budget, which only the whole catalogue
+overruns, so no other plugin can own it (D205).
 
 **Principle and binding stay separate.** `## Rules` states obligations that survive swapping the
 library ("translate the driver's integrity error at the repository boundary"), never mechanisms

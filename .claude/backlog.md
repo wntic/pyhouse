@@ -11,8 +11,8 @@ the rest agreed below.
 ## Agreed
 
 Taken in this order: 109, 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
-a change landed; 110 and 114 for 108's harness; 113 for the maintainer's `/context`; 121 for a rewrite
-of a generated service through `/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D204).
+a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D205).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -112,17 +112,6 @@ a security audit may be a tool rather than a rule set; if obligations come out o
 validated at the boundary, secrets never in the repository), which existing skill owns each; and how
 many agents a run costs against the two the delivery pipeline settled on.
 
-### 113. How much context the catalogue's listing takes in a session
-**Waits** for the maintainer's `/context`, an interactive command. The stale figure in
-`meta-skill-author` was corrected on 2026-11-18: 53 skill descriptions are 41,362 characters (~10,300
-tokens at four a token), past the 30,000-character default budget D178 measured, beside 11 command
-descriptions of 2,513 and 2 agent descriptions of 1,474. D178's own figure (~38,300) is history and
-stays. To do: `/context` in a project with the catalogue and the maintainer's usual plugins installed,
-at the default and with `"skillListingBudgetFraction": 0.02` in its `.claude/settings.json`. Open:
-whether 0.02 still holds the catalogue with other plugins beside it — the `README.md` says it "lists
-the whole catalogue" — and whether the size matters beyond D178's finding that names carry the
-routing: the listing is paid on every session, and D178 did not measure what the agent then wrote.
-
 ### 114. A read, a decision in code and a write back lose a concurrent update
 **Waits for 108.** 115's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
 unprompted.
@@ -157,7 +146,7 @@ they do not ship. They are reference, not obligations, and restate rules the cat
 owner (`coupling` is Khononov's model restated with credit; DDIA overlaps `persistence` and
 `at-least-once-delivery`), so a rule would have two owners. They fire on studying a book, not on writing
 a service, so an agent's output does not change, and the model already knows DDIA well. They would add
-~900 characters to an overrun listing (113). And `khononov-coupling` bundles 22 figures extracted from
+~900 characters to an overrun listing (D205). And `khononov-coupling` bundles 22 figures extracted from
 the PDF beside detailed chapter summaries, which a public marketplace cannot redistribute. Proposal: a
 book skill stays in the maintainer's user scope, or in `.sources` if it is to be versioned, and serves
 as a lens — read beside the owning skill to ask which obligation the book states that the owner lacks,
