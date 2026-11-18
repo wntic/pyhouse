@@ -95,6 +95,11 @@ git commit -F - -- <resolved files> <<'EOF'
 EOF
 ```
 
+**A hook that refuses the commit** is answered by fixing what it names and committing again, or, where
+the fix is not this command's to make, by reporting the refusal with its output. Never skip it with
+`--no-verify` or by pointing the hooks path elsewhere: the bypass a hook prints is the person's, and a
+commit made past it reaches every tool that trusts the history.
+
 Then report the hash, the subject, and the files and line counts:
 
 ```

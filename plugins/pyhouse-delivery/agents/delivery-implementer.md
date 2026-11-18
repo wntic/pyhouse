@@ -143,3 +143,6 @@ Questions: <each one, with what waits on it | none>
 
 - Weaken a test's assertion to make it pass.
 - Merge, push, or rewrite a commit you did not make in this change.
+- Skip a hook the repository runs — `--no-verify`, or its hooks path pointed elsewhere for one
+  command. A refusal is fixed and the commit made again, or returned as a question with its output;
+  the bypass a hook prints is the person's.
