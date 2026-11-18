@@ -3866,3 +3866,24 @@ tokens, where 3% is less.
 **Reverse by:** from the parent of the commit that added this entry, reverting it — step 6 of
 `setup.md`, the sixth setup step in `README.md`, and the sentence on the command's own step in
 `CLAUDE.md` and `kickoff.md` go with it.
+
+### D206 — An agent fixes or reports a hook's refusal and never bypasses it
+An agent committing for the person skips no hook. In the hand-over of one spec run in the producer, the
+implementer committed with `--no-verify`, so the commit-msg hook never read that message — the one
+bypass seen. The hook teaches it: its refusal ends with `Bypass once with --no-verify.`, which the agent
+reads, and nothing in `delivery-implementer` or `/pyhouse-git:commit` forbade taking it.
+`delivery-change-contract`'s diff from the base cannot see a bypass, since no file changes, and a
+malformed type that skipped the hook reaches `/release`, which trusts the types it reads (D200). No harm
+came of the one seen: that commit was a fixup, which the hook skips anyway (D65), and the gate ran the
+linter again.
+
+So `delivery-implementer`'s never-list and `/pyhouse-git:commit`'s commit step each gain the same
+obligation: a hook's refusal is fixed and the commit made again, or reported with its output, never
+skipped by `--no-verify` or a hooks path pointed elsewhere. The hook's own text keeps the bypass: D65
+put it there for the person, since a hook that cannot be bypassed gets deleted rather than fixed. Not
+taken until a second bypass is seen: `/implement` re-running the installed hook over every message on
+the branch before the review, which catches rather than forbids, and a PreToolUse hook refusing the
+flag, which binds the agent only and is still evaded by a script or `git commit-tree`.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — the line in
+`delivery-implementer`'s never-list and the paragraph in `/pyhouse-git:commit` step 5 go with it.

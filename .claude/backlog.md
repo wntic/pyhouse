@@ -10,9 +10,9 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 109, 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
+Taken in this order: 115, 117 (with 120), 108, 119, 112, 118. Waiting: 87 for defects found after
 a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
-`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D205).
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D206).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -21,14 +21,14 @@ would close it — the loop D186 was the first output of. Deferred (D192) until 
 the repository it would run on, most defects testing will find predate the pipeline, and half its
 steps are gone.
 
-108–110 come from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
+108 and 110 come from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
 2.2.3), a multi-language agent kit of 71 agents and 314 skills, compared with the catalogue on
 2026-11-17. ECC paths below are at that commit. Most of ECC was not taken: about 35 of ~70 Python rules
 the catalogue already states, ~8 are performance (D196), ~15 bind one stack; its two-reviewer and
 generator/evaluator loops are what D185, D192 and D195 removed; and its Python material contradicts the
 catalogue in many places — `Optional[X]`, an HTTP status on the exception class, log-and-re-raise,
-`create_all` at startup, settings built at import, `@patch` and an in-memory sqlite in tests. These three
-are what survived, with a fourth, 111, closed as D202 and D203.
+`create_all` at startup, settings built at import, `@patch` and an in-memory sqlite in tests. These two
+are what survived still open; 109 landed as D206, and 111 as D202 and D203.
 
 ### 108. A harness that measures whether an agent follows a skill under a naive prompt
 **Agreed, fifth.** The prompt set lives in `tools/` beside the runner, so runs stay comparable across
@@ -49,27 +49,6 @@ a model — leaving what the code looks like to be read, as D182 did. Not taken 
 classifier of tool calls (the catalogue's question is the structure written, not the call sequence), its
 auto-generated scenarios (a fixed set is what makes runs comparable across releases), and its "promote
 to hook below 60% compliance" advice.
-
-### 109. An agent bypasses the commit-msg hook with `--no-verify`
-**Agreed, second: option (a) only.** The hook's rejection text keeps the bypass, which D65 put there for
-the person; (b) and (c) wait for a second bypass.
-ECC ships a PreToolUse hook, `scripts/hooks/block-no-verify.js:3-6`, that "blocks git hook-bypass flags
-(--no-verify, -c core.hooksPath=) to protect pre-commit, commit-msg, and pre-push hooks from being
-skipped by AI agents". The catalogue's own run shows the case: in the hand-over for spec 064 "the agent
-committed it with `--no-verify`, so the commit hook has not checked it"
-(`.sources/delivery/runs/timelines/064-067-impl-detail.txt:39`), the one case seen. Our hook teaches
-it: on a rejection it prints `Bypass once with --no-verify.` (`plugins/pyhouse-git/git-hooks/commit-msg:66`),
-and the agent reads that output. Nothing in `delivery-implementer`, `/implement` or
-`/pyhouse-git:commit` forbids it, and `delivery-change-contract` rule 6's diff cannot see a bypass, since
-no file changes. A malformed type that skipped the hook reaches `/release`, which trusts the types it
-reads (D200). No harm yet: the 064 commit was a `fixup!`, which the hook skips anyway (D65), and the gate
-re-ran the lint. D65 keeps the escape hatch documented on purpose — a hook that cannot be bypassed gets
-deleted rather than fixed — so any remedy leaves the human's bypass open. Options, cheapest first:
-(a) one line in `delivery-implementer`'s never-list and in `/pyhouse-git:commit` — a hook's refusal is
-fixed or reported, never bypassed; (b) `/implement` re-runs the installed `commit-msg` over every
-message on the branch before the review, catching rather than forbidding, as D190 prefers; (c) a
-PreToolUse hook in `plugins/pyhouse-git/hooks/` (the directory D65 keeps free for one), which binds the
-agent only and is still evaded by a script or `git commit-tree`.
 
 ### 110. Which failures a retry repeats, and which calls it may repeat
 **Waits for 108.** Tried on a short prompt first: a rule only if Opus, unprompted, retries a rejection
@@ -221,7 +200,7 @@ ordinary work and its log compared with the labels in `.sources/delivery/runs/20
 before it enforces. The article's give-up valve — a commit let through after two refusals "so Claude
 doesn't get stuck" — is not taken: letting the third read through is the leak. Decided while it is
 built: how a plugin hook reads its mode, an environment variable in settings or a file; and whether the
-commit-msg hook (D65) gains the same mode. 109's option (c), if it is ever taken, starts the same way.
+commit-msg hook (D65) gains the same mode. D206's untaken PreToolUse hook, if it is ever built, starts the same way.
 
 ### 118. A project's own review checks, each triggered by the diff and read from the base
 **Agreed, eighth:** the experiment in the producer below first; code in the catalogue only if it shows a
