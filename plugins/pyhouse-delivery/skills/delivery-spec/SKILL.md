@@ -144,12 +144,15 @@ runs, and whether it comes before the fix lands or after it.>
    running process — a request answered, a message consumed, a log line written — and says in words
    what to do to the process and what shows the change working. It names no command and no environment
    to start: whoever checks the change works those out from the project.
-7. **A step the person must take is written as theirs, as the command they run.** Anything an agent
-   may not do — handling a secret, deleting from an environment the person has not said is the agent's
-   to change, an action needing an account it does not hold — goes into **Steps for the person**. Where
-   the step edits what an agent may not read, such as a file of secrets, the command is a script the
-   agent writes: it adds only what is missing, prints the names it touched and never their values, and
-   can be run twice; what it prints is what shows the step done.
+7. **A step the person must take is written as theirs, as the command they run.** A step goes into
+   **Steps for the person** where it needs what an agent does not hold — a secret's value, an account —
+   or deletes from an environment the person has not said is the agent's to change, or changes or
+   removes a line already in a file of secrets. Where the step puts a secret's value into a file of
+   secrets, the command is a script the agent writes: it asks the person for each value as it runs and
+   holds none in its text, adds only what is missing, prints the names it touched and never their
+   values, and can be run twice; what it prints is what shows the step done. An edit to a file of
+   secrets that is none of these — a key added whose value the spec or the project gives — is not the
+   person's step but the change's, made without reading the file (`delivery-change-contract` rule 9).
 
 ### Checked before code, frozen after
 
@@ -158,10 +161,10 @@ runs, and whether it comes before the fix lands or after it.>
    possible, the spec says why. A feature's statements about what already exists — the code it extends
    or calls, the schema and the data it assumes, the decision records it implements — are set against
    the code, the data and the records themselves. A statement that fails its check is corrected with
-   the person, then checked again. A check reads; one that writes to an environment, costs money or
-   calls a real external system runs only once the person agrees, told what it touches, and without
-   that agreement it is not run, and is reported as not run. Whether an environment is anyone else's is
-   theirs to say.
+   the person, then checked again. A check reads, a file of secrets only by one that prints no value;
+   one that writes to an environment, costs money or calls a real external system runs only once the
+   person agrees, told what it touches, and without that agreement it is not run, and is reported as
+   not run. Whether an environment is anyone else's is theirs to say.
 9. **A spec is ready only once the person has accepted it and its statements have passed their
    check.** Its status says so, and until then it is a draft that no implementation starts from.
 10. **A ready spec's goal, scope and contracts change only with the person's consent.** **Goal**,

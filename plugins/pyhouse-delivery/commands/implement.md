@@ -138,6 +138,7 @@ After the body, in the reply only and never in a commit:
 - the live check, where one ran — what was started, what was done, what was seen, whether it was
   stopped, and anything seen outside what the spec asked;
 - a skill the instructions name for this work that the agent did not load, where that happened;
+- each file of secrets the change edited, and its keys — the diff does not show them;
 - the paths that were not named;
 - every question still open.
 
