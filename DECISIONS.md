@@ -3975,3 +3975,29 @@ to the person as a script, is narrowed on a branch of its own.
 **Reverse by:** from the parent of the commit that added this entry, reverting it —
 `plugins/pyhouse-secrets/`, `tools/test_secret_files_hook.py`, its entries in the marketplace, in
 `pyhouse`'s dependencies and in the indexes go with it, and the hand-kept hook stays.
+
+### D209 — An edit to a file of secrets that needs no value the agent lacks is the change's, made without reading the file
+Taken by the maintainer (2026-11-19, agreed in D208 as backlog item 122).
+`delivery-spec` rule 7 sent every step that handled a secret to the person, and a step that edited a file
+of secrets became a script the agent wrote and the person ran. It was written while the only guard an
+agent met refused any command naming such a file, so the agent could not touch one at all. D208's count
+shows that was the wrong line: of 359 refusals in one project, 15 read a value; the rest named the file,
+checked it existed, loaded it into a process, or edited or copied it without reading it — none needing a
+value the agent did not hold. Under rule 7 each such edit was a round trip to the person for nothing.
+
+So the person's step keeps only what needs a secret's value or an account the agent lacks, or deletes
+from an environment the person has not said is the agent's. An edit in the change's own checkout that
+needs neither is the change's: made without reading the file — a check that prints no value, a line
+appended, a copy to a new path the repository ignores. Neither a file the agent did not make nor a line
+in it the change did not write is removed or overwritten, since the agent never held their values and
+could not put them back: the file is ignored, so every branch of the checkout shares it, and a key
+removed by a change that never lands is lost to the mainline. An in-place edit of a line already there,
+or a key removed, stays the person's step. `delivery-change-contract` rule 9 states that;
+`delivery-spec` rule 7 says such an edit is not a step for the person and points at it. The person's
+script, where one is still needed, asks for each value as it runs and holds none in its text. Stated in
+the skills, not left to `pyhouse-secrets`: `pyhouse-delivery` does not depend on it, and the rule must
+hold with the hook absent.
+
+**Reverse by:** restoring `delivery-spec` rules 7 and 8, `delivery-change-contract` rule 9 and its
+description, `delivery-implementer`'s gate bullet, live-check step 3 and the paragraph after it, and the
+reply list in `/pyhouse-delivery:implement` step 7, as of `93dcc15`.

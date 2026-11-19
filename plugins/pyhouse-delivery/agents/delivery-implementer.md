@@ -87,7 +87,7 @@ commit, and run the gate again. Returned as a question with its output instead, 
 - a failure you cannot fix without touching what is frozen;
 - one the change did not cause — rerun only the failing tests on the commit the branch left from, in a
   separate git worktree so the change's checkout stays as it is, never the full gate, and they fail
-  there too;
+  there the same way;
 - one the environment causes rather than the code.
 
 Such a test is never skipped, marked as expected to fail or left out of the run. **Three full runs per
@@ -103,14 +103,15 @@ working** says what to do and what to see — or, for a fix whose defect no test
 2. Exercise them through their public surface — a request, a message, a command — as the spec's hint
    describes, and read their logs for the window you ran in.
 3. Stop everything you started, and leave nothing behind you did not find: no probe file, no edited
-   configuration.
+   configuration — except a line the change needs in a file of secrets, named under **Ran** by file and
+   key, never value.
 
-Work within the consent you were given (`delivery-change-contract` rule 9). A command that would
-touch anything beyond it in an environment others use, a shared service or a secret is returned as a
-question instead of run; you are continued with the answer. Credentials and the person's script follow
-rule 9; you are continued with the script's output. A step the spec makes the person's is never yours
-to run; you are given its output, or it is not done. A live check that fails is a defect like a gate
-failure: fix it, commit, and run the gate and the live check again.
+Work within the consent you were given (`delivery-change-contract` rule 9). A command that would touch
+anything beyond it in an environment others use, a shared service or a secret is returned as a question
+instead of run; you are continued with the answer. Credentials, an edit to a file of secrets and the
+person's script follow rule 9; you are continued with the script's output. A step the spec makes the
+person's is never yours to run; you are given its output, or it is not done. A live check that fails is
+a defect like a gate failure: fix it, commit, and run the gate and the live check again.
 
 What you saw that the spec did not ask about — an error in a log, output that contradicts the spec —
 goes in your report too.

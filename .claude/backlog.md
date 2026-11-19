@@ -10,20 +10,9 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 122, 108, 119, 112, 118. Waiting: 87 for defects found after
+Taken in this order: 108, 119, 112, 118. Waiting: 87 for defects found after
 a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
-`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D208).
-
-### 122. A step the person must take, narrowed to the values the agent does not hold
-**Agreed, first** (D208), on a branch of its own after `pyhouse-secrets` lands.
-`delivery-spec` rule 7 sends "handling a secret" and every edit of a file of secrets to the person, as a
-script the agent writes; `delivery-change-contract` rule 9 and `delivery-implementer` point at it. Most
-such edits need no value the agent lacks: adding a key whose value the spec or the project gives,
-removing a key, copying the file into a worktree. An agent makes them without reading the file — a
-check that prints no value, appending, editing in place, a copy to a new ignored path — whether or not
-`pyhouse-secrets` is installed, which `pyhouse-delivery` does not depend on. Proposal: the person's step
-keeps what needs a secret's value the agent does not hold, or an account it lacks; an edit to a file of
-secrets that needs neither is the agent's, made without reading the file. Reviewed with `/review-skills`.
+`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D209).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.

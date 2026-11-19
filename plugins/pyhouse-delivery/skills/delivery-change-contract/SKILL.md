@@ -1,6 +1,6 @@
 ---
 name: delivery-change-contract
-description: Use when implementing a ready spec and about to change something other than the change's own code — a test written before the code, a test that existed before the change, a gap the spec left, the spec's goal or scope, a decision record, or a check that guards the repository such as the architecture test, the linter's configuration or CI. Owns the short list of what is frozen while a spec is implemented and changes only with the person's consent, that everything else is free and read by the review from the diff, that a new decision record or a stricter guarding rule is free, that an environment others use, a shared service or a secret is touched only with the person's consent asked once before the work, with credentials found or created rather than asked for piece by piece, the base commits a change is measured from, and catching an edit to what is frozen by a diff from them rather than by forbidding it. What a spec holds and which of its sections are frozen are `delivery-spec`'s; whether an edit to a test changed what it asserts is decided by the review that reads the diff. - Also when asked whether an implementer may edit a test, loosen the architecture test, touch code another component shares, or fill in a name the spec does not give.
+description: Use when implementing a ready spec and about to change something other than the change's own code — a test written before the code, a test that existed before the change, a gap the spec left, the spec's goal or scope, a decision record, or a check that guards the repository such as the architecture test, the linter's configuration or CI. Owns the short list of what is frozen while a spec is implemented and changes only with the person's consent, that everything else is free and read by the review from the diff, that a new decision record or a stricter guarding rule is free, that an environment others use, a shared service or a secret is touched only with the person's consent asked once before the work, with credentials found or created rather than asked for piece by piece and a file of secrets edited only without reading it, the base commits a change is measured from, and catching an edit to what is frozen by a diff from them rather than by forbidding it. What a spec holds and which of its sections are frozen are `delivery-spec`'s; whether an edit to a test changed what it asserts is decided by the review that reads the diff. - Also when asked whether an implementer may edit a test, loosen the architecture test, touch code another component shares, or fill in a name the spec does not give.
 ---
 
 # Delivery — Change contract
@@ -76,9 +76,14 @@ is caught by a diff from a fixed commit, and reaches the person as a stop.
    only what it was meant to touch. The answer holds for the whole change; a command beyond it is asked
    again. A credential a check needs is found where the project keeps one for its checks — a test
    fixture, a seed, a documented local default — or created in an environment the change started
-   itself; a file of secrets is never read (`delivery-spec` rule 7). What only the person can do
-   reaches them once, as one script by that rule, never as a series of questions. A run the person
-   refused or did not answer is not made, and is reported as not made.
+   itself. A file of secrets is never read, and neither one the implementer did not make nor a line in
+   it the change did not write is removed or overwritten, since a value the implementer never held it
+   cannot put back. An edit to one in the change's own checkout that needs no value the implementer
+   lacks is its own, made without reading the file — a check that prints no value, a line appended, a
+   copy to a new path the repository ignores; one that needs such a value, or an account, is the
+   person's step (`delivery-spec` rule 7). What only the person can do reaches them once, as one script
+   by that rule, never as a series of questions. A run the person refused or did not answer is not
+   made, and is reported as not made.
 
 ## Hard stops
 
