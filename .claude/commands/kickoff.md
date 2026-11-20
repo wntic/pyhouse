@@ -55,7 +55,9 @@ Code's, and nothing is added to serve another agent.
 - **Language-level concerns live in universal skills**; a family skill uses them and defines no
   family-wide instance. What is optional is shown as optional.
 - **Judge by outcome.** The real test is what an agent builds from a short prompt with the skills
-  installed — not whether the skills conform to their own format.
+  installed — not whether the skills conform to their own format. `tools/measure_skill_loading.py`
+  runs a fixed prompt set and reports which skills loaded before the first write; what the code looks
+  like is still read by a person.
 
 ## How work is done here
 

@@ -1,0 +1,160 @@
+{
+  "levels": {
+    "neutral": "",
+    "competing": " Keep it quick and simple, I just need it working today."
+  },
+  "fixtures": {
+    "hex-service": {
+      "family": "hex"
+    }
+  },
+  "prompts": [
+    {
+      "id": "flat-poller",
+      "service": "flat: a long-running poller that follows a third-party feed and writes what it finds to one table",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python service that polls a public RSS feed every five minutes and saves new entries to Postgres."
+    },
+    {
+      "id": "flat-archive-load",
+      "service": "flat: a job that downloads archives, parses them and bulk-loads the rows into a database",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python job that downloads a daily ZIP of CSV files from a URL, parses them and bulk-loads the rows into Postgres."
+    },
+    {
+      "id": "flat-llm-worker",
+      "service": "flat: a worker that sends each record to an LLM API and stores the result",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python worker that takes each unprocessed article from a Postgres table, asks an LLM API for a three-sentence summary and stores it."
+    },
+    {
+      "id": "flat-queue-consumer",
+      "service": "flat: a queue consumer that calls one API and stores nothing",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python RabbitMQ consumer that sends an SMS through a third-party API for each message it receives."
+    },
+    {
+      "id": "flat-proxy",
+      "service": "flat: an HTTP endpoint that proxies one third-party API and stores nothing",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a small Python HTTP service that proxies a third-party weather API and adds our API key to each request."
+    },
+    {
+      "id": "flat-export-cli",
+      "service": "flat: a CLI-triggered export from an object store",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python command that exports the metadata of every object under an S3 prefix into one CSV file."
+    },
+    {
+      "id": "flat-crawler",
+      "service": "flat: a crawler writing to two stores",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python crawler that fetches product pages from a list of sites, keeps the raw HTML in S3 and the parsed prices in Postgres."
+    },
+    {
+      "id": "hex-crud",
+      "service": "hex: a CRUD REST service with one aggregate",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python REST API for library loans: a member borrows and returns books and can never hold more than five at once."
+    },
+    {
+      "id": "hex-queue-driven",
+      "service": "hex: a service driven only by a queue consumer",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python service that consumes payment events from Kafka and keeps each customer's balance, rejecting any payment that would take it below zero."
+    },
+    {
+      "id": "hex-grpc",
+      "service": "hex: a gRPC service with two aggregates and no auth",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python gRPC service for meeting rooms and their bookings, where two bookings of the same room can never overlap."
+    },
+    {
+      "id": "hex-no-sql",
+      "service": "hex: a service with no relational store",
+      "fixture": null,
+      "repo": "service",
+      "text": "Write a Python REST service for shopping carts kept in Redis: a cart holds at most 50 items and a discount code applies only once."
+    },
+    {
+      "id": "library",
+      "service": "universal: a library with no entrypoint",
+      "fixture": null,
+      "repo": "library",
+      "text": "Write a Python library that parses and validates IBAN numbers."
+    },
+    {
+      "id": "cli-tool",
+      "service": "universal: a CLI tool",
+      "fixture": null,
+      "repo": "library",
+      "text": "Write a Python command-line tool that renames the photos in a folder by the date they were taken."
+    },
+    {
+      "id": "hex-named-repo-test",
+      "service": "hex brownfield, the artifact named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Add an integration test for SqlTaskRepository against a real Postgres."
+    },
+    {
+      "id": "hex-named-endpoint",
+      "service": "hex brownfield, the artifact named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Add a GET /projects/{project_id}/tasks endpoint that lists a project's tasks."
+    },
+    {
+      "id": "hex-named-port",
+      "service": "hex brownfield, the artifact named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Add a port and an SMTP adapter for sending email."
+    },
+    {
+      "id": "hex-archive-project",
+      "service": "hex brownfield, the artifact not named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Let users archive a project; an archived project accepts no new tasks."
+    },
+    {
+      "id": "hex-notify-assignee",
+      "service": "hex brownfield, the artifact not named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Add this feature: when a task is completed, its assignee gets an email."
+    },
+    {
+      "id": "hex-due-dates",
+      "service": "hex brownfield, the artifact not named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Tasks need a due date, and I want to list the overdue ones."
+    },
+    {
+      "id": "hex-move-task",
+      "service": "hex brownfield, the artifact not named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Make it possible to move a task to another project."
+    },
+    {
+      "id": "hex-edit-task",
+      "service": "hex brownfield, the artifact not named",
+      "fixture": "hex-service",
+      "repo": "service",
+      "text": "Let users change a task's title and assignee after it has been created."
+    }
+  ]
+}
