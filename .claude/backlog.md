@@ -10,9 +10,10 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 108, 119, 112, 118. Waiting: 87 for defects found after
-a change landed; 110 and 114 for 108's harness; 121 for a rewrite of a generated service through
-`/implement`. Every other item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D209).
+Taken in this order: 119, 112, 118. Waiting: 87 for defects found after a change landed; 110 and 114
+for a run of `tools/measure_skill_loading.py --full` on the prompt each names; 121 for a rewrite of a
+generated service through `/implement`. Every other item has landed or was closed (D130–D178, D191,
+D192, D195–D198, D201–D210).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -21,38 +22,18 @@ would close it — the loop D186 was the first output of. Deferred (D192) until 
 the repository it would run on, most defects testing will find predate the pipeline, and half its
 steps are gone.
 
-108 and 110 come from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
+110 comes from a read of ECC (github.com/affaan-m/ECC, commit `d2ef268`, 2026-11-06, version
 2.2.3), a multi-language agent kit of 71 agents and 314 skills, compared with the catalogue on
 2026-11-17. ECC paths below are at that commit. Most of ECC was not taken: about 35 of ~70 Python rules
 the catalogue already states, ~8 are performance (D196), ~15 bind one stack; its two-reviewer and
 generator/evaluator loops are what D185, D192 and D195 removed; and its Python material contradicts the
 catalogue in many places — `Optional[X]`, an HTTP status on the exception class, log-and-re-raise,
-`create_all` at startup, settings built at import, `@patch` and an in-memory sqlite in tests. These two
-are what survived still open; 109 landed as D206, and 111 as D202 and D203.
-
-### 108. A harness that measures whether an agent follows a skill under a naive prompt
-**Agreed, fifth.** The prompt set lives in `tools/` beside the runner, so runs stay comparable across
-releases, and raw outputs go to `.sources`; it runs on Opus; its first use re-runs D178 on the catalogue
-as it is.
-ECC's `skills/skill-comply` (`SKILL.md`, `prompts/`, `scripts/runner.py`) generates, for one skill or
-rule, the behaviour it expects as 3–7 ordered steps, then one task at three prompt strictness levels —
-supportive ("use TDD to implement …"), neutral (the task only), and competing ("quickly implement …,
-tests are optional") — runs each through `claude -p` with stream-json, and classifies the tool-call
-trace against the steps, checking order deterministically (`prompts/scenario_generator.md`,
-`prompts/spec_generator.md`). The catalogue judges by outcome and has measured it only by hand: D178
-(39 headless Opus runs on which skill loads) and D182 (9 runs on the outbox), each scripted afresh. The
-competing level is the prompt this catalogue exists for — two sentences, no layout, "just make it work".
-Proposal: a maintainer tool under `tools/`, not shipped in a plugin, that runs a fixed prompt set with
-the checkout's plugins loaded by `--plugin-dir` and user settings excluded, and reports per run which
-skills loaded and whether each loaded before the first `Write`/`Edit` — the part a trace answers without
-a model — leaving what the code looks like to be read, as D182 did. Not taken from ECC: its LLM
-classifier of tool calls (the catalogue's question is the structure written, not the call sequence), its
-auto-generated scenarios (a fixed set is what makes runs comparable across releases), and its "promote
-to hook below 60% compliance" advice.
+`create_all` at startup, settings built at import, `@patch` and an in-memory sqlite in tests. This one
+is what survived still open; 108 landed as D210, 109 as D206, and 111 as D202 and D203.
 
 ### 110. Which failures a retry repeats, and which calls it may repeat
-**Waits for 108.** Tried on a short prompt first: a rule only if Opus, unprompted, retries a rejection
-or repeats a write that is not idempotent.
+**Waits for a run.** Tried on a short prompt first, with `tools/measure_skill_loading.py --full`: a
+rule only if Opus, unprompted, retries a rejection or repeats a write that is not idempotent.
 ECC states it in `skills/error-handling/SKILL.md:376` — "Retry logic only retries retriable errors (not
 4xx client errors)" — with `retryIf` at `:343`, and breaks it itself in
 `skills/backend-patterns/SKILL.md:318-340`, a retry around every error. The catalogue states only where a
@@ -69,7 +50,7 @@ caller that retries — or one sentence beside each family's placement rule. Ope
 has shown the defect yet, and a defect becomes a rule; whether the generality alone earns it.
 
 ### 112. A security review before a service is first exposed to the internet
-**Agreed, seventh, as research:** the comparison and one trial run below, before anything is written
+**Agreed, second, as research:** the comparison and one trial run below, before anything is written
 here. The likely outcome is a third-party skill installed beside the catalogue rather than one it ships.
 The maintainer builds web applications and other services that will be reachable by anyone on the
 internet, and a service an agent wrote in a short time is an easy target. Wanted: a check of the code
@@ -92,8 +73,8 @@ validated at the boundary, secrets never in the repository), which existing skil
 many agents a run costs against the two the delivery pipeline settled on.
 
 ### 114. A read, a decision in code and a write back lose a concurrent update
-**Waits for 108.** D207's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
-unprompted.
+**Waits for a run.** D207's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write
+unprompted, tried with `tools/measure_skill_loading.py --full`.
 Found by reading `kleppmann-ddia` — a skill the maintainer generated on 2026-11-15 with
 `book-to-skill` (github.com/virgiliojr94/book-to-skill) from Martin Kleppmann's *Designing
 Data-Intensive Applications* (O'Reilly, 2017), kept outside the catalogue — against `persistence`. Its
@@ -115,7 +96,7 @@ that no generated service has shown the defect yet. The same chapter (line 32) a
 transient and permanent errors, which supports 110.
 
 ### 118. A project's own review checks, each triggered by the diff and read from the base
-**Agreed, eighth:** the experiment in the producer below first; code in the catalogue only if it shows a
+**Agreed, third:** the experiment in the producer below first; code in the catalogue only if it shows a
 gain.
 
 118, 119 and 121 — and 120, which landed with 117 as D208 — come from "How the Claude Code team
@@ -150,7 +131,7 @@ contradicts "a review artifact states none of its own" (CLAUDE.md) — it states
 catalogue's; and whether `/implement` passes the base or the reviewer finds it.
 
 ### 119. How to start and drive a service, written once in the project
-**Agreed, sixth:** the count from the timelines first, then decided on its numbers.
+**Agreed, first:** the count from the timelines first, then decided on its numbers.
 The article's practice is a skill named `verify` in the repository's `.claude/skills/` that says how to
 start the app and drive it, which the agent uses before committing and which the team makes "fast and
 reliable" as its smoke-test harness. `delivery-implementer`'s live check works the same thing out afresh

@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pyhouse` is a **Claude Code plugin marketplace**, not a Python project. It has no build system and no
 runtime dependencies — only Markdown skills, seven plugin manifests, two hook scripts (`pyhouse-git`'s
-`commit-msg` and `pyhouse-secrets`' guard, which has the repository's one test file), and one
-maintainer script. The "code" is 53 `SKILL.md` files — 49 that tell an agent
+`commit-msg` and `pyhouse-secrets`' guard, which has the repository's one test file), and two
+maintainer scripts — one checks templates' imports, one measures which skills an agent loads.
+The "code" is 53 `SKILL.md` files — 49 that tell an agent
 how to write Python services, two that tell it how to commit and branch, and two that tell it how to write the spec a
 change is implemented from and what implementing it may change. The Python in them is template content, not executed as part of
 anything here.
@@ -183,6 +184,12 @@ CHANGELOG.md                             what each release changed for the plugi
                                          /release-notes after the tag
 tools/check_template_imports.py          resolves every import in every template (see above)
 tools/test_secret_files_hook.py          the cases pyhouse-secrets' hook must allow and refuse
+tools/measure_skill_loading.py           runs a fixed set of short prompts through Opus with this
+                                         checkout's plugins and reports which skills loaded before
+                                         the first write; prompts in skill_prompts.json, starting
+                                         projects in skill_fixtures/, raw output to .sources; each
+                                         run spends the usage window, so a batch is the maintainer's
+                                         call, started small (D210)
 .claude/review/QUESTIONS.md              the questions a review of a skill answers
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own

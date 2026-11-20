@@ -4001,3 +4001,49 @@ hold with the hook absent.
 **Reverse by:** restoring `delivery-spec` rules 7 and 8, `delivery-change-contract` rule 9 and its
 description, `delivery-implementer`'s gate bullet, live-check step 3 and the paragraph after it, and the
 reply list in `/pyhouse-delivery:implement` step 7, as of `93dcc15`.
+
+### D210 — A fixed prompt set measures which skills an agent loads before it writes
+Taken by the maintainer (2026-11-19, agreed in D204 as backlog item 108). The catalogue is judged by
+what an agent builds from a short prompt, and that had been measured only by scripts written afresh
+each time and then lost (D178, D182), so no two releases could be compared.
+
+`tools/measure_skill_loading.py` runs each prompt of `tools/skill_prompts.json` through `claude -p` on
+Opus, in a fresh git repository — empty for a new service, or a copy of `tools/skill_fixtures/hex-service`
+— with only this checkout's plugins loaded and user settings excluded, and reports per run which skills
+the `Skill` tool loaded, which catalogue files were read directly, and where the first write fell
+(`Write`, `Edit`, or a shell command that writes a file or scaffolds a project). It reads the trace
+without a model; what the code looks like stays a person's reading. Chosen by the maintainer: a run
+stops at its first write, which is all the trace question needs, and `--full` lets it finish and keeps
+what it wrote; two levels, the task alone and the task with "keep it quick and simple, I just need it
+working today", since that is the prompt the catalogue exists for and a supportive prompt names its own
+answer; prompts in English. Thirteen prompts are the test services of `QUESTIONS.md`, one each; eight
+are D178's shape on the starting project, three naming the artifact and five not. `--setup` writes the
+section `/pyhouse-universal:adopt` writes, read from that command so it cannot go stale, and the listing
+budget `/pyhouse:setup` sets. No expected skill per prompt is recorded: which skill ought to load is a
+judgement the report leaves to its reader. Not taken from ECC's `skill-comply`: its model classifying
+the calls, its generated scenarios, and its advice to promote a rule to a hook below a threshold.
+
+First use, the D178 replay (2026-11-19, `90cab50`, one run per prompt and level, raw in the sources
+repository). Counting only runs that reached a write, a catalogue skill loaded before it:
+
+| | task alone | "quick and simple" |
+|---|---|---|
+| the catalogue installed, nothing else | 12 of 18 | 3 of 20 |
+| after `/pyhouse:setup` | 18 of 18 | 20 of 20 |
+
+A rerun without setup, on the final prompt set, gave 15 of 21 and 5 of 21; its setup half was cut off
+by the account's usage limit mid-run and is not counted. So the names alone carry the routing only
+when the agent goes looking (D178's finding was about which skill, among runs that loaded one): under
+the prompt this catalogue exists for, an agent with the plugins installed but no adopt section in
+`CLAUDE.md` almost never loads one before writing, and with it always does. `/pyhouse:setup` is
+therefore not optional polish but what makes the catalogue reach the code. The pilot also showed two
+prompts that could not be done on the starting project — an assignee it did not have, a caller's
+identity it did not know — so agents asked instead of writing; the fixture's task gained an assignee
+and the second prompt became an edit of a task's title and assignee before the set was fixed.
+
+The cost was underestimated: priced in API dollars it looked small, but the runs draw on the account's
+subscription window, and the two passes, the second started without asking, emptied an almost unused
+five-hour window in minutes. Every batch is the maintainer's call, started with a few prompts.
+
+**Reverse by:** from the parent of the commit that added this entry, reverting it — the tool, the prompt
+set and the fixture go with it, and backlog item 108 returns as of `90cab50`.
