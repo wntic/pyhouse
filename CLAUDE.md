@@ -189,7 +189,7 @@ tools/measure_skill_loading.py           runs a fixed set of short prompts throu
                                          the first write; prompts in skill_prompts.json, starting
                                          projects in skill_fixtures/, raw output to .sources; each
                                          run spends the usage window, so a batch is the maintainer's
-                                         call, started small (D210)
+                                         call, started small; it asks before it starts (D210, D211)
 .claude/review/QUESTIONS.md              the questions a review of a skill answers
 .claude/agents/catalogue-reviewer.md     the reviewer, run once per lens by /review-skills
 .claude/commands/                        /kickoff, /commit and /review-skills, this repository's own

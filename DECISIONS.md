@@ -4047,3 +4047,14 @@ five-hour window in minutes. Every batch is the maintainer's call, started with 
 
 **Reverse by:** from the parent of the commit that added this entry, reverting it — the tool, the prompt
 set and the fixture go with it, and backlog item 108 returns as of `90cab50`.
+
+### D211 — The skill-loading tool asks before it spends the usage window
+Taken by the maintainer (2026-11-21), who weighed reverting D210 for its cost and kept the tool with a
+guard instead: the cost is in starting runs, not in the tool, and D210's runs were expensive because the
+whole set was started twice, not because the tool exists. `tools/measure_skill_loading.py` now refuses
+to start without `--only` unless `--all-prompts` is given, runs one session at a time unless `--jobs`
+says otherwise (it was four), and before starting prints how many Opus sessions it will run and waits
+for a typed yes — refused where stdin is not a terminal, unless `--yes` gave it in advance.
+`--report-only` asks nothing, since it starts no session.
+
+**Reverse by:** restoring `tools/measure_skill_loading.py` as of `4177cb1`.
