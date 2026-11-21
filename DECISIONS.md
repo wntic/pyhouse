@@ -4058,3 +4058,21 @@ for a typed yes — refused where stdin is not a terminal, unless `--yes` gave i
 `--report-only` asks nothing, since it starts no session.
 
 **Reverse by:** restoring `tools/measure_skill_loading.py` as of `4177cb1`.
+
+### D212 — How to start a service is not written down for the live check
+Taken by the maintainer (2026-11-21), closing backlog item 119 (agreed in D204) on its first step, the
+count. The proposal was that a project keep one description of how to start its services and drive
+them, which `delivery-implementer`'s live check would read first, instead of working it out each time.
+Counted from the 28 implementer transcripts of every `/implement` run between the live check's arrival
+(D194) and 2026-11-19, in the producer and the second project (sources repository,
+`delivery/runs/2026-11-21-live-check-start.md`): 17 ran a live check; 13 of them found out how to start
+in 0–6 calls and under a minute, four in 2–3.5 minutes, against runs of 11–100 minutes; a start failed
+two or three times, each put right by the next call, and none left the service unstarted. The time went
+to driving the service and to waiting for the person's consent. Where a project already describes its
+environment — a stand README, a test environment's README, a memory file — the agent read it first,
+which live-check step 1 already sends it to. So there was nothing for the description to save, and the
+second step, writing one by hand and comparing three specs, was not run. Seen and left alone: in one
+project agents brought the environment up differently each time, with no failure from it.
+
+**Reverse by:** reopening backlog item 119 as of `419c5e9` when a count shows the live check losing time
+or failing on starting the service.
