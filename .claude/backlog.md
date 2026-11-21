@@ -10,10 +10,10 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 119, 112, 118. Waiting: 87 for defects found after a change landed; 110 and 114
+Taken in this order: 112, 118. Waiting: 87 for defects found after a change landed; 110 and 114
 for a run of `tools/measure_skill_loading.py --full` on the prompt each names; 121 for a rewrite of a
 generated service through `/implement`. Every other item has landed or was closed (D130–D178, D191,
-D192, D195–D198, D201–D210).
+D192, D195–D198, D201–D210, D212).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -50,7 +50,7 @@ caller that retries — or one sentence beside each family's placement rule. Ope
 has shown the defect yet, and a defect becomes a rule; whether the generality alone earns it.
 
 ### 112. A security review before a service is first exposed to the internet
-**Agreed, second, as research:** the comparison and one trial run below, before anything is written
+**Agreed, first, as research:** the comparison and one trial run below, before anything is written
 here. The likely outcome is a third-party skill installed beside the catalogue rather than one it ships.
 The maintainer builds web applications and other services that will be reachable by anyone on the
 internet, and a service an agent wrote in a short time is an easy target. Wanted: a check of the code
@@ -96,10 +96,10 @@ that no generated service has shown the defect yet. The same chapter (line 32) a
 transient and permanent errors, which supports 110.
 
 ### 118. A project's own review checks, each triggered by the diff and read from the base
-**Agreed, third:** the experiment in the producer below first; code in the catalogue only if it shows a
+**Agreed, second:** the experiment in the producer below first; code in the catalogue only if it shows a
 gain.
 
-118, 119 and 121 — and 120, which landed with 117 as D208 — come from "How the Claude Code team
+118 and 121 — and 120, which landed with 117 as D208, and 119, closed as D212 — come from "How the Claude Code team
 thinks about verification" (Addy Osmani, claude.dev, 2026-11-16; a copy and the comparison with the catalogue are in
 `.sources/articles/` and `.sources/research/2026-11-17-verification-article.md`). Much of the article is
 already here: three runs then a person (D194), a flaky failure never retried or skipped
@@ -129,23 +129,6 @@ count what is found, what is newly over-flagged on the clean diff, and the cost;
 that played no part in writing the checks. Open: where the file lives and what it is called; whether it
 contradicts "a review artifact states none of its own" (CLAUDE.md) — it states the project's, not the
 catalogue's; and whether `/implement` passes the base or the reviewer finds it.
-
-### 119. How to start and drive a service, written once in the project
-**Agreed, first:** the count from the timelines first, then decided on its numbers.
-The article's practice is a skill named `verify` in the repository's `.claude/skills/` that says how to
-start the app and drive it, which the agent uses before committing and which the team makes "fast and
-reliable" as its smoke-test harness. `delivery-implementer`'s live check works the same thing out afresh
-each time — step 1: "Work out from the project how to start it: its agent instructions, its compose or
-task files, its entrypoints" — and the spec's **How to see it working** says only what to do to the
-change, not how to bring the service up. A feature took 24 to 64 minutes to hand-over (D195); how much of
-that went to finding out how to start the service has not been counted. Proposal: the project keeps one
-description of how to start the fewest services and drive them through their public surface, which the
-live check reads first and reports as wrong where it was. To test before deciding: count from the
-producer's timelines (`.sources/delivery/runs/timelines/`) the turns and minutes each live check spent
-on starting the service and how often it failed to; then write the description by hand in the producer
-and compare three specs. Open: a project skill, a section of the project's agent instructions, or a
-script; whether `/pyhouse:setup` offers to write it; and whether a change may correct it freely, like a
-new decision record (D197), or only with consent, as a check that guards the repository.
 
 ### 121. A change that promises unchanged behaviour is checked against the code it replaces
 **Waits** for a rewrite of a generated service through `/implement`; until one is done, how often a
