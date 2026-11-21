@@ -15,18 +15,20 @@ finish and keeps the files it wrote, for reading what the code looks like; that 
 person's. The prompt set is fixed so runs stay comparable across releases: add a prompt rather than
 rewording one.
 
-    python3 tools/measure_skill_loading.py --out .sources/experiments/<date>-<name>
-    python3 tools/measure_skill_loading.py --out <dir> --only hex-crud,cli-tool --levels competing --repeat 3
-    python3 tools/measure_skill_loading.py --out <dir> --setup          # as /pyhouse:setup leaves a repo
-    python3 tools/measure_skill_loading.py --out <dir> --plugins none   # the control: no catalogue
+    python3 tools/measure_skill_loading.py --out .sources/experiments/<date>-<name> --only hex-crud,cli-tool
+    python3 tools/measure_skill_loading.py --out <dir> --only hex-crud --levels competing --repeat 3
+    python3 tools/measure_skill_loading.py --out <dir> --only hex-crud --setup  # as /pyhouse:setup leaves it
+    python3 tools/measure_skill_loading.py --out <dir> --only hex-crud --plugins none  # no catalogue
     python3 tools/measure_skill_loading.py --out <dir> --report-only    # rebuild report.md from raw/
 
 Raw streams go to `<out>/raw/`, one summary line per run to `<out>/summary.jsonl`, and the tables to
 `<out>/report.md`. Raw output belongs in the sources repository, not in this one.
 
 Every run is a full Opus session drawn on the account running it. The whole set at both levels, 42
-runs, emptied a subscription's five-hour usage window in minutes (D210). Start with `--only` and two
-or three prompts, `--jobs 1`, and run more only once the maintainer has agreed to that batch.
+runs, emptied a subscription's five-hour usage window in minutes (D210). So the tool guards the batch:
+it refuses to start without `--only` unless `--all-prompts` is given, runs one at a time unless
+`--jobs` says otherwise, and prints how many sessions it will start and waits for a typed yes, which
+`--yes` gives in advance. Run a batch only once the maintainer has agreed to it.
 """
 
 import argparse
@@ -310,7 +312,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--out", required=True, type=Path, help="directory for raw streams and the report")
     parser.add_argument("--prompts", type=Path, default=ROOT / "tools" / "skill_prompts.json")
-    parser.add_argument("--only", help="comma-separated prompt ids")
+    parser.add_argument("--only", help="comma-separated prompt ids; required unless --all-prompts")
+    parser.add_argument("--all-prompts", action="store_true", help="run every prompt in the file")
     parser.add_argument("--levels", help="comma-separated levels; default every level in the prompt file")
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--model", default="opus")
@@ -323,7 +326,8 @@ def main() -> None:
                         help="bypassPermissions instead of acceptEdits, so the agent can run what it wrote")
     parser.add_argument("--max-budget-usd", type=float, help="per run; default 2, or 10 with --full")
     parser.add_argument("--timeout", type=int, default=900, help="seconds per run")
-    parser.add_argument("--jobs", type=int, default=4)
+    parser.add_argument("--jobs", type=int, default=1)
+    parser.add_argument("--yes", action="store_true", help="start without asking for confirmation")
     parser.add_argument("--report-only", action="store_true", help="rebuild the report from <out>/raw")
     args = parser.parse_args()
 
@@ -343,6 +347,9 @@ def main() -> None:
     if unknown:
         sys.exit(f"unknown levels: {', '.join(sorted(unknown))}")
     prompts = spec["prompts"]
+    if not args.only and not args.all_prompts:
+        sys.exit("name the prompts with --only; the whole set needs --all-prompts (each run is an Opus "
+                 "session on the usage window, D210)")
     if args.only:
         wanted = set(args.only.split(","))
         prompts = [p for p in prompts if p["id"] in wanted]
@@ -350,6 +357,19 @@ def main() -> None:
             sys.exit(f"unknown prompts: {', '.join(sorted(missing))}")
     plugins = catalogue_plugins(args.plugins)
     runs = [Run(p, level, rep) for p in prompts for level in levels for rep in range(args.repeat)]
+
+    print(f"{len(runs)} {args.model} sessions ({len(prompts)} prompts x {len(levels)} levels x "
+          f"{args.repeat}), {args.jobs} at a time, {'to the end' if args.full else 'to the first write'}; "
+          "each draws on the usage window", flush=True)
+    if not args.yes:
+        if not sys.stdin.isatty():
+            sys.exit("not a terminal: pass --yes to start")
+        try:
+            answer = input("start? type yes: ")
+        except EOFError:
+            answer = ""
+        if answer.strip().lower() != "yes":
+            sys.exit("not started")
 
     (out / "raw").mkdir(parents=True, exist_ok=True)
     clashes = [r.run_id for r in runs if (out / "raw" / f"{r.run_id}.jsonl").exists()]
@@ -369,7 +389,7 @@ def main() -> None:
         "permission_mode": "bypassPermissions" if args.allow_bash else "acceptEdits",
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print(f"{len(runs)} runs, {args.jobs} at a time, into {out}", flush=True)
+    print(f"into {out}", flush=True)
 
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         summaries = list(pool.map(lambda r: execute(r, args, spec, plugins, out), runs))
