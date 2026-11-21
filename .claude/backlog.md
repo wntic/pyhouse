@@ -10,10 +10,10 @@ the rest agreed below.
 
 ## Agreed
 
-Taken in this order: 112, 118. Waiting: 87 for defects found after a change landed; 110 and 114
+Taken next: 118. Waiting: 87 for defects found after a change landed; 110 and 114
 for a run of `tools/measure_skill_loading.py --full` on the prompt each names; 121 for a rewrite of a
 generated service through `/implement`. Every other item has landed or was closed (D130–D178, D191,
-D192, D195–D198, D201–D210, D212).
+D192, D195–D198, D201–D210, D212, D213).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -48,29 +48,6 @@ broker client, in either family, and any test service that calls a third party h
 an obligation, without mechanism, in `at-least-once-delivery` — rule 6 widened from the relay to any
 caller that retries — or one sentence beside each family's placement rule. Open: no generated service
 has shown the defect yet, and a defect becomes a rule; whether the generality alone earns it.
-
-### 112. A security review before a service is first exposed to the internet
-**Agreed, first, as research:** the comparison and one trial run below, before anything is written
-here. The likely outcome is a third-party skill installed beside the catalogue rather than one it ships.
-The maintainer builds web applications and other services that will be reachable by anyone on the
-internet, and a service an agent wrote in a short time is an easy target. Wanted: a check of the code
-for security before its first deploy. The catalogue has nothing for this — `/pyhouse-universal:change-review`
-reviews one change for what it breaks, not a whole codebase for what an attacker can reach, and the linter
-selects only six of its security rules (D203). A candidate to start from is Cloudflare's
-`security-audit-skill` (github.com/cloudflare/security-audit-skill, MIT, read 2026-11-17): six phases —
-reconnaissance into an architecture note and a coverage ledger of trust boundaries and input surfaces,
-hunting by isolated sub-agents assigned from the ledger, a fresh verifier trying to disprove each
-candidate, findings written as confirmed / needs-validation / rejected against a JSON schema, an
-independent re-check of each record's source claims, and a report — with attack-class guides (HTTP and
-authentication, client-side code, supply chain and CI, cloud and deployment, serialization and queues,
-resource exhaustion, data isolation, LLM-backed targets, and more) and Node validators for its outputs.
-It is multi-agent by design. Claude Code's own `/security-review` exists and has not been compared. To
-do: look for other credible security-review skills and checklists, compare them with Cloudflare's, and
-try the best on one real service before its deploy. Open: whether the catalogue ships anything at all
-or the maintainer installs a third-party skill beside it — the catalogue's rules state obligations, and
-a security audit may be a tool rather than a rule set; if obligations come out of it (an untrusted input
-validated at the boundary, secrets never in the repository), which existing skill owns each; and how
-many agents a run costs against the two the delivery pipeline settled on.
 
 ### 114. A read, a decision in code and a write back lose a concurrent update
 **Waits for a run.** D207's filter 5 decides it: whether Opus guards a PATCH endpoint's read-modify-write

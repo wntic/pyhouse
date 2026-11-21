@@ -4076,3 +4076,25 @@ project agents brought the environment up differently each time, with no failure
 
 **Reverse by:** reopening backlog item 119 as of `419c5e9` when a count shows the live check losing time
 or failing on starting the service.
+
+### D213 — A security review before first exposure is installed beside the catalogue, not shipped
+Taken by the maintainer (2026-11-21), closing backlog item 112 (agreed in D204) after the comparison
+and one trial run (sources repository, `research/2026-11-21-security-review-candidates.md`). Read:
+Cloudflare's `security-audit-skill`, Sentry's `security-review`, Claude Code's built-in
+`/security-review` and Trail of Bits' `skills`. The built-in one reviews a branch's diff and is told to
+ignore what was already there, so it does not answer a whole service before its first deploy. Run on
+one FastAPI service at one commit, source-only: Sentry, one agent and about 0.32M tokens, reported eight
+items with none false on reading; Cloudflare's `quick` profile, 32 agents and about 2.9M tokens, reported
+thirteen leads, seven of them Sentry's run did not find, and narrowed several where Sentry did not; Sentry found
+two Cloudflare did not, one of them the most urgent of the run. Neither replaces the other, and neither
+is a rule set: they are audits, which is a tool's job, and a rule here states an obligation code is
+written and reviewed against. So the catalogue ships nothing for this; the maintainer installs the
+third-party skills beside it and runs Sentry, then Cloudflare `quick`, before a service is first
+exposed. Cloudflare in Claude Code needs its parent's bookkeeping done by hand and confirms nothing
+without an OS sandbox; Trail of Bits' `supply-chain-risk-auditor` was not run. Seen and left open: two
+obligations no skill here states — an outbound fetch of a URL taken from untrusted content allows only
+globally routable addresses and connects to the address it checked, and work over untrusted stored
+content is bounded in size and time — whose owner, if any, is a separate question.
+
+**Reverse by:** reopening backlog item 112 as of `7f3106a` when a run shows an audit missing what a
+skill of this catalogue could have stated as an obligation.
