@@ -4120,3 +4120,20 @@ so `/implement` passes nothing new.
 **Reverse by:** deleting the section "The project's own checks" and the `Checks:` header line from
 `change-reviewer` and the line from `/change-review`'s render, as of the merge of this change, when
 review runs show checks costing more findings of the lenses than they add.
+
+### D215 — The release note goes into the release commit, approved before the tag
+Taken by the maintainer (2026-11-22). `/release` kept the release commit to the version fields and the
+lockfile, and `/release-notes` ran after the tag, dated by it: so the tag named a tree without the note
+that describes it, the note was read only once the tag could not be taken back, and each release took a
+second branch and merge for its note. Nothing recorded that order; it was how D160 placed the command
+beside `/release`. A project that set its own rule — the release commit prepends the entry, written with
+`/release-notes`, and the tag goes on it once it has landed — released that way through its last
+six versions without the note holding a release up. Now `/release` step 7, where a repository keeps its
+notes in a file it writes by hand, runs `/release-notes` for the confirmed version, goes on only once
+the person approves the draft, and commits it with the versions; `/release-notes` heads that range with
+the version and dates it by the release commit. Where a tool owns the notes, they live only on the
+forge, or none are kept, nothing changes; a version derived from tags gets a release commit holding
+only the note.
+
+**Reverse by:** restoring step 7 of `/release`, step 2 and step 5 of `/release-notes` and the
+`CHANGELOG.md` line of `CLAUDE.md`'s layout as of the merge of this change.

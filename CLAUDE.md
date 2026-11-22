@@ -183,7 +183,7 @@ Recorded once here, as `git-branching` rule 2 asks of any repository.
 .claude-plugin/marketplace.json          lists the seven plugins
 DECISIONS.md                             why things are the way they are, and how to reverse each
 CHANGELOG.md                             what each release changed for the plugins' users, drafted by
-                                         /release-notes after the tag
+                                         /release-notes and committed in the release commit
 tools/check_template_imports.py          resolves every import in every template (see above)
 tools/test_secret_files_hook.py          the cases pyhouse-secrets' hook must allow and refuse
 tools/measure_skill_loading.py           runs a fixed set of short prompts through Opus with this

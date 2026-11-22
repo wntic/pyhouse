@@ -31,6 +31,8 @@ existing note's headings, order, tone and link references are followed as they a
 - **`$ARGUMENTS` names a range** → that range, headed by its end's version where the end is a release
   tag, else `Unreleased`.
 - **`HEAD` is a release tag** → from the tag before it to that tag.
+- **Called by `/release` for the version it is about to cut** (`/release` step 7) → from the latest
+  release tag to `HEAD`, headed by that version. The note goes into the release commit itself.
 - **Otherwise** → from the latest release tag to `HEAD`, under `Unreleased` — unless a release commit
   in the range is still waiting for its tag (`/release` step 3), which makes it that release.
 
@@ -42,7 +44,8 @@ and each member's tag at the range's end is a note of its own. **No release tag 
 the range's end** → this is the first release: say so in one line and point at the documentation,
 rather than listing what the project offers.
 
-A section dated by a release takes its tag's date (`git log -1 --format=%cs <tag>`), never today's; an
+A section dated by a release takes its tag's date (`git log -1 --format=%cs <tag>`), never today's —
+except the one `/release` is about to cut, which takes the day of its release commit, today; an
 `Unreleased` section carries none. **A section for this range already exists** → it is replaced, never
 added to: at a release tag, an `Unreleased` section becomes that release's — its entries checked against
 the range, its heading, date and link references rewritten for the version.
@@ -83,7 +86,8 @@ Added, Changed, Deprecated, Removed and Fixed, leaving out any heading with noth
 
 ## 5. Report
 
-Show the note, the range it covers, and every open question. Leave the file uncommitted. Where the
+Show the note, the range it covers, and every open question. Leave the file uncommitted. Called by
+`/release`, the approved note is committed with the release, by that command. Otherwise, where the
 person asks for the commit, it is a documentation change of its own, written as `git-commit-message`
 and `git-branching` direct. A copy for the forge's release page is made only when asked.
 
