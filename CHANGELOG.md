@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.38.0 — 2026-11-22
+
+Plugin versions in this release: `pyhouse-universal` 0.28.0 (from 0.27.0) and `pyhouse-delivery` 0.9.0
+(from 0.8.0); `pyhouse-hex` 0.15.1, `pyhouse-flat` 0.13.1, `pyhouse-git` 0.11.0, `pyhouse-secrets` 0.1.0
+and `pyhouse` 0.4.0 are unchanged.
+
+### Added
+
+- **`/pyhouse-universal:change-review` answers your project's own review checks.** The review asks the
+  same questions of every project, so it misses what only your project has learned breaks, such as a
+  number one file sets and another relies on, or a value only one path of several honours. Write those
+  down in `.claude/review-checks.md`. Give each check a trigger that can be seen in a diff, what to
+  check, and the incident it came from. The reviewer reads the file from the change's base, never from
+  the change itself, so a change cannot weaken the checks it is judged by. It answers only the checks
+  whose trigger the diff matches, after its usual questions. A finding from a check stands on a concrete
+  scenario like any other, and the report's new `Checks:` line says which checks matched and what each
+  found. Without the file nothing changes. The catalogue ships no checks: add one when you fix a defect
+  the review missed but could have seen in the diff that brought it in.
+
+### Changed
+
+- **`/pyhouse-delivery:implement` lets the agent edit a file of secrets without reading it.** Before,
+  every edit to a dotenv file became a step for you to run. Now the agent makes the edits that need no
+  value it lacks, such as appending a key whose value the spec or the project gives, a check that
+  prints no value, or a copy into a new checkout, as long as it never reads the file. It still never
+  removes or overwrites a line it did not write. A step stays yours where it needs a secret's value or
+  an account the agent does not have, deletes something from an environment that is not the agent's,
+  or changes a line already in the file. The reply now lists each file of secrets the change edited.
+
 ## 0.37.0 — 2026-11-19
 
 Plugin versions in this release: `pyhouse-secrets` 0.1.0 (new) and `pyhouse` 0.4.0 (from 0.3.0);
