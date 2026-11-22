@@ -148,7 +148,7 @@ async def create_foo(
 @router.patch(
     "/{id}",
     response_model=FooResponse,
-    responses=error_responses(404, 409, 422),  # 409 only where Foo has a unique field
+    responses=error_responses(404, 409, 422),  # 409 only where Foo has a unique field or the update is guarded
 )
 async def update_foo(
     id: UUID,

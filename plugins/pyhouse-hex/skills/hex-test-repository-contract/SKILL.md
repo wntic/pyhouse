@@ -260,7 +260,9 @@ async def test_count_applies_the_filter(session_factory: async_sessionmaker[Asyn
 `loaded == foo` passes a repository that maps the id and drops or swaps every other column;
 `asdict(...)` on both sides compares what the row actually carried back. The builder gives every
 optional field a non-default value, and the update test changes every field `update` writes; otherwise
-a column the mapping drops comes back as its default and the comparison passes.
+a column the mapping drops comes back as its default and the comparison passes. Where `update` is
+guarded against a concurrent change (`hex-persistence`'s `REPOSITORY.md` rule 9), the row reads back
+at the next version, so the update test compares against the entity carrying that version.
 
 The planting `UPDATE` is not seed data (rule 9): no repository method can set the column, which is the
 point.
@@ -435,7 +437,8 @@ Follow `test-principles` for the testing constitution. Follow `naming` for names
 1. **Exercise exactly the protocol the port declares** — every method, CRUD verbs and the port's own
    alike (`delete_by_<field>`, range/scan), each with its absent-record case, and no test for a method
    the port does not declare. A verb that promises an order asserts that order, not just membership. An
-   out-of-order write and a batch write, where the adapter takes them → `test-principles`,
+   out-of-order or concurrently guarded write and a batch write, where the adapter takes them →
+   `test-principles`,
    *Datastore contract* rules 6 and 7.
 
 ### Relational

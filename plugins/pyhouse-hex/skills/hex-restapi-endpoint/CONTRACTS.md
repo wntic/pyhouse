@@ -27,7 +27,7 @@ auth dependency**; `hex-restapi-auth`'s `ROUTES.md` adds the auth codes.
 | Read by id (`{id}` path parameter) | `404, 422` |
 | List / browse (filter or pagination parameters) | `422` |
 | Create (body) | `422`, plus `409` per uniqueness constraint the aggregate carries |
-| Update (`{id}` plus body) | `404, 422`, plus `409` likewise |
+| Update (`{id}` plus body) | `404, 422`, plus `409` likewise, and where the update is guarded against a concurrent change |
 | Delete (`{id}` path parameter) | `404, 422`, plus `409` where another aggregate can reference it (in use) |
 | Collection action (a literal path segment) | `422`, plus whatever its handler raises |
 | Read with other input (a lookup by a natural key, a search) | `404, 422` |

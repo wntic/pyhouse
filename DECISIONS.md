@@ -4137,3 +4137,32 @@ only the note.
 
 **Reverse by:** restoring step 7 of `/release`, step 2 and step 5 of `/release-notes` and the
 `CHANGELOG.md` line of `CLAUDE.md`'s layout as of the merge of this change.
+
+### D217 — A read, a decision in code and a write back is guarded where two callers can change one record
+Taken by the maintainer (2026-11-22), closing backlog item 114. D207's filter 5 asks whether an agent
+without the rule gets it wrong, and three full runs of `hex-edit-task` ("Let users change a task's title
+and assignee after it has been created.", Opus, neutral, `--full`, on `tools/skill_fixtures/hex-service`;
+two without `--setup`, one with it; $0.47, $0.50, $0.87; raw in the sources repository) all did: each
+edit handler read the task, changed it and saved every column back unguarded, so an edit racing
+`/complete` writes `done` back to false. The run with setup loaded `hex-application` and copied its
+`UpdateFooHandler` almost verbatim — the catalogue's own template taught the defect — and none of the
+three loaded `persistence`. So the obligation is owned by `persistence` rule 16, widened rather than
+renumbered since its number is cited across the catalogue: a write computed from a value the same
+callable read is conditional on that value still holding — an atomic update (the only form for an
+aggregated column, rule 17), a version or compare-and-set guard, or a lock the read takes in the
+writing transaction — and a guarded write that finds it changed refuses. As D169 did for the ordering
+guard, no template gains the version: it is prose beside the template an agent copies —
+`hex-application` after `UpdateFooHandler`, stating that two requests one async process serves are two
+callers and that the guard holds unless one writer per record is guaranteed, and `hex-persistence`'s
+`REPOSITORY.md` rule 9 for the relational binding — with the consequences carried to the test and the
+route: `test-principles` *Datastore contract* rule 6 requires the stale-version test,
+`hex-test-repository-contract` says the update test reads back the next version, and
+`hex-restapi-endpoint` declares 409 on a guarded update. Not done: the version in any template, and a
+rule in `hex-store-repository`, whose template has no update and whose obligation rule 16 already
+states. Whether the prose is reached when the template is copied is not yet measured.
+
+**Reverse by:** restoring rule 16 of `persistence`, the paragraph after `UpdateFooHandler` in
+`hex-application`, rule 9 and the header of `hex-persistence`'s `REPOSITORY.md`, *Datastore contract*
+rule 6 of `test-principles`, rule 1 and the comparison paragraph of `hex-test-repository-contract`, and
+the update route's comment and `CONTRACTS.md` row of `hex-restapi-endpoint`, as of the merge of this
+change.

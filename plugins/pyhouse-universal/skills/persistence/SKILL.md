@@ -1,6 +1,6 @@
 ---
 name: persistence
-description: Use when code reads or writes a datastore, written or reviewed, in any project whatever its architecture — beside the family's data-access skill whenever its templates are written, since the obligations they satisfy are stated here — who owns a transaction, where a driver error is translated and what its context carries, how constraint and table names are derived, how rows map back, which stored type a value gets, how a conflicting or older write is resolved, how a batched write is sized, how a paged read orders, how a schema change ships safely, and whether data-access code logs. Owns these store-generic rules and which of them bind given the store's properties; it binds no library and writes no file. The data-access files that satisfy them are the architecture family's — `flat-persistence` in the `pyhouse-flat` plugin, `hex-persistence` or `hex-store-repository` in the `pyhouse-hex` plugin — and the error classes, translation with the cause chained and its fallback are `exception-catalog`'s. - Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, whether a repository should log, how a migration chain starts, or whether a cache may take writes.
+description: Use when code reads or writes a datastore, written or reviewed, in any project whatever its architecture — beside the family's data-access skill whenever its templates are written, since the obligations they satisfy are stated here — who owns a transaction, where a driver error is translated and what its context carries, how constraint and table names are derived, how rows map back, which stored type a value gets, how a conflicting, older or concurrent write is resolved, how a batched write is sized, how a paged read orders, how a schema change ships safely, and whether data-access code logs. Owns these store-generic rules and which of them bind given the store's properties; it binds no library and writes no file. The data-access files that satisfy them are the architecture family's — `flat-persistence` in the `pyhouse-flat` plugin, `hex-persistence` or `hex-store-repository` in the `pyhouse-hex` plugin — and the error classes, translation with the cause chained and its fallback are `exception-catalog`'s. - Also when asked whether a repository may commit, why a partial write happened, what a constraint should be named, whether to use a database enum type, whether a timestamp column needs a timezone, how to stop a stale update overwriting a newer one, how to deduplicate writes, how large a batched write's chunks may be, how to page through a table without skipping rows, whether a migration is safe to deploy, whether a repository should log, how a migration chain starts, or whether a cache may take writes.
 ---
 
 # Persistence — the store-generic obligations
@@ -145,7 +145,16 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
     change was made or observed, the same on every delivery of it, never the time of a delivery attempt
     or of the write — and the write is conditional on it: a guarded conflict clause, a conditional put,
     or, where the store resolves at merge time, keeping the newest by it (rule 17). A store that can
-    make no write conditional needs a single writer per key.
+    make no write conditional needs a single writer per key. **The same holds for a write computed from
+    a value the same callable read — a read, a decision in code and a write back.** Where two callers
+    can change one record at once, the write is conditional on what was read still holding — an
+    atomic update the store computes itself (the only form for a column aggregated across writes,
+    rule 17), a version or compare-and-set guard the write checks, or a lock the read takes in the
+    transaction the write commits in — and a guarded write that finds it changed refuses rather than
+    overwrites. Unguarded, two concurrent changes leave only the second,
+    built on the value the first replaced, and no isolation level stops it when the read and the write
+    are separate transactions, nor, when they share one, the read-committed level most stores default
+    to.
 17. **Deduplication and conflict resolution belong to the store's own write-time or merge-time
     mechanism, never to an application read-before-write per row.** Where the write can resolve a
     conflict, rule 15 says how; where the store deduplicates at merge time, the store is configured for

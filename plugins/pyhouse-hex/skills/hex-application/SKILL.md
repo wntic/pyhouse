@@ -152,6 +152,15 @@ class UpdateFooHandler:
 `replace` builds a new entity through the constructor, so the entity's invariants run on the changed
 values exactly as they did at creation.
 
+Read and written back as two calls, this keeps only one of two concurrent updates to one `Foo` — and
+two requests one async process serves are two callers. Unless one writer per record is guaranteed (a
+consumer partitioned by the record's key), `update` is conditional on the `Foo` read still being the
+one stored — a version the `Foo` carries, which the write checks and advances, a mismatch refused with
+the catalogue's conflict class (`persistence` rule 16). The guard is the repository's
+(`hex-persistence`; on a non-relational store, the conditional put `persistence` rule 16 names), and the
+handler stays load, mutate, write. The version is the one this handler read; a version the caller
+sends is an API contract of its own, never required by this guard.
+
 ### Command DTO and handler — delete (returns `None`)
 
 ```python
