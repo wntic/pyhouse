@@ -56,7 +56,7 @@ git log --format='%h %s' --grep='^chore(release): ' <last tag>..HEAD
 With no tag yet, search `HEAD` alone. Read the tag name from the subject with any trailing request
 suffix stripped — a squash merge often lands it as `chore(release): v0.7.0 (#34)`, whose tag is
 `v0.7.0`. A match whose tag does not exist is that release, landed and
-waiting: offer to tag it (step 7, item 3) and propose nothing new until it is tagged.
+waiting: offer to tag it (step 7, item 4) and propose nothing new until it is tagged.
 
 The range itself, with bodies, because a break may be stated only in a footer (step 4):
 
@@ -89,7 +89,9 @@ the root, CI, tooling — moves no number. A repository with one version is the 
 Show the attribution in the proposal, so the person can correct it.
 
 **A version derived from tags** — a build that reads the number from the VCS rather than from a field —
-has no field to edit. The release is then the tag alone; say so, and skip the edit in step 7.
+has no field to edit. The release is then the tag alone; say so, and skip the edit in step 7. Where
+step 7 writes a note, it is that release's commit, `chore(release): <tag>` holding only the note, and
+the tag goes on it.
 
 ## 6. Propose, then stop
 
@@ -121,17 +123,24 @@ which is the case the types exist to prevent and cannot always catch.
 
 ## 7. Cut it — only after an explicit yes
 
-1. Edit exactly the version fields the proposal named. Where the ecosystem's lockfile also records the
+1. **Where the repository keeps its release notes in a file of its own** — a changelog it writes by
+   hand, not a release tool's input and not only the forge's release pages — run `/release-notes` for
+   the version just confirmed, show the draft, and go on only once the person approves it. The approved
+   note goes into the release commit, so the tag carries the note that describes it, and it is read
+   before the tag that cannot be taken back. Where a tool owns the notes, they live only on the forge, or
+   the repository keeps none, this item adds nothing.
+2. Edit exactly the version fields the proposal named. Where the ecosystem's lockfile also records the
    project's own version — `package-lock.json`, `Cargo.lock`, `uv.lock` — regenerate it with the
    ecosystem's own lock command, or update that one entry, in the same commit: a lockfile left at the
-   old number fails the next locked install or check. Nothing else goes into this commit.
-2. Commit it as `chore(release): <tag>`. `chore`, because a release commit records no change of its own
+   old number fails the next locked install or check. Nothing else goes into this commit but the note
+   item 1 wrote.
+3. Commit it as `chore(release): <tag>`. `chore`, because a release commit records no change of its own
    and must not propose another version — it is the one commit `git-commit-message` rule 2 lets touch
    the version. **Where the mainline takes changes only through a request**, the release commit is no
-   exception: commit it on a branch, open the request, and tag in item 3 only once it has landed — on
+   exception: commit it on a branch, open the request, and tag in item 4 only once it has landed — on
    the release commit under a keep-every-commit merge method, on the squashed commit under squash.
    Running this command again after it lands finds that commit and offers the tag (step 3).
-3. Tag that commit, annotated, spelled as step 3 settled — once per member under per-member tags. Pass
+4. Tag that commit, annotated, spelled as step 3 settled — once per member under per-member tags. Pass
    the annotation on standard input, so no editor opens; it names the version and each member's bump:
 
 ```
@@ -142,15 +151,15 @@ git tag -a -F - <tag> <release commit> <<'EOF'
 EOF
 ```
 
-4. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so
+5. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so
    many words: once the tag leaves this machine it cannot be taken back.
 
 ## What this does not do
 
-**Write a release note.** A consumer reads one to decide whether to upgrade, and a commit log does not
-answer that question, so a note generated from these subjects is the wrong document with the right
-name. The tag annotation is not a release note; `/release-notes` drafts one from the changes themselves, for
-the person to approve.
+**Write the release note itself.** A consumer reads one to decide whether to upgrade, and a commit log
+does not answer that question, so a note generated from these subjects is the wrong document with the
+right name. The tag annotation is not a release note; `/release-notes` drafts one from the changes
+themselves, for the person to approve, and step 7 puts the approved draft in the release commit.
 
 **Publish.** Building an artifact and uploading it to an index is the repository's pipeline, usually
 run by CI on the pushed tag.
