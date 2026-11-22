@@ -2,6 +2,13 @@
 
 House-style rules for writing Python services, as Claude Code skills.
 
+Ask an agent for a Python service and nothing more, and the code usually works but nobody wants to
+maintain it: one or two modules of a thousand lines each, a comment on every line, the package
+structure ignored, and transactions and error handling decided again in every file. pyhouse gives the
+agent the rules a reviewer would otherwise enforce by hand: where code goes, what it is called, who
+owns a transaction, how an error crosses a boundary, and what a test must pin. The first version then
+already follows a house style, and review is spent on the change, not on rewriting the layout.
+
 Forty-nine skills covering naming, packaging, settings, the toolchain, versioning, errors and tests — plus two mutually exclusive service
 architectures. They are project-neutral: worked examples use `myapp` and `Foo`, never a real service
 name.
