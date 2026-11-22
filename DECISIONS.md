@@ -4137,3 +4137,20 @@ only the note.
 
 **Reverse by:** restoring step 7 of `/release`, step 2 and step 5 of `/release-notes` and the
 `CHANGELOG.md` line of `CLAUDE.md`'s layout as of the merge of this change.
+
+### D216 — No rule on which failures a retry repeats: Opus separates them unprompted
+Taken by the maintainer (2026-11-22), closing backlog item 110, which proposed an obligation in
+`at-least-once-delivery` that a retry repeats only a transient failure and repeats a call only where
+repeating it is safe. D207's filter 5 asks first whether an agent without the rule gets it wrong. One
+full run of `flat-queue-consumer` (an SMS sent through a third-party API per queued message; Opus,
+neutral, `--full`, no `--setup`, `$0.72`; raw in the sources repository) loaded `flat-entrypoint` and
+`at-least-once-delivery`, neither of which states the rule, and built it anyway: transport errors, 408,
+429 and 5xx return the message to the queue for the broker's bounded redelivery, any other 4xx and an
+unparseable body go to the dead letter at once, every send carries the message's id as an idempotency
+key that a redelivery repeats, and the message is acknowledged only once the gateway accepted it, with
+a test for each branch. `at-least-once-delivery` rule 6 may have prompted the key; the split between a
+transient failure and a rejection it has nowhere. One run is thin evidence, and the rule passed lens 1;
+but a rule an agent already follows is a line every reader pays for with no output changed.
+
+**Reverse by:** reopening backlog item 110 as it stood before this entry, when a generated service is
+seen retrying a rejection or repeating a non-idempotent call.
