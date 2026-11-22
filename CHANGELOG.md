@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.39.0 — 2026-11-22
+
+Plugin versions in this release: `pyhouse-git` 0.12.0 (from 0.11.0); `pyhouse-universal` 0.28.0,
+`pyhouse-hex` 0.15.1, `pyhouse-flat` 0.13.1, `pyhouse-delivery` 0.9.0, `pyhouse-secrets` 0.1.0 and
+`pyhouse` 0.4.0 are unchanged.
+
+### Changed
+
+- **`/release` writes the release note before the tag and commits it with the release.** Before, the
+  release commit held only the version numbers, and you ran `/release-notes` after the tag, as a commit
+  of its own. Now, where your repository keeps its notes in a changelog file it writes by hand,
+  `/release` runs `/release-notes` once you confirm the version and shows you the draft. Only after you
+  approve it does it commit the note together with the version numbers and put the tag on that commit.
+  So you read the note before the tag, which cannot be taken back, and the tagged tree holds the note
+  that describes it. Where a release tool such as release-please or towncrier owns the notes, where
+  they live only on the forge's release pages, or where you keep none, `/release` works as before.
+  `/release-notes` run on its own also works as before.
+
 ## 0.38.0 — 2026-11-22
 
 Plugin versions in this release: `pyhouse-universal` 0.28.0 (from 0.27.0) and `pyhouse-delivery` 0.9.0
