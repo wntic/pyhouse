@@ -4202,3 +4202,18 @@ for every handler and no run has shown a writer bypassing it.
 
 **Reverse by:** removing the lock sentence from `persistence` rule 16 and from the paragraph after
 `UpdateFooHandler` in `hex-application`, as of the merge of this change.
+
+### D219 — No retrospective command and no differential check: backlog 87 and 121 closed unbuilt
+Taken by the maintainer (2026-11-23). Both waited on an event outside this repository, and neither
+event had come. Item 87 proposed `/retro`, a run over released changes for the defects found after
+each landed, which check let each escape, and the rule or test that would close it; it waited for such
+defects, deferred by D192, and D214's project review checks have since given an escaped defect a
+place to be written down where it is fixed. Item 121 proposed that a change whose goal is unchanged
+behaviour — a generated service rewritten into a family's layout — be checked by running the old and
+the new code on the same inputs and comparing what each leaves behind, every intended difference named
+in its spec; it waited for such a rewrite to go through `/implement`, and the article it came from is
+one team's practice on another setup. Nothing in the catalogue changes.
+
+**Reverse by:** reopening either item from its text as of the parent of this entry's commit — 87 when
+defects found after a change landed show a pattern no review check catches, 121 when a rewrite through
+`/implement` loses a behaviour its tests did not catch.
