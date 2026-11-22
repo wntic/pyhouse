@@ -151,10 +151,11 @@ is not a poor fit for this skill: the rules that lapse lapse because their subje
     atomic update the store computes itself (the only form for a column aggregated across writes,
     rule 17), a version or compare-and-set guard the write checks, or a lock the read takes in the
     transaction the write commits in — and a guarded write that finds it changed refuses rather than
-    overwrites. Unguarded, two concurrent changes leave only the second,
-    built on the value the first replaced, and no isolation level stops it when the read and the write
-    are separate transactions, nor, when they share one, the read-committed level most stores default
-    to.
+    overwrites. **A lock guards a record only where every callable that writes it from what it read
+    takes that lock first**: one that reads without it waits only at its write, then writes back what it
+    read before the holder committed. Unguarded, two concurrent changes leave only the second, built
+    on the value the first replaced, and no isolation level stops it when the read and the write are
+    separate transactions, nor, when they share one, the read-committed level most stores default to.
 17. **Deduplication and conflict resolution belong to the store's own write-time or merge-time
     mechanism, never to an application read-before-write per row.** Where the write can resolve a
     conflict, rule 15 says how; where the store deduplicates at merge time, the store is configured for

@@ -159,7 +159,10 @@ one stored — a version the `Foo` carries, which the write checks and advances,
 the catalogue's conflict class (`persistence` rule 16). The guard is the repository's
 (`hex-persistence`; on a non-relational store, the conditional put `persistence` rule 16 names), and the
 handler stays load, mutate, write. The version is the one this handler read; a version the caller
-sends is an API contract of its own, never required by this guard.
+sends is an API contract of its own, never required by this guard. A lock the read takes in the
+writing transaction is the alternative only where every handler that writes the `Foo` from what it
+read takes it: one that reads without it waits at its write, then writes back what it read before the
+lock's holder committed (`persistence` rule 16).
 
 ### Command DTO and handler — delete (returns `None`)
 

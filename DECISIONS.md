@@ -4183,3 +4183,22 @@ states. Whether the prose is reached when the template is copied is not yet meas
 rule 6 of `test-principles`, rule 1 and the comparison paragraph of `hex-test-repository-contract`, and
 the update route's comment and `CONTRACTS.md` row of `hex-restapi-endpoint`, as of the merge of this
 change.
+
+### D218 — A lock guards a record only where every writer that read it takes the lock
+Taken by the maintainer (2026-11-23), answering what D217 left unmeasured: whether the prose beside
+`UpdateFooHandler` is reached when the template is copied. One full run of `hex-edit-task` on v0.40.0
+(Opus, neutral, `--full`, `--setup`, $1.17; raw in the sources repository) loaded `hex-application`
+and not `persistence`, as none of the four measured hex runs has, and guarded its new edit handler — not
+with the version the paragraph names, which it rejected because the fixture has no migrations, but with
+a lock its read takes in the request's transaction. It left the fixture's `CompleteTaskHandler`, which
+reads and writes every column back, reading without the lock, so a complete that starts after an edit
+still writes the old title back; its report said the race was closed. So `persistence` rule 16 states
+that a lock guards a record only where every callable writing it from what it read takes that lock
+first — a writer that reads nothing, an atomic update, needs none, and rule 17 forbids it the read — and
+`hex-application`'s paragraph says the same of the lock as the alternative to the version, citing rule
+16, since that paragraph is where the agent decides. Not taken: a sentence that a version fails the
+same way against a writer that does not advance it, since `hex-persistence`'s one `update` advances it
+for every handler and no run has shown a writer bypassing it.
+
+**Reverse by:** removing the lock sentence from `persistence` rule 16 and from the paragraph after
+`UpdateFooHandler` in `hex-application`, as of the merge of this change.
