@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.40.1 — 2026-11-23
+
+Plugin versions in this release: `pyhouse-universal` 0.29.1 (from 0.29.0) and `pyhouse-hex` 0.16.1
+(from 0.16.0); `pyhouse-flat` 0.13.1, `pyhouse-git` 0.12.0, `pyhouse-delivery` 0.9.0, `pyhouse-secrets`
+0.1.0 and `pyhouse` 0.4.0 are unchanged.
+
+### Fixed
+
+- **A lock now guards an update only where every writer of the record takes it.** 0.40.0 allowed a
+  lock taken by the read as one way to keep a concurrent change, but did not say who has to take it.
+  An agent could then lock the read in its new handler and leave an existing handler that reads and
+  writes the same record back without the lock. That handler still waits only at its write, then writes
+  its stale value over the other change. Now `persistence` and the hexagonal update handler's guidance
+  both say that every writer that reads the record before writing it takes the lock first. A writer
+  that reads nothing, such as an atomic update, needs none. The version guard is unaffected: the
+  repository's one `update` checks and advances it for every handler. If you guarded an update with a
+  lock, check that every other handler writing that record from what it read takes the same lock.
+
 ## 0.40.0 — 2026-11-22
 
 Plugin versions in this release: `pyhouse-universal` 0.29.0 (from 0.28.0) and `pyhouse-hex` 0.16.0
