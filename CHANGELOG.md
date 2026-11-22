@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.40.0 — 2026-11-22
+
+Plugin versions in this release: `pyhouse-universal` 0.29.0 (from 0.28.0) and `pyhouse-hex` 0.16.0
+(from 0.15.1); `pyhouse-flat` 0.13.1, `pyhouse-git` 0.12.0, `pyhouse-delivery` 0.9.0, `pyhouse-secrets`
+0.1.0 and `pyhouse` 0.4.0 are unchanged.
+
+### Changed
+
+- **An update that reads a record, changes it and writes it back no longer loses a concurrent change.**
+  Before, the hexagonal update handler the catalogue shows read the record in one call and wrote every
+  field back in another, with nothing in between. When two requests edited one record at once, the
+  second write silently undid the first. That holds even on one replica, since one async process
+  serving two requests is two callers. An agent copying the handler copied the defect with it. Now
+  `persistence` asks that such a write go through only if what was read still holds. That can be an
+  atomic update the store computes itself (the only form for a counter or a running total), a version
+  or compare-and-set check, or a lock the read takes in the writing transaction. A write that finds the
+  value changed refuses instead of overwriting.
+  In a hexagonal service, unless one writer per record is guaranteed (a consumer partitioned by the
+  record's key), the aggregate carries a version the repository's `update` checks and advances. A
+  mismatch raises your catalogue's conflict class, distinct from not-found, and the PATCH route
+  declares 409 for it. The handler itself stays load, change, write. The repository contract suite
+  gains a test that writes at a version another write has moved past. The update test compares
+  against the entity at its next version. The version the guard checks is the one the handler read:
+  asking clients to send one is a choice of your API, not part of this guard. No template changed, so
+  code you generated earlier is not rewritten. Review existing update handlers that read and save back
+  without a version.
+
 ## 0.39.0 — 2026-11-22
 
 Plugin versions in this release: `pyhouse-git` 0.12.0 (from 0.11.0); `pyhouse-universal` 0.28.0,
