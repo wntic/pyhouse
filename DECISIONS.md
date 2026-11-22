@@ -4098,3 +4098,25 @@ content is bounded in size and time — whose owner, if any, is a separate quest
 
 **Reverse by:** reopening backlog item 112 as of `7f3106a` when a run shows an audit missing what a
 skill of this catalogue could have stated as an obligation.
+
+### D214 — `change-reviewer` answers a project's own checks, read from the change's base
+Taken by the maintainer (2026-11-22), closing backlog item 118 (agreed in D204) after the experiment it
+asked for (sources repository, `delivery/steps/2-review/experiment-118.md`). A project may keep
+`.claude/review-checks.md`, each check a trigger read from a diff, a check, and the incident behind it;
+in find mode the reviewer reads it with `git show` at the left side of the range, never from the change,
+answers only the checks whose trigger the diff matches, after its three lenses, and reports what one
+turns up on its scenario like any other finding (D187). The catalogue ships no checks: the file is the
+project's, written by its owner, so a review artifact still states none of the catalogue's own.
+Measured on the producer with the reviewer of v0.35.0 plus that section, Opus, against the 2d
+calibration: two checks written for its misses, D10 and D12, found D10 in 2 runs of 2 and D12 in 1 of
+1, where seven runs without them found neither; the clean diff matched no check and gained no finding;
+on one diff that played no part in writing them, a matched check found a real stale number its author
+had not known of, and nothing false; every match decision was right. The five runs cost $12.00, each
+cheaper than its 2d counterpart. The cost seen: a finding the lenses made in 3 of 3 runs without checks
+was made in 0 of 2 with them, so the section says the checks come after the lenses and narrow nothing
+they read; whether that sentence restores it is not measured. Left open: the base comes from the range,
+so `/implement` passes nothing new.
+
+**Reverse by:** deleting the section "The project's own checks" and the `Checks:` header line from
+`change-reviewer` and the line from `/change-review`'s render, as of the merge of this change, when
+review runs show checks costing more findings of the lenses than they add.

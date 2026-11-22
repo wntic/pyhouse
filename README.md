@@ -134,8 +134,10 @@ cover.
 ref — for what it breaks, in any project and on any stack: a contract other code relies on, a failure
 path nothing catches, a test that would not notice the change being wrong. One subagent reads the diff
 and prints each finding with the scenario that goes wrong, its severity, and an outcome line for the
-merge commit. After the fixes, `recheck` reviews only the fix
-diff, once. It is not a style audit: a finding stands on what goes wrong, and cites a skill only where
+merge commit. Where the project keeps checks of its own in `.claude/review-checks.md` — each a trigger
+read from a diff, a check, and the incident behind it — the reviewer reads them from the change's base,
+never from the change, and answers those whose trigger the diff matches. After the fixes, `recheck`
+reviews only the fix diff, once. It is not a style audit: a finding stands on what goes wrong, and cites a skill only where
 one states the obligation that breaks.
 
 ## Writing the spec for a change

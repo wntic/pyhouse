@@ -10,10 +10,10 @@ the rest agreed below.
 
 ## Agreed
 
-Taken next: 118. Waiting: 87 for defects found after a change landed; 110 and 114
+Nothing is taken next. Waiting: 87 for defects found after a change landed; 110 and 114
 for a run of `tools/measure_skill_loading.py --full` on the prompt each names; 121 for a rewrite of a
 generated service through `/implement`. Every other item has landed or was closed (D130–D178, D191,
-D192, D195–D198, D201–D210, D212, D213).
+D192, D195–D198, D201–D210, D212–D214).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -72,40 +72,10 @@ edge case the catalogue leaves alone; whether rule 16 widens to hold it or it is
 that no generated service has shown the defect yet. The same chapter (line 32) also separates retries of
 transient and permanent errors, which supports 110.
 
-### 118. A project's own review checks, each triggered by the diff and read from the base
-**Agreed, second:** the experiment in the producer below first; code in the catalogue only if it shows a
-gain.
-
-118 and 121 — and 120, which landed with 117 as D208, and 119, closed as D212 — come from "How the Claude Code team
-thinks about verification" (Addy Osmani, claude.dev, 2026-11-16; a copy and the comparison with the catalogue are in
-`.sources/articles/` and `.sources/research/2026-11-17-verification-article.md`). Much of the article is
-already here: three runs then a person (D194), a flaky failure never retried or skipped
-(`delivery-implementer`), no sleeping in a test (`test-principles` reliability rule 3), cheap checks
-before the review, a review tied to commits, Important / Nit / Pre-existing. It is one team's practice on
-a different setup — a hosted reviewer, CI, hundreds of agents — with one number behind it, so **each item
-below is decided only after it is tried on ours**: the producer and the second project, Opus, and the
-calibration in `.sources/delivery/steps/2-review/`.
-
-The article's team keeps a reliability checklist of 39 items, "each with a trigger that can be read from
-a diff, a check, and the incidents or PRs behind it"; the reviewer reads the diff and runs only the items
-whose trigger matches, usually 3 to 10. The rules that gate a change are read "from the base or default
-branch, never from the pull request's changes". A missed bug becomes such an item when it is detectable:
-three finders are replayed on the incident's change, and a bug at least two find that the reviewer missed
-on a small diff earns a rule. `change-reviewer` has nowhere to put what a project learned: its lenses are
-fixed, and it reads no project file. The catalogue's skills do not fill that gap, since a project's past
-outage — a field older records lack, a consumer outside the repository — is not an obligation of any
-family. The 2d calibration's misses (D10, D12) are the case: repeated runs did not reach them (D204),
-and a check written for them might. 87 (`/retro`) would be the producer of such items.
-
-Proposal: `change-reviewer` reads a project's file of checks — trigger, check, the incident behind it —
-taken from the change's base commit, never from the change, and in find mode answers only the checks
-whose trigger the diff matches, each finding still standing on its scenario (D187). Not a rule set of the
-catalogue's: the file is the project's, written by its owner. To test before deciding: write checks for
-D10 and D12 in the producer, rerun `/change-review` on the three 2d diffs with and without the file, and
-count what is found, what is newly over-flagged on the clean diff, and the cost; then try it on one diff
-that played no part in writing the checks. Open: where the file lives and what it is called; whether it
-contradicts "a review artifact states none of its own" (CLAUDE.md) — it states the project's, not the
-catalogue's; and whether `/implement` passes the base or the reviewer finds it.
+121 comes from "How the Claude Code team thinks about verification" (Addy Osmani, claude.dev, 2026-11-16;
+a copy and the comparison with the catalogue are in `.sources/articles/` and
+`.sources/research/2026-11-17-verification-article.md`), as did 118 (D214), 119 (D212) and 120 (D208). It
+is one team's practice on a different setup, so it is decided only after it is tried on ours.
 
 ### 121. A change that promises unchanged behaviour is checked against the code it replaces
 **Waits** for a rewrite of a generated service through `/implement`; until one is done, how often a

@@ -52,7 +52,9 @@ rather than a style.
 The corollary for anything that reviews: the rules live in the skills, so a review artifact states none
 of its own. The one review the catalogue ships, `/pyhouse-universal:change-review`, asks where to look
 rather than what code must be: each finding stands on a concrete failure scenario, and cites a skill
-only where one states the obligation the scenario breaks (D187). The catalogue ships no conformance
+only where one states the obligation the scenario breaks (D187). A project's own checks, which the
+reviewer reads from `.claude/review-checks.md` at the change's base, are the project's, written by its
+owner; the catalogue ships none (D214). The catalogue ships no conformance
 audit; the one it had was removed when nothing ran it (D200).
 
 ## Commands
