@@ -25,10 +25,9 @@ defects that reached `main`.
 
 ## Agreed
 
-Nothing is taken next. Waiting: 87 for defects found after a change landed; 114 for two more
-runs of `tools/measure_skill_loading.py --full` on the prompt it names; 121 for a rewrite of a
+Nothing is taken next. Waiting: 87 for defects found after a change landed; 121 for a rewrite of a
 generated service through `/implement`. Every other item has landed or was closed (D130–D178, D191,
-D192, D195–D198, D201–D210, D212–D214, D216).
+D192, D195–D198, D201–D210, D212–D214, D216, D217).
 
 ### 87. A retrospective over released changes
 **Waits** for defects found after a change landed.
@@ -36,35 +35,6 @@ D192, D195–D198, D201–D210, D212–D214, D216).
 would close it — the loop D186 was the first output of. Deferred (D192) until such defects exist: in
 the repository it would run on, most defects testing will find predate the pipeline, and half its
 steps are gone.
-
-### 114. A read, a decision in code and a write back lose a concurrent update
-**Waits for two more runs.** D207's filter 5 decides it: whether Opus guards a PATCH endpoint's
-read-modify-write unprompted, tried with `tools/measure_skill_loading.py --full`. The first run
-(2026-11-22, `hex-edit-task`, neutral, no `--setup`, no skill loaded; raw in the sources repository)
-did not: its edit handler reads the task, edits it and saves every column back, so an edit racing
-`/complete` can write `done` back to false, and its own list of decisions to revisit names no
-concurrency. The fixture's `CompleteTaskHandler` has the same unguarded shape, so the run copied it
-rather than invented it. Still to run: the same prompt once more without `--setup` and once with it,
-where `persistence` is the likelier to load.
-Found by reading `kleppmann-ddia` — a skill the maintainer generated on 2026-11-15 with
-`book-to-skill` (github.com/virgiliojr94/book-to-skill) from Martin Kleppmann's *Designing
-Data-Intensive Applications* (O'Reilly, 2017), kept outside the catalogue — against `persistence`. Its
-`chapters/ch07-transactions.md` (lines 17, 31, 37, 41) restates the book: a read-modify-write in
-application code with no lock, no compare-and-set and no atomic update loses one of two concurrent
-updates, and the database's default isolation level (often read committed) does not stop it; a read of
-a premise, a decision in code and a write that changes the premise (write skew) needs serializable
-isolation or an explicit lock. `persistence` rule 16 covers a different case — an older write arriving
-after a newer one for the same key, guarded by an ordering stamp — and nothing in `plugins/` names a
-lost update, write skew or an isolation level (searched 2026-11-17). Candidate obligation, without
-mechanism: where a write depends on a value the same callable read, the write is made conditional on
-that value still holding — an atomic update in the store, a version or compare-and-set guard, or a lock
-taken by the read — never read, decided and written back unguarded. Lens 1: a CRUD service with
-concurrent updates to one aggregate has it; a feed poller writing what it finds, an LLM worker storing
-one result per record and a proxy that stores nothing do not, so it is a rule where the service has
-concurrent writers of one record, not a template line. Open: whether it is architecture or the logic
-edge case the catalogue leaves alone; whether rule 16 widens to hold it or it is a rule of its own; and
-that no generated service has shown the defect yet. The same chapter (line 32) also separates retries of
-transient and permanent errors; that half was closed as D216.
 
 121 comes from "How the Claude Code team thinks about verification" (Addy Osmani, claude.dev, 2026-11-16;
 a copy and the comparison with the catalogue are in `.sources/articles/` and

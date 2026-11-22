@@ -309,7 +309,10 @@ of these binds follows the store's properties (`persistence`, *Which rules bind*
    the subject only references is not its own and is seeded directly.
 6. **Where writes for one key can arrive out of order, a test writes the newer record and then the
    older, with stamps that differ, and asserts the newer's values remain** (`persistence` rule 16); a
-   builder that fixes the stamp makes every write equally new and pins nothing.
+   builder that fixes the stamp makes every write equally new and pins nothing. **Where a write is
+   guarded against a concurrent change, a test writes with a version another write has since moved
+   past and asserts the refusal and that the other write's values remain**; an absent record still
+   raises the not-found error.
 7. **Where a write takes a batch, one call crosses a chunk edge and one carries two inputs sharing a
    key.** The first sets the chunk size deliberately small with an uneven last chunk — five rows in
    chunks of two cross two edges and end on a short chunk — and asserts every row landed, since an

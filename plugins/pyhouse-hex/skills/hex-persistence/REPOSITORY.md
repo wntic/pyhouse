@@ -1,7 +1,7 @@
 # hex-persistence — the repository adapter
 
 Topic file of `hex-persistence`. The mechanism-free obligations are rules 1–3 in `SKILL.md`,
-`persistence` rules 1, 4–8 and 18, and `python-settings` for the settings class at the end; what follows
+`persistence` rules 1, 4–8, 16 and 18, and `python-settings` for the settings class at the end; what follows
 is the **SQLAlchemy Core + asyncpg** binding that satisfies them.
 
 ## Pick the constructor style
@@ -218,7 +218,9 @@ form for `Bar` — a second aggregate written in the same transaction, not a sec
    with `on_conflict_do_nothing(index_elements=["id"])` — while every other unique constraint still
    refuses (`at-least-once-delivery` rule 3); a create driven by a request keeps the refusing insert.
 9. `update(entity)` returns `None`. `rowcount == 0` → `NotFoundError`. Use `func.now()` for
-   `updated_at`.
+   `updated_at`. Unless one writer per record is guaranteed, the `where` also matches the version
+   the entity was read with and the `values` set the next, and a row that exists at another version
+   raises the catalogue's conflict class, never `NotFoundError` (`persistence` rule 16).
 10. `delete(id)` returns `None`. `rowcount == 0` → `NotFoundError`. Where another table references this
     one, the FK integrity error on delete → the catalogue's in-use class.
 11. **Reading `rowcount` is type-clean only via a cast.** `execute()` is typed `Result[Any]`, which has no
