@@ -24,7 +24,8 @@ the right layout, small modules, one owner per concern. It serves the data scien
 maintainer alike: someone who can write the code still wants to prompt in two sentences and get the
 structure right. The same skills are the criteria code is reviewed against, by hand;
 `/pyhouse-universal:change-review` reviews each change for what it breaks before it lands, citing a
-skill where a failure breaks an obligation one states (D187). No conformance audit ships (D200).
+skill where a failure breaks an obligation one states (D187), and answering a project's own checks
+from `.claude/review-checks.md` where it keeps them (D214). No conformance audit ships (D200).
 
 Two architecture families exist because two kinds of service exist: hexagonal for a service with
 business rules of its own, flat for workers, ingest, ETL and glue with no rules to protect. The

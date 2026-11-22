@@ -45,7 +45,7 @@ in the named mode.
 
 ## 3. Render
 
-- The find run's `Read:` and `Tests:` lines.
+- The find run's `Read:`, `Tests:` and `Checks:` lines.
 - Every finding, verbatim in the block find mode wrote, `Important` first, then `Nit`.
 - `Pre-existing` findings in their own section after those: they do not hold this change up.
 - Last, the outcome line for the merge commit body:
