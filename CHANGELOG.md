@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.41.0 — 2026-11-23
+
+Plugin versions in this release: `pyhouse-git` 0.13.0 (from 0.12.0); `pyhouse-universal` 0.29.1,
+`pyhouse-hex` 0.16.1, `pyhouse-flat` 0.13.1, `pyhouse-delivery` 0.9.0, `pyhouse-secrets` 0.1.0 and
+`pyhouse` 0.4.0 are unchanged.
+
+### Breaking
+
+- **`/release` no longer waits for you to approve the release note.** Once you confirm the version, it
+  writes the note with `/release-notes`, commits it with the version fields, tags the commit and shows
+  the note in its report. The version is still the one thing it asks about, and it still pushes nothing
+  unless you ask. Until you push, a wrong note can be fixed by amending the release commit and tagging
+  it again. If you want the note read before every release, say so in your repository's own release
+  rules, for example a `## Releasing` section in `CLAUDE.md`. `/release-notes` reads those rules first,
+  and `/release` then shows the note and waits.
+
 ## 0.40.1 — 2026-11-23
 
 Plugin versions in this release: `pyhouse-universal` 0.29.1 (from 0.29.0) and `pyhouse-hex` 0.16.1
