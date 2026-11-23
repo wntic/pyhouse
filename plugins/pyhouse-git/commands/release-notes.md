@@ -1,5 +1,5 @@
 ---
-description: Draft the release note for a release, or for what is not released yet — what changed for the people who use the project, what a break asks of them, what is deprecated — written from the changes themselves, for the person to approve
+description: Draft the release note for a release, or for what is not released yet — what changed for the people who use the project, what a break asks of them, what is deprecated — written from the changes themselves
 argument-hint: "[nothing, a member, or a tag range such as v1.2.0..v1.3.0]"
 ---
 
@@ -9,7 +9,8 @@ this — and never assembled from the commit subjects, which record how the work
 what it changed for anyone using it (`git-commit-message`; for a Python distribution, also
 `python-versioning` rule 15, in the `pyhouse-universal` plugin).
 
-**The note is a draft until the person approves it.** Write it, show it, and change nothing else.
+**Write the note, show it, and change nothing else.** It is committed only by `/release`, with the
+release, or where the person asks for the commit.
 
 ## 1. Read the repository's own rules first
 
@@ -87,9 +88,9 @@ Added, Changed, Deprecated, Removed and Fixed, leaving out any heading with noth
 ## 5. Report
 
 Show the note, the range it covers, and every open question. Leave the file uncommitted. Called by
-`/release`, the approved note is committed with the release, by that command. Otherwise, where the
-person asks for the commit, it is a documentation change of its own, written as `git-commit-message`
-and `git-branching` direct. A copy for the forge's release page is made only when asked.
+`/release`, the note is committed with the release, by that command, without a stop of its own.
+Otherwise, where the person asks for the commit, it is a documentation change of its own, written as
+`git-commit-message` and `git-branching` direct. A copy for the forge's release page is made only when asked.
 
 ## What this does not do
 
