@@ -125,10 +125,12 @@ which is the case the types exist to prevent and cannot always catch.
 
 1. **Where the repository keeps its release notes in a file of its own** — a changelog it writes by
    hand, not a release tool's input and not only the forge's release pages — run `/release-notes` for
-   the version just confirmed, show the draft, and go on only once the person approves it. The approved
-   note goes into the release commit, so the tag carries the note that describes it, and it is read
-   before the tag that cannot be taken back. Where a tool owns the notes, they live only on the forge, or
-   the repository keeps none, this item adds nothing.
+   the version just confirmed and go straight on: the version was the question, and the note is not
+   held for a second one. It goes into the release commit, so the tag carries the note that describes
+   it, and item 5 shows it. Until the push nothing outside this machine has the tag, so a note found
+   wrong is corrected by amending the release commit and creating the tag again. Where the repository's
+   own rules ask for the note to be read before the release, show it and wait. Where a tool owns the
+   notes, they live only on the forge, or the repository keeps none, this item adds nothing.
 2. Edit exactly the version fields the proposal named. Where the ecosystem's lockfile also records the
    project's own version — `package-lock.json`, `Cargo.lock`, `uv.lock` — regenerate it with the
    ecosystem's own lock command, or update that one entry, in the same commit: a lockfile left at the
@@ -151,15 +153,16 @@ git tag -a -F - <tag> <release commit> <<'EOF'
 EOF
 ```
 
-5. Show `git show --stat HEAD` and the tag. **Do not push** unless the person asked for the push in so
-   many words: once the tag leaves this machine it cannot be taken back.
+5. Show `git show --stat HEAD`, the tag, and the note item 1 committed. **Do not push** unless the
+   person asked for the push in so many words: once the tag leaves this machine it cannot be taken
+   back.
 
 ## What this does not do
 
 **Write the release note itself.** A consumer reads one to decide whether to upgrade, and a commit log
 does not answer that question, so a note generated from these subjects is the wrong document with the
 right name. The tag annotation is not a release note; `/release-notes` drafts one from the changes
-themselves, for the person to approve, and step 7 puts the approved draft in the release commit.
+themselves, and step 7 puts it in the release commit.
 
 **Publish.** Building an artifact and uploading it to an index is the repository's pipeline, usually
 run by CI on the pushed tag.

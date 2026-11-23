@@ -4217,3 +4217,19 @@ one team's practice on another setup. Nothing in the catalogue changes.
 **Reverse by:** reopening either item from its text as of the parent of this entry's commit — 87 when
 defects found after a change landed show a pattern no review check catches, 121 when a rewrite through
 `/implement` loses a behaviour its tests did not catch.
+
+### D220 — The release note is committed with the release without a stop for approval
+Taken by the maintainer (2026-11-23), doing backlog item 124. D215 had `/release` step 7 go on only
+once the person approved the note, so that it was read before a tag that cannot be taken back. Across
+about 30 releases of this repository the maintainer never read or changed a note, so the stop cost a
+turn on every release and caught nothing. And the reason does not hold at that point: `/release`
+pushes nothing unasked, so until the push the tag is local and a wrong note is corrected by amending
+the release commit and creating the tag again. Now step 7 runs `/release-notes` for the confirmed
+version and goes straight on, and shows the committed note in its report. The version stays the
+release's one question, and the push stays an explicit request. A repository whose own rules ask for
+the note to be read first keeps the stop: those rules win, as `/release-notes` step 1 already says.
+The open question, keeping the stop by default, was settled the other way: a stop nobody uses costs
+every repository, and the one that wants it says so in its own rules.
+
+**Reverse by:** restoring step 7 items 1 and 5 and "What this does not do" of `/release`, and the
+description, the opening and step 5 of `/release-notes`, as of the parent of this entry's commit.
