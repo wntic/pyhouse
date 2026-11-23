@@ -23,6 +23,21 @@ cannot name the review. Open: which owner, since one is about tests and the othe
 made through a spec; and whether the producer's line was followed — counted on its next fixes of
 defects that reached `main`.
 
+### 124. The release note is written without waiting for the person's approval
+**Proposed.** `/release` step 7 item 1 runs `/release-notes` and goes on only once the person approves
+the draft, and `/release-notes` holds its note a draft until then (D215). The maintainer has cut about
+30 releases here and has never read or changed a release note, so the stop costs a turn on every
+release and catches nothing. The reason D215 gives — the note is read before the tag, which cannot be
+taken back — does not hold where the tag is local: `/release` pushes nothing unasked (step 7 item 5),
+so until the push a note can still be corrected with an amend and a re-tag. Proposal: `/release` writes
+the note, shows it in its report and commits it with the version fields without asking; the one
+question it still asks is the version (step 6), and the push stays an explicit request.
+`/release-notes` run on its own shows the note and leaves the file uncommitted, as now, without
+calling it a draft awaiting approval. Open: whether a repository that wants the stop can keep it
+through a line in its own rules (step 1 of `/release-notes` already reads them), or whether the
+commands drop it for every repository. The `/release-notes` description and `/release`'s "What this
+does not do" both say the note is for the person to approve, and change with it.
+
 ## Agreed
 
 Nothing is agreed and not yet made. Every item has landed or was closed (D130–D178, D191, D192,
