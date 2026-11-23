@@ -25,5 +25,31 @@ defects that reached `main`.
 
 ## Agreed
 
-Nothing is agreed and not yet made. Every item has landed or was closed (D130–D178, D191, D192,
-D195–D198, D201–D210, D212–D214, D216, D217, D219, D220).
+Every earlier item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D210, D212–D214,
+D216, D217, D219, D220).
+
+### 125. The flat family is renamed `layered`
+**Agreed** (maintainer, 2026-11-23). "Flat" names no architecture anywhere outside this catalogue, so a
+reader meeting `flat-*` has nothing to look up, while the style it covers has an established name:
+the layered architecture (Richards, *Software Architecture Patterns* ch. 1 and *Fundamentals of
+Software Architecture* ch. 10), packaged by layer (Brown), with transaction scripts above it (Fowler) —
+the last two already cited in `flat-layered`. It pairs with `hex` as one named style with another, and
+the literature separates the two on the axis this catalogue does: dependencies run down to the data
+access in one and in to the domain in the other. This reverses D1, which kept `flat-*` because no one had
+asked; the maintainer now has.
+
+The change: `pyhouse-flat` becomes `pyhouse-layered`, every `flat-*` skill takes the `layered-*` prefix,
+and `flat-layered` becomes `layered-architecture`, the mirror of `hex-architecture`. "The flat family"
+and "a flat service" become "the layered family" and "a layered service" throughout, including the
+argument `/pyhouse:setup` and `/pyhouse-universal:adopt` take (`hex | layered`), the prefix table in
+`meta-skill-author` and `CONVENTIONS.md`, both indexes and their counts, the top-level `README.md`,
+`CLAUDE.md`, `kickoff.md`, `.claude/commands/commit.md`'s scope vocabulary, `QUESTIONS.md`'s test-service
+table, and `tools/skill_prompts.json` and `tools/measure_skill_loading.py`. `DECISIONS.md` and
+`CHANGELOG.md` are history and keep the old names. Since `hex-architecture` also speaks of layers,
+`architecture-choice` says in one sentence what tells the two apart, so "layered" is not read as "has
+layers".
+
+It is a break: a project that names a `flat-*` skill, or whose `CLAUDE.md` section `adopt` wrote lists
+them, stops resolving them, so every plugin whose files change takes a minor bump below 1.0.0, and the
+release note tells such a project to rerun `/pyhouse:setup` or `/pyhouse-universal:adopt`. It lands
+alone: the marketplace keeps its name and its seven plugins.
