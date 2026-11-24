@@ -4233,3 +4233,27 @@ every repository, and the one that wants it says so in its own rules.
 
 **Reverse by:** restoring step 7 items 1 and 5 and "What this does not do" of `/release`, and the
 description, the opening and step 5 of `/release-notes`, as of the parent of this entry's commit.
+
+### D221 — `pyhouse-secrets` refuses by default
+Taken by the maintainer (2026-11-24), on the log week D208 asked for. From 2026-11-19 to 11-24 the hook
+recorded 63 calls naming a file of secrets in 11 sessions, and would have refused two: a `git grep`
+printing lines of `*.env` files, and a `git worktree remove` of a worktree holding one. Both are what it
+exists to refuse. None of the 61 it allowed read a value. On the same calls the hand-kept hook refused
+47, so 45 of its refusals were false. In use only the read and directory-removal rules fired. Copies,
+overwrites, truncation and loading were judged only on D208's replay of 348 past commands, and a
+longer wait would not have exercised them either.
+
+So the option `mode` now defaults to `enforce`, and `log` is the opt-out for a project that wants to see
+what it would decide first. The hook refuses whenever the option is anything but `log`, unset included,
+so a missing value leaves the guard on rather than off. A value stored when the plugin was enabled is
+kept: an install that took the old default stays at `log` until it is changed in `/plugin`. On the
+maintainer's machine the option is `enforce` and the hand-kept hook is removed from both places it was
+installed, as D208 said it would be on the day the plugin enforces. The `permissions.deny` entries for
+reading dotenv files stay, since D208 did not count them as part of the old hook. The rest of D208
+stands. That includes keeping every decision in `decisions.jsonl` in both modes, which is what this
+entry was decided from.
+
+**Reverse by:** restoring the option's default and order in
+`plugins/pyhouse-secrets/.claude-plugin/plugin.json`, the mode line and the docstring of
+`secret_files.py`, `test_modes` in `tools/test_secret_files_hook.py`, and the `pyhouse-secrets`
+sentences of `README.md` and `CLAUDE.md`, as of the parent of this entry's commit.

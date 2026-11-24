@@ -15,8 +15,8 @@ Refused: reading the content; removing one; `>`, `truncate`, `tee`, `cp`, `mv`, 
 over an existing one; `git clean`, `git worktree remove`, `rm -r`, `find -delete` and `rsync --delete`
 where one would go with it; printing what was loaded (`env`, `printenv`, `echo $VAR`, `set -x`).
 
-The mode is the plugin option `mode` (CLAUDE_PLUGIN_OPTION_MODE): `enforce` refuses; anything else, unset
-included, only records what it would refuse. Every decision about a call that names a file of secrets is
+The mode is the plugin option `mode` (CLAUDE_PLUGIN_OPTION_MODE): `log` only records what it would refuse;
+anything else, unset included, refuses. Every decision about a call that names a file of secrets is
 appended to `$CLAUDE_PLUGIN_DATA/decisions.jsonl`. Standard library only; runs on Python 3.9 and later.
 """
 
@@ -1708,7 +1708,7 @@ def main():
         return 0
     cwd = payload.get("cwd") or os.getcwd()
     rules = decide(tool_name, tool_input, cwd)
-    mode = "enforce" if os.environ.get("CLAUDE_PLUGIN_OPTION_MODE", "").strip().lower() == "enforce" else "log"
+    mode = "log" if os.environ.get("CLAUDE_PLUGIN_OPTION_MODE", "").strip().lower() == "log" else "enforce"
     if rules and mode == "enforce":
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",

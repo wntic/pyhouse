@@ -259,7 +259,7 @@ as an example, and no other skill plugin depends on it.
 or destroying one, and never refuses naming one (D208). Like `pyhouse-git` it stands outside the graph,
 since dotenv files are not Python's: it depends on nothing, and no skill or skill plugin may require
 it, so a rule about secrets that a skill needs is stated in that skill and must read correctly with the
-hook absent. Its first release only logs; the mode is the plugin's own option. `python3` runs it, and
+hook absent. It refuses by default; the plugin's `mode` option set to `log` only records (D221). `python3` runs it, and
 `tools/test_secret_files_hook.py` holds the cases it must allow and refuse — run it after any change to
 the hook.
 
