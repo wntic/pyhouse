@@ -251,7 +251,10 @@ class Fixture(unittest.TestCase):
         self.assertEqual(guard.decide("Write", {"file_path": os.path.join(self.repo, "newdir", D)}, self.repo), [])
 
     def run_hook(self, payload, mode):
-        env = dict(os.environ, CLAUDE_PLUGIN_DATA=os.path.join(self.root, "data"), CLAUDE_PLUGIN_OPTION_MODE=mode)
+        env = dict(os.environ, CLAUDE_PLUGIN_DATA=os.path.join(self.root, "data"))
+        env.pop("CLAUDE_PLUGIN_OPTION_MODE", None)
+        if mode is not None:
+            env["CLAUDE_PLUGIN_OPTION_MODE"] = mode
         done = subprocess.run([sys.executable, HOOK], input=json.dumps(payload), capture_output=True, text=True,
                               env=env)
         return done
@@ -264,9 +267,11 @@ class Fixture(unittest.TestCase):
         self.assertEqual(enforced.returncode, 0)
         decision = json.loads(enforced.stdout)["hookSpecificOutput"]
         self.assertEqual(decision["permissionDecision"], "deny")
+        unset = self.run_hook(payload, None)
+        self.assertEqual(json.loads(unset.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
         with open(os.path.join(self.root, "data", "decisions.jsonl")) as fh:
             entries = [json.loads(line) for line in fh]
-        self.assertEqual([e["mode"] for e in entries], ["log", "enforce"])
+        self.assertEqual([e["mode"] for e in entries], ["log", "enforce", "enforce"])
         self.assertEqual({e["decision"] for e in entries}, {"refuse"})
 
 
