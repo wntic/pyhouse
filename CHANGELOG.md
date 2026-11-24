@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.42.0 — 2026-11-24
+
+Plugin versions in this release: `pyhouse-secrets` 0.2.0 (from 0.1.0); `pyhouse-universal` 0.29.1,
+`pyhouse-hex` 0.16.1, `pyhouse-flat` 0.13.1, `pyhouse-git` 0.13.0, `pyhouse-delivery` 0.9.0 and
+`pyhouse` 0.4.0 are unchanged.
+
+### Breaking
+
+- **`pyhouse-secrets` now refuses by default.** Its `mode` option defaults to `enforce`: reading or
+  destroying a file of secrets is refused instead of only recorded. It also refuses when the option has
+  no value at all, so the guard is never off by accident. The rules for what it allows and refuses have
+  not changed. If Claude Code stored `log` when you enabled 0.1.0, that value is kept and nothing
+  changes until you set the option to `enforce` in `/plugin`. To keep recording only on a new install,
+  set it to `log` there. Either way, every decision about a call that names a file of secrets is still
+  written to `decisions.jsonl` in the plugin's data directory. If you kept your own hook guarding these
+  files while 0.1.0 only recorded, you can remove it once the plugin enforces.
+
 ## 0.41.0 — 2026-11-23
 
 Plugin versions in this release: `pyhouse-git` 0.13.0 (from 0.12.0); `pyhouse-universal` 0.29.1,

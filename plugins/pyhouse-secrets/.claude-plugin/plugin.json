@@ -1,7 +1,7 @@
 {
   "name": "pyhouse-secrets",
   "displayName": "pyhouse — secrets",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A guard that keeps an agent from reading a file of secrets or destroying one, in a repository of any language. A PreToolUse hook on Bash, Read, Grep and Write that reads what a command does to a dotenv-named file rather than whether it names one: a mention, an existence or ignore check, a check that prints no value, appending, editing in place, loading into a process and a copy to a new ignored path of the same kind are allowed; reading the content, removing one, writing over one, and git clean or a worktree removal that would take one with it are refused. Runs while the plugin is enabled, with no setup step. It refuses by default; with its mode option set to log it only records what it would refuse, in the plugin's data directory. Depends on nothing.",
   "author": {
     "name": "Yegor Vorobyev"
