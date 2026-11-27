@@ -23,6 +23,49 @@ cannot name the review. Open: which owner, since one is about tests and the othe
 made through a spec; and whether the producer's line was followed — counted on its next fixes of
 defects that reached `main`.
 
+### 126. The catalogue is split by subject: Python, delivery, and optionally git and releases
+**Proposed** (maintainer, 2026-11-27). Changes are now implemented from specs in projects other than
+Python ones (a frontend has been generated from them too), but what delivers a change ships inside a
+marketplace named and framed for Python, and `pyhouse-delivery` depends on `pyhouse-universal`. So a
+frontend repository that wants the spec and the implementation flow installs eighteen Python skills
+with it. The proposal is two or three parts:
+
+- **Python**: `pyhouse-universal` without what does not depend on the stack, the two families (`hex`,
+  and `flat`, or `layered` after 125), and the `pyhouse` aggregate with `/pyhouse:setup`.
+- **Delivery**: `pyhouse-delivery`, plus `/pyhouse-universal:change-review` and its `change-reviewer`
+  agent, which already work in any project on any stack but ship in `pyhouse-universal`. They are most
+  of what delivery depends on it for. `pyhouse-secrets` probably goes here too: it already depends on
+  nothing and works in any language.
+- **Git and releases** (optional): `pyhouse-git`, which already depends on nothing and no plugin
+  depends on it.
+
+What has to be untangled first:
+- Delivery names `test-principles` (five times in `delivery-spec`, once in `delivery-change-contract`,
+  twice in the implementer). Every rule delivery needs from it is either stated without a language in
+  delivery or named only as an example, in the way `pyhouse-git` names catalogue skills today.
+- The four rules `CLAUDE.md` states in two places (git ↔ `python-versioning` and `/release`) end up in
+  two products.
+- `/pyhouse:setup`'s dependency list, the three `adopt` commands, and `tools/`: the import checker
+  stays with Python, the secrets hook's test goes with the hook, and the skill-loading measurement is
+  undecided.
+- `DECISIONS.md`, `CHANGELOG.md` and tags: each part gets its own version line and tag, since a tag
+  names one released thing (`python-versioning` rule 13).
+- `CLAUDE.md`, `kickoff.md`, `README.md` and the indexes.
+- Names: "pyhouse" names Python, so the parts that are not Python need names of their own.
+
+Open:
+- Separate repositories and marketplaces, or a smaller first step: keep the one marketplace, move the
+  review into delivery or into a plugin of its own, and drop delivery's dependency on
+  `pyhouse-universal`. That alone lets a frontend repository install delivery, git and secrets without
+  any Python. It may be all the need asks for, and the full split can wait until a second language has
+  skills of its own.
+- Whether git stays separate from delivery, or the two become one language-free part.
+- Order: this comes after 125, which lands alone.
+
+Either way it is a break. A plugin that is renamed, moved or loses a dependency changes what an
+installed project resolves, so it takes a minor bump below 1.0.0, and the release note says how to
+reinstall.
+
 ## Agreed
 
 Every earlier item has landed or was closed (D130–D178, D191, D192, D195–D198, D201–D210, D212–D214,
